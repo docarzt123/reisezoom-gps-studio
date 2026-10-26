@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.838] – 2026-10-26
+
+(0.9.837 was a local build only; its changes ship with this version.)
+
+### Added
+- **FAQ with the questions from your emails** (user guide, chapter 10, German/English/Spanish): only photos and no GPX, own video clips in the animation, changing the title, export hanging behind a firewall or VPN, which files can be read, which computers are supported, blurry satellite images, no Google/Apple imagery, getting an accidentally changed keyframe back, changed capture time, duplicates on a NAS, places in Lightroom — short answer first.
+- **Overlays from the command line**: `gpsstudio overlay-export --rzproj PROJECT.rzproj [--out FILE.mov] [--without-track] [--frames 600,1199]` renders the overlays of an exported project as a transparent ProRes 4444 video — same size, frame rate and frame count as the video and the camera export — or single frames as PNG with alpha. `--without-track` leaves out route line and running dot, for 3D tools that draw them themselves.
+- **Sharper aerial imagery**: the „Sharpness“ slider in the aerial look now sharpens the official aerial photos tile by tile before route, arrow and text are drawn — no halos around them. Default 100 % (strength 1.0, also for existing projects), range 0–200 %; Sentinel-2 overview imagery is left as it is. The canvas sharpening stays for the other map styles (map look).
+- Animator, **video clips without a matching place or time** can now be placed freely: instead of „none of the clips fits the tour“ GPS Studio asks and puts them on the route — one clip at the playhead, several spread evenly; then move them in the sign lane like photos without GPS.
+- **Camera export from the command line**: `gpsstudio camera-export --rzproj PROJECT.rzproj [--out FILE] [--preview 960x540]` writes the camera move of an exported project frame by frame as JSON (`rz-kamera/1`), from the installed app — for 3D tools that drive GPS Studio. The project is opened in a temporary folder; your archive stays untouched.
+
 ## [0.9.836] – 2026-10-26
 
 (0.9.835 was a local build only; its changes ship with this version.)

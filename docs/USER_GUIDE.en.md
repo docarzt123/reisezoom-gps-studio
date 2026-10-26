@@ -3712,6 +3712,78 @@ On render errors an error modal opens automatically with an expandable log excer
 
 ## 10 · FAQ
 
+**Frequent questions from your emails (since 26 Oct 2026):** the questions people write to me most often — each with the
+short answer first. The technical questions follow below.
+
+### I have no GPX file, only photos – does it still work?
+Yes, GPS Studio turns photos with a GPS position into a tour, and with that everything else works. GPS Studio is meant for
+a recorded track (from a phone, watch or navigation device); without one, select the photos in the archive under
+**Media** (⌘-click or Ctrl-click) and choose **„🧭 Make a tour from these N photos …“** from the right-click menu. For a
+single day there is **„🧭 Tour from these photos“** in the day header. A small map shows the route first; every travel day
+becomes its own stage. For legs across seas and continents choose **„straight lines“**, for day tours **„along paths“**.
+The tour ends up as a GPX file in the archive. Select several day tours and choose **„View as a trip“** — there you find
+**„Trip video …“**. This way is less tried than the one with a real track; write to me if something goes wrong.
+
+### How do I get my own video clip into the animation?
+As a **clip stop**: the track pauses at that spot, the clip appears large over the map and plays. In the Animator choose
+**„🎞 Add video clips“** under „Add photos“; GPS Studio puts every clip where it was recorded (by GPS, otherwise by
+recording time). If a clip fits the tour neither by place nor by time, the app asks and puts it at the **playhead** — so
+move the playhead to the right spot first; you can move the clip afterwards in the „Signs“ lane. In the sign you set from
+which second it plays, for how long (that is how long the track pauses) and whether the original sound plays along.
+
+### How do I change the title in the video?
+In the Animator under **„Overlays“**: the editor shows the text lines at the top; „Name in the list“ is only the overlay's
+name in the list, not the text in the picture. Quicker: **double-click the title in the preview** — the cursor goes
+straight into its line.
+
+### The video export hangs at „Track is loading“ or says „The map service … is not responding“ – what can I do?
+Usually a firewall, a VPN, a company proxy or a web protection cuts the connection to the map services. Since v0.9.804
+the export starts anyway and tells you when map parts are missing. If it still fails, start the export without the VPN
+or with the web protection briefly off, or choose another map style (e.g. Satellite). More below under the note „The map
+service … is not responding“.
+
+### Which files can I read in?
+Besides GPX also FIT (Garmin, Wahoo, Coros, Suunto), TCX, KML/KMZ, GeoJSON, NMEA, IGC (flight recorders), the subtitle
+files of DJI drones (`.srt`) and GPS files of dashcams (`.dat`, e.g. Vantrue) — the app converts them to GPX when loading
+(table in chapter 2b). Not yet: CSV tracks and GPS that only sits inside the video itself (e.g. Viofo dashcams, Insta360
+or GoPro). Photos with GPS become a tour via „Tour from photos“ (see above).
+
+### Does GPS Studio run on my computer?
+Yes, on every Mac with Apple Silicon (M1 or newer) and on Windows (64-bit). Older Intel Macs are not supported, the app
+does not start there. There is no ready-made download for Linux; the app runs there from the source code (instructions in
+chapter 1).
+
+### Why is the satellite image blurry in some places?
+Because only the free Sentinel-2 satellite image exists there (10 m per pixel, from 2016); really sharp are the official
+aerial photos many countries offer for free (list under „Which official aerial imagery is behind ‚Satellite (free)‘?“). When
+you are in such an area, the app tells you. It gets sharper with the MapTiler satellite (free key, see „Getting a MapTiler
+key“) or with a map style with names and paths.
+
+### Why is there no satellite image from Google or Apple?
+Because Google and Apple only release their satellite images for their own apps and services, not for other programs
+like GPS Studio. GPS Studio only uses sources that explicitly allow use in your videos: official aerial photos,
+Sentinel-2 and MapTiler with your own key.
+
+### I changed a keyframe by accident – how do I get it back?
+With **⌘Z** (Windows: **Ctrl+Z**) — one press brings the keyframe back exactly. While a keyframe is selected it takes
+over every map movement, and at the bottom it says „Keyframe #n takes over the map“. If you only want to look around,
+first click an empty spot of the timeline next to the keyframes.
+
+### Where does a photo end up after I changed its capture time?
+It stays where it is and keeps its name — only the time inside the file changes. Before that GPS Studio backs up the
+originals in the app folder (`_backups_photos`). The app does not sort files into folders by date.
+
+### When clearing duplicate files nothing ends up in the trash – why?
+Because NAS and other network drives usually have no trash; the app then leaves the files where they are and tells you.
+Choose „to folder ‚Duplicates (GPS Studio)‘“ for them — nothing is ever deleted for good.
+
+### Will I see places and descriptions in Lightroom afterwards?
+Yes, GPS Studio writes position and description into the file (EXIF, IPTC, XMP) and for RAW files also into the `.xmp`
+sidecar. If the photos are already in Lightroom, it picks up the change only after **„Metadata → Read Metadata from
+Files“**.
+
+**Technical questions:**
+
 ### Content search (SigLIP 2): what exactly happens?
 
 **New photos first (since v0.9.794):** photos that have just arrived — through the import assistant or when reading in — are captured by the content search before all others. If the long first capture of your whole archive is running, it moves the new ones forward at the next batch; yesterday's photos can be found via “sunset” or “summit cross” after minutes, not hours. At the end, the import assistant tells you whether content search is running or where to switch it on.

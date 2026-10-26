@@ -5170,10 +5170,8 @@
   "animator.timeline.hoehe_tip": "Arrastrar: pistas más altas o más bajas · Doble clic: estándar",
   "signs.add_clips": "🎞 Añadir clips de vídeo",
   "signs.add_clips_tip": "Elige clips de vídeo (MP4, MOV …): van al lugar donde se grabaron (GPS o, si no, hora de grabación) y se reproducen allí como parada.",
-  "signs.clips_passen_nicht": "Ninguno de los clips encaja con la ruta (lugar u hora).",
   "signs.clips_dupes": "Estos clips ya están.",
   "signs.clips_geladen": "%n clips de vídeo añadidos como paradas.",
-  "signs.clips_ohne_stelle": "%n no encajaban con la ruta.",
   "animator.farbraum": "Espacio de color",
   "animator.farbraum.sdr": "SDR (estándar)",
   "animator.farbraum.hlg": "HDR · HLG (recomendado)",
@@ -6959,5 +6957,13 @@
   "animator.timeline.vorschau_flott": "ágil",
   "animator.timeline.vorschau_schnell": "rápida",
   "animator.timeline.vorschau_tip": "Detalle de la vista previa: completa = como el vídeo; ágil = menos teselas, relieve un nivel más grueso; rápida = además media resolución y sin sombras del relieve. El vídeo siempre se renderiza completo.",
-  "animator.timeline.vorschau_neu": "Reconstruyendo la vista previa con el nuevo nivel de detalle …"
+  "animator.timeline.vorschau_neu": "Reconstruyendo la vista previa con el nuevo nivel de detalle …",
+  "cli.schritt_kamera": "Calculando el recorrido de la cámara: {p}",
+  "signs.clips_ohne_ort_titel": "¿Colocar los clips libremente?",
+  "signs.clips_ohne_ort_text": "{n} clips no encajan con la ruta ni por lugar ni por hora de grabación. ¿Los pongo en la ruta? Uno va a la posición del cabezal, varios se reparten de forma uniforme; después puedes mover cada uno en la pista de carteles.",
+  "signs.clips_ohne_ort_ja": "Poner en la ruta",
+  "signs.clips_unlesbar": "No se pudieron leer los clips.",
+  "signs.clips_ohne_ort_ok": "{n} clips puestos en la ruta: muévelos en la pista de carteles.",
+  "animator.field.ortho_sharp_tip": "Enfoca las imágenes aéreas antes de dibujar encima la ruta, la flecha y el texto, que quedan sin halos. 100 % = estándar, 0 = tal como llegan; más enfoque se ve granulado enseguida en imágenes ya nítidas. Igual en la vista previa y en el vídeo.",
+  "cli.schritt_overlay": "Renderizando los rótulos con transparencia: {p}"
 }

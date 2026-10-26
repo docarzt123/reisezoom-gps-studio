@@ -80,7 +80,10 @@
           const src = map.getSource(l.source);
           const alt = src && Array.isArray(src.tiles) ? src.tiles : null;
           if (!alt || !alt.length || !alt.every(u => /\/tile\//.test(u))) continue;   // nur Kacheln der Weiche
-          const neu = alt.map(u => window.rzMitFarbe(u, g));
+          // 26.10.2026 — Nachschärfen nur auf den Landesluftbildern (nicht Sentinel-2: 10 m/px, da würde nur Rauschen lauter)
+          const sch = (l.id !== "rz-raster-sentinel" && typeof window.rzMitSchaerfe === "function" && typeof window.rzOrthoSchaerfe === "function")
+            ? window.rzOrthoSchaerfe(adj) : null;
+          const neu = alt.map(u => { const f = window.rzMitFarbe(u, g); return sch == null ? f : window.rzMitSchaerfe(f, sch); });
           if (neu.join("|") !== alt.join("|") && typeof src.setTiles === "function") src.setTiles(neu);
         } catch (_) {}
       }

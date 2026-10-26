@@ -3773,6 +3773,80 @@ Ante errores de render se abre automáticamente un modal de error con un extract
 
 ## 10 · FAQ
 
+**Preguntas frecuentes de vuestros correos (desde el 26.10.2026):** las preguntas que más me escribís, cada una con la
+respuesta corta primero. Después vienen las preguntas técnicas.
+
+### No tengo archivo GPX, solo fotos: ¿funciona igualmente?
+Sí, GPS Studio convierte las fotos con posición GPS en una ruta, y con ella funciona todo lo demás. GPS Studio está pensado
+para un track grabado (con el móvil, el reloj o el navegador); si no lo tienes, selecciona las fotos en el archivo, en
+**Medios** (⌘-clic o Ctrl-clic), y elige con el botón derecho **„🧭 Crear una ruta con estas N fotos …“**. Para un solo día
+está **„🧭 Ruta con estas fotos“** en la cabecera del día. Un pequeño mapa muestra antes la ruta; cada día de viaje se
+convierte en su propia etapa. Para tramos que cruzan mares y continentes elige **„líneas rectas“**, para las rutas de un
+día **„por caminos“**. La ruta queda como GPX en el archivo. Selecciona varias rutas de un día y elige **„Ver como
+viaje“**: ahí está **„Vídeo del viaje …“**. Este camino está menos probado que el de un track de verdad; escríbeme si algo
+falla.
+
+### ¿Cómo meto un videoclip propio en la animación?
+Como **parada de clip**: el track se detiene en ese punto, el clip aparece grande sobre el mapa y se reproduce. En el
+Animator elige **„🎞 Añadir clips de vídeo“** en „Añadir fotos“; GPS Studio coloca cada clip donde se grabó (por GPS o, si no,
+por la hora de grabación). Si un clip no encaja con la ruta ni por lugar ni por hora, la app pregunta y lo pone en el
+**cabezal** — así que coloca antes el cabezal en el sitio deseado; después puedes mover el clip en la pista de carteles. En
+el cartel ajustas desde qué segundo se reproduce, cuánto dura (lo mismo que se detiene el track) y si suena el audio
+original.
+
+### ¿Cómo cambio el título del vídeo?
+En el Animator, en **„Rótulos“**: el editor muestra arriba las líneas de texto; „Nombre en la lista“ es solo el nombre
+del rótulo en la lista, no el texto de la imagen. Más rápido: **doble clic en el título de la vista previa** y el cursor
+queda directamente en su línea.
+
+### La exportación de vídeo se queda en „Cargando el track“ o dice „El servicio de mapas … no responde“: ¿qué hago?
+Casi siempre un cortafuegos, una VPN, un proxy de empresa o una protección web corta la conexión con los servicios de
+mapas. Desde la v0.9.804 la exportación arranca igualmente y te avisa si faltan partes del mapa. Si aun así falla, inicia
+la exportación sin VPN o con la protección web desactivada un momento, o elige otro estilo de mapa (p. ej. Satélite). Más
+abajo, en el aviso „El servicio de mapas … no responde“.
+
+### ¿Qué archivos puedo importar?
+Además de GPX, también FIT (Garmin, Wahoo, Coros, Suunto), TCX, KML/KMZ, GeoJSON, NMEA, IGC (registradores de vuelo), los
+subtítulos de los drones DJI (`.srt`) y los archivos GPS de las dashcams (`.dat`, p. ej. Vantrue); la app los convierte
+a GPX al cargarlos (tabla en el capítulo 2b). Todavía no: tracks en CSV y el GPS que solo va dentro del propio vídeo (p.
+ej. dashcams Viofo, Insta360 o GoPro). Las fotos con GPS se convierten en ruta con „Ruta con estas fotos“ (ver arriba).
+
+### ¿Funciona GPS Studio en mi ordenador?
+Sí, en cualquier Mac con Apple Silicon (M1 o posterior) y en Windows (64 bits). Los Mac antiguos con Intel no son
+compatibles: la app no arranca. Para Linux no hay descarga lista; allí la app funciona desde el código fuente
+(instrucciones en el capítulo 1).
+
+### ¿Por qué la imagen de satélite se ve borrosa en algunos sitios?
+Porque allí solo existe la imagen de satélite libre Sentinel-2 (10 m por píxel, de 2016); realmente nítidas son las
+ortofotos oficiales que muchos países ofrecen gratis (lista en „¿Qué ortofotos oficiales hay detrás de ‚Satélite (gratis)‘?“).
+Si estás en una zona así, la app te lo dice. Más nitidez con el satélite de MapTiler (clave gratuita, ver „Conseguir una
+clave de MapTiler“) o con un estilo de mapa con nombres y caminos.
+
+### ¿Por qué no hay imagen de satélite de Google o Apple?
+Porque Google y Apple solo permiten sus imágenes de satélite en sus propias apps y servicios, no en programas de terceros
+como GPS Studio. GPS Studio solo usa fuentes que permiten expresamente usarlas en tus vídeos: ortofotos oficiales,
+Sentinel-2 y MapTiler con tu propia clave.
+
+### He cambiado un keyframe sin querer: ¿cómo lo recupero?
+Con **⌘Z** (Windows: **Ctrl+Z**): una pulsación lo devuelve exactamente. Mientras un keyframe está seleccionado, recoge
+cada movimiento del mapa y abajo pone „El keyframe #n toma la vista del mapa“. Si solo quieres mirar, haz clic
+antes en un hueco vacío de la línea de tiempo, junto a los keyframes.
+
+### ¿Dónde acaba una foto después de cambiar su hora de captura?
+Se queda donde está y conserva su nombre: solo cambia la hora dentro del archivo. Antes, GPS Studio guarda una copia de
+los originales en la carpeta de la app (`_backups_photos`). La app no ordena los archivos en carpetas por fecha.
+
+### Al apartar archivos duplicados no acaba nada en la papelera: ¿por qué?
+Porque los NAS y otras unidades de red no suelen tener papelera; la app deja entonces los archivos donde están y te lo
+dice. Elige para ellos „a la carpeta ‚Duplicados (GPS Studio)‘“; nunca se borra nada definitivamente.
+
+### ¿Veré después los lugares y descripciones en Lightroom?
+Sí, GPS Studio escribe la posición y la descripción en el archivo (EXIF, IPTC, XMP) y, en los RAW, también en el archivo
+auxiliar `.xmp`. Si las fotos ya están en Lightroom, este recoge el cambio solo tras **„Metadatos → Leer metadatos de los
+archivos“**.
+
+**Preguntas técnicas:**
+
 ### Búsqueda por contenido (SigLIP 2): ¿qué pasa exactamente?
 
 **Las fotos nuevas primero (desde v0.9.794):** las fotos que acaban de llegar —con el asistente de importación o al leer— las analiza la búsqueda por contenido antes que todas las demás. Si está en marcha el largo primer análisis de todo tu archivo, adelanta las nuevas en el siguiente lote; las fotos de ayer se encuentran con «atardecer» o «cruz de cumbre» en minutos, no en horas. Al final, el asistente de importación indica si la búsqueda por contenido está en marcha o dónde activarla.

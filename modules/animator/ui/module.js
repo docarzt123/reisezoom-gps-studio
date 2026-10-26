@@ -562,9 +562,10 @@ function mountAnimator(body, headerActions, opts) {
             <input type="range" id="anim-obri" min="-100" max="100" step="5" value="0">
             <label class="field-label">${t("animator.field.ortho_hue", "Farbton")} <span class="label-val" id="anim-ohue-v">0°</span></label>
             <input type="range" id="anim-ohue" min="-180" max="180" step="5" value="0">
-            <!-- 07.09.2026 (Marc: „Schärfe muss unter Farbton") — Unschärfemaske, map_sharp (gemeinsam mit anim-msharp) -->
-            <label class="field-label" title="${t("animator.field.sharp_tip", "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.")}">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-osharp-v">0 %</span></label>
-            <input type="range" id="anim-osharp" min="0" max="100" step="5" value="0">
+            <!-- 26.10.2026 (Marc: „default 1 … einen Regler bei der Satellitenkarte, dass man die schärfen kann“) — schärft die
+                 Luftbild-Kacheln der Landesdienste in der Weiche (ortho_schaerfe, 100 % = Stärke 1,0), nicht mehr die Leinwand -->
+            <label class="field-label" title="${t("animator.field.ortho_sharp_tip", "Schärft die Luftbilder, bevor Strecke, Pfeil und Schrift darüber gezeichnet werden — die bleiben ohne Säume. 100 % = Standard, 0 = wie geliefert, mehr wirkt bei sehr scharfen Luftbildern schnell körnig. In Vorschau und Video gleich.")}">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-osharp-v">100 %</span></label>
+            <input type="range" id="anim-osharp" min="0" max="200" step="10" value="100">
             <!-- 17.09.2026 — Relief (Hillshade aus den Geländedaten, ortho_relief) und Dunst (map_haze, gemeinsam mit anim-mhaze) -->
             <label class="field-label" title="${t("animator.field.relief_tip", "Licht und Schatten aus den Geländedaten über den Luftbildern — gibt flachen Satellitenbildern Tiefe. In Vorschau und Video gleich, nicht in der Web-Karte.")}">${t("animator.field.relief_title", "Relief")} <span class="label-val" id="anim-orelief-v">0 %</span></label>
             <input type="range" id="anim-orelief" min="0" max="100" step="5" value="0">
@@ -2421,7 +2422,7 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-ortho-reset")?.addEventListener("click", () => {
     const d = (typeof mapCatalog === "function" && mapCatalog().ortho_adjust_default) || { sat: 25, con: 8, bri: 0, hue: 0 };
     const rd = (typeof mapCatalog === "function" && typeof mapCatalog().ortho_relief_default === "number") ? mapCatalog().ortho_relief_default : 0;
-    _lookSetzen({ sat: d.sat, con: d.con, bri: d.bri, hue: d.hue, sharp: 0, relief: rd, haze: 0 });
+    _lookSetzen({ sat: d.sat, con: d.con, bri: d.bri, hue: d.hue, sharp: 100, relief: rd, haze: 0 });   // 26.10.2026 — Schärfe-Standard 100 %
     for (const [id, w] of [["anim-ograde", "70"], ["anim-oschatten", "55"]]) {
       const el = document.getElementById(id);
       if (el && el.value !== w) { el.value = w; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); }
@@ -2841,13 +2842,17 @@ function mountAnimator(body, headerActions, opts) {
       el.value = "0"; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
     }
   });
-  // 07.09.2026 — Schärfe (map_sharp, Standard 0) → live auf die Karten-Leinwand (rz-mapadjust.js).
-  // Ein Regler je Gruppe (Luftbild-Optik / Karten-Optik), beide auf denselben Wert; es ist immer nur eine Gruppe sichtbar.
-  for (const id of ["anim-osharp", "anim-msharp"]) {
-    bindLabel(id, id + "-v", " %");
-    bindSetting(id, _MODKEY, "map_sharp", { type: "number", onLoad: v => { updateLabel(id + "-v", v, " %"); _applySharpen(); _lookSync(); } });
-    document.getElementById(id)?.addEventListener("input", () => { _sharpSync(id); _applySharpen(); _lookSync(); });
-  }
+  // 07.09.2026 — Schärfe der Karten-Optik (map_sharp, Standard 0) → live auf die Karten-Leinwand (rz-mapadjust.js).
+  // 26.10.2026 — nur noch für Raster-/Vektorkarten; die Luftbilder schärft die Weiche je Kachel (ortho_schaerfe, unten).
+  bindLabel("anim-msharp", "anim-msharp-v", " %");
+  bindSetting("anim-msharp", _MODKEY, "map_sharp", { type: "number", onLoad: v => { updateLabel("anim-msharp-v", v, " %"); _applySharpen(); } });
+  document.getElementById("anim-msharp")?.addEventListener("input", _applySharpen);
+  // 26.10.2026 — Luftbild nachschärfen (ortho_schaerfe 0…200 %, Standard 100) → Kachel-Adressen der Landesdienste (`s=`)
+  bindLabel("anim-osharp", "anim-osharp-v", " %");
+  bindSetting("anim-osharp", _MODKEY, "ortho_schaerfe", { type: "number", onLoad: v => { updateLabel("anim-osharp-v", v, " %"); _applyMapAdjust(); _lookSync(); } });
+  let _schaerfeT = null;
+  document.getElementById("anim-osharp")?.addEventListener("input", () => { _lookSync(); clearTimeout(_schaerfeT); _schaerfeT = setTimeout(_applyMapAdjust, 250); });
+  document.getElementById("anim-osharp")?.addEventListener("change", () => { clearTimeout(_schaerfeT); _applyMapAdjust(); });
   // 17.09.2026 — Dunst (map_haze, Standard 0), Zwillinge wie bei der Schärfe, dieselbe Leinwand-Ebene
   for (const id of ["anim-ohaze", "anim-mhaze"]) {
     bindLabel(id, id + "-v", " %");
@@ -13530,7 +13535,8 @@ function mountAnimator(body, headerActions, opts) {
   function _currentOrtho() {
     const g = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : d; };
     return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0), relief: g("anim-orelief", 0),
-             schatten: g("anim-oschatten", 55), grade: g("anim-ograde", 70) };   // 25.10.2026 — Farbkorrektur je Kachel
+             schatten: g("anim-oschatten", 55), grade: g("anim-ograde", 70),   // 25.10.2026 — Farbkorrektur je Kachel
+             schaerfe: g("anim-osharp", 100) };   // 26.10.2026 — Nachschärfen je Kachel
   }
   /** 17.09.2026 — Dunst (0…100) aus der sichtbaren Optik-Gruppe (Zwillinge wie die Schärfe). */
   function _currentHaze() {
@@ -13542,13 +13548,14 @@ function mountAnimator(body, headerActions, opts) {
   // Als Funktionen (gehoistet): bindSetting ruft _lookSync schon beim Aufbau, vor dieser Zeile.
   function _LOOKS_() {
     return {
-      natuerlich: { sat: 25, con: 8, bri: 0, hue: 0, sharp: 15, relief: 35, haze: 15 },
-      kraeftig:   { sat: 45, con: 20, bri: 0, hue: 0, sharp: 30, relief: 50, haze: 35 },
+      // 26.10.2026 — `sharp` = Nachschärfen der Luftbilder (ortho_schaerfe, 100 % = Stärke 1,0), vorher Leinwand-Schärfe 15/30/20
+      natuerlich: { sat: 25, con: 8, bri: 0, hue: 0, sharp: 100, relief: 35, haze: 15 },
+      kraeftig:   { sat: 45, con: 20, bri: 0, hue: 0, sharp: 120, relief: 50, haze: 35 },
       // 27.09.2026 (Beta-Tester, Windows: „Filmisch springt zurück auf Eigene"): 14/−4/−4 lagen
       // nicht auf dem Raster der Regler (Sättigung, Helligkeit, Farbton in 5er-Schritten) — der
       // Regler rastete auf 15/−5/−5 ein, _lookSync erkannte den Look nicht mehr. Jeder Wert muss
       // auf dem step seines Reglers liegen (Wächter tests/test_look_raster.py).
-      filmisch:   { sat: 15, con: 14, bri: -5, hue: -5, sharp: 20, relief: 60, haze: 25 },
+      filmisch:   { sat: 15, con: 14, bri: -5, hue: -5, sharp: 100, relief: 60, haze: 25 },
     };
   }
   function _LOOK_IDS_() { return { sat: "anim-osat", con: "anim-ocon", bri: "anim-obri", hue: "anim-ohue", sharp: "anim-osharp", relief: "anim-orelief", haze: "anim-ohaze" }; }
@@ -13599,13 +13606,14 @@ function mountAnimator(body, headerActions, opts) {
     };
   }
   function _currentSharpen() {
+    // 26.10.2026 — Leinwand-Schärfe nur noch für Raster-/Vektorkarten; Luftbilder schärft die Weiche (ortho_schaerfe)
     const row = document.getElementById("anim-ortho-row");
-    const id = (row && !row.hidden) ? "anim-osharp" : "anim-msharp";
-    const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : 0;
+    if (row && !row.hidden) return 0;
+    const v = parseFloat(document.getElementById("anim-msharp")?.value); return isFinite(v) ? v : 0;
   }
   /** Den Zwilling in der anderen Gruppe nachziehen (gleicher Wert, gleiches Label). */
   function _sharpSync(fromId) {
-    const to = ({ "anim-osharp": "anim-msharp", "anim-msharp": "anim-osharp", "anim-ohaze": "anim-mhaze", "anim-mhaze": "anim-ohaze" })[fromId];
+    const to = ({ "anim-ohaze": "anim-mhaze", "anim-mhaze": "anim-ohaze" })[fromId];
     const a = document.getElementById(fromId), b = document.getElementById(to);
     if (a && b && b.value !== a.value) { b.value = a.value; updateLabel(to + "-v", parseFloat(a.value) || 0, " %"); }
   }
@@ -13724,11 +13732,23 @@ function mountAnimator(body, headerActions, opts) {
     let st = null;
     try { st = map.getStyle(); } catch (_) { return; }
     const quellen = (st && st.sources) || {};
+    // 26.10.2026 (`gpsstudio overlay-export --without-track`) — auch Spur und Laufpunkt aus: Linie und
+    // Pfeil zeichnet dort das 3D-Programm (mit Verdeckung im Gelände). Pins, Schilder, Einblendungen bleiben.
+    const ohneSpur = !!window.__rzRenderMode.ohneTrack;
+    const istSpur = (id) => (/^preview-/.test(id) && !/^preview-pin-/.test(id)) || /^(anim-dot-|mtour-prev-|swarm-prev-|flug-3d)/.test(id);   // anim-dot-gl = Bodenpunkt, flug-3d* = Linie/Punkt in der Luft
     for (const l of (st && st.layers) || []) {
       let weg = l.type === "background" || l.type === "raster" || l.type === "hillshade" || l.type === "color-relief";
       if (!weg && l.source) { const q = quellen[l.source]; weg = !!q && (q.type === "vector" || q.type === "raster" || q.type === "raster-dem"); }
+      if (!weg && ohneSpur && istSpur(l.id)) weg = true;
       if (!weg) continue;
       try { if (map.getLayoutProperty(l.id, "visibility") !== "none") map.setLayoutProperty(l.id, "visibility", "none"); } catch (_) {}
+    }
+    // eigene WebGL-Ebenen (Laufpunkt anim-dot-gl, Linie/Punkt in der Luft) stehen nicht in getStyle() — über die Reihenfolge
+    if (ohneSpur) {
+      for (const id of ((map.style && Array.isArray(map.style._order)) ? map.style._order : [])) {
+        if (!istSpur(id)) continue;
+        try { if (map.getLayoutProperty(id, "visibility") !== "none") map.setLayoutProperty(id, "visibility", "none"); } catch (_) {}
+      }
     }
     try { if (typeof map.setSky === "function") map.setSky({}); } catch (_) {}
     try { if (typeof map.setFog === "function") map.setFog(null); } catch (_) {}
@@ -17737,7 +17757,11 @@ function mountAnimator(body, headerActions, opts) {
       let res = null;
       try { res = await rzWarten("schnellvideo_clips", () => api().schnellvideo_clips(gpx, 200, pfade, true)); } catch (e) { res = { ok: false, error: String(e) }; }
       const clips = (res && res.ok && Array.isArray(res.clips)) ? res.clips : [];
-      if (!clips.length) { toast(t("signs.clips_passen_nicht", "Keiner der Clips passt zur Tour (Ort oder Aufnahmezeit)."), "warn", 4500); return; }
+      // 26.10.2026 (Marc: „wenn ich einen Videoclip hinzufügen will, kommt die Meldung, dass keiner der Clips zur Tour passt.
+      // Sollte ich den nicht frei platzieren können?“) — wie bei Fotos ohne GPS fragen und auf die Strecke legen
+      const passend = new Set(clips.map(c => c.path));
+      const ohneOrt = pfade.filter(p => !passend.has(p));
+      if (!clips.length) { await _animClipsOhneOrt(ohneOrt); return; }
       const da = new Set(_animSignsList().filter(s => s.clip && s.clip.pfad).map(s => s.clip.pfad));
       const list = _animSignsList().slice();
       let neu = 0;
@@ -17752,14 +17776,59 @@ function mountAnimator(body, headerActions, opts) {
           clip: { pfad: c.path, ab: Math.round(Math.max(0, (lang - dauer) * 0.25) * 10) / 10, dauer, laenge: lang, ton: false, laut: 1 } });
         da.add(c.path); neu++;
       }
-      if (!neu) { toast(t("signs.clips_dupes", "Diese Clips sind schon drin."), "info", 2500); return; }
+      if (!neu && !ohneOrt.length) { toast(t("signs.clips_dupes", "Diese Clips sind schon drin."), "info", 2500); return; }
+      if (neu) {
+        _animSignsSave(list);
+        _animSignsAttachToMap();
+        _animSignsRenderList();
+        toast(t("signs.clips_geladen", "%n Videoclips als Stopps angelegt.").replace("%n", neu), "ok", 4000);
+      }
+      if (ohneOrt.length) await _animClipsOhneOrt(ohneOrt);
+    }
+    /** 26.10.2026 — Clips ohne passenden Ort/Aufnahmezeit: fragen, dann auf die Strecke legen. Einer kommt an den Abspielkopf
+     *  (meist genau die gewünschte Stelle), mehrere gleichmäßig verteilt; jeder lässt sich danach in der Schilder-Spur oder
+     *  mit „↔ Verschieben“ an seinen Platz ziehen. Sonst wie ein passender Clip (Stopp, 4 s, ohne Ton). */
+    async function _animClipsOhneOrt(pfade) {
+      const n = currentCoords ? currentCoords.length : 0;
+      if (n < 2) { toast(t("signs.need_track", "Erst eine GPX-Route laden."), "warn"); return 0; }
+      const da = new Set(_animSignsList().filter(s => s.clip && s.clip.pfad).map(s => s.clip.pfad));
+      const neu = (pfade || []).filter(p => p && !da.has(p));
+      if (!neu.length) { toast(t("signs.clips_dupes", "Diese Clips sind schon drin."), "info", 2500); return 0; }
+      const ja = await window.rzConfirm(t("signs.clips_ohne_ort_titel", "Clips frei platzieren?"),
+        t("signs.clips_ohne_ort_text", "{n} Clips passen weder nach Ort noch nach Aufnahmezeit zur Tour. Soll ich sie auf die Strecke legen? Einer kommt an die Stelle des Abspielkopfs, mehrere gleichmäßig verteilt — danach kannst du jeden in der Schilder-Spur verschieben.")
+          .replace("{n}", neu.length),
+        t("signs.clips_ohne_ort_ja", "Auf die Strecke legen"));
+      if (!ja) return 0;
+      const sortiert = neu.slice().sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+      let kopf = 0.5;
+      try { if (_tlBar && typeof _tlBar.getScrubber === "function") kopf = ankerBegrenzen(_tlBar.getScrubber()); } catch (_) {}
+      kopf = Math.max(0.02, Math.min(0.98, isFinite(kopf) ? kopf : 0.5));
+      const list = _animSignsList().slice();
+      let gelegt = 0;
+      for (let i = 0; i < sortiert.length; i++) {
+        const pfad = sortiert[i];
+        let info = null;
+        try { info = await rzWarten("clip_info", () => api().clip_info(pfad)); } catch (_) {}
+        if (!info || !(+info.dauer > 0)) continue;   // kein lesbares Video
+        const f = sortiert.length === 1 ? kopf : 0.05 + 0.9 * (i + 1) / (sortiert.length + 1);
+        const c = currentCoords[Math.round(f * (n - 1))] || currentCoords[0];
+        const lang = Math.max(0.5, +info.dauer || 4), dauer = Math.round(Math.min(4, lang) * 10) / 10;
+        list.push({ ...(_SIGN_DEFAULTS), text: "", imageSrc: info.standbild || "", thumb: info.thumb || undefined,
+          lat: Number(c[1]), lon: Number(c[0]), anchorMode: "track", visible: true, timeAnchor: f, ohne_gps: true,
+          entry: "pop", before: 0.6, after: 1.5, exit: "pop", exit_s: 0.4,
+          stopp: true, stopp_s: dauer, stopp_anflug_s: 1, stopp_abflug_s: 1, stopp_zoom: 1.5, stopp_schwenk: 1.5, stopp_ken: 0,
+          stopp_ortzeit: true, stopp_exif: false,
+          clip: { pfad, ab: Math.round(Math.max(0, (lang - dauer) * 0.25) * 10) / 10, dauer, laenge: lang, ton: false, laut: 1 } });
+        gelegt++;
+      }
+      if (!gelegt) { toast(t("signs.clips_unlesbar", "Die Clips ließen sich nicht lesen."), "err", 4000); return 0; }
       _animSignsSave(list);
       _animSignsAttachToMap();
       _animSignsRenderList();
-      const weg = pfade.length - clips.length;
-      toast(t("signs.clips_geladen", "%n Videoclips als Stopps angelegt.").replace("%n", neu)
-            + (weg > 0 ? " " + t("signs.clips_ohne_stelle", "%n passten nicht zur Tour.").replace("%n", weg) : ""), "ok", 4000);
+      toast(t("signs.clips_ohne_ort_ok", "{n} Clips auf die Strecke gelegt — in der Schilder-Spur verschiebbar.").replace("{n}", gelegt), "ok", 4500);
+      return gelegt;
     }
+    window.__rzClipsOhneOrt = (pfade) => _animClipsOhneOrt(pfade);   // Prüfstand
     window.__rzClipsImportieren = (pfade) => _animSignsImportClips(pfade);   // Prüfstand: wie der Knopf, ohne Systemdialog
     function _animSignsImportFromGeotagger() {
       if (!window.pywebview?.api?.photos_from_geotagger) return;
@@ -29098,6 +29167,7 @@ function mountAnimator(body, headerActions, opts) {
       map_sharp: _currentSharpen(),
       ortho_relief: _currentOrtho().relief, map_haze: _currentHaze(),   // 17.09.2026 — Relief + Dunst (WYSIWYG)
       ortho_grade: _currentGrade(), ortho_schatten: _currentOrtho().schatten,   // 23.10.2026 — Farbkorrektur + Schatten
+      ortho_schaerfe: _currentOrtho().schaerfe,   // 26.10.2026 — Nachschärfen je Kachel (wirkt über die Kachel-Adressen der Seite)
       ferne_dunst: parseFloat(document.getElementById("anim-ferne")?.value) || 0,
       attrib_mode: document.getElementById("anim-ov-attrib-mode")?.value || "voll",
       attrib_link: (document.getElementById("anim-ov-attrib-link")?.value || "").trim(),

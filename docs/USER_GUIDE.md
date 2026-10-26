@@ -2618,7 +2618,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   - **📸 Pause ohne Heranfahren (neu nach v0.9.784):** Im Fotostopp schaltet der Haken **„Kamera fährt heran“** das Heranfahren ab: Der Track hält an und das Foto erscheint, aber die Kamera bleibt, wo sie ist — kein Zoom, kein Schwenk. Gut, wenn die Übersicht stehen bleiben soll.
   - **📸 Wie das Bild beim Halt aussieht (seit v0.9.789):** Unter **„Beim Anhalten zeigen“** wählst du: **Foto groß** (wie oben beschrieben: Pin, großes Foto mit Rahmen, Ort und Uhrzeit), **Schild wie unterwegs** (dein Schild bleibt genau so stehen, wie du es gestaltet hast — Sprechblase, Farbe, Ecken —, der Track hält an und die Kamera fährt heran; kein Pin, kein großes Foto) oder **Eigene Gestaltung**: Dann erscheinen oben im Editor die Reiter **„Unterwegs | Beim Halt“**. Unter „Beim Halt“ gestaltest du einen zweiten Look (z. B. dieselbe Sprechblase größer oder in einer anderen Farbe); er startet als Kopie des Unterwegs-Looks. Beim Anhalten blendet das Schild weich vom einen zum anderen Look über und danach zurück. Gestaltest du ein Schild selbst (eigene Farbe, Ecken, Rahmen, Schatten oder eine andere Form als die Sprechblase), steht die Wahl von selbst auf „Schild wie unterwegs“; Sofortbild und schlichtes Foto-Schild bleiben bei „Foto groß“.
   - **📍 Fotos ohne Ort (neu nach v0.9.784):** Fotos ohne GPS-Position werden bei **„📷 Fotos hinzufügen“** nicht mehr still übersprungen. Die App fragt **„Fotos ohne Ort platzieren?“** und legt sie als Sofortbild auf die Strecke: Fotos mit einer Aufnahmezeit innerhalb der Tour an die passende Stelle, die übrigen gleichmäßig verteilt (in der Reihenfolge der Dateinamen). Danach ziehst du jedes Foto in der Schilder-Spur oder mit **„↔ Verschieben“** an seinen Platz.
-  - **🎞 Videoclip (seit v0.9.778):** Ein Clip ist ein Fotostopp mit Bewegtbild — über **„🎞 Videoclips hinzufügen“** (unter „Fotos hinzufügen“: Clips wählen, die App setzt sie an die Stelle, an der sie aufgenommen wurden — GPS, sonst Aufnahmezeit) oder aus dem Schnell-Video (Zutat „Videoclips“) und erscheint wie ein Foto: Pin mit ▶, Heranfahren, groß über der Karte; im Halt läuft der Clip. Im Schild stellst du ein: **Ab Sekunde** (Startpunkt im Clip), **Länge** (= so lange hält der Track), **Originalton** und **Lautstärke** (bis 150 %). Die Musik wird leiser, solange der Clip Ton hat. Vorschau und Video zeigen Bild für Bild dasselbe.
+  - **🎞 Videoclip (seit v0.9.778):** Ein Clip ist ein Fotostopp mit Bewegtbild — über **„🎞 Videoclips hinzufügen“** (unter „Fotos hinzufügen“: Clips wählen, die App setzt sie an die Stelle, an der sie aufgenommen wurden — GPS, sonst Aufnahmezeit; passt ein Clip weder nach Ort noch nach Zeit, fragt die App und legt ihn **an den Abspielkopf** — mehrere gleichmäßig verteilt —, danach verschiebst du ihn in der Schilder-Spur) oder aus dem Schnell-Video (Zutat „Videoclips“) und erscheint wie ein Foto: Pin mit ▶, Heranfahren, groß über der Karte; im Halt läuft der Clip. Im Schild stellst du ein: **Ab Sekunde** (Startpunkt im Clip), **Länge** (= so lange hält der Track), **Originalton** und **Lautstärke** (bis 150 %). Die Musik wird leiser, solange der Clip Ton hat. Vorschau und Video zeigen Bild für Bild dasselbe.
     - **Sprechblasen-Pfeilrichtung (seit v0.9.408):** Beim Stil **Sprechblase** wählst du im Editor unter **„Pfeilrichtung"**, wohin die Spitze zeigt — **unten, oben, links oder rechts**. Die Blase rückt automatisch auf die Gegenseite, damit die Spitze immer auf den Ort deutet. (Analog zur Richtungswahl beim Wegweiser; gilt für Animator und Tour-Map.)
     - **Zeiger-Farbe + Zeiger-Position (seit v0.9.481):** Bei **Sprechblase** und **Stecknadel** stellst du im Editor unter **„Zeiger-Farbe"** ein, welche Farbe die Spitze bzw. die Nadel hat — unabhängig von der Schildfarbe (früher „Hintergrund. Der Knopf **„Auto"** bedeutet „wie bisher": der Zeiger folgt dem Hintergrund. Damit geht auch **Hintergrund „Keine" (transparent) + farbige Stecknadel**; vorher verschwand mit dem Hintergrund auch der Zeiger. Darunter wählst du unter **„Zeiger-Position"** zwischen **Links · Mitte · Rechts** — praktisch, wenn die Spitze sonst genau auf der Spur liegt und den Track verdeckt: Schild bleibt stehen, der Zeiger rutscht zur Seite. Steht der Hintergrund auf **„Keine“** und die Zeiger-Farbe auf **„Auto“**, bleibt der Zeiger unsichtbar (es gibt ja keine Hintergrundfarbe, der er folgen könnte) — dann einfach eine eigene Farbe wählen.
     - **Eine Farbe statt zwei (seit v0.9.271):** Früher gab es „Akzentfarbe" **und** „Hintergrund" — beide füllten dieselbe Fläche, das war verwirrend. Jetzt gibt es nur noch den **„Schildfarbe"-Picker** = die Farbe des Schilds (bei der Stecknadel auch des Tropfens). Den **Rahmen** stellst du separat unter „Rahmen" ein.
@@ -2687,7 +2687,8 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   **Gleichmäßiger Takt (seit 25.10.2026, automatisch):** Schafft der Rechner beim Abspielen nicht jedes Bild des Bildschirms, wechselten sich bisher schnelle und verspätete Bilder ab — das sah nach Ruckeln aus, und die Linie kam hinter dem Laufpunkt nicht mit. Jetzt merkt die Vorschau das nach gut einer Sekunde und zeichnet in festem Abstand, z. B. ruhige 30 Bilder je Sekunde statt holpriger 35–45. Nichts läuft langsamer; das Video ist davon nicht betroffen. Auf schnellen Rechnern bleibt es bei jedem Bild. Im Protokoll steht dann „[takt] Vorschau zeichnet ab jetzt gleichmäßig …“.
 - **Quellenzeile: voll oder kurz** (seit 07.09.2026) — in der Overlay-Gruppe „Quellenzeile" neben Ecke und Breite: „voll" zeigt jede Quelle mit Lizenz im Bild (wie bisher). „kurz (Namen + Link)" zeigt die Kurznamen der Quellen im Bild, „bearbeitet" und dahinter „Quellen: <dein Link>" — der Link muss direkt zu den vollständigen Angaben dieses Videos führen (deine Seite, die Videobeschreibung). Die Namen bleiben im Bild, weil viele Lizenzen die sichtbare Nennung verlangen; die Links zu Lizenz und Datensatz stehen hinter dem Link. Ohne Link erscheinen nur Namen und „bearbeitet". Gilt in Vorschau und Video gleich, nicht in der Web-Karte. Nach jedem Render gibt es den Knopf **„Quellentext kopieren"**: der vollständige Text für die Videobeschreibung oder den Abspann (Anbieter, Datensatz, Lizenz mit Links, „Daten bearbeitet", dein Link).
 - **Quellen-Register** (seit 07.09.2026) — in den Einstellungen unter **Karten** in der Rechte-Tabelle aufklappbar: je Kartendienst die Datenlizenz mit Link, ob kommerzielle Videos freigegeben sind (✅ geprüft und erlaubt · 💰 Rechte kaufen · ⚠️ nicht verifiziert oder Server-Regeln · ❌ nicht erlaubt), die vorgeschriebene Nennung im Bild und das Prüfdatum. Alle Dienste wurden am 07.09.2026 einzeln nachgelesen; die Nennung im Bild kommt seither aus diesem Register, mit Änderungshinweis, wo die Lizenz ihn verlangt. Mindestens halbjährlich wird neu geprüft; ist ein Eintrag überfällig, steht dort ein Hinweis. Die Karten-Abzeichen im Stil-Wähler folgen dem Register: CyclOSM und Humanitarian sind für Videos nicht freigegeben (der Server von OpenStreetMap France bedient nur nichtkommerzielle Seiten), OpenStreetMap und OpenTopoMap tragen den Hinweis „Server-Regeln beachten" (Bild-für-Bild-Rendern nur nach Absprache oder mit eigenem Kachelserver). Das ist unsere Lesart, keine Rechtsberatung — die Links stehen daneben.
-- **Schärfe** (seit 07.09.2026) — der letzte Regler der „Luftbild-Optik" bzw. „Karten-Optik" (unter „Farbton"), 0–100 % (Standard 0): eine Unschärfemaske auf dem Kartenbild, in Vorschau und Video gleich (nicht in den Web-Karten-Exporten). Wirkt nur auf das Kartenbild, nicht auf Strecke, Schilder, Beschriftung, Zahlen, Höhenprofil und Quellenzeile. Hintergrund: Die freie Sentinel-2-Ebene (10 m, Stand 2016) ist über Inseln und Küsten ohne amtliches Luftbild weich — das ist das Datenmaterial, nicht die App. 40–60 % machen sie lesbar; darüber wird es körnig. Seit demselben Tag holen alle Rasterkarten auf Retina-Bildschirmen und im Video ein bis zwei Kachelstufen tiefer, damit ein Kachelpixel etwa auf ein Bildpixel fällt (vorher 2- bis 5-fach vergrößert).
+- **Schärfe in der Luftbild-Optik** (seit 26.10.2026) — schärft die **amtlichen Luftbilder**, bevor Strecke, Pfeil und Schrift darübergezeichnet werden; die bleiben also ohne helle Säume. 0–200 %, **Standard 100 %**, auch für ältere Projekte. 0 = Luftbild wie geliefert. Bei sehr scharfen Luftbildern (z. B. Berlin) wirken mehr als 100 % schnell körnig. Das grobe Sentinel-2-Bild in der Übersicht wird nicht geschärft (da würde nur das Rauschen lauter). Die fertigen Looks stellen 100 % (Kräftig 120 %). Vorschau und Video gleich.
+- **Schärfe in der Karten-Optik** (seit 07.09.2026) — der letzte Regler der „Karten-Optik" (unter „Farbton", für Raster- und Vektorkarten), 0–100 % (Standard 0): eine Unschärfemaske auf dem Kartenbild, in Vorschau und Video gleich (nicht in den Web-Karten-Exporten). Wirkt nur auf das Kartenbild, nicht auf Strecke, Schilder, Beschriftung, Zahlen, Höhenprofil und Quellenzeile. Hintergrund: Die freie Sentinel-2-Ebene (10 m, Stand 2016) ist über Inseln und Küsten ohne amtliches Luftbild weich — das ist das Datenmaterial, nicht die App. 40–60 % machen sie lesbar; darüber wird es körnig. Seit demselben Tag holen alle Rasterkarten auf Retina-Bildschirmen und im Video ein bis zwei Kachelstufen tiefer, damit ein Kachelpixel etwa auf ein Bildpixel fällt (vorher 2- bis 5-fach vergrößert).
 - **Relief, Dunst und Looks** (seit 17.09.2026) — in der „Luftbild-Optik": **Relief** legt Licht und Schatten aus den Geländedaten über die Luftbilder (Standard 0 = aus; die Looks stellen 35–60 %), damit die flache Sentinel-2-Ebene Tiefe bekommt. **Dunst entfernen** (0–100 %, Standard 0) zieht den blauen Schleier aus Satellitenbildern heraus — technisch ein Schwarzpunkt je Farbkanal auf dem Kartenbild, in derselben Ebene wie die Schärfe; 15–35 % sind der Sweet Spot, mehr wirkt hart. In der „Karten-Optik" (OSM, OpenTopoMap …) gibt es „Dunst entfernen" ebenfalls. Die Auswahl **Look** (Natürlich / Kräftig / Filmisch) stellt alle sieben Regler auf einmal; „Eigene Einstellung" heißt: mindestens ein Regler weicht ab. Alles in Vorschau und Video gleich, rückgängig mit ⌘Z, nicht in den Web-Karten-Exporten.
 - **Farbkorrektur, Schatten, Dunst in der Ferne** (seit 23.10.2026) — drei neue Regler, standardmäßig an. **Farbkorrektur** (Luftbild-Optik, Standard 70 %) ist eine abgestimmte Bildbearbeitung für Luftbilder: Dunst raus, Tiefen etwas heller, Grün lebendiger, Lichter weich — sie wirkt nur aufs Luftbild, nicht auf Strecke, Schrift und Schilder. **Schatten** (Luftbild-Optik, Standard 55 %) lässt Berge und Grate aus dem Geländemodell Schatten werfen, wie in Mittags-Luftbildern (Sonne aus Süd-Südost); Täler bekommen Tiefe. **Dunst in der Ferne** (unter der Gelände-Überhöhung, Standard 35 %) legt zum Horizont hin Luftperspektive über das Gelände, der Vordergrund bleibt klar — wirkt bei geneigter Kamera, für alle Kartenstile. Wer den alten Look will, stellt die drei auf 0 %. Im Export gibt es außerdem **„Höchste Qualität (langsamer)“**: intern doppelte Auflösung, kein Flimmern feiner Details, etwa doppelte Exportzeit. Beim **Schnell-Video** zeigt das Schlussbild die Strecke jetzt wie eine Kulisse: etwas flacher und aus der Richtung, aus der am meisten von der Strecke zu sehen ist (statt immer nach Norden).
 - **Karten-Optik** (seit 05.09.2026) — wie Luftbild-Optik und Sternenhimmel rechts im **Karten-Editor** (Knopf **„Karten-Optik und Sterne …“**, seit 08.10.2026), für alle Karten außer den amtlichen Luftbildern (die haben ihre eigene „Luftbild-Optik"). Rasterkarten wie OpenStreetMap oder OpenTopoMap: Sättigung, Kontrast, Helligkeit, Farbton. Vektorkarten wie OpenFreeMap oder MapTiler: nur Helligkeit, technisch eine Abdunkel-Ebene unter der Strecke, damit die Strecke hell bleibt und die Karte zurücktritt. Standard 0 = Karte wie geliefert, „↺ Standard" setzt zurück. In der **Web-Karte** (Leaflet) gibt es dieselben zwei Schalter; dort ist Norden immer oben, der Maßstab kommt von Leaflet.
@@ -3852,6 +3853,8 @@ gpsstudio templates                                # Vorlagen: landscape, memory
 gpsstudio render "Gantrisch" --template landscape --out video.mp4
 gpsstudio render tour.gpx --template "Mein Wanderlook" --format 9:16 --length 40 --out ~/Videos/
 gpsstudio map-image 11660e04ed1c9695 --out karte.png
+gpsstudio camera-export --rzproj tour.rzproj --out tour.kamera.json
+gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay.mov
 ```
 
 - **Tour:** eine GPX-/FIT-/…-Datei (irgendwo, muss nicht im Archiv liegen), die **id** aus `gpsstudio tours` oder ein
@@ -3861,6 +3864,13 @@ gpsstudio map-image 11660e04ed1c9695 --out karte.png
 - **Schalter:** `--format 16:9|9:16|1:1`, `--length` (Sekunden, 15–600), `--no-photos`, `--out` (Datei oder Ordner;
   ohne: der Render-Ordner der App), `--overwrite`, `--library <Ordner>` (eine andere Bibliothek).
 - **Nie überschreiben:** Gibt es die Zieldatei schon, kommt ein Zeitstempel vor den Namen — außer mit `--overwrite`.
+- **Kamerafahrt als Datei:** `camera-export` nimmt ein exportiertes Projekt (*Projekt → Projekt exportieren (.rzproj)*) und
+  schreibt die Kamerafahrt Bild für Bild als JSON — für 3D-Programme wie Blender. Ein Video entsteht dabei nicht; das
+  Projekt wird nur in einem Temp-Ordner geöffnet, dein Archiv bleibt unberührt. `--preview 960x540` = Größe der Vorschau,
+  auf die sich der Zoom bezieht.
+- **Einblendungen transparent:** `overlay-export` rendert alles außer der Karte (Titel, Höhenprofil, Werte, Schilder,
+  Fotos …) als ProRes 4444 mit Durchsicht — Bild für Bild deckungsgleich mit `camera-export`. `--without-track` lässt
+  Strecke und Laufpunkt weg, `--frames 600,1199` schreibt nur diese Bilder als PNG (zum Testen).
 
 **Was ein Skript zurückbekommt:** Der Fortschritt steht zeilenweise auf stderr (in der Sprache der App), am Ende steht
 genau **eine JSON-Zeile** auf stdout, z. B. `{"ok": true, "file": "/…/video.mp4", "duration_s": 84}` oder
@@ -3929,6 +3939,79 @@ Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem L
 ---
 
 ## 10 · FAQ
+
+**Häufige Fragen aus euren Mails (seit 26.10.2026):** die Fragen, die mir am häufigsten geschrieben werden — jeweils mit
+der kurzen Antwort zuerst. Danach folgen die technischen Fragen.
+
+### Ich habe keine GPX-Datei, nur Fotos – geht das trotzdem?
+Ja, aus Fotos mit GPS-Position macht GPS Studio eine Tour, und mit der geht dann alles andere. Gedacht ist GPS Studio für
+einen aufgezeichneten Track (vom Handy, der Uhr oder dem Navi); fehlt der, markierst du im Archiv unter **Medien** die
+Fotos (⌘-Klick bzw. Strg-Klick) und wählst per Rechtsklick **„🧭 Tour aus diesen N Fotos machen …“**. Für einen einzelnen
+Tag gibt es im Tageskopf **„🧭 Tour aus diesen Fotos“**. Eine kleine Karte zeigt vorher die Route, jeder Reisetag wird
+eine eigene Etappe. Für Strecken über Meere und Kontinente nimm **„gerade Linien“**, für Tagestouren **„entlang von
+Wegen“**. Die Tour landet als GPX im Archiv. Mehrere Tagestouren markierst du und wählst **„Als Reise ansehen“** — dort
+gibt es **„Reise-Video …“**. Dieser Weg ist weniger erprobt als der mit einem echten Track; schreib mir, wenn etwas hakt.
+
+### Wie bekomme ich einen eigenen Videoclip in die Animation?
+Als **Clip-Stopp**: Der Track hält an dieser Stelle an, der Clip erscheint groß über der Karte und läuft ab. Im Animator
+wählst du unter „Fotos hinzufügen“ **„🎞 Videoclips hinzufügen“**; GPS Studio setzt jeden Clip an die Stelle, an der er
+aufgenommen wurde (nach GPS, sonst nach Aufnahmezeit). Passt ein Clip weder nach Ort noch nach Zeit, fragt die App und
+legt ihn an den **Abspielkopf** — stell ihn also vorher an die gewünschte Stelle; verschieben kannst du den Clip danach in
+der Schilder-Spur. Im Schild stellst du ein, ab welcher Sekunde er läuft, wie lange (so lange hält der Track) und ob der
+Originalton mitläuft.
+
+### Wie ändere ich den Titel im Video?
+Im Animator unter **„Einblendungen“**: Im Editor stehen die Textzeilen ganz oben, „Name in der Liste“ ist nur der Name
+der Einblendung in der Liste und nicht der Text im Bild. Schneller geht es mit einem **Doppelklick auf den Titel in der
+Vorschau** — dann steht der Cursor direkt in seiner Zeile.
+
+### Der Video-Export hängt bei „Track lädt“ oder meldet „Der Kartendienst … antwortet nicht“ – was tun?
+Meist unterbricht eine Firewall, ein VPN, ein Firmen-Proxy oder ein Web-Schutz die Verbindung zu den Kartendiensten.
+Seit v0.9.804 läuft der Export trotzdem los und sagt dir, wenn Kartenteile fehlen. Klappt es dann noch nicht, starte den
+Export ohne VPN bzw. mit kurz abgeschaltetem Web-Schutz, oder wähle einen anderen Kartenstil (z. B. Satellit). Mehr dazu
+weiter unten bei „Hinweis ‚Der Kartendienst … antwortet nicht‘“.
+
+### Welche Dateien kann ich einlesen?
+Neben GPX auch FIT (Garmin, Wahoo, Coros, Suunto), TCX, KML/KMZ, GeoJSON, NMEA, IGC (Flugschreiber), die Untertitel-Dateien
+von DJI-Drohnen (`.srt`) und GPS-Dateien von Dashcams (`.dat`, z. B. Vantrue) — die App wandelt sie beim Laden in GPX um
+(Tabelle in Kapitel 2b). Noch nicht: CSV-Tracks und GPS, das nur im Video selbst steckt (z. B. bei Viofo-Dashcams,
+Insta360 oder GoPro). Fotos mit GPS werden über „Tour aus Fotos“ zur Tour (siehe oben).
+
+### Läuft GPS Studio auf meinem Rechner?
+Ja, auf jedem Mac mit Apple Silicon (M1 oder neuer) und auf Windows (64 Bit). Ältere Intel-Macs werden nicht unterstützt,
+dort startet die App nicht. Für Linux gibt es keinen fertigen Download; die App läuft dort aus dem Quellcode (Anleitung in
+Kapitel 1).
+
+### Warum ist das Satellitenbild an manchen Orten unscharf?
+Weil es dort nur das freie Satellitenbild Sentinel-2 gibt (10 m pro Pixel, Stand 2016); richtig scharf sind die amtlichen
+Luftbilder, die viele Länder frei anbieten (Liste bei „Welche amtlichen Luftbilder stecken in ‚Satellit (kostenlos)‘?“).
+Bist du in so einem Gebiet, sagt die App es dir. Schärfer wird es mit dem MapTiler-Satelliten (kostenloser Schlüssel, siehe
+„MapTiler-Schlüssel besorgen“) oder mit einem Kartenstil mit Namen und Wegen.
+
+### Warum gibt es kein Satellitenbild von Google oder Apple?
+Weil Google und Apple ihre Satellitenbilder nur in den eigenen Apps und Diensten freigeben, nicht für fremde Programme
+wie GPS Studio. GPS Studio nimmt nur Quellen, die die Nutzung in deinen Videos ausdrücklich erlauben: amtliche
+Luftbilder, Sentinel-2 und MapTiler mit eigenem Schlüssel.
+
+### Ich habe aus Versehen einen Keyframe verstellt – wie hole ich ihn zurück?
+Mit **⌘Z** (Windows: **Strg+Z**) — ein Druck holt den Keyframe genau zurück. Ist ein Keyframe ausgewählt, übernimmt er
+jede Kartenbewegung, und unten steht „Keyframe #n übernimmt die Karte“. Wer nur schauen will, klickt vorher auf eine
+leere Stelle der Zeitleiste neben den Keyframes.
+
+### Wo landet ein Foto, nachdem ich die Aufnahmezeit geändert habe?
+Es bleibt, wo es ist, und behält seinen Namen — nur die Zeit in der Datei ändert sich. Vorher sichert GPS Studio die
+Originale im App-Ordner (`_backups_photos`). In Ordner nach Datum einsortieren tut die App nicht.
+
+### Beim Wegräumen doppelter Dateien landet nichts im Papierkorb – warum?
+Weil NAS und andere Netzlaufwerke meist keinen Papierkorb haben; die App lässt die Dateien dann liegen und sagt es dir.
+Wähle für sie „in Ordner ‚Doppelte (GPS Studio)‘“ — endgültig gelöscht wird nie etwas.
+
+### Sehe ich Orte und Beschreibungen danach auch in Lightroom?
+Ja, GPS Studio schreibt Position und Beschreibung in die Datei (EXIF, IPTC, XMP) und bei RAW-Dateien zusätzlich in die
+`.xmp`-Begleitdatei. Sind die Fotos schon in Lightroom, übernimmt Lightroom die Änderung erst nach **„Metadaten →
+Metadaten aus Datei lesen“**.
+
+**Technische Fragen:**
 
 ### Inhaltssuche (SigLIP 2): Was passiert da genau?
 

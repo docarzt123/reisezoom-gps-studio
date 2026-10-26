@@ -562,7 +562,9 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
             # Abschnitten ungezeichnet (WYS mean_diff 22/17 statt 3/5; 60 ms genauso); 300 ms = MapLibre-
             # Standard ist korrekt. Ursache offen, RZ_TRANS_MS zum Messen.
             "transMs": int(os.environ.get("RZ_TRANS_MS", "300") or 0),
-            "transparent": bool(getattr(cfg, "transparent_background", False))}
+            "transparent": bool(getattr(cfg, "transparent_background", False)),
+            # 26.10.2026 (für 3D-Werkzeuge) — transparenter Export ohne Spur und Laufpunkt: die zeichnet das 3D-Programm
+            "ohneTrack": bool((params or {}).get("overlay_ohne_track"))}
     _keep = {k: True for k in (os.environ.get("RZ_KEEP") or "").split(",") if k}
     await page.add_init_script(_BRIDGE_JS.replace("__RZ_MODE__", json.dumps(mode)).replace("__RZ_KEEP__", json.dumps(_keep)))
     emit(0.02, _i18n.t_aktiv("szene.app_laden", "Szene: App laden …"))
@@ -850,6 +852,22 @@ async def kamera_export(cfg, *, api, projekt_id: str, ziel: str, params: Optiona
     return ziel
 
 
+#: 26.10.2026 — Pfade der zuletzt mit `params.nur_bilder` geschriebenen PNG (für die Kommandozeile)
+NUR_PNG: list = []
+
+
+def _png_schreiben(shot: bytes, ziel: str, w: int, h: int) -> str:
+    """Aufnahme (Gerätepixel, ggf. mit Supersampling) als PNG in Videogröße, Alpha bleibt."""
+    from io import BytesIO
+    from PIL import Image
+    im = Image.open(BytesIO(shot))
+    im.load()
+    if im.size != (int(w), int(h)):
+        im = im.resize((int(w), int(h)), Image.LANCZOS)
+    im.save(ziel, "PNG")
+    return ziel
+
+
 async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = None,
                        on_progress: Optional[Callable[[float, str], None]] = None,
                        on_preview: Optional[Callable[[str], None]] = None,
@@ -989,7 +1007,13 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                       _halte, _vorwaermen, time.time() - _t_vw, _mitte)
         # 08.09.2026 - Verkleinern uebernimmt ffmpeg (siehe _vf_args/_grab_frame).
         cfg.skalieren_in_ffmpeg = True
-        mux = FrameMuxer(_ffmpeg_cmd(cfg), cfg.output_path, total_frames, log=_log, cancelled_cls=A.RenderCancelled)
+        # 26.10.2026 (`gpsstudio overlay-export --frames`) — nur diese Bilder (0-basiert wie `i` im
+        # Kamera-Export) als PNG `<Ziel ohne Endung>_<nr>.png`, kein Video. Gesprungen wird trotzdem jedes Bild (Trägheit,
+        # Schweif entstehen wie im Film), gewartet und aufgenommen nur bei den gewünschten.
+        _nur = {int(x) for x in ((params or {}).get("nur_bilder") or []) if 0 <= int(x) < total_frames}
+        _nur_basis = str(Path(cfg.output_path).with_suffix(""))
+        NUR_PNG.clear()
+        mux = None if _nur else FrameMuxer(_ffmpeg_cmd(cfg), cfg.output_path, total_frames, log=_log, cancelled_cls=A.RenderCancelled)
         preview_every = max(1, cfg.fps // 10)
         # 30.09.2026 (Marc: „das Komoot-Video rendert so schnell, bei uns dauert es ewig") — wohin geht die
         # Zeit je Bild? Summen je Schritt, am Ende eine Logzeile „Szene: Zeit je Bild …".
@@ -1021,6 +1045,9 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     await _mit_meldung(page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})"),
                                        _meldung("szene.m_springt", "Karte springt zur Stelle … {s} s"), is_cancelled)
                     _z["seek"] += time.perf_counter() - _t; _t = time.perf_counter()
+                    if _nur and frame not in _nur:
+                        frame += 1
+                        continue
                     await _mit_meldung(page.evaluate(_WARTE_BILD_JS),
                                        _meldung("szene.m_karte", "wartet auf die Karte (Kacheln, Gelände) … {s} s"), is_cancelled)
                     _w = time.perf_counter() - _t
@@ -1058,7 +1085,10 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                             await page.evaluate(_WARTE_BILD_JS)
                             shot = await A._grab_frame(page, cfg)
                     _t = time.perf_counter()
-                    mux.schreiben(shot, frame + 1)
+                    if _nur:
+                        NUR_PNG.append(_png_schreiben(shot, f"{_nur_basis}_{frame}.png", cfg.width, cfg.height))
+                    else:
+                        mux.schreiben(shot, frame + 1)
                     _geschrieben = True
                     _z["schreiben"] += time.perf_counter() - _t
                     if on_preview and frame % preview_every == 0:
@@ -1092,7 +1122,8 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     continue
                 frame += 1
         except BaseException as _fehler:
-            mux.abbrechen("abgebrochen" if isinstance(_fehler, A.RenderCancelled) else "Fehler")
+            if mux is not None:
+                mux.abbrechen("abgebrochen" if isinstance(_fehler, A.RenderCancelled) else "Fehler")
             raise
         _n = max(1, total_frames)
         _log.info("Szene: Zeit je Bild %.0f ms (springen %.0f · warten auf Karte %.0f · Bild greifen %.0f · schreiben %.0f) — %d Bilder in %.1f s",
@@ -1111,9 +1142,10 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                 _kamera_schreiben(_kam_ziel, cfg, projekt_id, _kopf, _kam_bilder, total_frames)
             except Exception as _e:  # noqa: BLE001 — das Video soll daran nicht scheitern
                 _log.warning("Szene: Kamera-Export beim Rendern fehlgeschlagen: %s", _e)
-        emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
-        mux.abschliessen(is_cancelled)
-        if not _tonspur.plan_leer(_tonplan):
+        if mux is not None:
+            emit(0.92, _i18n.t_aktiv("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
+            mux.abschliessen(is_cancelled)
+        if mux is not None and not _tonspur.plan_leer(_tonplan):
             emit(0.95, _i18n.t_aktiv("animator.progress.ton", "Tonspur wird angelegt …"))
             _ton = _tonspur.anlegen(cfg.output_path, _tonplan, A.find_ffmpeg(), total_frames / cfg.fps)
             if not _ton.get("ok"):

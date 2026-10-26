@@ -5170,10 +5170,8 @@
   "animator.timeline.hoehe_tip": "Drag: taller or lower lanes · Double-click: default",
   "signs.add_clips": "🎞 Add video clips",
   "signs.add_clips_tip": "Choose video clips (MP4, MOV …) — they go where they were recorded (GPS, otherwise recording time) and play there as a stop.",
-  "signs.clips_passen_nicht": "None of the clips matches the tour (place or recording time).",
   "signs.clips_dupes": "These clips are already in.",
   "signs.clips_geladen": "%n video clips added as stops.",
-  "signs.clips_ohne_stelle": "%n didn't match the tour.",
   "animator.farbraum": "Colour space",
   "animator.farbraum.sdr": "SDR (standard)",
   "animator.farbraum.hlg": "HDR · HLG (recommended)",
@@ -6959,5 +6957,13 @@
   "animator.timeline.vorschau_flott": "brisk",
   "animator.timeline.vorschau_schnell": "fast",
   "animator.timeline.vorschau_tip": "Preview detail: full = like the video; brisk = fewer tiles, terrain one level coarser; fast = plus half resolution and no terrain shadows. The video always renders in full.",
-  "animator.timeline.vorschau_neu": "Rebuilding the preview with the new detail level …"
+  "animator.timeline.vorschau_neu": "Rebuilding the preview with the new detail level …",
+  "cli.schritt_kamera": "Calculating the camera move: {p}",
+  "signs.clips_ohne_ort_titel": "Place clips freely?",
+  "signs.clips_ohne_ort_text": "{n} clips match the tour neither by place nor by recording time. Put them on the route? One goes to the playhead position, several are spread evenly — afterwards you can move each one in the sign lane.",
+  "signs.clips_ohne_ort_ja": "Put on the route",
+  "signs.clips_unlesbar": "The clips could not be read.",
+  "signs.clips_ohne_ort_ok": "{n} clips put on the route — move them in the sign lane.",
+  "animator.field.ortho_sharp_tip": "Sharpens the aerial imagery before route, arrow and text are drawn on top — they stay free of halos. 100 % = default, 0 = as delivered, more quickly looks grainy on already sharp imagery. Same in preview and video.",
+  "cli.schritt_overlay": "Rendering the overlays transparently: {p}"
 }

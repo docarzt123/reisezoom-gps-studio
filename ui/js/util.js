@@ -359,6 +359,19 @@ function rzMitFarbe(url, g) {
   return g > 0 ? ohne + (ohne.includes("?") ? "&" : "?") + "g=" + g : ohne;
 }
 window.rzMitFarbe = rzMitFarbe;
+/** 26.10.2026 (Marc: „default 1 … einen Regler bei der Satellitenkarte, dass man die schärfen kann“) —
+ *  Nachschärfen der Landesluftbilder 0…200 % (100 = Stärke 1,0), fehlt der Wert: 100. Die Weiche schärft je Kachel (`s=`,
+ *  core/farbkorrektur.schaerfen) — Linie, Pfeil, Schrift bleiben unberührt. Spiegel: mapstyles.ortho_schaerfe / mit_schaerfe. */
+function rzOrthoSchaerfe(adj) {
+  const v = (adj && typeof adj === "object") ? parseFloat(adj.schaerfe) : NaN;
+  return isFinite(v) ? Math.max(0, Math.min(200, Math.round(v))) : 100;
+}
+window.rzOrthoSchaerfe = rzOrthoSchaerfe;
+function rzMitSchaerfe(url, s) {
+  const ohne = String(url).replace(/([?&])s=[^&]*(&|$)/, (m, a, b) => (b ? a : "")).replace(/[?&]$/, "");
+  return s > 0 ? ohne + (ohne.includes("?") ? "&" : "?") + "s=" + s : ohne;
+}
+window.rzMitSchaerfe = rzMitSchaerfe;
 
 /** 25.10.2026 (Marc: „Glowstärke beim Track ändert nichts“) — Glow um eine Linie, Stärke 0…10. Vorher wuchs nur die
  *  Weichzeichnung (`line-blur` = Stärke) bei kaum breiterer Linie und 35 % Deckkraft: auf Luftbildern unsichtbar, der
@@ -400,7 +413,7 @@ function _stackStyle(stack, ortho) {
   for (const r of stack.slice().reverse()) {
     const sid = transparent ? "rz-raster-" + r.id : "rz-raster";
     // Über die lokale Kachel-Weiche (CORS + Zwischenspeicher), wenn die App sie anbietet.
-    const tiles = proxy ? [rzMitFarbe(proxy + "/tile/" + r.id + "/{z}/{x}/{y}" + (transparent ? "?t=1" : ""), farbe)]
+    const tiles = proxy ? [rzMitSchaerfe(rzMitFarbe(proxy + "/tile/" + r.id + "/{z}/{x}/{y}" + (transparent ? "?t=1" : ""), farbe), rzOrthoSchaerfe(ortho))]
                         : (transparent ? (r.tiles_transparent || r.tiles) : r.tiles);
     const src = { type: "raster", tiles, tileSize: rzTileSize(256), minzoom: r.minzoom || orthoMin, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
     if (r.scheme === "tms" && !proxy) src.scheme = "tms";

@@ -53,9 +53,22 @@ def anwenden(rgb: np.ndarray, staerke: float) -> np.ndarray:
     return np.clip(out * 255.0 + 0.5, 0, 255).astype(np.uint8)
 
 
-def kachel(body: bytes, ct: str, prozent: float) -> tuple[bytes, str]:
-    """Bild-Kachel (JPEG/PNG/WebP) korrigiert zurück; Alpha bleibt. Bei 0 % oder nicht lesbar: unverändert."""
-    if not body or prozent <= 0:
+def schaerfen(rgb: "np.ndarray", staerke: float) -> "np.ndarray":
+    """26.10.2026 (Marc: „default 1 … einen Regler bei der Satellitenkarte, dass man die schärfen kann“)
+    — Unscharf maskieren wie im Web (bridge.js schaerfen): Bild + Stärke × (Bild − Weichzeichnung 1 px), geklemmt 0…255.
+    Je Luftbild-Kachel, BEVOR die Karte sie bekommt — Linie, Pfeil, Schrift bleiben ohne Säume."""
+    if staerke <= 0:
+        return rgb
+    from PIL import Image, ImageFilter
+    weich = np.asarray(Image.fromarray(rgb, "RGB").filter(ImageFilter.GaussianBlur(1)), dtype=np.float32)
+    a = rgb.astype(np.float32)
+    return np.clip(a + staerke * (a - weich), 0, 255).astype(np.uint8)
+
+
+def kachel(body: bytes, ct: str, prozent: float, schaerfe: float = 0.0) -> tuple[bytes, str]:
+    """Bild-Kachel (JPEG/PNG/WebP) korrigiert zurück; Alpha bleibt. `schaerfe` in % (100 = Stärke 1,0). Bei 0/0 oder
+    nicht lesbar: unverändert."""
+    if not body or (prozent <= 0 and schaerfe <= 0):
         return body, ct
     from PIL import Image
     try:
@@ -71,7 +84,8 @@ def kachel(body: bytes, ct: str, prozent: float) -> tuple[bytes, str]:
         rgb = a[..., :3]
     else:
         rgb = np.asarray(im.convert("RGB"))
-    neu = anwenden(rgb, prozent / 100.0)
+    neu = anwenden(rgb, prozent / 100.0) if prozent > 0 else rgb
+    neu = schaerfen(np.ascontiguousarray(neu), schaerfe / 100.0) if schaerfe > 0 else neu
     out = BytesIO()
     if alpha is not None:
         Image.fromarray(np.dstack([neu, alpha]), "RGBA").save(out, "PNG", compress_level=1)

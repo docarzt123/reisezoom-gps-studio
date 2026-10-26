@@ -5170,10 +5170,8 @@
   "animator.timeline.hoehe_tip": "Ziehen: Spuren höher oder niedriger · Doppelklick: Standard",
   "signs.add_clips": "🎞 Videoclips hinzufügen",
   "signs.add_clips_tip": "Videoclips (MP4, MOV …) wählen — sie kommen an die Stelle, an der sie aufgenommen wurden (GPS, sonst Aufnahmezeit), und laufen dort als Stopp ab.",
-  "signs.clips_passen_nicht": "Keiner der Clips passt zur Tour (Ort oder Aufnahmezeit).",
   "signs.clips_dupes": "Diese Clips sind schon drin.",
   "signs.clips_geladen": "%n Videoclips als Stopps angelegt.",
-  "signs.clips_ohne_stelle": "%n passten nicht zur Tour.",
   "animator.farbraum": "Farbraum",
   "animator.farbraum.sdr": "SDR (Standard)",
   "animator.farbraum.hlg": "HDR · HLG (empfohlen)",
@@ -6959,5 +6957,13 @@
   "animator.timeline.vorschau_flott": "flott",
   "animator.timeline.vorschau_schnell": "schnell",
   "animator.timeline.vorschau_tip": "Detailgrad der Vorschau: voll = wie das Video; flott = weniger Kacheln, Gelände eine Stufe gröber; schnell = dazu halbe Auflösung und ohne Schlagschatten. Das Video rendert immer voll.",
-  "animator.timeline.vorschau_neu": "Vorschau wird mit dem neuen Detailgrad aufgebaut …"
+  "animator.timeline.vorschau_neu": "Vorschau wird mit dem neuen Detailgrad aufgebaut …",
+  "cli.schritt_kamera": "Kamerafahrt wird berechnet: {p}",
+  "signs.clips_ohne_ort_titel": "Clips frei platzieren?",
+  "signs.clips_ohne_ort_text": "{n} Clips passen weder nach Ort noch nach Aufnahmezeit zur Tour. Soll ich sie auf die Strecke legen? Einer kommt an die Stelle des Abspielkopfs, mehrere gleichmäßig verteilt — danach kannst du jeden in der Schilder-Spur verschieben.",
+  "signs.clips_ohne_ort_ja": "Auf die Strecke legen",
+  "signs.clips_unlesbar": "Die Clips ließen sich nicht lesen.",
+  "signs.clips_ohne_ort_ok": "{n} Clips auf die Strecke gelegt — in der Schilder-Spur verschiebbar.",
+  "animator.field.ortho_sharp_tip": "Schärft die Luftbilder, bevor Strecke, Pfeil und Schrift darüber gezeichnet werden — die bleiben ohne Säume. 100 % = Standard, 0 = wie geliefert, mehr wirkt bei sehr scharfen Luftbildern schnell körnig. In Vorschau und Video gleich.",
+  "cli.schritt_overlay": "Einblendungen werden transparent gerendert: {p}"
 }

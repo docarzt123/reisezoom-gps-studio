@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 26 Oct 2026 11:24:20 +0000</lastBuildDate>
+<lastBuildDate>Mon, 26 Oct 2026 17:26:14 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.838</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-838</link>
+<guid isPermaLink="false">gps-studio-v0.9.838</guid>
+<pubDate>Mon, 26 Oct 2026 12:00:00 +0000</pubDate>
+<description>Videoclips frei platzieren — Passt ein Clip weder nach Ort noch nach Aufnahmezeit zur Tour, fragt GPS Studio jetzt und legt ihn an den Abspielkopf — mehrere gleichmäßig verteilt. Danach verschiebst du ihn in der Spur „Schilder“.
+
+Schärfere Luftbilder — Der Regler „Schärfe“ in der Luftbild-Optik schärft jetzt die amtlichen Luftbilder, bevor Strecke, Pfeil und Schrift darübergezeichnet werden — keine hellen Säume mehr. Standard 100 %, auch für bestehende Projekte.
+
+Häufige Fragen in der Hilfe — In Kapitel 10 der Hilfe stehen jetzt die Fragen, die ihr mir am häufigsten schreibt, jeweils mit kurzer Antwort: nur Fotos statt GPX, eigene Videoclips, Export hinter Firewall oder VPN, welche Dateien und Rechner gehen und mehr.
+
+Für 3D-Programme: Kamerafahrt und Einblendungen als Datei — gpsstudio camera-export schreibt die Kamerafahrt eines exportierten Projekts Bild für Bild als Datei, gpsstudio overlay-export die Einblendungen als transparentes ProRes-4444-Video — auf Wunsch ohne Strecke und Laufpunkt.</description>
+</item>
 <item>
 <title>v0.9.836</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-836</link>
@@ -247,19 +260,6 @@ Touren und Medien gehören zusammen — Fotos und Clips gehören zu einer Tour, 
 Fotos bearbeiten — In der Lupe: Auto, die Voreinstellungen Natürlich, Kräftig, Matt und SW und Regler für Belichtung, Kontrast, Lichter, Tiefen, Weißabgleich, Dynamik, Sättigung, Klarheit und Dunst; „.“ zeigt das Original. Neu ist auch Zuschneiden und Geraderichten (Taste R). Die Vorschau rechnet die Grafikkarte, ohne Verzögerung. RAW-Dateien werden richtig entwickelt. Das Original bleibt unverändert — Raster, Export, Animator und Video nehmen die bearbeitete Fassung.
 
 Video-Assistent — Neben „Schnell-Video“ führt der Assistent in neun Seiten zum fertigen Projekt: Titel, Art des Videos, Karte, Einblendungen, Fotos, Orte, Kamera, Abspann und Musik. Alles bleibt im Animator bearbeitbar, ein ⌘Z nimmt es zurück.</description>
-</item>
-<item>
-<title>v0.9.786</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-786</link>
-<guid isPermaLink="false">gps-studio-v0.9.786</guid>
-<pubDate>Thu, 08 Oct 2026 12:00:00 +0000</pubDate>
-<description>Play mit der Maus — Der Play-Knopf im Animator reagiert wieder auf jeden Mausklick — vorher ging ein Klick auf dem Mac oft verloren, wenn man die Maustaste etwas länger gedrückt hielt (die Leertaste ging immer). Auch der erste Klick in ein Fenster im Hintergrund kommt jetzt an.
-
-Karten-Editor bleibt offen — Beim Durchklicken der Luftbilder (z. B. Mapbox Satellit) schloss sich die rechte Seite — jetzt bleibt sie offen.
-
-Rundtour für Etappen — Ab drei Punkten schließt „🔄 Rundtour — zurück zum Start“ die Etappe am Startpunkt; der Rückweg hat ein eigenes Verkehrsmittel und „Straßen folgen“.
-
-Fotos „Nach Touren“ — Jede Tour zeigt Datum, Ort, Fortbewegung und Kilometer, die Liste ist nach Jahren gegliedert, ein Suchfeld filtert nach Ort, Jahr oder Name, und „🎬 Im Animator öffnen“ springt direkt hinein.</description>
 </item>
 </channel>
 </rss>

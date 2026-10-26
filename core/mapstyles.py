@@ -620,6 +620,22 @@ def ortho_farbe(adj) -> int:
     return max(0, min(100, int(round(v))))
 
 
+def ortho_schaerfe(adj) -> int:
+    """Nachschärfen der Landesluftbilder 0…200 % (`adjust["schaerfe"]`, fehlt: 100 = Stärke 1,0; 26.10.2026), Spiegel von
+    util.js rzOrthoSchaerfe."""
+    try:
+        v = float((adj or {}).get("schaerfe", 100)) if isinstance(adj, dict) else 100.0
+    except (TypeError, ValueError):
+        v = 100.0
+    return max(0, min(200, int(round(v))))
+
+
+def mit_schaerfe(url: str, s: int) -> str:
+    """Kachel-Adresse der Weiche mit `s=` (Nachschärfen je Kachel), Spiegel von util.js rzMitSchaerfe."""
+    ohne = re.sub(r"([?&])s=[^&]*(&|$)", lambda m: m.group(1) if m.group(2) else "", url).rstrip("?&")
+    return ohne + ("&" if "?" in ohne else "?") + f"s={s}" if s > 0 else ohne
+
+
 def mit_farbe(url: str, g: int) -> str:
     """Kachel-Adresse der Weiche mit `g=` (Farbkorrektur je Kachel, core/farbkorrektur), Spiegel von util.js rzMitFarbe."""
     ohne = re.sub(r"([?&])g=[^&]*(&|$)", lambda m: m.group(1) if m.group(2) else "", url).rstrip("?&")
@@ -657,7 +673,8 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float
     layers.append(lay_s)
     for r in reversed(stack):            # groß → klein = unten → oben
         sid = "rz-raster-" + r["id"] if transparent else "rz-raster"
-        src = {"type": "raster", "tiles": [mit_farbe(u, _farbe) for u in region_tiles(r, transparent=transparent, proxy_base=proxy_base)],
+        src = {"type": "raster", "tiles": [(mit_schaerfe(mit_farbe(u, _farbe), ortho_schaerfe(adjust)) if proxy_base else u)
+                                          for u in region_tiles(r, transparent=transparent, proxy_base=proxy_base)],
                "tileSize": tile_size_for(256, dpr), "minzoom": int(r.get("minzoom", ORTHO_MINZOOM)),
                "maxzoom": int(r.get("maxzoom", 19)), "attribution": r["attribution"]}
         if r.get("scheme") == "tms" and not proxy_base:   # die Weiche spiegelt y selbst

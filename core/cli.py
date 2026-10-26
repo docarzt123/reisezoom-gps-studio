@@ -6,6 +6,10 @@
                      [--length SECONDS] [--no-photos] [--out FILE] [--overwrite]
     gpsstudio map-image <gpx file | tour id | name> [--out FILE] [--overwrite]
     gpsstudio mcp [--out-dir FOLDER]      MCP server for AI assistants (stdio, core/mcp_server.py)
+    gpsstudio camera-export --rzproj PROJECT.rzproj [--out FILE] [--preview 960x540] [--overwrite]
+                                         camera move frame by frame as JSON (rz-kamera/1), no video
+    gpsstudio overlay-export --rzproj PROJECT.rzproj [--out FILE.mov] [--without-track] [--frames 600,1199] [--preview WxH]
+                                         overlays as transparent ProRes 4444 (or single PNG frames), no map
     (global: --library FOLDER)
 
 Befehle, Schalter und das Ergebnis-JSON sind englisch (Marc: „wir wollen international sein“); die lesbaren
@@ -420,6 +424,214 @@ async def _kartenbild(app, api, gpx: str, a) -> dict:
     return {"ok": True, "file": str(ziel), "duration_s": round(time.time() - t0, 1)}
 
 
+# ── Kamerafahrt (rz-kamera/1) aus einem exportierten Projekt ──────────────────────────────────────────────────────────
+# 26.10.2026 (für 3D-Werkzeuge, die das INSTALLIERTE GPS Studio aufrufen — beim Nutzer gibt
+# es kein scripts/kamera_export.py). Das Paket wird nicht in die Bibliothek des Nutzers eingespielt: der Befehl startet sich
+# selbst noch einmal mit einem leeren Temp-App-Ordner (RZ_APP_ORDNER muss vor dem Laden von app.py stehen) und Schreibsperre
+# auf diesen Ordner und das Ziel; das Kind spielt ein, exportiert und gibt die Ergebnis-Zeile zurück.
+
+_KAMERA_KIND = "RZ_CLI_KAMERA_KIND"
+
+
+def _paket_projekt(app, api, paket: Path):
+    """Paket in den GERADE gültigen App-Ordner einspielen (der Aufrufer sorgt dafür, dass das ein leerer Temp-Ordner ist)
+    und das im Paket aktive Projekt finden → (projekt_id, projekt) oder ein Fehler-dict."""
+    import zipfile
+    r = api.projekt_importieren(str(paket))
+    if not r.get("ok"):
+        return {"ok": False, "error": "import: " + str(r.get("error"))}
+    from core import projekte as P
+    projekte = P.laden(app.DATEN_ORT).get("projects") or {}
+    # das im Paket aktive Projekt (beim Einspielen kann die ID wechseln — darum über den Namen), sonst das zuletzt geänderte
+    aktiv_name = None
+    try:
+        pj = json.loads(zipfile.ZipFile(paket).read("projekte.json").decode("utf-8"))
+        aktiv_name = ((pj.get("projects") or {}).get(pj.get("active_project_id") or "") or {}).get("name")
+    except Exception:  # noqa: BLE001
+        pass
+    kand = sorted(projekte.items(), key=lambda kv: str(kv[1].get("modified_at") or ""), reverse=True)
+    kand = [kv for kv in kand if (kv[1].get("animator") or {})] or kand
+    if aktiv_name:
+        kand = [kv for kv in kand if str(kv[1].get("name") or "").startswith(aktiv_name)] or kand
+    if not kand:
+        return {"ok": False, "error": "no project in the package"}
+    return kand[0]
+
+
+def kamera_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0) -> dict:
+    """Paket einspielen (s. _paket_projekt), Kamerafahrt des aktiven Projekts nach `ziel`. Auch für scripts/kamera_export.py."""
+    pp = _paket_projekt(app, api, paket)
+    if isinstance(pp, dict):
+        return pp
+    pid, projekt = pp
+    r = api.kamera_export(pid, str(ziel), int(w or 0), int(h or 0))
+    if not r.get("ok"):
+        return {"ok": False, "error": str(r.get("error"))}
+    # „datei“: so lasen 3D-Werkzeuge bisher die Ausgabe von scripts/kamera_export.py
+    return {"ok": True, "file": str(ziel), "datei": str(ziel), "frames": r.get("bilder"), "project": {"id": pid, "name": projekt.get("name")}}
+
+
+def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0, ohne_spur: bool = False,
+                      bilder: list | None = None) -> dict:
+    """26.10.2026 (für 3D-Werkzeuge) — Einblendungen des aktiven Projekts transparent rendern: ProRes 4444 mit Alpha in
+    Größe, Bildrate und Bildzahl des Videos (Bild k = Bild k des Kamera-Exports), auf Wunsch ohne Spur und Laufpunkt; mit
+    `bilder` nur diese Bilder als PNG `<ziel ohne Endung>_<nr>.png`. Dieselbe Szene wie der Video-Render."""
+    pp = _paket_projekt(app, api, paket)
+    if isinstance(pp, dict):
+        return pp
+    pid, projekt = pp
+    an = projekt.get("animator") or {}
+    from core import animator as A
+    from core import szene
+    cfg = A.AnimatorConfig(gpx_path="", output_path=str(ziel), mapbox_token=app._active_mapbox_token() or "",
+                           width=int(an.get("width") or 1920), height=int(an.get("height") or 1080), fps=int(an.get("fps") or 30),
+                           duration_s=float(an.get("duration_s") or 12), intro_s=float(an.get("intro_s") or 0),
+                           hold_s=float(an.get("hold_s") or 0))
+    cfg.transparent_background = True
+    cfg.codec = "prores4444"
+    params = {"szene_projekt_id": pid, "szene_vorschau_w": int(w or 0), "szene_vorschau_h": int(h or 0),
+              "overlay_ohne_track": bool(ohne_spur)}
+    if bilder:
+        params["nur_bilder"] = list(bilder)
+    letzt = [-1]
+
+    def fortschritt(p, m):
+        if int(p * 20) != letzt[0]:
+            letzt[0] = int(p * 20)
+            _melden(f"{int(p * 100):3d} % · {m}")
+    asyncio.run(szene.render_szene(cfg, api=api, projekt_id=pid, params=params, on_progress=fortschritt,
+                                   on_preview=lambda x: None, is_cancelled=lambda: _ABGEBROCHEN.is_set()))
+    info = {"project": {"id": pid, "name": projekt.get("name")}, "width": cfg.width, "height": cfg.height, "fps": cfg.fps}
+    if bilder:
+        dateien = list(szene.NUR_PNG)
+        return dict({"ok": bool(dateien), "files": dateien, "dateien": dateien}, **info,
+                    **({} if dateien else {"error": "no frames written (numbers outside the video?)"}))
+    if not ziel.is_file():
+        return {"ok": False, "error": "render ended without file"}
+    n = 0
+    try:   # Bildzahl mit ffmpeg selbst (ffprobe liegt nicht überall bei): Strom ins Leere kopieren, letzte „frame=“
+        import re
+        import subprocess
+        err = subprocess.run([A.find_ffmpeg(), "-hide_banner", "-i", str(ziel), "-map", "0:v:0", "-c", "copy", "-f", "null", "-"],
+                             capture_output=True, text=True, timeout=300).stderr
+        treffer = re.findall(r"frame=\s*(\d+)", err or "")
+        n = int(treffer[-1]) if treffer else 0
+    except Exception:  # noqa: BLE001
+        pass
+    return dict({"ok": True, "file": str(ziel), "datei": str(ziel), "frames": n or None}, **info)
+
+
+def _selbst_aufruf(app) -> list:
+    """Wie startet man diese App noch einmal als Kommandozeile? (Windows: die Konsolenfassung gpsstudio.exe)"""
+    if getattr(sys, "frozen", False):
+        exe = Path(sys.executable)
+        if sys.platform == "win32" and exe.with_name("gpsstudio.exe").is_file():
+            return [str(exe.with_name("gpsstudio.exe"))]
+        return [str(exe)] + ([] if exe.stem.lower() == "gpsstudio" else ["cli"])
+    return [sys.executable, str(Path(app.__file__).resolve()), "cli"]
+
+
+def _vorschau_mass(text: str | None) -> tuple:
+    if not text:
+        return 0, 0
+    try:
+        w, h = (int(x) for x in text.lower().split("x"))
+        if w >= 200 and h >= 100:
+            return w, h
+    except ValueError:
+        pass
+    raise CliFehler("--preview must look like 960x540", code=2, fehler="--vorschau braucht die Form 960x540")
+
+
+def _paket_pruefen(a) -> Path:
+    paket = Path(a.rzproj).expanduser().resolve()
+    if not paket.is_file():
+        raise CliFehler(f"file not found: {paket}", code=2, fehler=f"Datei fehlt: {paket}")
+    return paket
+
+
+def _im_temp_app_ordner(app, befehl: list, schreibbar: list, meldung: str, was: str) -> dict:
+    """Diesen Befehl noch einmal als Kindprozess mit leerem Temp-App-Ordner starten (Schreibsperre auf ihn und
+    `schreibbar`, Kopie der Nutzer-Einstellungen) und dessen Ergebnis-Zeile zurückgeben."""
+    arbeit = Path(tempfile.mkdtemp(prefix="gpsstudio-kamera-")).resolve()
+    try:
+        app._ds.temp_ordner_merken(arbeit)   # der Dateischutz darf ihn am Ende löschen
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        appo, bib = arbeit / "App-Ordner", arbeit / "Bibliothek"
+        appo.mkdir()
+        (appo / "bibliothek.json").write_text(json.dumps({"pfad": str(bib), "vorher": []}), encoding="utf-8")
+        (appo / "testrechner.json").write_text(json.dumps({"schreiben_nur_in": [str(arbeit)] + [str(x) for x in schreibbar]}), encoding="utf-8")
+        # die Einstellungen des Nutzers als Kopie (Kartendienste, Schlüssel, Gelände) — das Original bleibt unberührt
+        einst = {}
+        try:
+            einst = json.loads((Path(app.APP_SUPPORT) / "settings.json").read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            pass
+        einst.update({"onboarding_done": True, "logbuch_lernen_gefragt": True, "update_check_enabled": False,
+                      "willkommen_beim_start": False})
+        (appo / "settings.json").write_text(json.dumps(einst), encoding="utf-8")
+        app.cbib.anlegen(bib)
+        env = dict(os.environ, RZ_APP_ORDNER=str(appo), RZ_CLOUD_ABLAGE="datei", RZ_KEIN_WILLKOMMEN="1", RZ_CLOUD="0")
+        env[_KAMERA_KIND] = "1"
+        env.pop("RZ_SETTINGS_DATEI", None)
+        _melden(meldung)
+        import subprocess
+        r = subprocess.run(_selbst_aufruf(app) + befehl, env=env, stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+        zeilen = [z for z in (r.stdout or "").splitlines() if z.strip().startswith("{")]
+        try:
+            erg = json.loads(zeilen[-1]) if zeilen else {}
+        except ValueError:
+            erg = {}
+        if not erg:
+            raise CliFehler(f"{was} ended without result (exit {r.returncode})", fehler=f"kein Ergebnis (exit {r.returncode})")
+        if not erg.get("ok"):
+            raise CliFehler(str(erg.get("error") or f"{was} failed"), fehler=str(erg.get("error") or ""))
+        return erg
+    finally:
+        _aufraeumen(app, arbeit)
+
+
+def _kamera_export(app, a) -> dict:
+    paket = _paket_pruefen(a)
+    w, h = _vorschau_mass(a.preview)
+    if os.environ.get(_KAMERA_KIND) == "1":   # Kind: der App-Ordner ist schon der leere Temp-Ordner — dessen Bibliothek
+        # darf die Api öffnen und beschreiben (ohne CLI_MODUS; der hielte sie geschlossen)
+        return kamera_aus_paket(app, app.Api(), paket, Path(a.out), w, h)
+    stamm = paket.stem + ".kamera"
+    ziel = _ziel(app, None, a.out or str(paket.parent / (stamm + ".json")), stamm, ".json", a.overwrite)
+    return _im_temp_app_ordner(app, ["camera-export", "--rzproj", str(paket), "--out", str(ziel)] + (["--preview", a.preview] if a.preview else []),
+                               [ziel.parent], _t(app, "cli.schritt_kamera", "Kamerafahrt wird berechnet: {p}").replace("{p}", str(ziel)),
+                               "camera export")
+
+
+def _bilder_liste(text: str | None) -> list:
+    if not text:
+        return []
+    try:
+        return sorted({int(x) for x in str(text).replace(";", ",").split(",") if x.strip()})
+    except ValueError:
+        raise CliFehler("--frames must look like 600,1199", code=2, fehler="--bilder braucht die Form 600,1199") from None
+
+
+def _overlay_export(app, a) -> dict:
+    paket = _paket_pruefen(a)
+    w, h = _vorschau_mass(a.preview)
+    bilder = _bilder_liste(a.frames)
+    if os.environ.get(_KAMERA_KIND) == "1":
+        return overlay_aus_paket(app, app.Api(), paket, Path(a.out), w, h, a.without_track, bilder)
+    stamm = paket.stem + ".overlay"
+    ziel = _ziel(app, None, a.out or str(paket.parent / (stamm + ".mov")), stamm, ".mov", a.overwrite)
+    if bilder and not a.overwrite and any(Path(f"{ziel.with_suffix('')}_{n}.png").exists() for n in bilder):
+        ziel = ziel.with_name(_dt.datetime.now().strftime("%Y%m%d-%H%M%S-") + ziel.name)   # Bilder nie überschreiben
+    befehl = ["overlay-export", "--rzproj", str(paket), "--out", str(ziel)] + (["--preview", a.preview] if a.preview else []) \
+        + (["--without-track"] if a.without_track else []) + (["--frames", ",".join(map(str, bilder))] if bilder else [])
+    return _im_temp_app_ordner(app, befehl, [ziel.parent],
+                               _t(app, "cli.schritt_overlay", "Einblendungen werden transparent gerendert: {p}").replace("{p}", str(ziel)),
+                               "overlay export")
+
+
 # ── Einstieg ────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def _parser() -> argparse.ArgumentParser:
@@ -444,6 +656,19 @@ def _parser() -> argparse.ArgumentParser:
     m.add_argument("tour")
     m.add_argument("--out")
     m.add_argument("--overwrite", action="store_true")
+    k = sub.add_parser("camera-export", help="camera move of an exported project (.rzproj) frame by frame as JSON (rz-kamera/1), no video")
+    k.add_argument("--rzproj", required=True, help="project exported from GPS Studio (Project → Export project (.rzproj))")
+    k.add_argument("--out", "--ziel", dest="out", help="output .json (default: next to the .rzproj, NAME.kamera.json)")
+    k.add_argument("--preview", "--vorschau", dest="preview", help="preview size in CSS px as in the app, e.g. 960x540 (zoom refers to it)")
+    k.add_argument("--overwrite", action="store_true", help="overwrite an existing file (default: add a timestamp)")
+    o = sub.add_parser("overlay-export", help="overlays of an exported project (.rzproj) as transparent video (ProRes 4444 with alpha), same frames as the camera export")
+    o.add_argument("--rzproj", required=True, help="project exported from GPS Studio (Project → Export project (.rzproj))")
+    o.add_argument("--out", "--ziel", dest="out", help="output .mov (default: next to the .rzproj, NAME.overlay.mov)")
+    o.add_argument("--without-track", "--ohne-track", dest="without_track", action="store_true",
+                   help="leave out route line and running dot (for 3D tools that draw them themselves)")
+    o.add_argument("--frames", "--bilder", dest="frames", help="only these frames (0-based, e.g. 600,1199) as PNG with alpha: NAME_<nr>.png")
+    o.add_argument("--preview", "--vorschau", dest="preview", help="preview size in CSS px as in the app, e.g. 960x540")
+    o.add_argument("--overwrite", action="store_true", help="overwrite existing files (default: add a timestamp)")
     s = sub.add_parser("mcp", help="run as MCP server for AI assistants (stdio; started by the AI app, not by hand)")
     s.add_argument("--out-dir", help="folder for videos and map images (default: the app's render folder)")
     return ap
@@ -478,6 +703,10 @@ def main(argv: list, app) -> int:
         import signal
         signal.signal(signal.SIGTERM, _abbrechen)
     try:
+        if a.command in ("camera-export", "overlay-export"):   # 26.10.2026 — eigener Temp-App-Ordner, nicht die Bibliothek
+            erg = _kamera_export(app, a) if a.command == "camera-export" else _overlay_export(app, a)
+            ausgabe(erg)
+            return 0 if erg.get("ok") else 1
         global _API
         api, tmp = _vorbereiten(app, a.library)
         _API = api

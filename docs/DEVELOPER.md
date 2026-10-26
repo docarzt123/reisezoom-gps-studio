@@ -8408,6 +8408,13 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   Prototyps (Dunst 0,055, Belichtung 1,08, Tiefen +0,45, Grün-Vibrance 0,30, Wärme 0,02, Log-Kontrast 1,12 um 0,18,
   Schulter ab 0,6), gerechnet in linearem Licht (Gamma 2,2), `u_grade` mischt. `rzApplyMapLook(map, sharp, haze, grade)`;
   `_currentGrade()` liefert 0, wenn die Luftbild-Optik nicht sichtbar ist (Vektorstile bleiben unberührt).
+- **Nachschärfen** `ortho_schaerfe` (0…200 %, Standard 100 = Stärke 1,0; 26.10.2026, Marc) — je Kachel in
+  der Weiche wie die Farbkorrektur: `farbkorrektur.schaerfen` (Bild + Stärke × (Bild − GaussianBlur 1 px), nur RGB, Alpha
+  bleibt), `kachel(…, schaerfe)`, `tileproxy.schaerfe_aus_pfad` (`s=`), Cache-Schlüssel `farbe:<V>:<g>:s<s>:…`. Adressen nur
+  für die **Landesdienste**, nie Sentinel: `util.js rzOrthoSchaerfe`/`rzMitSchaerfe` (Spiegel `mapstyles.ortho_schaerfe`/
+  `mit_schaerfe`), live in `rz-mapadjust applyAdjust`. Regler `anim-osharp` (Luftbild-Optik) ist seitdem `ortho_schaerfe`;
+  die Leinwand-Schärfe `map_sharp` gilt nur noch in der Karten-Optik (`anim-msharp`, `_currentSharpen` → 0 bei Luftbildern).
+  Test `tests/test_luftbild_schaerfe.py`.
 - **Farbkorrektur** `ortho_grade` (0…100, Standard 70) — seit 25.10.2026 **je Kachel in der Weiche**: `core/farbkorrektur.py`
   (`anwenden`/`kachel`, NumPy-Port der früheren GLSL-Funktion `rzGrade`, lineares Licht, Mischung mit der Stärke),
   `tileproxy.fetch_tile_farbe` + `farbe_aus_pfad` (`/tile/…?g=70`, eigener Cache-Schlüssel `farbe:<FARB_VERSION>:<g>:…`;
@@ -8481,6 +8488,26 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   `map_style` „kartenlook“ + `kartenlook.id`, sonst `RZ_NORTH_SVG`). Animator: `_kompassSvg()` im Container „nord“,
   `_kompassAktualisieren()` nach jedem Stil-Laden (`rebuildPreviewLayers`). Python-Spiegel `core/northarrow.py
   north_svg_fuer()` (liest dieselben Dateien; Web-Karten-Export). Test `test_kompass`.
+- **`gpsstudio overlay-export` (26.10.2026).** `--rzproj [--out] [--without-track] [--frames
+  0,600] [--preview] [--overwrite]`, gleicher Kindprozess-Weg wie camera-export (`_im_temp_app_ordner`, `_paket_projekt`),
+  im Kind `cli.overlay_aus_paket`: `szene.render_szene` mit `transparent_background` + `codec=prores4444`, Größe/fps/Dauern
+  aus dem Projekt → Bildzahl = Kamera-Export. `params.overlay_ohne_track` → `mode.ohneTrack` → `_alphaRenderEbenen`
+  blendet zusätzlich `preview-*` (außer `preview-pin-*`), `anim-dot-*`, `mtour-prev-*`, `swarm-prev-*`, `flug-3d*` aus.
+  ⚠️ Eigene WebGL-Ebenen (Laufpunkt `anim-dot-gl`, `flug-3d*`) stehen NICHT in `map.getStyle()` — darum zusätzlich über
+  `map.style._order` (sonst blieb der Pfeil im Overlay stehen; Test prüft mit Pfeil in Linienfarbe).
+  `params.nur_bilder` (0-basiert wie `i` im Kamera-Export): jedes Bild wird angesprungen (Trägheit/Schweif wie im Film),
+  nur die gewünschten werden abgewartet und als PNG `<Ziel ohne Endung>_<nr>.png` in Videogröße geschrieben
+  (`_png_schreiben`, kein ffmpeg, Pfade in `szene.NUR_PNG`). Bildzahl des .mov zählt ffmpeg selbst (kein ffprobe nötig).
+  Test `tests/test_cli_overlay_export.py`.
+- **`gpsstudio camera-export` (26.10.2026).** Kamera-Export über die Kommandozeile der installierten App (für GPS Studio
+  Karten, die als eigene App kein `scripts/` hat): `--rzproj PAKET [--out/--ziel DATEI] [--preview/--vorschau WxH]
+  [--overwrite]`. Läuft VOR `_vorbereiten` (keine Bibliothek des Nutzers nötig): der Elternprozess baut einen Temp-Arbeitsordner
+  (App-Ordner mit `bibliothek.json` → leere Temp-Bibliothek, `testrechner.json` = Schreibsperre auf Arbeitsordner + Ziel,
+  Kopie der Nutzer-`settings.json`), startet sich selbst noch einmal (`_selbst_aufruf`: Bundle `… cli`, Windows
+  `gpsstudio.exe`, Quelle `python app.py cli`) mit `RZ_APP_ORDNER` + `RZ_CLI_KAMERA_KIND=1`; das Kind spielt das Paket ein und
+  ruft `cli.kamera_aus_paket` (auch von `scripts/kamera_export.py --rzproj` benutzt). Ergebnis-Zeile `{"ok", "file",
+  "datei" (Alias für ältere Aufrufer), "frames", "project"}`, Fehler `{"ok": false, "error", "fehler"}`. Zielname wie bei
+  allen CLI-Befehlen nie überschrieben (Zeitstempel davor), außer `--overwrite`. Test `tests/test_cli_kamera_export.py`.
 - **Kamera-Export (25.10.2026).** `core/szene.kamera_export(cfg, api, projekt_id, ziel, params)` — dieselbe Szene wie der
   Render (`_seite_vorbereiten`, Probelauf im Schrittmodus), je Bild `seek(t)` + `_WARTE_BILD_JS` + `_gelaende_nachladen`
   (MapLibre bezieht die Kamerahöhe auf die Bodenhöhe im Mittelpunkt), dann `window.__rzKameraBild()` (module.js) statt

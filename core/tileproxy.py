@@ -11,7 +11,7 @@
      MapTiler erlaubt ihn ausdrücklich, die OSM-Policy verlangt ihn.
 
 Der lokale Media-Server der App (app.py, 127.0.0.1) beantwortet
-`/tile/<region>/<z>/<x>/<y>[?t=1][&g=70]` über `fetch_tile()`. `g` = Farbkorrektur in % (`fetch_tile_farbe`). `t=1` = PNG mit
+`/tile/<region>/<z>/<x>/<y>[?t=1][&g=70][&s=100]` über `fetch_tile()`. `g` = Farbkorrektur in %, `s` = Nachschärfen in % (`fetch_tile_farbe`). `t=1` = PNG mit
 Alpha (Stapel mehrerer Bundesländer). Die Adresse des Dienstes kennt nur diese
 Datei — der Browser sieht nie die Original-URL.
 
@@ -848,16 +848,29 @@ def farbe_aus_pfad(path: str) -> float:
     return 0.0
 
 
+def schaerfe_aus_pfad(path: str) -> float:
+    """`…?s=100` → 100.0 (Nachschärfen in %, 100 = Stärke 1,0; 26.10.2026), sonst 0."""
+    _, _, q = path.partition("?")
+    for teil in q.split("&"):
+        if teil.startswith("s="):
+            try:
+                return max(0.0, min(200.0, float(teil[2:])))
+            except ValueError:
+                return 0.0
+    return 0.0
+
+
 def fetch_tile_farbe(region_id: str, z: int, x: int, y: int, transparent: bool, prozent: float,
-                     cache_dir: Optional[Path], timeout: float = 30.0) -> tuple[int, str, bytes]:
+                     cache_dir: Optional[Path], timeout: float = 30.0, schaerfe: float = 0.0) -> tuple[int, str, bytes]:
     """Wie `fetch_tile`, Bild-Kacheln mit Farbkorrektur `prozent` (25.10.2026, statt der Leinwand-Ebene, die auf
     Apple-Grafik jedes Bild ausbremste). Ergebnis eigener Eintrag im Zwischenspeicher; Ersatz-Kacheln, Gelände und
     Schatten bleiben unverändert."""
     st, ct, body = fetch_tile(region_id, z, x, y, transparent, cache_dir, timeout)
-    if (prozent <= 0 or st != 200 or not (ct or "").startswith("image/") or ist_ersatz(body)
+    if ((prozent <= 0 and schaerfe <= 0) or st != 200 or not (ct or "").startswith("image/") or ist_ersatz(body)
             or region_id in (SCHATTEN_ID, ms.TERRAIN_AWS_PROXY_ID, ms.TERRAIN_AWS_ROH_PROXY_ID)):
         return st, ct, body
-    cp = cache_path(Path(cache_dir), f"farbe:{FARB_VERSION}:{prozent:g}:{region_id}/{z}/{x}/{y}/{int(bool(transparent))}") if cache_dir else None
+    sch = f":s{schaerfe:g}" if schaerfe > 0 else ""   # 26.10.2026 — Nachschärfen eigener Eintrag
+    cp = cache_path(Path(cache_dir), f"farbe:{FARB_VERSION}:{prozent:g}{sch}:{region_id}/{z}/{x}/{y}/{int(bool(transparent))}") if cache_dir else None
     if cp is not None and cache_fresh(cp):
         try:
             raw = cp.read_bytes()
@@ -866,7 +879,7 @@ def fetch_tile_farbe(region_id: str, z: int, x: int, y: int, transparent: bool, 
         except (OSError, ValueError):
             pass
     from . import farbkorrektur
-    body2, ct2 = farbkorrektur.kachel(body, ct, prozent)
+    body2, ct2 = farbkorrektur.kachel(body, ct, prozent, schaerfe)
     if cp is not None and body2 is not body:
         try:
             cp.parent.mkdir(parents=True, exist_ok=True)

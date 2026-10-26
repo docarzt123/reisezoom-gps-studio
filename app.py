@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.836"
+APP_VERSION = "0.9.838"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -712,7 +712,7 @@ DEFAULT_SETTINGS = {
         "exaggeration": 1.5,
         "ortho_sat": 25.0, "ortho_con": 8.0, "ortho_bri": 0.0, "ortho_hue": 0.0,
         "map_sat": 0.0, "map_con": 0.0, "map_bri": 0.0, "map_hue": 0.0,
-        "map_sharp": 0.0,
+        "map_sharp": 0.0, "ortho_schaerfe": 100.0,   # 26.10.2026 — Luftbild nachschärfen je Kachel (100 % = Stärke 1,0)
         "ortho_relief": 0.0, "map_haze": 0.0,
         "stars_enabled": True, "stars_density": 50.0, "stars_size": 50.0, "stars_twinkle": True,
         "enable_terrain": True,
@@ -823,7 +823,7 @@ DEFAULT_SETTINGS = {
         "exaggeration": 1.5,
         "ortho_sat": 25.0, "ortho_con": 8.0, "ortho_bri": 0.0, "ortho_hue": 0.0,
         "map_sat": 0.0, "map_con": 0.0, "map_bri": 0.0, "map_hue": 0.0,
-        "map_sharp": 0.0,
+        "map_sharp": 0.0, "ortho_schaerfe": 100.0,   # 26.10.2026 — Luftbild nachschärfen je Kachel (100 % = Stärke 1,0)
         "ortho_relief": 0.0, "map_haze": 0.0,
         "stars_enabled": True, "stars_density": 50.0, "stars_size": 50.0, "stars_twinkle": True,
         "enable_terrain": True,
@@ -1623,8 +1623,9 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
             _sync_tile_cache_settings()
             _sync_region_keys()   # 18.09.2026: Schlüssel-Regionen (Weiche setzt {key} beim Abruf ein)
             _farbe = ctileproxy.farbe_aus_pfad(self.path)   # 25.10.2026 — Farbkorrektur je Kachel (statt Leinwand-Ebene)
-            if _farbe > 0:
-                status, ctype, body = ctileproxy.fetch_tile_farbe(*req, _farbe, cache_dir=canim.TILE_CACHE_DIR)
+            _schaerfe = ctileproxy.schaerfe_aus_pfad(self.path)   # 26.10.2026 — Luftbild nachschärfen je Kachel
+            if _farbe > 0 or _schaerfe > 0:
+                status, ctype, body = ctileproxy.fetch_tile_farbe(*req, _farbe, cache_dir=canim.TILE_CACHE_DIR, schaerfe=_schaerfe)
             else:
                 status, ctype, body = ctileproxy.fetch_tile(*req, cache_dir=canim.TILE_CACHE_DIR)
             self.send_response(status)
@@ -5345,8 +5346,8 @@ class Api:
                                 d.unlink()   # dateischutz-ok: eben selbst angelegte, leere Teilkopie im eigenen Import-Ordner
                         except OSError:
                             pass
-                    # wie der Nutzer es von Hand tat („merged_dashcam_videos2“ → „track“, „2026-06-27-Anette-Suedtirol“ →
-                    # „annetteSuedtirol“): nur Buchstaben
+                    # wie der Nutzer es von Hand tat („merged_dashcam_videos2“ → „track“, „2026-06-27-<Vorname>-Suedtirol“ →
+                    # „<vorname>Suedtirol“): nur Buchstaben
                     schlicht = re.sub(r"[^A-Za-zÄÖÜäöüß]+", "", src.stem) or "tour"
                     d2 = ziel / f"{schlicht}{src.suffix.lower()}"
                     n2 = 1

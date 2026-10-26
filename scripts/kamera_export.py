@@ -7,6 +7,8 @@
     .venv/bin/python scripts/kamera_export.py PROJEKT_ID --ziel kamera.json --vorschau 960x540
     .venv/bin/python scripts/kamera_export.py --rzproj tour.rzproj [--ziel ordner/]   # exportiertes Projekt direkt
 
+In der installierten App dasselbe: `gpsstudio camera-export --rzproj tour.rzproj [--out datei.json]` (core/cli.py).
+
 `--rzproj`: spielt das Paket (Projekt → „Projekt exportieren (.rzproj)“) in einen eigenen, leeren App-Ordner im Temp-Ordner
 ein — die Bibliothek der App bleibt unberührt — und exportiert das aktive Projekt des Pakets. Ziel ohne Angabe: neben der
 .rzproj-Datei, gleicher Name mit „.kamera.json“.
@@ -78,36 +80,12 @@ def _aus_paket(a) -> int:
     from core import bibliothek
     bibliothek.anlegen(bib)
     import app as APP
-    api = APP.Api()
-    r = api.projekt_importieren(str(paket))
-    if not r.get("ok"):
-        print(json.dumps({"ok": False, "error": "Import: " + str(r.get("error"))}, ensure_ascii=False))
-        return 1
-    from core import projekte as P
-    daten = P.laden(APP.DATEN_ORT)
-    projekte = daten.get("projects") or {}
-    # das im Paket aktive Projekt (beim Einspielen kann die ID wechseln — darum über den Namen), sonst das zuletzt geänderte
-    import zipfile
-    aktiv_name = None
-    try:
-        pj = json.loads(zipfile.ZipFile(paket).read("projekte.json").decode("utf-8"))
-        aktiv_name = ((pj.get("projects") or {}).get(pj.get("active_project_id") or "") or {}).get("name")
-    except Exception:  # noqa: BLE001
-        pass
-    kand = sorted(projekte.items(), key=lambda kv: str(kv[1].get("modified_at") or ""), reverse=True)
-    kand = [kv for kv in kand if (kv[1].get("animator") or {})] or kand
-    if aktiv_name:
-        kand = [kv for kv in kand if str(kv[1].get("name") or "").startswith(aktiv_name)] or kand
-    if not kand:
-        print(json.dumps({"ok": False, "error": "kein Projekt im Paket"}, ensure_ascii=False))
-        return 1
-    pid = kand[0][0]
+    from core import cli as CLI
     ziel = a.ziel or str(paket.parent / (paket.stem + ".kamera.json"))
     if a.ziel and Path(a.ziel).is_dir():
         ziel = str(Path(a.ziel) / (paket.stem + ".kamera.json"))
     w_, h_ = (int(x) for x in a.vorschau.lower().split("x")) if a.vorschau else (0, 0)
-    r = api.kamera_export(pid, ziel, w_, h_)
-    r["projekt"] = {"id": pid, "name": kand[0][1].get("name")}
+    r = CLI.kamera_aus_paket(APP, APP.Api(), paket, Path(ziel), w_, h_)   # dieselbe Funktion wie `gpsstudio camera-export`
     print(json.dumps(r, ensure_ascii=False))
     return 0 if r.get("ok") else 1
 
