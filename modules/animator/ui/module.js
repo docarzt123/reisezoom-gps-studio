@@ -10084,6 +10084,17 @@ function mountAnimator(body, headerActions, opts) {
   // Snapshot-Workflow (v0.9.0): aktuelle Kartenansicht → 4 Property-Events
   // (pitch / bearing / zoom / center) am gleichen Anker. Wenn dort schon ein
   // Cluster ist, werden seine Events upgedated.
+  // 26.10.2026 (Beta-Tester: „das Erzeugen eines Keyframes funktioniert nicht immer zuverlässig … hängt vom Glück ab“) —
+  // „Hier Keyframe“ ersetzte jeden Keyframe innerhalb 0,5 % der Strecke (seit v0.9.38 gegen Rundungs-Duplikate): 3 px
+  // neben einem Keyframe gesetzt, verschwand der alte still, mit Zeitleisten-Zoom noch weiter weg. Jetzt: ist ein Keyframe
+  // ausgewählt (Abspielkopf auf ihm), wird ER an seiner Stelle aktualisiert; sonst ersetzt nur, was wirklich an derselben
+  // Stelle liegt (0,1 % — Rundungsreste liegen bei 1e-6).
+  const KF_GLEICHE_STELLE = 0.001;
+  function _kfZielAnker(anchor) {
+    const L = clusterAnchors();
+    if (_selectedKfIdx != null && _selectedKfIdx < L.length && Math.abs(L[_selectedKfIdx] - anchor) < 0.005) return L[_selectedKfIdx];
+    return anchor;
+  }
   function snapshotKeyframe(anchor, options) {
     if (!map) return;
     _ansichtHinweisWeg();
@@ -10091,6 +10102,7 @@ function mountAnimator(body, headerActions, opts) {
     _animPushUndo(t("undo.keyframe_gesetzt", "Keyframe gesetzt"), { force: true });
     if (anchor == null) anchor = _tlBar ? _tlBar.getScrubber() : 0;
     anchor = ankerBegrenzen(anchor);
+    anchor = _kfZielAnker(anchor);   // 26.10.2026 — ausgewählter Keyframe: an SEINER Stelle aktualisieren
     const pitch = +map.getPitch().toFixed(2);
     const bearing = +map.getBearing().toFixed(2);
     const curZoom = +map.getZoom().toFixed(3);
@@ -10119,7 +10131,7 @@ function mountAnimator(body, headerActions, opts) {
     // Float-Rundungsfehler beim Anchor verglichen mit Cluster-Anchors zu
     // Duplikaten an „1.0" geführt. 0.5 % entspricht der Marker-Klick-Toleranz.
     const events = getRawTimelineEvents().filter(e =>
-      !(e && KF_LANES.includes(e.kind) && Math.abs((e.anchor || 0) - anchor) < 0.005)
+      !(e && KF_LANES.includes(e.kind) && Math.abs((e.anchor || 0) - anchor) < KF_GLEICHE_STELLE)
     );
     // 4 neue Property-Events anlegen
     // v0.9.73 (Marc-Bug "Erde nach Reload viel kleiner"): zoom-Event speichert
@@ -10173,10 +10185,9 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (!KF_LANES.includes(kind)) return;
     anchor = ankerBegrenzen(anchor);
-    // Bestehenden Event derselben Property am gleichen Anker entfernen.
-    // v0.9.38: Toleranz 0.001 → 0.005 (siehe snapshotKeyframe).
+    // Bestehenden Event derselben Property am gleichen Anker entfernen (Toleranz s. KF_GLEICHE_STELLE).
     const events = getRawTimelineEvents().filter(e =>
-      !(e && e.kind === kind && Math.abs((e.anchor || 0) - anchor) < 0.005)
+      !(e && e.kind === kind && Math.abs((e.anchor || 0) - anchor) < KF_GLEICHE_STELLE)
     );
     // Neuen Event mit aktuellem Karten-Wert für DIESE Property anlegen
     let newEv = null;
@@ -12462,12 +12473,17 @@ function mountAnimator(body, headerActions, opts) {
       const i = lo;
       const A = cams[i], B = cams[i+1], span = (B.t - A.t) || 1e-6;
       const u = Math.max(0, Math.min(1, (tp - A.t) / span));
-      const _eM = (A.eM != null && B.eM != null) ? A.eM + (B.eM - A.eM) * u : (A.eM != null ? A.eM : B.eM);
-      // 14.10.2026 — x auf dem kürzeren Weg mischen und zurück auf 0…1 falten (Datumsgrenze, s. Aufbau oben)
-      let _dx = B.pos[0] - A.pos[0]; _dx -= Math.round(_dx);
-      const _x = A.pos[0] + _dx * u, _xf = _x - Math.floor(_x);
-      _camApply([_xf, A.pos[1]+(B.pos[1]-A.pos[1])*u, A.pos[2]+(B.pos[2]-A.pos[2])*u],
-                A.ori ? _nlerpQ(A.ori, B.ori, u) : null, A.bp ? _lerpBP(A.bp, B.bp, u) : null, _eM);
+      // 26.10.2026 — weich statt gerade zwischen den Stützstellen (rzPchip, ui/js/util.js): sonst ändert die Kamera bei
+      // 30 fps ihr Tempo nur jedes zweite Bild (15 Stützstellen/s). Synchron zu core/animator.py __camFaithful.
+      const _w = (f) => window.rzPchip(cams, i, u, f);
+      const _eM = (A.eM != null && B.eM != null) ? _w((c) => c.eM) : (A.eM != null ? A.eM : B.eM);
+      // 14.10.2026 — x ist beim Aufbau fortlaufend abgewickelt (Datumsgrenze); hier zurück auf 0…1 falten
+      const _x = _w((c) => c.pos[0]), _xf = _x - Math.floor(_x);
+      // Blickrichtung: Winkel je Stützstelle auf den kürzeren Weg zu A gefaltet
+      const _bp = A.bp ? [_w((c) => c.bp ? A.bp[0] + (((c.bp[0] - A.bp[0]) % 360 + 540) % 360 - 180) : null),
+                          _w((c) => c.bp ? c.bp[1] : null)] : null;
+      _camApply([_xf, _w((c) => c.pos[1]), _w((c) => c.pos[2])],
+                A.ori ? _nlerpQ(A.ori, B.ori, u) : null, _bp && _bp[0] != null && _bp[1] != null ? _bp : (A.bp ? _lerpBP(A.bp, B.bp, u) : null), _eM);
     };
     try {
       const _fProj = (typeof getActiveProject === "function") ? getActiveProject() : null;

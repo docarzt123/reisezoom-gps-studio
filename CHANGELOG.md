@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.836] – 2026-10-26
+
+(0.9.835 was a local build only; its changes ship with this version.)
+
+### Fixed
+- Animator, **keyframes on the timeline**: clicking a keyframe marker to select it no longer moves it — with the slightest mouse movement (1–2 px) it used to jump until its centre sat under the pointer (up to ~10 px). Dragging now starts after 4 px and keeps the point where you grabbed the marker.
+- Animator, **„Capture keyframe“** next to an existing keyframe: it no longer silently replaces a keyframe within 0.5 % of the route (3 px away, more with the timeline zoomed in). A selected keyframe is updated in place (not moved); otherwise a new keyframe is added and the existing one stays.
+- Animator, **Smooth camera**: the camera no longer changes its speed only every second frame. Its support points (15 per second) were joined by straight segments, so at 30 fps two frames moved at the same speed and then the speed jumped — a slight, even judder over the whole picture. Now a smooth curve runs through the same support points (monotone cubic, no overshoot at stops): same path, speed changes a little every frame. Preview and video alike.
+
 ## [0.9.834] – 2026-10-26
 
 (0.9.810–0.9.833 were local builds only; their changes ship with this version.)

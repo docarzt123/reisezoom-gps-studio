@@ -4049,6 +4049,33 @@ function rzSpurGlaetten(coords, meter) {
   return out;
 }
 window.rzSpurGlaetten = rzSpurGlaetten;
+/** 26.10.2026 (Abgleich mit Blender, Projekt „Mammut“: die Kamera änderte ihr Tempo nur jedes zweite Bild) — die ruhige
+ *  Kamera hat 15 Stützstellen je Sekunde; gerade verbunden lief sie bei 30 fps je zwei Bilder gleich schnell, dann kam ein
+ *  Tempo-Sprung (230 von 1198 Bildern > 2 m/Bild). Jetzt eine weiche Kurve durch dieselben Stützstellen: monoton kubisch
+ *  (Fritsch-Carlson / PCHIP) je Wert — die Bahn trifft jede Stützstelle exakt, schießt nicht über (kein Zurückrollen an
+ *  Halten), das Tempo ändert sich in jedem Bild ein wenig.
+ *  `pts[k].t` = Zeit, `wert(p)` = Zahl (oder null → für diese Seite gerade). Liefert den Wert bei u (0…1) zwischen i und i+1.
+ *  ⚠️ Spiegel: core/animator.py `__rzPchip` (die Render-Seite lädt util.js nicht). Bei Änderungen BEIDE pflegen. */
+function rzPchip(pts, i, u, wert) {
+  const A = pts[i], B = pts[i + 1];
+  const yA = wert(A), yB = wert(B);
+  if (yA == null || yB == null) return null;
+  const h = (B.t - A.t) || 1e-6, d = (yB - yA) / h;
+  const steig = (P, yP, Q, yQ, R, yR) => {   // Steigung am mittleren Knoten Q
+    const h0 = Q.t - P.t, h1 = R.t - Q.t;
+    if (!(h0 > 0) || !(h1 > 0)) return d;
+    const d0 = (yQ - yP) / h0, d1 = (yR - yQ) / h1;
+    if (d0 * d1 <= 0) return 0;
+    return 3 * (h0 + h1) / ((2 * h1 + h0) / d0 + (h1 + 2 * h0) / d1);
+  };
+  const P = pts[i - 1], N = pts[i + 2];
+  const yP = P ? wert(P) : null, yN = N ? wert(N) : null;
+  const mA = yP != null ? steig(P, yP, A, yA, B, yB) : d;
+  const mB = yN != null ? steig(A, yA, B, yB, N, yN) : d;
+  const u2 = u * u, u3 = u2 * u;
+  return (2 * u3 - 3 * u2 + 1) * yA + (u3 - 2 * u2 + u) * h * mA + (-2 * u3 + 3 * u2) * yB + (u3 - u2) * h * mB;
+}
+window.rzPchip = rzPchip;
 /** Regler 0–10 → (Basislänge in Metern, Mindestzahl Punkte). */
 function kursGlaettung(stufe) {
   const v = Math.max(0, Math.min(10, +stufe || 0));

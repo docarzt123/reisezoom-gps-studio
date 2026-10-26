@@ -3623,6 +3623,26 @@ window.__nlerpQuat = (a, b, t) => {{
   const len = Math.hypot(r[0], r[1], r[2], r[3]) || 1;
   return [r[0]/len, r[1]/len, r[2]/len, r[3]/len];
 }};
+// Spiegel von rzPchip (ui/js/util.js) — monotone kubische Kurve durch die Stützstellen. Bei Änderungen BEIDE pflegen.
+window.__rzPchip = (pts, i, u, wert) => {{
+  const A = pts[i], B = pts[i + 1];
+  const yA = wert(A), yB = wert(B);
+  if (yA == null || yB == null) return null;
+  const h = (B.t - A.t) || 1e-6, d = (yB - yA) / h;
+  const steig = (P, yP, Q, yQ, R, yR) => {{
+    const h0 = Q.t - P.t, h1 = R.t - Q.t;
+    if (!(h0 > 0) || !(h1 > 0)) return d;
+    const d0 = (yQ - yP) / h0, d1 = (yR - yQ) / h1;
+    if (d0 * d1 <= 0) return 0;
+    return 3 * (h0 + h1) / ((2 * h1 + h0) / d0 + (h1 + 2 * h0) / d1);
+  }};
+  const P = pts[i - 1], N = pts[i + 2];
+  const yP = P ? wert(P) : null, yN = N ? wert(N) : null;
+  const mA = yP != null ? steig(P, yP, A, yA, B, yB) : d;
+  const mB = yN != null ? steig(A, yA, B, yB, N, yN) : d;
+  const u2 = u * u, u3 = u2 * u;
+  return (2 * u3 - 3 * u2 + 1) * yA + (u3 - 2 * u2 + u) * h * mA + (-2 * u3 + 3 * u2) * yB + (u3 - u2) * h * mB;
+}};
 window.__camFaithful = (t) => {{
   const cams = window.__kfCams;
   if (!cams || cams.length === 0) return;
@@ -3636,9 +3656,13 @@ window.__camFaithful = (t) => {{
   const A = cams[i], B = cams[i+1];
   const span = (B.t - A.t) || 1e-6;
   const u = Math.max(0, Math.min(1, (t - A.t) / span));
-  const px = A.pos[0] + (B.pos[0]-A.pos[0])*u, py = A.pos[1] + (B.pos[1]-A.pos[1])*u, pz = A.pos[2] + (B.pos[2]-A.pos[2])*u;
-  const eM = (A.eM != null && B.eM != null) ? A.eM + (B.eM - A.eM) * u : (A.eM != null ? A.eM : B.eM);
-  window.__rzCamApply([px, py, pz], A.ori ? window.__nlerpQuat(A.ori, B.ori, u) : null, A.bp ? window.__rzLerpBP(A.bp, B.bp, u) : null, eM);
+  // 26.10.2026 — weich statt gerade zwischen den Stützstellen (Spiegel von rzPchip in ui/js/util.js)
+  const w = (f) => window.__rzPchip(cams, i, u, f);
+  const px = w(c => c.pos[0]), py = w(c => c.pos[1]), pz = w(c => c.pos[2]);
+  const eM = (A.eM != null && B.eM != null) ? w(c => c.eM) : (A.eM != null ? A.eM : B.eM);
+  const bp = A.bp ? [w(c => c.bp ? A.bp[0] + (((c.bp[0] - A.bp[0]) % 360 + 540) % 360 - 180) : null), w(c => c.bp ? c.bp[1] : null)] : null;
+  window.__rzCamApply([px, py, pz], A.ori ? window.__nlerpQuat(A.ori, B.ori, u) : null,
+                      bp && bp[0] != null && bp[1] != null ? bp : (A.bp ? window.__rzLerpBP(A.bp, B.bp, u) : null), eM);
   // 25.08.2026 — Prüfstelle für die Zoom-Meldung:
   // Übernimmt Mapbox die gesetzte Kamerahöhe, oder hebt es sie über das Gelände?
   // Gemessen: `hub` ist durchgehend 0 — Mapbox übernimmt sie exakt. Der

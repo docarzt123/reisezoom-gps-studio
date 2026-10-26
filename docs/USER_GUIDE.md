@@ -2827,8 +2827,10 @@ Mit der Timeline-Bar **unter** der Karten-Vorschau kannst du den Kamera-Flow dyn
 5. Wiederholen für weitere Stellen im Track
 
 **Frei-Modus vs. Edit-Modus:**
-- **Auf einem Keyframe** (Scrubber genau drauf) → Detail-Editor in der Sidebar erscheint mit 4 Slidern (Anchor, Pitch, Bearing, Zoom-Δ) zum Feintunen. Karten-Edits werden NICHT automatisch in den Keyframe übernommen — dafür drückst du „📍 Hier Keyframe" nochmal (das updated den bestehenden) oder den Button „Mit aktueller Karten-Ansicht aktualisieren" im Editor.
-- **Zwischen Keyframes** → Editor weg. Karte ist **frei** — pan/zoom/cmd-drag verändert KEINEN existierenden Keyframe. „📍 Hier Keyframe" legt an dieser Position einen neuen an.
+- **Auf einem Keyframe** (Scrubber drauf — z. B. nach einem Klick auf seinen Marker) → der Keyframe ist ausgewählt, der Detail-Editor in der Sidebar zeigt seine Werte zum Feintunen. Jede Kartenbewegung landet jetzt **in diesem Keyframe** (unten im Bild steht „Keyframe #n übernimmt die Karte — ⌘Z macht es rückgängig“). „📍 Hier Keyframe" aktualisiert ihn an seiner Stelle, er wird dabei nicht verschoben.
+- **Zwischen Keyframes** → Editor weg. Karte ist **frei** — pan/zoom/cmd-drag verändert KEINEN existierenden Keyframe. „📍 Hier Keyframe" legt an dieser Position einen neuen an, auch dicht neben einem vorhandenen; der vorhandene bleibt.
+- **Reihenfolge:** erst die Stelle in der Zeitleiste wählen, dann die Karte einstellen, dann „📍 Hier Keyframe". Ein Klick in die Zeitleiste zeigt die Kamera dieser Stelle — eine vorher eingestellte, noch nicht gespeicherte Ansicht ist danach weg.
+- **Marker anklicken oder ziehen:** Ein Klick wählt den Keyframe nur aus — kleines Mauszittern verschiebt ihn nicht (erst ab 4 Pixeln Mausweg wird gezogen). Beim Ziehen bleibt der Marker dort, wo du ihn angefasst hast, er springt nicht zur Maus.
 
 **Probe-Lauf:** Der **▶-Button** spielt den ganzen Track in deiner echten Animations-Dauer ab (also wenn du 12 s eingestellt hast, dauert die Probe 12 s). Zweiter Klick (oder <kbd>Space</kbd>) stoppt sofort. Reines Vorschau-Feature, kein Render nötig.
 

@@ -1853,8 +1853,10 @@ python -m playwright install chromium-headless-shell</code></pre>
 </ol>
 <p><strong>Frei-Modus vs. Edit-Modus:</strong></p>
 <ul>
-<li><strong>Auf einem Keyframe</strong> (Scrubber genau drauf) → Detail-Editor in der Sidebar erscheint mit 4 Slidern (Anchor, Pitch, Bearing, Zoom-Δ) zum Feintunen. Karten-Edits werden NICHT automatisch in den Keyframe übernommen — dafür drückst du „📍 Hier Keyframe&quot; nochmal (das updated den bestehenden) oder den Button „Mit aktueller Karten-Ansicht aktualisieren&quot; im Editor.</li>
-<li><strong>Zwischen Keyframes</strong> → Editor weg. Karte ist <strong>frei</strong> — pan/zoom/cmd-drag verändert KEINEN existierenden Keyframe. „📍 Hier Keyframe&quot; legt an dieser Position einen neuen an.</li>
+<li><strong>Auf einem Keyframe</strong> (Scrubber drauf — z. B. nach einem Klick auf seinen Marker) → der Keyframe ist ausgewählt, der Detail-Editor in der Sidebar zeigt seine Werte zum Feintunen. Jede Kartenbewegung landet jetzt <strong>in diesem Keyframe</strong> (unten im Bild steht „Keyframe #n übernimmt die Karte — ⌘Z macht es rückgängig“). „📍 Hier Keyframe&quot; aktualisiert ihn an seiner Stelle, er wird dabei nicht verschoben.</li>
+<li><strong>Zwischen Keyframes</strong> → Editor weg. Karte ist <strong>frei</strong> — pan/zoom/cmd-drag verändert KEINEN existierenden Keyframe. „📍 Hier Keyframe&quot; legt an dieser Position einen neuen an, auch dicht neben einem vorhandenen; der vorhandene bleibt.</li>
+<li><strong>Reihenfolge:</strong> erst die Stelle in der Zeitleiste wählen, dann die Karte einstellen, dann „📍 Hier Keyframe&quot;. Ein Klick in die Zeitleiste zeigt die Kamera dieser Stelle — eine vorher eingestellte, noch nicht gespeicherte Ansicht ist danach weg.</li>
+<li><strong>Marker anklicken oder ziehen:</strong> Ein Klick wählt den Keyframe nur aus — kleines Mauszittern verschiebt ihn nicht (erst ab 4 Pixeln Mausweg wird gezogen). Beim Ziehen bleibt der Marker dort, wo du ihn angefasst hast, er springt nicht zur Maus.</li>
 </ul>
 <p><strong>Probe-Lauf:</strong> Der <strong>▶-Button</strong> spielt den ganzen Track in deiner echten Animations-Dauer ab (also wenn du 12 s eingestellt hast, dauert die Probe 12 s). Zweiter Klick (oder <kbd>Space</kbd>) stoppt sofort. Reines Vorschau-Feature, kein Render nötig.</p>
 <p><strong>Tastatur-Navigation</strong> (wie im NLE):</p>

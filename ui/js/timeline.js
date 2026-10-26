@@ -2347,8 +2347,13 @@ function mountTimelineBar(opts) {
     // (das Idiom aus Premiere, Final Cut, After Effects). `startAnchor` bleibt
     // dabei stehen: `anchor` wandert während des Ziehens mit, wir brauchen aber
     // am Ende noch die Stelle, VON der kopiert wird.
+    // 26.10.2026 (Beta-Tester, Windows: „das Positionieren eines Keyframes funktioniert nicht immer zuverlässig … hängt vom
+    // Glück ab“) — gemessen: ein Klick zum AUSWÄHLEN mit 1–2 px Mauswackeln schob den Keyframe, bis seine Mitte unter dem
+    // Zeiger lag (bei 9 px neben der Mitte geklickt: +10 px). Jetzt erst ab ZIEH_SCHWELLE_PX Mausweg, und der Abstand
+    // zwischen Greifstelle und Marker-Mitte bleibt beim Ziehen erhalten (kein Sprung beim Anfassen).
     _dragging = { type: "marker", kind, anchor, startAnchor: anchor,
-                  moved: false, kopieren: !!e.altKey };
+                  moved: false, kopieren: !!e.altKey,
+                  startX: e.clientX, greifBar: _trackToBar(anchor) - anchorFromClientX(e.clientX) };
   }, true);
 
   // v0.9.8 — Doppelklick auf eine LEERE Stelle einer Lane → nur ein
@@ -2398,6 +2403,7 @@ function mountTimelineBar(opts) {
     if (cb.onDelete) cb.onDelete({ kind, anchor });
   });
 
+  const ZIEH_SCHWELLE_PX = 4;   // 26.10.2026 — unterhalb davon ist das Anfassen eines Markers ein Klick (Auswahl)
   // Globale mouse-move/up für drag
   _win("mousemove", (e) => {
     if (!_dragging || !_enabled) return;
@@ -2414,9 +2420,11 @@ function mountTimelineBar(opts) {
       }
       return;
     }
+    if (_dragging.type === "marker" && !_dragging.moved && Math.abs(e.clientX - _dragging.startX) < ZIEH_SCHWELLE_PX) return;
     const barPos = anchorFromClientX(e.clientX);
     // Der Scrubber lebt auf der Leiste, ein Keyframe im Track (v0.9.511).
-    const anchor = _dragging.type === "marker" ? _barToTrack(barPos) : barPos;
+    const anchor = _dragging.type === "marker"
+      ? _barToTrack(Math.max(0, Math.min(1, barPos + (_dragging.greifBar || 0)))) : barPos;
     if (_dragging.type === "scrubber") {
       setScrubberVisual(anchor);
       if (cb.onScrub) cb.onScrub(anchor);

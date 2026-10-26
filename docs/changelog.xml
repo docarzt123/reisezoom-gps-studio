@@ -5,8 +5,19 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 26 Oct 2026 07:26:07 +0000</lastBuildDate>
+<lastBuildDate>Mon, 26 Oct 2026 11:24:20 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.836</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-836</link>
+<guid isPermaLink="false">gps-studio-v0.9.836</guid>
+<pubDate>Mon, 26 Oct 2026 12:00:00 +0000</pubDate>
+<description>Keyframes setzen ohne Glück — Ein Klick auf einen Keyframe wählt ihn nur noch aus — vorher hat ihn schon ein winziges Zucken der Maus ein Stück verschoben, oft an die Stelle, an der eigentlich ein neuer hin sollte. Gezogen wird erst, wenn du wirklich ziehst, und der Punkt springt dabei nicht zur Maus.
+
+„Hier Keyframe“ neben einem vorhandenen — Legst du einen Keyframe dicht neben einen anderen, entsteht ein neuer — der alte bleibt. Steht der Abspielkopf auf einem Keyframe, wird genau dieser aktualisiert, an seiner Stelle.
+
+Ruhige Kamera ohne Ruckeln — Mit „Ruhige Kamera“ änderte die Kamera ihr Tempo nur jedes zweite Bild — ein leichtes, gleichmäßiges Ruckeln im ganzen Bild. Jetzt fährt sie in jedem Bild gleichmäßig weiter, auf derselben Bahn.</description>
+</item>
 <item>
 <title>v0.9.834</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-834</link>
@@ -249,19 +260,6 @@ Karten-Editor bleibt offen — Beim Durchklicken der Luftbilder (z. B. Mapbox Sa
 Rundtour für Etappen — Ab drei Punkten schließt „🔄 Rundtour — zurück zum Start“ die Etappe am Startpunkt; der Rückweg hat ein eigenes Verkehrsmittel und „Straßen folgen“.
 
 Fotos „Nach Touren“ — Jede Tour zeigt Datum, Ort, Fortbewegung und Kilometer, die Liste ist nach Jahren gegliedert, ein Suchfeld filtert nach Ort, Jahr oder Name, und „🎬 Im Animator öffnen“ springt direkt hinein.</description>
-</item>
-<item>
-<title>v0.9.785</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-785</link>
-<guid isPermaLink="false">gps-studio-v0.9.785</guid>
-<pubDate>Thu, 08 Oct 2026 12:00:00 +0000</pubDate>
-<description>Acht Kartenlooks und der Karten-Editor — Unter „Look“ stehen jetzt acht Kacheln — neu sind Schatzkarte, Topo, Seekarte und Pastell, mit Relief, Küstenlinie oder Meerestiefen. Das ✎ an der gewählten Kachel öffnet rechts den Karten-Editor: jede Farbe der Karte, Schrift, Relief, Grenzen — sofort in Vorschau und Video. Eigene Looks speicherst du für alle Projekte oder gibst sie als Datei weiter. Luftbild-Optik, Karten-Optik und Sternenhimmel stehen jetzt ebenfalls rechts im Editor (Knopf „Karten-Optik und Sterne …“). Die lange Stil-Liste ist weg: Links stehen nur noch Kacheln — acht Looks und „Weitere Karten“ (OpenTopoMap, CyclOSM &amp; Co., Liste rechts). Rechts im Editor stehen auch 3D-Terrain, 3D-Häuser und „Auf der Karte anzeigen“; ein eigener Look speichert sie mit. Das ✎ schaltet den Editor auf und zu. „Mehrere Track-Farben“ gibt es jetzt für jede Tour einzeln, im Track-Editor rechts — auch im Video. Oben in der rechten Spalte steht, zu welchem Abschnitt das Fenster gehört.
-
-Fotos ohne Ort — „📷 Fotos hinzufügen“ überspringt Fotos ohne GPS nicht mehr still: Die App fragt „Fotos ohne Ort platzieren?“ und legt sie als Sofortbild auf die Strecke — mit Aufnahmezeit an die passende Stelle, sonst gleichmäßig verteilt. Danach ziehst du jedes an seinen Platz.
-
-Fotostopp ohne Heranfahren — Neuer Haken „Kamera fährt heran“ im Fotostopp: aus = der Track hält, das Foto erscheint, die Kamera bleibt stehen.
-
-Kartenanimation ohne GPS weitergeben — Das .rzproj nimmt jetzt die Etappe mit — beim Empfänger bleiben Punkte, Kurven und Verkehrsmittel bearbeitbar.</description>
 </item>
 </channel>
 </rss>
