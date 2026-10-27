@@ -14,6 +14,47 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.843] – 2026-10-27
+
+(0.9.839–0.9.842 were local builds only; their changes ship with this version.)
+
+### Added
+- **Command line, `camera-export`: further tours** — stages of a trip, swarm tours and tours shown „whole“ are now in the
+  file (`weitere_touren`: route as drawn with heights and the effective style; per frame `touren_fortschritt`: drawn end,
+  opacity, width, running dot). With a trip, `track.haupt_bis` says where the main line ends. 3D tools can now draw them;
+  before they were missing from the film entirely.
+- **Command line, `overlay-export --with-labels`**: keeps the map's labels (places, POIs, roads, transit — as switched on
+  in the project) in the transparent export; the map itself stays see-through. The result line says `"labels": true`.
+
+### Changed
+- **Video assistant with the eight tabs of the web version**: Route · Camera · Map · Line · Title · Photos · Info · Video. Every tab can be clicked at any time, everything is preset, it starts at „Camera“, and „Next: …“ leads on. New in the assistant: camera **height** (Close · Medium · High) instead of the flight-style cards, **3D terrain** and **labels** (one switch, five single ones under „more“), a **Line** tab (moving marker arrow/dot/vehicle/off, line colour, dash style, width, outline, drop shadow, glow, „show route ahead“) and **„Photos as“** instant photo · large with pause · picture in picture. A **„?“** next to the settings opens a short explanation with **short clips** of how it looks in the video. The template now follows the chosen map. „Create video …“ applies and opens the export dialog right away. Your own ★ templates also keep height, marker, line, labels and terrain.
+- **Music is off by default** — in the quick video and in the video assistant. Picking a track switches it on.
+- **Video assistant without walls of text**: explanations now sit behind a **„?“** with a tooltip (like everywhere else in the app); clicking a „?“ that has clips opens the clips. Headings, choices and switches stay — nothing else.
+- **Timeline shows only what you need**: if it would take more than 60 % of the preview area, it folds away what you are not working on — first the camera detail lanes (the cluster row keeps all keyframe markers), then sound, overlays, signs. The group you opened last stays open, one click opens anything again, nothing of this is remembered, and with more room everything opens again by itself. If the open group itself has more rows than fit (say 50 signs), it scrolls on its own and its header row stays on top — before, it covered the whole preview.
+
+### Fixed
+- **Dashed line looked solid in the video**: with an outline or shadow the dashes ran together — the wider layers have
+  round ends that reached into the gaps (outline: 0.5 px gap left, shadow: none). Outline, shadow, glow and the faint
+  full route now leave exactly the gaps of the line itself and sit centred on each dash.
+- **Command line, `overlay-export --without-track`** left tours shown „whole“ in the overlay; they are now left out like
+  the other tours (3D tools draw them from the camera export).
+- Building the app no longer ends running command-line exports (`camera-export`, `overlay-export`): only the app window is
+  closed, and the build waits for running exports before it replaces the app.
+- Video assistant in a project that already has keyframes: the question **„Replace keyframes?“** comes up a moment after opening — a click next to it (you were just reaching for a card) closed the whole assistant with „Nothing changed“. Now only its two buttons answer it.
+- Animator: dragging a sign or photo on the map **across the overview map** did nothing — the overview caught the mouse, the drag never ended and the sign stayed where it was. While you drag, the overview now lets the mouse through.
+- Video assistant: with the camera **„Follow (north up)“ or „Whole tour“** the assistant still wrote heading keyframes — the north-up camera turned along the route after all. Only „Fly along“ sets them now.
+- Video assistant: opening it **kept the format of the project** only by accident of the last quick video — a 16:9 project in 3840×2160 became 9:16 in 1080. It now keeps the project's format and resolution until you change them.
+- Animator, **photo stops after the video assistant (or after ⌘Z)** were not shown as photo stops in the sign lane, and a dragged photo landed next to the pointer (80 px dragged → 56 px). The halts of the tempo curve pointed to their signs by list position; after the list was reordered (highlights added, ⌘Z) they pointed to the wrong signs. The curve is now fetched again whenever that mapping is out of date, and the correction after dragging no longer overshoots across the halts of other photo stops.
+- Animator: time, 🔊 and „Preview“ in the playback bar **overlapped** on smaller screens with the keyframe editor on; the right-hand buttons now wrap to a second line.
+- Animator: the **overview map** kept the old line colour after ⌘Z (or after a new look) until the route itself changed.
+- Video assistant: **„What the assistant did“** stayed open after ⌘Z took the assistant back.
+- Animator timeline: a **folded group with many entries** (e.g. 52 signs) drew its mini strips more than 100 px beyond its row, over media, sound and the cluster row. They now stay inside the row.
+- Quick video: with photo stops switched off it still said „0 photo stops … not all fit this length“; the line is now empty.
+- **Two videos at once**: clicking „Video assistant“ and right after „Quick video“ (or the other way round) started both and created two projects at the same time. Now only one opens; the other button shows a note.
+- **Geotagger: photos placed by hand lost their place** after switching modules or restarting — the places only lived while the module was open. They are now remembered per photo and come back when the same photos are loaded again.
+- **„Take over from Geotagger“ in the Animator brought photos without a place**: it only read the GPS inside the files, but the Geotagger writes tagged copies to a target folder by default, so the loaded originals had none — photos placed by time or by hand arrived without a place („disappear from the track“). It now takes what the Geotagger shows: the photo's own GPS, else the place set by hand, else the match by capture time.
+- Animator, **photos in the „Signs“ timeline lane could not be moved reliably**: a photo whose bar reaches the end of the video (it stays as a small picture) could not be dragged to the right at all — the end was clamped to the video end, leaving no room. Now its start moves and the end stays at the video end. A photo stop landed off the pointer (dragged 60 px, moved 39 px) because its own pause shifts the time axis behind it; after letting go it is now corrected until the bar sits under the pointer, the photo's place moves along the route, and one ⌘Z/Ctrl+Z undoes the whole move.
+
 ## [0.9.838] – 2026-10-26
 
 (0.9.837 was a local build only; its changes ship with this version.)

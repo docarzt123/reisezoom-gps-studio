@@ -19,9 +19,36 @@ fi
 
 APPNAME="Reisezoom GPS Studio.app"
 
-# Falls App schon offen ist → killen, sonst können wir nicht überschreiben
-pkill -f ReisezoomGPSStudio 2>/dev/null || true
-sleep 1
+# 27.10.2026 — Kommandozeilen-Aufrufe (`ReisezoomGPSStudio cli …`, z. B. ein Kamera- oder Overlay-Export für
+# GPS Studio Karten) NICHT mehr abschießen: `pkill -f ReisezoomGPSStudio` traf sie mit, der Aufruf endete nach
+# 11½ min mit „cancelled“. Beendet wird nur das App-Fenster; vor dem Ersetzen des Bundles warten wir auf die
+# laufenden cli-Aufrufe (sie laden ihre Module aus dem Bundle nach). RZ_BUILD_CLI_WARTEN_MIN begrenzt das Warten.
+_rz_pids() {   # $1 = "cli" → nur Kommandozeilen-Aufrufe, sonst nur App-Fenster
+  ps -axo pid=,command= | while read -r pid cmd; do
+    # nur das Programm selbst, nicht Shells/Skripte, die den Namen bloß im Text tragen
+    case "$cmd" in *.app/Contents/MacOS/ReisezoomGPSStudio|*.app/Contents/MacOS/ReisezoomGPSStudio\ *) ;; *) continue ;; esac
+    case "$cmd" in *"/MacOS/ReisezoomGPSStudio cli "*) [ "$1" = "cli" ] && echo "$pid" ;; *) [ "$1" = "cli" ] || echo "$pid" ;; esac
+  done
+}
+_rz_fenster_beenden() {
+  local p; p=$(_rz_pids fenster)
+  [ -n "$p" ] && kill $p 2>/dev/null || true
+  sleep 1
+}
+_rz_cli_abwarten() {
+  local max=${RZ_BUILD_CLI_WARTEN_MIN:-90} min=0
+  while [ -n "$(_rz_pids cli)" ]; do
+    if [ "$min" -ge "$max" ]; then
+      echo "⚠️  Nach $max min laufen noch Kommandozeilen-Aufrufe von GPS Studio — Bundle wird trotzdem ersetzt."
+      return
+    fi
+    [ "$min" -eq 0 ] && echo "⏳  Warte auf laufende Kommandozeilen-Aufrufe von GPS Studio (z. B. Kamera-Export) …"
+    sleep 60; min=$((min + 1))
+  done
+}
+
+# Falls App schon offen ist → beenden, sonst können wir nicht überschreiben
+_rz_fenster_beenden
 
 # Statische Release-Gates (schnell, Warn-Gate — bricht lokalen Build NICHT ab).
 # `--fast` = JS-/Python-Syntax + i18n-Konsistenz + Fix-Invarianten (kein Playwright).
@@ -62,6 +89,8 @@ if [ ! -d "dist/$APPNAME" ]; then
   exit 1
 fi
 
+_rz_cli_abwarten
+_rz_fenster_beenden   # falls während des Bauens jemand die App geöffnet hat
 echo "📦  Installiere nach /Applications/ …"
 rm -rf "/Applications/$APPNAME"
 cp -R "dist/$APPNAME" /Applications/

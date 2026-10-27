@@ -970,8 +970,33 @@ def _dasharray_mapbox(line_style: str, spacing: float = 1.0, faktor: float = 1.0
     # 07.09.2026 — `faktor` = Hauptlinienbreite / Ebenenbreite: breitere Ebenen (Schatten 2,2×,
     # Glow, Röhren-Streifen) bekommen so dieselbe Pixel-Länge der Striche wie die Hauptlinie.
     # Synchron zu modules/animator/ui/module.js (dasharrayFor).
-    s = max(0.1, float(spacing)) * max(0.01, float(faktor))
-    return "[" + ", ".join(f"{v * s:.2f}" for v in base) + "]"
+    muster = [v * max(0.1, float(spacing)) for v in base]
+    return "[" + ", ".join(f"{v:.5f}" for v in _dash_fuer_breite(muster, 1.0 / max(0.01, float(faktor)))) + "]"
+
+
+def _dash_fuer_breite(muster: list, r: float) -> list:
+    """27.10.2026 — Strichmuster einer Ebene, die `r`-mal so breit ist wie die Linie (r = 1: die Linie selbst), in
+    Ebenenbreiten: dieselbe SICHTBARE Strichlänge wie die Linie (runde Enden ragen je halbe Ebenenbreite in die Lücke;
+    Kontur und Schatten füllten sie sonst und die Linie wirkte durchgezogen), dieselbe Periode und jeder Strich mittig
+    auf 0, damit alle Ebenen deckungsgleich liegen. Spiegel: ui/js/util.js `rzDashFuerBreite` (dort mit lw = 1)."""
+    W = max(0.01, float(r))
+    mn, fuge = 0.04 * W, 0.004 * W
+    striche, pos = [], 0.0
+    for i in range(0, len(muster) - 1, 2):
+        striche.append((pos + muster[i] / 2, muster[i] + 1))
+        pos += muster[i] + muster[i + 1]
+    m0 = striche[0][0]
+    ber = []
+    for mitte, sicht in striche:
+        h = max(mn / 2, (sicht - W) / 2)
+        ber.append((mitte - m0 - h, mitte - m0 + h))
+    px = [ber[0][1]]
+    cur = ber[0][1]
+    for lo, hi in ber[1:]:
+        px += [max(fuge, lo - cur), hi - lo]
+        cur = hi
+    px += [max(fuge, pos + ber[0][0] - cur), -ber[0][0] - fuge, fuge]   # Fuge vom halben Strich: Periode bleibt
+    return [v / W for v in px]
 
 
 

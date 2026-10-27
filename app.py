@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.838"
+APP_VERSION = "0.9.843"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -9299,8 +9299,20 @@ class Api:
         if not paths:
             return {"photos": [], "skipped_count": 0, "failed_count": 0,
                     "total": 0}
+        # 26.10.2026 (Beta-Tester: „Bilder aus dem Geotagger verschwinden, wenn das Projekt wieder geladen wird … die
+        # Zeitangaben der getaggten Bilder [werden] nicht in den EXIF-Bereich geschrieben“) — gelesen wurde nur das GPS IN
+        # den Dateien. Der Geotagger schreibt aber standardmäßig Kopien in einen Zielordner; die geladenen Originale blieben
+        # ohne GPS, und Fotos, die nur über die Zeit oder von Hand ihren Ort hatten, kamen ohne Ort an. Jetzt bekommt der
+        # Animator, was der Geotagger zeigt: eigenes GPS, sonst die von Hand gesetzte Stelle, sonst die Zuordnung über die Zeit.
+        positionen = dict(getattr(self, "_gtg_treffer", None) or {})
         try:
-            return cphotos.load_photos_with_gps(paths)
+            for pfad, v in ((_load_settings().get("geotagger") or {}).get("manuell") or {}).items():
+                if isinstance(v, dict) and v.get("lat") is not None and v.get("lon") is not None:
+                    positionen[pfad] = (float(v["lat"]), float(v["lon"]), v.get("alt"))
+        except Exception:  # noqa: BLE001
+            log.debug("photos_from_geotagger: Handpositionen nicht lesbar", exc_info=True)
+        try:
+            return cphotos.load_photos_with_gps(paths, positionen=positionen)
         except Exception as e:
             log.exception("photos_from_geotagger fehlgeschlagen: %s", e)
             return {"photos": [], "skipped_count": 0, "failed_count": 0,
@@ -16304,7 +16316,9 @@ class Api:
             return {"ok": False, "error": _ui_t()("error.vorlage_name", "Bitte einen Namen angeben")}
         erlaubt = {"vorlage", "format", "laenge", "eigen_s", "look", "zahlen", "profil", "uebersicht", "felder", "musik",
                    "kamera", "kam_leb", "halte_dauer", "halte_alle", "text_menge", "foto_menge", "schluss_an", "foto_art",
-                   "highlights", "gebaeude"}
+                   "highlights", "gebaeude",
+                   # 26.10.2026 — Assistent mit acht Reitern wie im Web: Höhe, Laufpunkt, Linie, Beschriftung, Gelände, Vorab-Strecke
+                   "hoehe", "laufpunkt", "linie", "beschriftung", "gelaende", "ghost"}
         sauber = {k: v for k, v in stil.items() if k in erlaubt}
         liste = [x for x in (_load_settings().get("videostil_vorlagen") or []) if isinstance(x, dict)]
         vorhanden = next((x for x in liste if str(x.get("name", "")).strip().lower() == name.lower()), None)
@@ -18599,6 +18613,9 @@ class Api:
                 # Kamerarichtung aus EXIF oder Bewegung). Nur für echte Treffer.
                 self._enrich_geotag(d, p, m, (tr or {}).get("points"))
                 out.append(d)
+            # 26.10.2026 — für „Fotos aus dem Geotagger übernehmen“ (photos_from_geotagger): was der Geotagger zeigt
+            self._gtg_treffer = {d["path"]: (d["lat"], d["lon"], d.get("alt"))
+                                 for d in out if d.get("in_range") and d.get("lat") is not None and d.get("lon") is not None}
             return {"ok": True, "matches": out}
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}

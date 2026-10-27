@@ -8,8 +8,10 @@
     gpsstudio mcp [--out-dir FOLDER]      MCP server for AI assistants (stdio, core/mcp_server.py)
     gpsstudio camera-export --rzproj PROJECT.rzproj [--out FILE] [--preview 960x540] [--overwrite]
                                          camera move frame by frame as JSON (rz-kamera/1), no video
-    gpsstudio overlay-export --rzproj PROJECT.rzproj [--out FILE.mov] [--without-track] [--frames 600,1199] [--preview WxH]
+    gpsstudio overlay-export --rzproj PROJECT.rzproj [--out FILE.mov] [--without-track] [--with-labels] [--frames 600,1199]
+                             [--preview WxH]
                                          overlays as transparent ProRes 4444 (or single PNG frames), no map
+                                         (--with-labels: keep the map's place/POI/road names as set in the project)
     (global: --library FOLDER)
 
 Befehle, Schalter und das Ergebnis-JSON sind englisch (Marc: „wir wollen international sein“); die lesbaren
@@ -472,10 +474,12 @@ def kamera_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0) 
 
 
 def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0, ohne_spur: bool = False,
-                      bilder: list | None = None) -> dict:
+                      bilder: list | None = None, mit_beschriftung: bool = False) -> dict:
     """26.10.2026 (für 3D-Werkzeuge) — Einblendungen des aktiven Projekts transparent rendern: ProRes 4444 mit Alpha in
     Größe, Bildrate und Bildzahl des Videos (Bild k = Bild k des Kamera-Exports), auf Wunsch ohne Spur und Laufpunkt; mit
-    `bilder` nur diese Bilder als PNG `<ziel ohne Endung>_<nr>.png`. Dieselbe Szene wie der Video-Render."""
+    `bilder` nur diese Bilder als PNG `<ziel ohne Endung>_<nr>.png`. Dieselbe Szene wie der Video-Render.
+    27.10.2026 — `mit_beschriftung`: die Beschriftung der Karte (Orte, POIs, Straßen, Verkehr — so, wie die Schalter im
+    Projekt stehen) bleibt stehen; Flächen, Linien, Luftbild und Schummerung der Karte fallen weiter weg."""
     pp = _paket_projekt(app, api, paket)
     if isinstance(pp, dict):
         return pp
@@ -490,7 +494,7 @@ def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0,
     cfg.transparent_background = True
     cfg.codec = "prores4444"
     params = {"szene_projekt_id": pid, "szene_vorschau_w": int(w or 0), "szene_vorschau_h": int(h or 0),
-              "overlay_ohne_track": bool(ohne_spur)}
+              "overlay_ohne_track": bool(ohne_spur), "overlay_mit_beschriftung": bool(mit_beschriftung)}
     if bilder:
         params["nur_bilder"] = list(bilder)
     letzt = [-1]
@@ -501,7 +505,8 @@ def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0,
             _melden(f"{int(p * 100):3d} % · {m}")
     asyncio.run(szene.render_szene(cfg, api=api, projekt_id=pid, params=params, on_progress=fortschritt,
                                    on_preview=lambda x: None, is_cancelled=lambda: _ABGEBROCHEN.is_set()))
-    info = {"project": {"id": pid, "name": projekt.get("name")}, "width": cfg.width, "height": cfg.height, "fps": cfg.fps}
+    info = {"project": {"id": pid, "name": projekt.get("name")}, "width": cfg.width, "height": cfg.height, "fps": cfg.fps,
+            "labels": bool(mit_beschriftung)}
     if bilder:
         dateien = list(szene.NUR_PNG)
         return dict({"ok": bool(dateien), "files": dateien, "dateien": dateien}, **info,
@@ -620,13 +625,14 @@ def _overlay_export(app, a) -> dict:
     w, h = _vorschau_mass(a.preview)
     bilder = _bilder_liste(a.frames)
     if os.environ.get(_KAMERA_KIND) == "1":
-        return overlay_aus_paket(app, app.Api(), paket, Path(a.out), w, h, a.without_track, bilder)
+        return overlay_aus_paket(app, app.Api(), paket, Path(a.out), w, h, a.without_track, bilder, a.with_labels)
     stamm = paket.stem + ".overlay"
     ziel = _ziel(app, None, a.out or str(paket.parent / (stamm + ".mov")), stamm, ".mov", a.overwrite)
     if bilder and not a.overwrite and any(Path(f"{ziel.with_suffix('')}_{n}.png").exists() for n in bilder):
         ziel = ziel.with_name(_dt.datetime.now().strftime("%Y%m%d-%H%M%S-") + ziel.name)   # Bilder nie überschreiben
     befehl = ["overlay-export", "--rzproj", str(paket), "--out", str(ziel)] + (["--preview", a.preview] if a.preview else []) \
-        + (["--without-track"] if a.without_track else []) + (["--frames", ",".join(map(str, bilder))] if bilder else [])
+        + (["--without-track"] if a.without_track else []) + (["--with-labels"] if a.with_labels else []) \
+        + (["--frames", ",".join(map(str, bilder))] if bilder else [])
     return _im_temp_app_ordner(app, befehl, [ziel.parent],
                                _t(app, "cli.schritt_overlay", "Einblendungen werden transparent gerendert: {p}").replace("{p}", str(ziel)),
                                "overlay export")
@@ -666,6 +672,8 @@ def _parser() -> argparse.ArgumentParser:
     o.add_argument("--out", "--ziel", dest="out", help="output .mov (default: next to the .rzproj, NAME.overlay.mov)")
     o.add_argument("--without-track", "--ohne-track", dest="without_track", action="store_true",
                    help="leave out route line and running dot (for 3D tools that draw them themselves)")
+    o.add_argument("--with-labels", "--mit-beschriftung", dest="with_labels", action="store_true",
+                   help="keep the map labels (places, POIs, roads, transit as switched on in the project); the map itself stays transparent")
     o.add_argument("--frames", "--bilder", dest="frames", help="only these frames (0-based, e.g. 600,1199) as PNG with alpha: NAME_<nr>.png")
     o.add_argument("--preview", "--vorschau", dest="preview", help="preview size in CSS px as in the app, e.g. 960x540")
     o.add_argument("--overwrite", action="store_true", help="overwrite existing files (default: add a timestamp)")

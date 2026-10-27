@@ -637,7 +637,8 @@ def expand_paths(paths_or_folder) -> list[str]:
 
 
 def load_photos_with_gps(paths_or_folder,
-                         existing_paths: Optional[Iterable[str]] = None
+                         existing_paths: Optional[Iterable[str]] = None,
+                         positionen: Optional[dict] = None,
                          ) -> dict:
     """Hauptfunktion. Lädt eine Auswahl von Fotos / Ordner und gibt nur
     die mit GPS-Koordinaten zurück.
@@ -647,6 +648,8 @@ def load_photos_with_gps(paths_or_folder,
         existing_paths: bereits geladene Pfade — werden NICHT übersprungen,
             aber Caller kann später dedupen. (Defensiv: kein Skip hier,
             sonst User-Verwirrung warum Foto fehlt.)
+        positionen: 26.10.2026 — {Pfad: (lat, lon, ele)} für Dateien ohne eigenes GPS (Geotagger: Zuordnung über die
+            Zeit oder von Hand gesetzt). Eigenes GPS in der Datei hat Vorrang.
 
     Returns:
         {
@@ -674,6 +677,8 @@ def load_photos_with_gps(paths_or_folder,
             _log.debug("read_gps fehlgeschlagen für %s: %s", path, e)
             gps = None
 
+        if gps is None and positionen and path in positionen:
+            gps = positionen[path]
         if gps is None:
             skipped += 1
             if len(ohne_gps) < 2000:   # 07.10.2026 (Web-Fund F-5): der Animator fragt, ob er sie auf die Strecke legt

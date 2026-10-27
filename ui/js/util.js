@@ -373,6 +373,31 @@ function rzMitSchaerfe(url, s) {
 }
 window.rzMitSchaerfe = rzMitSchaerfe;
 
+/** 27.10.2026 — Strichmuster für eine Ebene der Breite `ebeneW` zu einer gestrichelten Linie der Breite `lw`
+ *  (`muster` in Linienbreiten, z. B. [3, 2]; ohne `ebeneW` = die Linie selbst).
+ *  Bei runden Enden ragt jeder Strich um die halbe Ebenenbreite in die Lücke. Kontur (lw + 2 × Kontur) und Schatten
+ *  (2,2 × lw) füllten die Lücken deshalb ganz, die Linie wirkte im Video durchgezogen. Jetzt hat jede Ebene die SICHTBARE
+ *  Strichlänge der Linie (Kontur nur an den Seiten), dieselbe Periode und denselben Strich-MITTELPUNKT: MapLibre beginnt
+ *  jedes Muster mit einem Strich bei 0, also liegt jeder Strich mittig auf 0 — vorn ein halber, hinten der andere halbe
+ *  Strich, dazwischen eine winzige Fuge (vom Strich abgezogen, die Periode bleibt exakt), die die runden Enden schließen. Alle Ebenen der Linie (auch die blasse Strecke)
+ *  benutzen dieses Muster, damit sie deckungsgleich bleiben. Spiegel: core/animator.py `_dash_fuer_breite`. */
+function rzDashFuerBreite(muster, lw, ebeneW) {
+  if (!Array.isArray(muster) || muster.length < 2) return null;
+  if (!(lw > 0)) return muster.slice();
+  const W = ebeneW > 0 ? ebeneW : lw, MIN = 0.04 * W, FUGE = 0.004 * W;
+  const striche = []; let pos = 0;
+  for (let i = 0; i + 1 < muster.length; i += 2) {
+    striche.push({ mitte: pos + muster[i] * lw / 2, sicht: muster[i] * lw + lw });
+    pos += (muster[i] + muster[i + 1]) * lw;
+  }
+  const P = pos, m0 = striche[0].mitte;
+  const ber = striche.map(x => { const h = Math.max(MIN / 2, (x.sicht - W) / 2); return [x.mitte - m0 - h, x.mitte - m0 + h]; });
+  const px = [ber[0][1]]; let cur = ber[0][1];
+  for (let k = 1; k < ber.length; k++) { px.push(Math.max(FUGE, ber[k][0] - cur), ber[k][1] - ber[k][0]); cur = ber[k][1]; }
+  px.push(Math.max(FUGE, P + ber[0][0] - cur), -ber[0][0] - FUGE, FUGE);   // die Fuge geht vom halben Strich ab: Periode bleibt P
+  return px.map(v => v / W);
+}
+
 /** 25.10.2026 (Marc: „Glowstärke beim Track ändert nichts“) — Glow um eine Linie, Stärke 0…10. Vorher wuchs nur die
  *  Weichzeichnung (`line-blur` = Stärke) bei kaum breiterer Linie und 35 % Deckkraft: auf Luftbildern unsichtbar, der
  *  Regler machte „weicher“, nicht „stärker“. Jetzt reicht der Glow `aus` px über die Linie hinaus (2 … 18 px), läuft über
@@ -3481,6 +3506,8 @@ window.createUndoController = function(opts) {
     try { if (window.applog) applog("debug", "[undo] ↶ " + prev.label + " · Stapel danach " + undoStack.length + " · Unterschiede: " + _unterschiede(prev.state, current)); } catch (_) {}
     _runApply(prev.state);
     if (opts.toast) opts.toast("↶ " + (prev.label || t("undo.undo", "Rückgängig")));
+    // 26.10.2026 — wer zu einem Schritt etwas anzeigt (z. B. „Das hat der Assistent gemacht“), räumt es beim ⌘Z weg
+    try { window.dispatchEvent(new CustomEvent("rz-undo", { detail: { richtung: "undo", label: prev.label || "" } })); } catch (_) {}
     return true;
   }
   function redo() {
@@ -3494,6 +3521,7 @@ window.createUndoController = function(opts) {
     if (current != null) undoStack.push({ label: next.label, state: current });
     _runApply(next.state);
     if (opts.toast) opts.toast("↷ " + (next.label || t("undo.redo", "Wiederherstellen")));
+    try { window.dispatchEvent(new CustomEvent("rz-undo", { detail: { richtung: "redo", label: next.label || "" } })); } catch (_) {}
     return true;
   }
   function reset() {

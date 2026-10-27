@@ -5485,6 +5485,21 @@ function mountAnimator(body, headerActions, opts) {
   let _fsKurveStand = "";   // welche Stopps die zuletzt geholte Kurve kennt
   // Aus dem Schild-Scope (Speichern): Stelle merken und — wenn sich Stopps geändert haben — die Kurve neu holen.
   window.__rzFotostoppAnker = (s) => _fsAnkerFrisch(s);
+  // 26.10.2026 (Klicktest: nach dem Video-Assistenten lagen die Fotos in der Schilder-Spur nicht als Fotostopp, gezogene
+  // Fotos landeten neben dem Zeiger) — die Halte der Kurve zeigen per Listenplatz („fs:<i>“) auf ihr Schild. Wird die Liste
+  // umsortiert, ohne dass jemand „Schild gespeichert“ meldet (Highlights abgleichen, ⌘Z, Assistent), zeigten sie auf andere
+  // Schilder (Highlights statt Fotos). Die Schilder-Spur prüft bei jeder Aktualisierung und holt die Kurve dann neu.
+  window.__rzFotostoppKurvePruefen = () => {
+    try {
+      if (!_tempoInfo) return false;
+      const jetzt = JSON.stringify(_fotostoppHalte());
+      if (jetzt === _fsKurveStand) return false;
+      applog("info", "[fotostopp] Zuordnung der Halte veraltet (Schilder umsortiert) — Kurve neu");
+      _fsKurveStand = jetzt;   // nicht zweimal anstoßen, solange die neue Kurve unterwegs ist
+      paceMapLaden();
+      return true;
+    } catch (e) { applog("warn", "[fotostopp] prüfen: " + e); return false; }
+  };
   window.__rzFotostoppGeaendert = () => {
     try { if (JSON.stringify(_fotostoppHalte()) !== _fsKurveStand) paceMapLaden(); } catch (e) { applog("warn", "[fotostopp] Kurve: " + e); }
     // 18.10.2026 (Beta-Tester: „se mezclan dos tipos de bocadillo“ — im Editor „Beim Anhalten zeigen“ von „Foto groß“ auf
@@ -7983,23 +7998,29 @@ function mountAnimator(body, headerActions, opts) {
   // v0.8.14 — dasharray-Berechnung ausgelagert. Wird sowohl in
   // rebuildPreviewLayers() (beim Anlegen der Layer) als auch in applyLineStyle()
   // (beim Live-Wechsel) benutzt. Bei tube/solid: null (= keine dasharray).
-  function currentDasharray() {
+  /** Strichmuster der Linie in Linienbreiten, wie eingestellt ([3, 2] …). */
+  function currentDashBasis() {
     const b = _bahnStil();
     const style = currentLineStyleName();
     const spacing = Math.max(0.1, b ? (+b.spacing || 1) : (parseFloat(document.getElementById("anim-line-spacing")?.value) || 1));
     const base = { dashed: [3, 2], dotted: [0.1, 2], dashdot: [3, 1.5, 0.1, 1.5] }[style];
     return base ? base.map(v => v * spacing) : null;
   }
+  /** 27.10.2026 — `line-dasharray` der Linie selbst: Striche mittig auf 0 (s. rzDashFuerBreite), damit Kontur, Schatten
+   *  und blasse Strecke deckungsgleich darunter liegen. */
+  function currentDasharray() {
+    const d = currentDashBasis();
+    return d ? rzDashFuerBreite(d, currentLineWidth()) : null;
+  }
   // 07.09.2026 — `line-dasharray` rechnet in Liniendicken: der 2,2× breitere Schatten (und der
   // Glow) bekam 2,2× längere Striche, die in den Lücken der Hauptlinie als schwarze bzw. leuchtende
   // Stücke standen (Tour-Map Schorfheide, Strich-Punkt). Muster auf die Pixel-Länge der Hauptlinie
   // skalieren. Synchron zu core/animator.py (_dasharray_mapbox, Parameter `faktor`).
   function dasharrayFor(widthPx) {
-    const d = currentDasharray();
+    const d = currentDashBasis();
     if (!d) return null;
-    const lw = currentLineWidth();
-    const f = (widthPx > 0 && lw > 0) ? lw / widthPx : 1;
-    return d.map(v => v * f);
+    // 27.10.2026 — gleiche sichtbare Striche und Lücken wie die Linie (runde Enden; s. rzDashFuerBreite in util.js)
+    return rzDashFuerBreite(d, currentLineWidth(), widthPx);
   }
   function dasharrayForLayer(id) {
     let w = 0;
@@ -13735,8 +13756,13 @@ function mountAnimator(body, headerActions, opts) {
     // 26.10.2026 (`gpsstudio overlay-export --without-track`) — auch Spur und Laufpunkt aus: Linie und
     // Pfeil zeichnet dort das 3D-Programm (mit Verdeckung im Gelände). Pins, Schilder, Einblendungen bleiben.
     const ohneSpur = !!window.__rzRenderMode.ohneTrack;
-    const istSpur = (id) => (/^preview-/.test(id) && !/^preview-pin-/.test(id)) || /^(anim-dot-|mtour-prev-|swarm-prev-|flug-3d)/.test(id);   // anim-dot-gl = Bodenpunkt, flug-3d* = Linie/Punkt in der Luft
+    // 27.10.2026 — auch die Touren „Ganz zeigen“ (ganz-prev-*, samt blasser Strecke): stehen jetzt im Kamera-Export
+    const istSpur = (id) => (/^preview-/.test(id) && !/^preview-pin-/.test(id)) || /^(anim-dot-|mtour-prev-|swarm-prev-|ganz-prev-|flug-3d)/.test(id);   // anim-dot-gl = Bodenpunkt, flug-3d* = Linie/Punkt in der Luft
+    // 27.10.2026 (`overlay-export --with-labels`) — Beschriftung der Karte (Symbol-Ebenen der Vektor-/Overlay-Kacheln)
+    // stehen lassen; welche sichtbar ist, entscheiden wie in der Vorschau die Schalter Orte/POIs/Straßen/Verkehr.
+    const mitBeschriftung = !!window.__rzRenderMode.mitBeschriftung;
     for (const l of (st && st.layers) || []) {
+      if (mitBeschriftung && l.type === "symbol" && !istSpur(l.id)) continue;
       let weg = l.type === "background" || l.type === "raster" || l.type === "hillshade" || l.type === "color-relief";
       if (!weg && l.source) { const q = quellen[l.source]; weg = !!q && (q.type === "vector" || q.type === "raster" || q.type === "raster-dem"); }
       if (!weg && ohneSpur && istSpur(l.id)) weg = true;
@@ -15652,8 +15678,11 @@ function mountAnimator(body, headerActions, opts) {
         try { wrap.style.cursor = _armed ? "grab" : "pointer"; } catch (_) {}
         try { marker = new MarkerCls({ element: wrap, anchor: _mkAnchor, draggable: _armed }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
         try {
-          marker.on("dragstart", () => { _animSignDragging = true; const m = _animSignMarkers[fi]; if (m && m.marker === marker) m.zieht = true; try { wrap.style.cursor = "grabbing"; } catch (_) {} });
+          // 27.10.2026 — beim Ziehen gibt die Übersichtskarte die Maus durch (sonst endete das Ziehen über ihr nie: die
+          // Karte bekam das Loslassen nicht mit, das Foto blieb stehen)
+          marker.on("dragstart", () => { _animSignDragging = true; document.body.classList.add("rz-schild-zieht"); const m = _animSignMarkers[fi]; if (m && m.marker === marker) m.zieht = true; try { wrap.style.cursor = "grabbing"; } catch (_) {} });
           marker.on("dragend", () => {
+            document.body.classList.remove("rz-schild-zieht");
             { const m = _animSignMarkers[fi]; if (m && m.marker === marker) m.zieht = false; }
             let ll = null; try { ll = marker.getLngLat(); } catch (_) {}
             _animSignMoveArmed = -1;   // Ziehen wieder entschärfen
@@ -18907,8 +18936,10 @@ function mountAnimator(body, headerActions, opts) {
       // alle, die Sprünge zwischen den Touren wurden zu Diagonalen quer durchs Bild
       const linie = el.querySelector(".anim-ueb-track");
       linie.setAttribute("d", _spurTeile(currentCoords, 500).map(t => "M" + t.map(i => { const p = P0(currentCoords[i][0], currentCoords[i][1]); return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("L")).join(""));
-      try { linie.style.stroke = currentLineColor(); } catch (_) {}
     }
+    // 26.10.2026 (Klicktest: nach ⌘Z blieb die Übersicht rot, die Linie war wieder türkis) — Farbe bei jedem Zeichnen
+    // nachziehen, nicht nur wenn sich die Strecke ändert (Look, Assistent, ⌘Z ändern nur die Farbe)
+    try { const lf = currentLineColor(), ln = el.querySelector(".anim-ueb-track"); if (ln && ln.dataset.farbe !== lf) { ln.dataset.farbe = lf; ln.style.stroke = lf; } } catch (_) {}
     const R = _uebRahmen, mitte = (R.x0 + R.w / 2) * 180 / Math.PI;
     const P = (lng, lat) => { const l = lng + 360 * Math.round((mitte - lng) / 360); return [(_uebMx(l) - R.x0) / R.w * R.W, (R.y1 - _uebMy(lat)) / R.h * R.H]; };
     try {
@@ -20616,7 +20647,11 @@ function mountAnimator(body, headerActions, opts) {
   function _sgSpurAktualisieren() {
     if (_isStaticFrame || !_tlBar || typeof _tlBar.setSchilder !== "function") return;
     if (_sgSpurRaf) return;
-    _sgSpurRaf = requestAnimationFrame(() => { _sgSpurRaf = 0; try { _sgSpurJetzt(); } catch (e) { applog("warn", "[sg-spur] " + e); } });
+    _sgSpurRaf = requestAnimationFrame(() => {
+      _sgSpurRaf = 0;
+      try { if (window.__rzFotostoppKurvePruefen) window.__rzFotostoppKurvePruefen(); } catch (_) {}
+      try { _sgSpurJetzt(); } catch (e) { applog("warn", "[sg-spur] " + e); }
+    });
   }
   // 02.10.2026 (Marc: „Höhenprofil ganz klein in der Timeline … dass sich der Track abhebt") — ~300 Werte je
   // Streckenanteil an die Tempo-Spur; neu nur, wenn sich die Höhen geändert haben.
@@ -20913,6 +20948,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!_sgS()) return;
     const i = _sgIndexVonId(id); const l = _sgS().list(); const s = l[i];
     if (!s) return;
+    const ph0 = _sgPhasen(), fs0 = _fsSpurFenster(s, ph0.intro), A0 = _sgMeta(s).A;
     const { out } = _sgWerteAusBalken(s, griff, neu);
     const l2 = l.slice();
     const vorher = l2[i];
@@ -20922,6 +20958,62 @@ function mountAnimator(body, headerActions, opts) {
     _sgS().neuZeichnen();
     _sgSpurAktualisieren();
     applog && applog("info", `[sg-spur] Schild ${i + 1}: ${griff} → ${JSON.stringify(out)}`);
+    if (griff === "schieben" && fs0 && typeof out.timeAnchor === "number") {
+      _fsNachziehen(i, _ovZeitAusLeiste(neu.an), { A: A0, t: fs0.an }, out.timeAnchor).catch((e) => applog("warn", "[sg-spur] nachziehen: " + e));
+    }
+  }
+  /** 26.10.2026 (Beta-Tester: „Ich beherrsche weder die Positionierung der Bilder … noch kann ich die Reihenfolge gesichert
+   *  variieren“) — ein Fotostopp hält den Film an; verschiebt man ihn, wandert sein Halt mit und die Zeitachse dahinter
+   *  verschiebt sich. Die Umrechnung Balken → Strecke rechnete mit der alten Achse: −60 px gezogen landete bei −39 px.
+   *  Nach dem Speichern auf die neue Tempo-Kurve warten, den Balkenanfang messen und per Sekante nachziehen (≤ 3×, bis
+   *  0,04 s genau), ohne eigenen ⌘Z-Schritt — Rückgängig nimmt das Verschieben weiter als Ganzes zurück. */
+  async function _fsNachziehen(i, ziel, alt, A) {
+    // 26.10.2026 (Klicktest Masca, 5 Fotostopps) — die reine Sekante sprang über die Halte der ANDEREN Fotostopps (dort
+    // macht die Zeitachse Sprünge: 15,4 → 26,5 → 16,4 s bei Ziel 17,8 s) und blieb nach 3 Runden 1,4 s daneben. Jetzt mit
+    // Klammer: Stellen mit Balkenanfang vor bzw. hinter dem Ziel grenzen ein, die Sekante darf die Klammer nicht verlassen
+    // (sonst Mitte der Klammer), bis 6 Runden.
+    let lo = null, hi = null, letzte = alt;
+    const einordnen = (p) => { if (p.t < ziel) { if (!lo || p.A > lo.A) lo = p; } else if (!hi || p.A < hi.A) hi = p; };
+    einordnen(alt);
+    for (let runde = 0; runde < 6; runde++) {
+      const info0 = _tempoInfo, t0 = performance.now();
+      while (_tempoInfo === info0 && performance.now() - t0 < 4000) await new Promise((r) => setTimeout(r, 50));   // warte-ok: neue Tempo-Kurve (Brücke)
+      const neuKurve = _tempoInfo !== info0;
+      const s = _sgS() && _sgS().list()[i];
+      if (!s || typeof s.timeAnchor !== "number") return;
+      const f = _fsSpurFenster(s, _sgPhasen().intro);
+      if (!f) return;
+      const jetzt = { A: s.timeAnchor, t: f.an };
+      const rest = ziel - f.an;
+      applog("info", `[sg-spur] nachziehen ${runde + 1}: Ziel ${ziel.toFixed(2)} s · steht ${f.an.toFixed(2)} s · Rest ${rest.toFixed(2)} s · neue Kurve ${neuKurve} (${Math.round(performance.now() - t0)} ms)`);
+      if (Math.abs(rest) < 0.04) return;
+      einordnen(jetzt);
+      // erster Schritt mit der gewöhnlichen Steigung der Achse (Sekunden je Anker) — die Sekante aus „vor dem Ziehen“ → „nach
+      // dem Ziehen“ enthält den Sprung des eigenen Halts und schoss weit übers Ziel (Foto sprang kurz +300 px)
+      const ph_ = _sgPhasen(), steil = ph_.anim / Math.max(1e-6, ph_.B - ph_.A);
+      let An = runde === 0 || Math.abs(jetzt.t - letzte.t) < 1e-6 ? jetzt.A + rest / steil
+        : jetzt.A + rest * (jetzt.A - letzte.A) / (jetzt.t - letzte.t);
+      if (lo && hi) { const a = Math.min(lo.A, hi.A), b = Math.max(lo.A, hi.A); if (!(An > a && An < b)) An = (lo.A + hi.A) / 2; }
+      if (!isFinite(An)) return;
+      An = Math.round(Math.max(0, Math.min(1, An)) * 100000) / 100000;
+      if (Math.abs(An - jetzt.A) < 1e-6) return;
+      letzte = jetzt;
+      const l2 = _sgS().list().slice(), alt2 = l2[i], neuS = { ...alt2, timeAnchor: An };
+      try {   // Foto-Ort wandert um dasselbe Stück Strecke mit (wie beim Ziehen)
+        const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
+        if (n >= 2 && isFinite(+alt2.lat) && isFinite(+alt2.lon)) {
+          const p0 = coordBeiFrac(currentCoords, jetzt.A * (n - 1)), p1 = coordBeiFrac(currentCoords, neuS.timeAnchor * (n - 1));
+          neuS.lon = +(+alt2.lon + (p1[0] - p0[0])).toFixed(7); neuS.lat = +(+alt2.lat + (p1[1] - p0[1])).toFixed(7);
+        }
+      } catch (_) {}
+      l2[i] = neuS;
+      if (alt2 && alt2._imgEl) _sgS().bildUebernehmen(l2[i], alt2._imgEl);
+      const war = window.__rzUndoApplying;
+      window.__rzUndoApplying = true;   // kein eigener ⌘Z-Schritt
+      try { _sgS().speichern(l2); } finally { window.__rzUndoApplying = war; }
+      _sgS().neuZeichnen();
+      _sgSpurAktualisieren();
+    }
   }
   window.__rzSgSpur = { zeilen: () => _sgLetzteZeilen, jetzt: () => _sgSpurJetzt(), zeitAusAnker: (a) => _sgZeitAusAnker(a), ankerAusZeit: (t0) => _sgAnkerAusZeit(t0) };   // Prüfstand
 
@@ -25217,6 +25309,7 @@ function mountAnimator(body, headerActions, opts) {
     const tA = _swZeitBei(coordFrac);
     for (const e of _ganzPrev) {
       const z = (voll || _isStaticFrame) ? { an: true, op: 1, w: 1 } : _ganzZustand(e.g, plan ? plan.lage(e.g.id) : e.lage, tA, dauer);
+      e.__z = z;   // Kamera-Export (__rzKameraBild)
       const key = z.an ? (Math.round(z.op * 1000) + "|" + Math.round(z.w * 1000)) : "aus";
       if (key === e.zuletzt) continue;
       e.zuletzt = key;
@@ -25253,7 +25346,7 @@ function mountAnimator(body, headerActions, opts) {
       const t = _swPrev[si];
       const kP = _swIndexFuer(t, coordFrac, tA, false);
       const kL = vollesBild ? _swIndexFuer(t, coordFrac, tA, true) : kP;
-      t.__k = kP;
+      t.__k = kP; t.__kL = kL;   // __kL: gezeichnetes Ende der Linie (Kamera-Export, __rzKameraBild)
       const st = t.stil || {}, dot = t.dot || { show: true, style: "dot", size: 1 };
       const props = { color: t.color, width: t.width, shadow: +st.shadow || 0, glow: +st.glow || 0,
                       dk: t.dk || "solid", tube: st.line_style === "tube" ? 1 : 0, op: _deckkraft(st) };
@@ -25328,8 +25421,75 @@ function mountAnimator(body, headerActions, opts) {
              kamera: kam, fortschritt: typeof st.frac === "number" ? Math.max(0, Math.min(1, st.frac / n)) : null,
              punkt_index: typeof st.frac === "number" ? Math.round(st.frac) : null, punkt_frac: typeof st.frac === "number" ? st.frac : null,
              video_anteil: typeof st.video === "number" ? st.video : null,
-             padding: pad && (pad.top || pad.bottom || pad.left || pad.right) ? pad : null };
+             padding: pad && (pad.top || pad.bottom || pad.left || pad.right) ? pad : null,
+             touren_fortschritt: _kamTourenBild() };
   };
+  /** 27.10.2026 (GPS Studio Karten B11) — weitere Touren für den Kamera-Export, in fester Reihenfolge:
+   *  „laufend“ (Schwarm, Taktgeber außerhalb der Kette — _swPrev), „ganz“ (§72 Ganz zeigen — _ganzPrev) und „etappe“
+   *  (Etappen 2 … n einer Reise — eigene Quellen mtour-prev-*). Koordinaten so, wie die Szene sie zeichnet (gedünnt). */
+  function _kamTourName(tour, gpx) {
+    const tr = tour && (tour.tr || tour);
+    return (tr && (tr.name || tr.title)) || _dateiName(gpx || (tr && tr.gpx_path) || "");
+  }
+  function _kamStil(st, farbe, mehr) {
+    st = st || {};
+    const w = Math.max(0.5, +st.width || 3.5), ls = st.line_style || "solid";
+    return Object.assign({ farbe: farbe || "#35a7ff", breite: w, deckkraft: _deckkraft(st), strich: ls,
+      strich_abstand: Math.max(0.1, +st.spacing || 1), strich_muster: ls === "tube" ? null : (_dashFuerStil(st, w) || null),
+      schatten: +st.shadow || 0, gluehen: +st.glow || 0,
+      punkt: { zeigen: st.dot_show !== false, stil: st.dot_style === "arrow" ? "arrow" : "dot", groesse: Math.max(0.1, +st.dot_size || 1) },
+      kontur_breite: currentKonturBreite(), kontur_farbe: currentKonturFarbe() }, mehr || {});
+  }
+  function _kamTourenListe() {
+    const raus = [];
+    const pkt = (c) => [c[0], c[1], (c.length > 2 && isFinite(+c[2])) ? +c[2] : null];
+    for (const t of _swPrev) {
+      const tour = _tourVon(t.gpx_path) || t.quelle;
+      const roh = (tour && (tour.tr || tour).stil) || {};   // „Ganze Strecke blass zeigen“ (ganz-prev-blass-*): ganze Runde im Hintergrund
+      raus.push({ art: "laufend", name: _kamTourName(tour, t.gpx_path), gpx: t.gpx_path || null, punkte: t.coords.map(pkt),
+                  stil: _kamStil(t.stil, t.color, { blass: roh.blass_show ? { farbe: roh.blass_color || t.color, deckkraft: _blassDeckkraft(roh) } : null }) });
+    }
+    for (const e of _ganzPrev) {
+      const tour = _tourVon(e.gpx_path);
+      if (!tour || !tour.coords) continue;
+      raus.push({ art: "ganz", name: _kamTourName(tour, e.gpx_path), gpx: e.gpx_path || null, punkte: tour.coords.map(pkt),
+                  stil: _kamStil(_stilVon(tour), tour.line_color), __ganz: e });
+    }
+    if (_reiseAktiv() && _reiseBahn) {
+      for (let i = 1; i < _reiseBahn.teile.length; i++) {
+        const t = _reiseBahn.teile[i], e = _reiseBahn.etappen[i];
+        if (!e || !e.tour) continue;
+        raus.push({ art: "etappe", name: _kamTourName(e.tour, e.tour.gpx_path), gpx: e.tour.gpx_path || null,
+                    punkte: _reiseBahn.coords.slice(t.von, t.bis + 1).map(pkt), stil: _kamStil(_stilVon(e.tour), e.tour.line_color), __teil: i });
+      }
+    }
+    return raus;
+  }
+  /** Je Bild und Tour [Punkt-Index des gezeichneten Endes (−1 = noch nichts), Deckkraft-Faktor (0 = unsichtbar),
+   *  Breiten-Faktor, Index des Laufpunkts (null = keiner)]. */
+  function _kamTourenBild() {
+    const r3 = (x) => Math.round(x * 1000) / 1000;
+    const raus = [];
+    for (const t of _swPrev) {
+      const k = (typeof t.__kL === "number") ? t.__kL : -1;
+      raus.push([k >= 1 ? k : -1, k >= 1 ? 1 : 0, 1, (typeof t.__k === "number" && t.dot && t.dot.show) ? t.__k : null]);
+    }
+    for (const e of _ganzPrev) {
+      if (!_tourVon(e.gpx_path)) continue;
+      const z = e.__z || { an: true, op: 1, w: 1 }, n = (_tourVon(e.gpx_path).coords || []).length;
+      raus.push([z.an ? n - 1 : -1, z.an ? r3(z.op) : 0, r3(z.w), null]);
+    }
+    if (_reiseAktiv() && _reiseBahn) {
+      const stand = _reiseBahn.__quellStand || [];
+      for (let i = 1; i < _reiseBahn.teile.length; i++) {
+        if (!_reiseBahn.etappen[i] || !_reiseBahn.etappen[i].tour) continue;
+        const t = _reiseBahn.teile[i], ende = stand[i] ? stand[i].ende : -1;
+        raus.push([ende > t.von ? ende - t.von : -1, ende > t.von ? 1 : 0, 1, null]);
+      }
+    }
+    return raus;
+  }
+  window.__rzKameraTouren = () => _kamTourenListe().map(x => { const y = Object.assign({}, x); delete y.__ganz; delete y.__teil; return y; });
   window.__rzKameraKopf = () => {
     if (!map) return null;
     const ex = (map.getTerrain && map.getTerrain() && +map.getTerrain().exaggeration) || 1;
@@ -25342,7 +25502,10 @@ function mountAnimator(body, headerActions, opts) {
              linie: { farbe: currentLineColor(), breite: currentLineWidth() }, ueberhoehung: ex, fov_v_grad: fov,
              viewport_css: [cont.clientWidth, cont.clientHeight], leinwand_px: [cv.width, cv.height], kartenstil: map.__rzSpec ? (map.__rzSpec.id || null) : null,
              projekt: { id: (_activeProject && _activeProject.id) || null, name: (_activeProject && _activeProject.name) || null },
-             gpx: currentGpx || null };
+             gpx: currentGpx || null,
+             // 27.10.2026 (B11) — weitere Touren; bei einer Reise zeichnet die Hauptlinie nur die erste Etappe (bis Punkt haupt_bis)
+             weitere_touren: window.__rzKameraTouren(),
+             haupt_bis: (_reiseAktiv() && _reiseBahn && _reiseBahn.teile[0]) ? _reiseBahn.teile[0].bis : null };
   };
   try { window.__rzRohEvents = () => (getRawTimelineEvents() || []); } catch (_) {}
   window.__rzReiseKamera = (idx) => _reiseKamera(idx);   // Prüfstand
@@ -25534,8 +25697,7 @@ function mountAnimator(body, headerActions, opts) {
     const base = { dashed: [3, 2], dotted: [0.1, 2], dashdot: [3, 1.5, 0.1, 1.5] }[st.line_style];
     if (!base) return null;
     const sp = Math.max(0.1, +st.spacing || 1);
-    const f = (layerW > 0 && st.width > 0) ? st.width / layerW : 1;
-    return base.map(v => v * sp * f);
+    return rzDashFuerBreite(base.map(v => v * sp), st.width, layerW);
   }
   /** Punktreduzierung je Zusatz-Tour, mit allen Reihen im Gleichschritt; gemerkt an der Tour, bis sich die Zahl ändert.
    *  18.10.2026 — nach Punktdichte (wie Track 1: Standard ein Punkt je PUNKTE_DICHTE_M Meter, 0 = alle) statt Prozent;

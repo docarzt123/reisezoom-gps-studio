@@ -3968,7 +3968,7 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
   border: 0; background: transparent; color: var(--text-dim); cursor: pointer; }
 .va-f-knopf:hover { background: var(--bg-3); color: var(--text); }
 .va-f-rumpf { overflow: auto; padding: 16px 20px 20px; flex: 1; overscroll-behavior: contain; }
-.va-f-fuss { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
+.va-f-fuss { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
 .va-fenster.va-zu .va-f-rumpf, .va-fenster.va-zu .va-f-fuss { display: none; }
 .va-f-fuss.va-ende-an > :not(.va-ende) { display: none !important; }
 .va-f-fuss [hidden] { display: none !important; }
@@ -4033,6 +4033,58 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
 .va-wahl .sv-wahl.is-on small { color: var(--text-dim); }
 .va-rumpf .sv-eigen-zeile { margin-top: 10px; }
 .va-rumpf .sv-vl-stand { margin: 8px 0 0; }
+/* 26.10.2026 — Video-Assistent mit acht Reitern wie die Web-Version: Reiterleiste, „?“ mit Erklärclips, Strecke,
+   Linienfarben. Synchron zu gps-studio-web (assets/video/studio.css .schritte, .hilfe-*) — bei Änderung beide ansehen. */
+.va-reiter { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; width: 100%; padding: 3px; border-radius: 11px; background: var(--bg-2); border: 1px solid var(--border); }
+.va-reiter-k { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; padding: 5px 2px 6px; border: 0; border-radius: 8px; background: none;
+  color: var(--text-muted); font: inherit; font-size: 11.5px; line-height: 1.2; cursor: pointer; }
+.va-reiter-k > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.va-reiter-k .n { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; font-size: 10.5px; font-weight: 700;
+  background: var(--bg-4); color: var(--text-dim); }
+.va-reiter-k:hover { color: var(--text); background: var(--bg-3); }
+.va-reiter-k.is-on { color: var(--text); background: rgb(var(--accent-rgb) / .16); box-shadow: 0 0 0 1px var(--accent) inset; }
+.va-reiter-k.is-on .n { background: var(--accent); color: var(--accent-ink); }
+.va-reiter-k:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* „?“ im Assistenten: Tooltip beim Überfahren (rz-q, util.js); mit Clips klappt ein Klick sie zusätzlich auf */
+.va-hilfe-knopf, .rz-q.va-q { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; margin-left: 7px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--border-strong); background: none; color: var(--text-muted); font: inherit; font-size: 11px; font-weight: 700; line-height: 1; cursor: help; vertical-align: 2px; letter-spacing: 0; }
+.va-hilfe-knopf[data-va-hilfe] { cursor: pointer; }
+.va-hilfe-knopf:hover, .va-hilfe-knopf.is-on, .rz-q.va-q:hover { border-color: var(--accent); color: var(--accent); }
+.rz-q[hidden] { display: none; }
+.va-h .rz-q.va-q { vertical-align: 6px; }
+.va-hilfe { margin: 4px 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border); font-size: 12.5px; line-height: 1.45; color: var(--text-dim); }
+.va-hilfe[hidden] { display: none; }
+.va-hilfe > p { margin: 0; }
+.va-hilfe-clips { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-top: 9px; }
+.va-hilfe-clips figure { margin: 0; text-align: center; }
+.va-hilfe-clips video { display: block; width: 100%; max-height: 150px; object-fit: contain; border-radius: 6px; background: #000; }
+.va-hilfe-clips figcaption { margin-top: 4px; font-size: 11.5px; color: var(--text-muted); }
+.va-strecke { display: flex; align-items: center; gap: 14px; padding: 8px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); }
+.va-strecke-bild { flex: none; width: 150px; height: 96px; border-radius: 8px; }
+.va-strecke-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.va-strecke-text b { font-size: 15px; font-weight: 650; overflow-wrap: anywhere; }
+.va-strecke-text small { font-size: 12.5px; color: var(--text-muted); }
+.va-strecke-zahlen { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 12.5px; color: var(--text-dim); }
+.va-strecke-zahlen > span { display: inline-flex; align-items: center; gap: 4px; }
+.va-strecke-profil { height: 74px; margin-top: 10px; border-radius: 10px; }
+.va-karten-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.va-karten-4 .va-bk > b { font-size: 12.5px; padding: 6px 8px 7px; }
+.va-karten-4 .va-bk-text { display: none; }
+.va-farben { display: flex; flex-wrap: wrap; gap: 7px; }
+.va-farbe { position: relative; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid var(--border-strong); cursor: pointer; overflow: hidden; }
+.va-farbe.is-on { box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent); }
+.va-farbe-eigen { background: conic-gradient(#e63946, #ffd166, #2a9d8f, #48d6c4, #7b61ff, #e63946); }
+.va-farbe-eigen input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+#va-ls-strich { margin-top: 10px; }
+.va-regler-zeile { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 13.5px; color: var(--text-dim); }
+.va-regler-zeile .va-regler { flex: 1; }
+.va-regler-wert { min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.va-lp-fz { margin-top: 8px; }
+.va-lp-fz[hidden] { display: none; }
+.va-link-klein { padding: 0; font-size: 12.5px; }
+.va-fenster.va-blink { animation: va-blink .3s ease-in-out 3; }
+@keyframes va-blink { 50% { box-shadow: 0 0 0 3px var(--accent), 0 24px 60px rgba(0, 0, 0, .5); } }
+@media (prefers-reduced-motion: reduce) { .va-fenster.va-blink { animation: none; } }
 
 /* Schalter */
 .va-schalter { -webkit-appearance: none; appearance: none; flex: none; width: 42px; height: 24px; margin: 0; border-radius: 999px; background: var(--bg-4);

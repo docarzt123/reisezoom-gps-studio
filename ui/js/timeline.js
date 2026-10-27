@@ -264,6 +264,7 @@ function mountTimelineBar(opts) {
   // 05.10.2026 (Audit K-1, Marcs Screenshot: Zeitleiste über die ganze Höhe, Karte weg) — die Zeitleiste darf
   // höchstens 60 % der Vorschaufläche belegen. Gemerkt wird der Wunsch, angewendet das, was ins Fenster passt.
   const _TL_ANTEIL_MAX = 0.6;
+  let _tlGruppenBereit = false, _tlVorrang = null, _tlPlatzLaeuft = false, _tlPlatzTimer = 0;   // _platzSchaffen (unten)
   function _tlSKappen(v) {
     const flaeche = (host.closest(".anim-canvas") || host.parentElement)?.clientHeight || 0;
     if (!flaeche) return v;
@@ -277,6 +278,7 @@ function mountTimelineBar(opts) {
   function _tlSSetzen(v, merken) {
     v = Math.max(0.6, Math.min(2.2, v));
     host.style.setProperty("--tl-s", String(Math.round(v * 100) / 100));
+    _platzSchaffen(null, true);   // Höhe/Fenster geändert: auch wieder aufklappen, was jetzt passt
     v = _tlSKappen(v);
     if (merken) { try { localStorage.setItem(_TL_S_KEY, String(v)); } catch (_) {} }
     try { window.dispatchEvent(new Event("rz-timeline-hoehe")); } catch (_) {}
@@ -309,6 +311,86 @@ function mountTimelineBar(opts) {
       document.addEventListener("mouseup", hoch, true);
     });
   })();
+
+  // ── Nur zeigen, was man braucht (26.10.2026, Marc: „überlege dir was, wie wir die Timeline kleiner kriegen, es soll nur
+  //    das angezeigt werden, was man braucht … aber es muss weiterhin alles gehen“) ──
+  // Passt die Zeitleiste nicht in ihre 60 % der Vorschaufläche, klappt sie VORÜBERGEHEND zu, was gerade nicht gebraucht
+  // wird — erst die Kamera-Detailspuren (der Cluster zeigt alle Marker weiter), dann Ton, Overlays, Schilder. Gemerkt wird
+  // davon nichts; die Gruppe, die man zuletzt selbst aufgeklappt hat, bleibt offen. Wird wieder Platz frei (Fenster
+  // größer, etwas zugeklappt), gehen die automatisch zugeklappten Teile von selbst wieder auf. Ein Klick klappt alles auf.
+  function _tlZuHoch() {
+    const flaeche = (host.closest(".anim-canvas") || host.parentElement)?.clientHeight || 0;
+    return !!flaeche && host.getBoundingClientRect().height > flaeche * _TL_ANTEIL_MAX + 1;
+  }
+  function _kfDetailSichtbar() {
+    return !host.classList.contains("tl-kf-zu") && !host.classList.contains("tl-kf-autozu")
+      && Array.from(host.querySelectorAll('.timeline-lanes .timeline-lane[data-kind="pitch"]')).some(e => e.offsetParent);
+  }
+  function _kfKlappZeigen() {
+    const k = host.querySelector(".timeline-cluster-row .lane-klapp");
+    if (k) k.textContent = (host.classList.contains("tl-kf-zu") || host.classList.contains("tl-kf-autozu")) ? "▸" : "▾";
+  }
+  function _tlKandidaten() {
+    const gr = (id, g) => ({ id, offen: () => g.istOffen(), zu: () => g.istAutoZu(), schliessen: () => g.autoZuSetzen(true), oeffnen: () => g.autoZuSetzen(false) });
+    return [
+      { id: "kf", offen: _kfDetailSichtbar, zu: () => host.classList.contains("tl-kf-autozu"),
+        schliessen: () => { host.classList.add("tl-kf-autozu"); _kfKlappZeigen(); }, oeffnen: () => { host.classList.remove("tl-kf-autozu"); _kfKlappZeigen(); } },
+      gr("#tl-ton", _tonGruppe), gr("#tl-ov", _ovGruppe), gr("#tl-sg", _sgGruppe),   // id = g.box (Vorrang aus umschalten)
+    ];
+  }
+  // 27.10.2026 (Klicktest: Schilder-Gruppe mit 52 Zeilen aufgeklappt → die Zeitleiste deckte die ganze Vorschau zu) — passt es
+  // nach dem Zuklappen immer noch nicht, rollt die höchste offene Gruppe in sich (Kopfzeile bleibt stehen, Mausrad/Touchpad)
+  const _TL_ROLL_BOXEN = ["#tl-sg", "#tl-ov", "#tl-ton"];
+  function _tlRollenAus() {
+    _TL_ROLL_BOXEN.forEach(sel => { const b = host.querySelector(sel); if (b && b.classList.contains("tl-rollt")) { b.classList.remove("tl-rollt"); b.style.maxHeight = ""; } });
+  }
+  function _tlRollen() {
+    if (!_tlZuHoch()) return;
+    const flaeche = (host.closest(".anim-canvas") || host.parentElement)?.clientHeight || 0;
+    const zuviel = host.getBoundingClientRect().height - flaeche * _TL_ANTEIL_MAX;
+    const b = _TL_ROLL_BOXEN.map(sel => host.querySelector(sel)).filter(x => x && x.offsetParent)
+      .sort((x, y) => y.getBoundingClientRect().height - x.getBoundingClientRect().height)[0];
+    const h = b ? b.getBoundingClientRect().height : 0;
+    if (!b || h < 90 || !(zuviel > 0)) return;
+    b.style.maxHeight = Math.max(72, Math.floor(h - zuviel)) + "px";
+    b.classList.add("tl-rollt");
+  }
+  function _platzSchaffen(vorrang, wiederAuf) {
+    if (!_tlGruppenBereit || _tlPlatzLaeuft || !host.isConnected) return;
+    _tlPlatzLaeuft = true;
+    try {
+      if (vorrang) _tlVorrang = vorrang;
+      _tlRollenAus();
+      const K = _tlKandidaten();
+      // Wieder aufklappen nur bei Anlass (Fenster/Höhe geändert, Nutzer klappt etwas) — nicht bei jeder Spur-Aktualisierung,
+      // sonst öffnete und schloss sie bei jedem Neuzeichnen probehalber (26.10.2026: das bremste die App spürbar)
+      for (const k of (wiederAuf || vorrang ? K.slice().reverse() : [])) {   // was jetzt wieder passt, geht auf (Schilder zuerst)
+        if (!k.zu()) continue;
+        k.oeffnen();
+        if (_tlZuHoch()) { k.schliessen(); break; }
+      }
+      for (const k of K) {                     // zuklappen, bis es passt — nie das zuletzt selbst Geöffnete
+        if (!_tlZuHoch()) break;
+        if (k.id !== _tlVorrang && k.offen()) k.schliessen();
+      }
+      _tlRollen();
+    } catch (e) { console.warn("[zeitleiste] Platz:", e); }
+    finally { _tlPlatzLaeuft = false; }
+    _ovHoeheMelden();
+  }
+  /** Nach jeder Änderung an den Spuren (Gruppen auf/zu, neue Zeilen): gesammelt einmal zuklappen, was nicht passt, und die
+   *  Spurhöhe kappen. Gemeldet („rz-timeline-hoehe“, Karte passt sich an) nur, wenn sich die Höhe wirklich geändert hat. */
+  function _platzPlanen() {
+    if (_tlPlatzLaeuft) return;
+    clearTimeout(_tlPlatzTimer);
+    _tlPlatzTimer = setTimeout(() => {
+      if (!host.isConnected) return;
+      const h0 = Math.round(host.getBoundingClientRect().height);
+      _platzSchaffen();
+      _tlSKappen(parseFloat(host.style.getPropertyValue("--tl-s")) || _tlS());
+      if (Math.round(host.getBoundingClientRect().height) !== h0) { try { window.dispatchEvent(new Event("rz-timeline-hoehe")); } catch (_) {} }
+    }, 60);
+  }
 
   // ── DOM-Refs + State ──────────────────────────────────────────────────────
   const trackEl     = host.querySelector("#tl-track");
@@ -1002,6 +1084,8 @@ function mountTimelineBar(opts) {
     //      zeitraumNeu, text, vorschau, auswahl, ziehen} }  (rc = Namen der Rückrufe in cb)
     let liste = [];                // [{id, name, farbe, enabled, segmente: [{an, aus, einBis, ausAb, text}]}]
     let offen = false;
+    let autoZu = false;   // 26.10.2026 — vorübergehend zugeklappt, weil der Platz nicht reicht (_platzSchaffen), nicht gemerkt
+    const istOffen = () => offen && !autoZu;
     let minAnteil = 0.005;
     let letzterDruck = null;
     let auswahl = null;
@@ -1057,9 +1141,11 @@ function mountTimelineBar(opts) {
           <div class="lane-track"><div class="lane-markers ov-mini" id="${g.miniId}"></div></div>`;
         lanes.prepend(kopf);
         const umschalten = () => {
-          offen = !offen;
+          if (offen && autoZu) autoZu = false;   // nur aus Platzgründen zu → Klick holt sie zurück (gemerkt ist sie offen)
+          else { offen = !offen; ruf("offen", offen); }
           zeilenSicherstellen(); zeichnen();
-          ruf("offen", offen);
+          if (istOffen()) _platzSchaffen(g.box);   // diese Gruppe bleibt offen, andere weichen
+          else _platzSchaffen(null, true);          // zugeklappt: frei gewordener Platz für automatisch Zugeklapptes
         };
         const lab = kopf.querySelector(".lane-label");
         // 11.10.2026 — optionaler Knopf in der Kopfzeile (Schilder: „An allen Foto-Schildern anhalten“)
@@ -1067,12 +1153,14 @@ function mountTimelineBar(opts) {
         if (kk) kk.addEventListener("click", (e) => { e.stopPropagation(); const an = ruf("knopf"); if (typeof an === "boolean") kk.classList.toggle("an", an); });
         lab.addEventListener("click", umschalten);
         lab.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); umschalten(); } });
-        kopf.querySelector(".lane-track").addEventListener("click", () => { if (!offen) umschalten(); });
+        kopf.querySelector(".lane-track").addEventListener("click", () => { if (!istOffen()) umschalten(); });
       }
-      kopf.classList.toggle("ist-offen", offen);
-      const pf = kopf.querySelector(".ov-kopf-pfeil"); if (pf) pf.textContent = offen ? "▾" : "▸";
+      kopf.classList.toggle("ist-offen", istOffen());
+      kopf.classList.toggle("ist-autozu", offen && autoZu);
+      const pf = kopf.querySelector(".ov-kopf-pfeil"); if (pf) pf.textContent = istOffen() ? "▾" : "▸";
+      _platzPlanen();
       const da = Array.from(lanes.querySelectorAll('.timeline-lane[data-kind="ovbox"]'));
-      const soll = offen ? reihen().map(r => r.id) : [];
+      const soll = istOffen() ? reihen().map(r => r.id) : [];
       _ovHoeheMelden();
       da.forEach(z => { if (soll.indexOf(z.dataset.id) < 0) z.remove(); });
       let vorher = kopf;
@@ -1097,19 +1185,22 @@ function mountTimelineBar(opts) {
       if (mini) {
         mini.innerHTML = "";
         const n = Math.max(1, liste.length);
+        // 26.10.2026 (Klicktest: 52 Schilder, zugeklappt) — mindestens 2 px je Eintrag ließen die Striche über 100 px aus der
+        // Zeile über Medien, Ton und Cluster laufen. Jetzt in die Zeilenhöhe gestaucht (bei vielen Einträgen überlappen sie).
+        const schritt = n > 1 ? Math.min(4, 12 / (n - 1)) : 0;
         liste.forEach((o, i) => {
           for (const sg of o.segmente) {
             const st = document.createElement("div");
             st.className = "ov-strich" + (o.enabled ? "" : " ist-aus");
             st.style.left = pct(sg.an) + "%";
             st.style.width = Math.max(0.3, pct(sg.aus) - pct(sg.an)) + "%";
-            st.style.top = (3 + i * Math.max(2, 14 / n)) + "px";
+            st.style.top = (3 + i * schritt).toFixed(1) + "px";
             if (o.farbe) st.style.background = o.farbe;
             mini.appendChild(st);
           }
         });
       }
-      if (!offen) return;
+      if (!istOffen()) return;
       for (const reihe of reihen()) {
         const z = lanes.querySelector(`.timeline-lane[data-kind="ovbox"][data-id="${CSS.escape(reihe.id)}"]`);
         if (!z) continue;
@@ -1237,7 +1328,13 @@ function mountTimelineBar(opts) {
           if (gr) { n.fs = Object.assign({}, a0.fs); n.fs[k] = Math.max(gr[0], Math.min(gr[1], a0.fs[k] + d)); }
           return n;
         }
-        if (griff === "schieben") {
+        if (griff === "schieben" && a0.aus >= 1 - 1e-6 && a0.an > 1e-6) {
+          // 26.10.2026 (Beta-Tester: „In der Balkenzeile können die Positionen der Bilder nicht verändert werden“) — ein
+          // Balken, der bis zum Videoende reicht (Foto bleibt als kleines Bild stehen), ließ sich nach rechts gar nicht
+          // schieben: die Klemme „Ende ≤ Videoende“ ließ 0 px Weg. Jetzt wandert sein Anfang, das Ende bleibt am Videoende.
+          const an = Math.max(0, Math.min(1 - minL, a0.an + d)), dd = an - a0.an;
+          n.an = an; n.einBis = Math.min(a0.ausAb, a0.einBis + dd);
+        } else if (griff === "schieben") {
           const dd = Math.max(-a0.an, Math.min(1 - a0.aus, d));
           n.an += dd; n.aus += dd; n.einBis += dd; n.ausAb += dd;
         } else if (griff === "l") {
@@ -1294,7 +1391,9 @@ function mountTimelineBar(opts) {
         return true;
       },
     };
-    return { set, zeichnen, geometrieMelden, get: () => ({ liste: liste.map(o => Object.assign({}, o)), offen }) };
+    return { set, zeichnen, geometrieMelden, get: () => ({ liste: liste.map(o => Object.assign({}, o)), offen, autoZu }),
+             istOffen: () => istOffen() && liste.length > 0, istAutoZu: () => autoZu,
+             autoZuSetzen(v) { v = !!v; if (autoZu === v) return false; autoZu = v; zeilenSicherstellen(); zeichnen(); return true; } };
   }
 
   /** Wo die Trim-Griffe beginnen: unter der Cluster-Zeile, die jetzt unter der
@@ -1338,7 +1437,9 @@ function mountTimelineBar(opts) {
     if (set.has(art)) set.delete(art); else set.add(art);
     try { localStorage.setItem(_KLEIN_KEY, JSON.stringify([...set])); } catch (_) {}
     host.querySelectorAll(".timeline-lane, .timeline-cluster-row").forEach((x) => { if (_kleinArt(x) === art) _kleinAnwenden(x); });
+    _kfKlappZeigen();
     _ovHoeheMelden();
+    _platzSchaffen(null, true);
   }
   host.addEventListener("mousedown", (ev) => {
     const k = ev.target.closest && ev.target.closest(".lane-klapp");
@@ -1346,6 +1447,9 @@ function mountTimelineBar(opts) {
     ev.preventDefault(); ev.stopPropagation();
     if (ev.button !== 0) return;
     const el = k.closest(".timeline-lane, .timeline-cluster-row");
+    if (el && el.classList.contains("timeline-cluster-row") && host.classList.contains("tl-kf-autozu") && !host.classList.contains("tl-kf-zu")) {
+      host.classList.remove("tl-kf-autozu"); _kfKlappZeigen(); _platzSchaffen("kf"); return;   // nur aus Platzgründen zu
+    }
     if (el) _kleinUmschalten(el);
   }, true);
   host.addEventListener("click", (ev) => {
@@ -1381,6 +1485,7 @@ function mountTimelineBar(opts) {
     rc: { neu: "onTonNeu", offen: "onTonOffen", oeffnen: "onTonOeffnen", text: "onTonText", vorschau: "onTonVorschau",
           auswahl: "onTonAuswahl", ziehen: "onTonZiehen" },
   });
+  _tlGruppenBereit = true;
   function setOverlays(liste, opts) { _ovGruppe.set(liste, opts); }
   function setSchilder(liste, opts) { _sgGruppe.set(liste, opts); }
   function setTon(liste, opts) { _tonGruppe.set(liste, opts); }

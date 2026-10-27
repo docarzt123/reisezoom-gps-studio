@@ -1068,7 +1068,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .timeline-lane[data-kind="ovkopf"] .lane-track { cursor: pointer; }
 .timeline-lane[data-kind="ovkopf"].ist-offen .lane-track { cursor: default; }
 .timeline-lane[data-kind="ovkopf"].ist-offen .ov-mini { display: none; }
-.ov-mini { pointer-events: none; }
+.ov-mini { pointer-events: none; overflow: hidden; }   /* 26.10.2026 — Striche nie über die Zeile hinaus */
 .ov-strich { position: absolute; height: 2px; border-radius: 1px; background: #e8a0ff; opacity: .85; }
 .ov-strich.ist-aus { opacity: .25; }
 .timeline-lane[data-kind="ovbox"] { height: calc(16px * var(--tl-s, 1)); }
@@ -1114,6 +1114,12 @@ body.wert-zieht .timeline-marker.is-selected {
 /* 24.09.2026 — Overlay-Spur ganz oben (eigener Behälter über der Cluster-Zeile). */
 .timeline-ov { display: flex; flex-direction: column; gap: 1px; }
 .timeline-ov:empty { display: none; }
+/* 27.10.2026 — Gruppe mit vielen Zeilen rollt in sich (_tlRollen); ohne sichtbaren Balken, damit die Spuren unter Windows
+   nicht schmaler werden als die übrigen (Zeitachse bliebe sonst nicht bündig) */
+.timeline-ov.tl-rollt { overflow-y: auto; overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain;
+  box-shadow: inset 0 -10px 8px -8px rgba(0, 0, 0, .55); }
+.timeline-ov.tl-rollt::-webkit-scrollbar { display: none; }
+.timeline-ov.tl-rollt > .timeline-lane[data-kind="ovkopf"] { position: sticky; top: 0; z-index: 3; background: var(--panel-bg); }
 .timeline-ov .timeline-lane[data-kind="ovkopf"] { border-radius: 6px 6px 0 0; }
 .timeline-ov .timeline-lane .lane-label { font-size: 9.5px; }
 
@@ -1152,6 +1158,11 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-kf-zu .timeline-lane[data-kind="center"],
 .tl-kf-zu .timeline-lane[data-kind="position"],
 .tl-kf-zu .timeline-lane[data-kind="camera"] { display: none !important; }
+/* 26.10.2026 — nur aus Platzgründen zugeklappt (timeline.js _platzSchaffen): wie zu, aber nicht gemerkt */
+.tl-kf-autozu .timeline-lane[data-kind="pitch"], .tl-kf-autozu .timeline-lane[data-kind="bearing"],
+.tl-kf-autozu .timeline-lane[data-kind="zoom"], .tl-kf-autozu .timeline-lane[data-kind="center"],
+.tl-kf-autozu .timeline-lane[data-kind="position"], .tl-kf-autozu .timeline-lane[data-kind="camera"] { display: none !important; }
+.timeline-lane[data-kind="ovkopf"].ist-autozu .ov-kopf-pfeil { color: var(--accent, #48d6c4); }
 
 /* 02.10.2026 — Ton-Spur (Musik, Foto-Klicks, Clip-Ton), gleicher Baustein wie Overlays/Schilder */
 .timeline-ton:empty { display: none; }

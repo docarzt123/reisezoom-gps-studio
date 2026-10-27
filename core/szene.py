@@ -564,7 +564,9 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
             "transMs": int(os.environ.get("RZ_TRANS_MS", "300") or 0),
             "transparent": bool(getattr(cfg, "transparent_background", False)),
             # 26.10.2026 (für 3D-Werkzeuge) — transparenter Export ohne Spur und Laufpunkt: die zeichnet das 3D-Programm
-            "ohneTrack": bool((params or {}).get("overlay_ohne_track"))}
+            "ohneTrack": bool((params or {}).get("overlay_ohne_track")),
+            # 27.10.2026 (`overlay-export --with-labels`) — Beschriftung der Karte bleibt im transparenten Export stehen
+            "mitBeschriftung": bool((params or {}).get("overlay_mit_beschriftung"))}
     _keep = {k: True for k in (os.environ.get("RZ_KEEP") or "").split(",") if k}
     await page.add_init_script(_BRIDGE_JS.replace("__RZ_MODE__", json.dumps(mode)).replace("__RZ_KEEP__", json.dumps(_keep)))
     emit(0.02, _i18n.t_aktiv("szene.app_laden", "Szene: App laden …"))
@@ -781,6 +783,12 @@ def _kamera_schreiben(ziel: str, cfg, projekt_id: str, kopf: dict, bilder: dict,
     import sys as _sys
     kopf = kopf or {}
     kopf["punkte"] = _kamera_hoehen(kopf.get("punkte") or [], kopf.get("gpx") or "")
+    # 27.10.2026 (B11) — weitere Touren (Schwarm, „Ganz zeigen“, Etappen) mit Höhen aus ihrer GPX-Datei
+    touren = []
+    for t in kopf.get("weitere_touren") or []:
+        t = dict(t)
+        t["punkte"] = _kamera_hoehen(t.get("punkte") or [], t.get("gpx") or "")
+        touren.append(t)
     app = _sys.modules.get("app") or _sys.modules.get("__main__")
     daten = {
         "format": KAMERA_FORMAT,
@@ -799,8 +807,16 @@ def _kamera_schreiben(ziel: str, cfg, projekt_id: str, kopf: dict, bilder: dict,
             "zoom": "Zoom bezieht sich auf viewport_css (Vorschau-Größe der Szene); Lage, Richtung und Neigung der Kamera "
                     "hängen davon nicht ab",
             "bearing": "Grad im Uhrzeigersinn ab Norden; pitch 0 = senkrecht nach unten",
+            "weitere_touren": "je Bild touren_fortschritt[j] gehört zu weitere_touren[j]: [Punkt-Index des gezeichneten Endes "
+                              "(-1 = noch nichts), Deckkraft-Faktor (0 = unsichtbar; mal stil.deckkraft), Breiten-Faktor "
+                              "(mal stil.breite), Index des Laufpunkts oder null]. art: laufend = wächst mit, ganz = ganze "
+                              "Strecke, ein-/ausgeblendet, etappe = weitere Etappe einer Reise",
+            "haupt_bis": "bei einer Reise zeichnet die Hauptlinie nur track.punkte[0 … haupt_bis]; die übrigen Etappen "
+                         "stehen in weitere_touren (art etappe)",
         },
-        "track": {"punkte": kopf.get("punkte") or [], "trim": kopf.get("trim"), "linie": kopf.get("linie")},
+        "track": {"punkte": kopf.get("punkte") or [], "trim": kopf.get("trim"), "linie": kopf.get("linie"),
+                  "haupt_bis": kopf.get("haupt_bis")},
+        "weitere_touren": touren,
         "bilder": [bilder[i] for i in sorted(bilder)],
     }
     Path(ziel).parent.mkdir(parents=True, exist_ok=True)

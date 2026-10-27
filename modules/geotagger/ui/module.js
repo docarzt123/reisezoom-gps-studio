@@ -573,7 +573,17 @@ function mountGeotagger(body, headerActions) {
     };
   }
   // v0.9.166 — Fotos manuell auf der Karte platzieren (Drag aus der Liste)
-  const _gtManual = new Map();     // path → {lat, lon, alt|null} (manuell gesetzt)
+  // 26.10.2026 (Beta-Tester: „Die positionierten Bilder im Geotagger bleiben nicht an ihren Positionen“) — die von Hand
+  // gesetzten Positionen lebten nur, solange das Modul offen war; die Fotoliste dagegen kam nach Modulwechsel und Neustart
+  // zurück (last_photos_*). Ohne eigenes GPS und mit Aufnahmezeit außerhalb der Tour „verschwanden“ die Fotos dann. Jetzt
+  // in den Einstellungen gemerkt (geotagger.manuell, nach Pfad) und beim Öffnen wieder eingemischt (_gtMergeManual).
+  const _gtManual = new Map(Object.entries((_settingsCache && _settingsCache.geotagger && _settingsCache.geotagger.manuell) || {})
+    .filter(([, v]) => v && isFinite(+v.lat) && isFinite(+v.lon)));   // path → {lat, lon, alt|null, track_time}
+  let _gtManualT = null;
+  function _gtManualSichern() {
+    clearTimeout(_gtManualT);
+    _gtManualT = setTimeout(() => { try { saveSettings({ geotagger: { manuell: Object.fromEntries(_gtManual) } }); } catch (_) {} }, 300);
+  }
   let _gtSnapToTrack = false;      // Toggle „Auf Track einrasten"
   let _gtMetaDown = false;         // ⌘ aktuell gedrückt (Marker-Drag + Hint)
   // v0.9.29 (Marc-Bug-Report): Flag damit async-Tasks die nach dem Unmount
@@ -1657,6 +1667,10 @@ function mountGeotagger(body, headerActions) {
   }
 
   window.__rzGtOrdnerLaden = _gtOrdnerLaden;
+  // 26.10.2026 — Prüfstand: Foto von Hand platzieren / Handpositionen lesen / Platzierung zurücknehmen (Wächter tests/test_geotagger_handpositionen.py)
+  window.__rzGtPlatzieren = (path, lat, lon) => _gtPlacePhoto(path, lat, lon, false);
+  window.__rzGtManuell = () => Object.fromEntries(_gtManual);
+  window.__rzGtZuruecknehmen = (path) => _gtResyncPhoto(path);
 
   // 26.09.2026 — GT-03: liegt `pfad` in `ordner` (bei „mit Unterordnern" auch tiefer)?
   // Fotos ohne Pfad (Drop läuft noch) zählen als „woanders".
@@ -1715,7 +1729,7 @@ function mountGeotagger(body, headerActions) {
     _gtFilter = null;
     _gtCamFilter = null;
     _gtUnchecked.clear();
-    _gtManual.clear();
+    _gtManual.clear();   _gtManualSichern();
     _gtDir.clear();
     _gtAddr.clear();
     try { _gtGeoSeen.clear(); } catch (_) {}
@@ -3100,7 +3114,7 @@ function mountGeotagger(body, headerActions) {
   }
   function _gtUndoRestoreState(s) {
     if (!s) return;
-    _gtManual.clear();   (s.manual || []).forEach(([p, v]) => _gtManual.set(p, Object.assign({}, v)));
+    _gtManual.clear();   (s.manual || []).forEach(([p, v]) => _gtManual.set(p, Object.assign({}, v)));   _gtManualSichern();
     _gtExifEdits.clear();(s.exif   || []).forEach(([p, arr]) => _gtExifEdits.set(p, new Map(arr)));
     _gtDir.clear();      (s.dir    || []).forEach(([p, v]) => _gtDir.set(p, Object.assign({}, v)));
     _gtAddr.clear();     (s.addr   || []).forEach(([p, v]) => _gtAddr.set(p, Object.assign({}, v)));
@@ -3162,7 +3176,7 @@ function mountGeotagger(body, headerActions) {
       } catch (_) {}
     }
     if (isUnmounted) return;
-    _gtManual.set(path, { lat, lon, alt, track_time: trackTime });
+    _gtManual.set(path, { lat, lon, alt, track_time: trackTime });   _gtManualSichern();
     selectedPath = path;
     _gtMergeManual();
     _gtRefreshAfterManual();
@@ -3185,7 +3199,7 @@ function mountGeotagger(body, headerActions) {
       trackTime = prev ? (prev.track_time || null) : null;
     }
     if (isUnmounted) return;
-    _gtManual.set(path, { lat, lon, alt, track_time: trackTime });
+    _gtManual.set(path, { lat, lon, alt, track_time: trackTime });   _gtManualSichern();
     _gtMergeManual();
     _gtRefreshAfterManual();
   }
@@ -3685,7 +3699,7 @@ function mountGeotagger(body, headerActions) {
   function _gtResyncPhoto(path) {
     if (!path || !_gtManual.has(path)) return;
     _gtgPushUndo(t("undo.platzierung_aufgehoben", "Platzierung aufgehoben"), { force: true });   // v0.9.359 — undoable
-    _gtManual.delete(path);
+    _gtManual.delete(path);   _gtManualSichern();
     // Sofortiges Feedback bis der debounced Re-Match durch ist:
     const m = _mByPath(path);
     if (m) m.manual = false;
@@ -3704,7 +3718,7 @@ function mountGeotagger(body, headerActions) {
     photos = photos.filter(p => p.path !== path);
     matches = matches.filter(m => m.path !== path);
     _gtUnchecked.delete(path);
-    _gtManual.delete(path);            // v0.9.166 — manuelle Platzierung mit entfernen
+    _gtManual.delete(path);            // v0.9.166 — manuelle Platzierung mit entfernen   _gtManualSichern();
     if (selectedPath === path) { selectedPath = null; hidePhotoPopup(); }
     if (referencePath === path) referencePath = null;
     try { redrawMarkers(); } catch (_) {}
@@ -3728,7 +3742,7 @@ function mountGeotagger(body, headerActions) {
     _gtFilter = null;          // Übersicht-Filter
     _gtCamFilter = null;       // Kamera-Filter
     _gtUnchecked.clear();      // Tag-Auswahl
-    _gtManual.clear();         // manuelle Platzierungen
+    _gtManual.clear();         // manuelle Platzierungen   _gtManualSichern();
     _gtDir.clear();            // Blickrichtungen
     _gtAddr.clear();           // Adressen
     try { _gtGeoSeen.clear(); } catch (_) {}

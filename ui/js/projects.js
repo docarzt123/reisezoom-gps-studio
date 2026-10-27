@@ -317,7 +317,9 @@
     });
   }
 
-  function confirmModal(title, message, confirmLabel, danger) {
+  // 27.10.2026 — `opts.nurKnoepfe`: ein Klick daneben bricht NICHT ab (Video-Assistent: die Keyframe-Frage kommt kurz nach
+  // dem Öffnen; wer gerade nach einer Karte griff, traf den Hintergrund — der Assistent ging mit „Nichts geändert“ zu)
+  function confirmModal(title, message, confirmLabel, danger, opts) {
     return new Promise(resolve => {
       const overlay = document.getElementById("modal-overlay");
       const titleEl = document.getElementById("modal-title");
@@ -341,7 +343,7 @@
       // der Rückweg über die Tastatur ganz.
       const escHandler = (ev) => { if (ev.key === "Escape") cleanup(false); };
       document.addEventListener("keydown", escHandler);
-      overlay.onclick = (ev) => { if (ev.target === overlay) cleanup(false); };
+      overlay.onclick = (opts && opts.nurKnoepfe) ? null : (ev) => { if (ev.target === overlay) cleanup(false); };
       const cleanup = (val) => {
         document.removeEventListener("keydown", escHandler);
         overlay.onclick = null;

@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 26 Oct 2026 17:26:14 +0000</lastBuildDate>
+<lastBuildDate>Tue, 27 Oct 2026 09:34:54 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.843</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-843</link>
+<guid isPermaLink="false">gps-studio-v0.9.843</guid>
+<pubDate>Tue, 27 Oct 2026 12:00:00 +0000</pubDate>
+<description>Video-Assistent wie im Web-Studio — Acht Reiter: Strecke, Kamera, Karte, Linie, Titel, Fotos, Infos, Video. Jeder ist jederzeit anklickbar und schon sinnvoll eingestellt. Neu: Kamerahöhe nah/mittel/hoch, 3D-Gelände und Beschriftung, ein eigener Reiter für die Linie und „Fotos als“ Sofortbild, groß mit Pause oder Bild im Bild. Ein „?“ erklärt jede Einstellung, oft mit kurzen Clips, wie es im Video aussieht.
+
+Musik ist erst einmal aus — im Schnell-Video und im Assistenten. Wählst du ein Stück, ist sie an.
+
+Zeitleiste zeigt nur, was du brauchst — Wird sie zu hoch, klappt sie zu, woran du gerade nicht arbeitest. Ein Klick öffnet alles wieder. Eine Gruppe mit sehr vielen Zeilen (etwa 50 Schilder) rollt in sich, statt die Vorschau zuzudecken.
+
+Gestrichelte Linie bleibt gestrichelt — Mit Kontur oder Schatten liefen die Striche im Video ineinander. Jetzt sind die Lücken wirklich frei.</description>
+</item>
 <item>
 <title>v0.9.838</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-838</link>
@@ -247,19 +260,6 @@ Einmal um die Welt — Routen und Etappen über die Datumsgrenze: Jede Etappe ni
 Entfernen in der Zeitleiste — Einen Balken anklicken — Schild, Foto, Fotostopp oder Overlay — und Entf drücken: weg. Bei einem Overlay mit mehreren Zeiträumen nur der angeklickte; ⌘Z holt alles zurück.
 
 Kein Geister-Pin mehr — Wurde der letzte Fotostopp eines Projekts gelöscht, blieb sein kleiner runder Foto-Pin auf der Karte stehen. Jetzt verschwindet er mit.</description>
-</item>
-<item>
-<title>v0.9.787</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-787</link>
-<guid isPermaLink="false">gps-studio-v0.9.787</guid>
-<pubDate>Fri, 09 Oct 2026 12:00:00 +0000</pubDate>
-<description>Archiv im neuen Look — Medien bedienst du jetzt wie in Lightroom: Kacheln mit Datum, Uhrzeit und Ort, Kästchen zum Markieren mit einer Leiste für Export, Ort, Tour und Album, links Sammlungen, Alben, Ordner und Filter, rechts die Details. Doppelklick, E oder Leertaste öffnet die Lupe mit Karte und Bildleiste. Touren stehen als Zeilen mit Kartenbild, die Detailspalte führt in alle Module, die Statistik ist eine Übersichtsseite. Alle Archivkarten sind Nachtkarten mit Maßstab und Start/Ziel-Nadeln; den Kartenstil wählst du für alle auf einmal.
-
-Touren und Medien gehören zusammen — Fotos und Clips gehören zu einer Tour, wenn sie währenddessen und höchstens 2 km vom Track entfernt aufgenommen wurden — Korrekturen von Hand gelten überall. Doppelklick auf eine Tour öffnet ihre Seite: Karte mit Punkt je Foto, Bildstreifen, Werte, Logbuch, Video, Karte als Bild und Export. Eine Suche findet Touren und Medien zugleich; Exportieren geht per Rechtsklick.
-
-Fotos bearbeiten — In der Lupe: Auto, die Voreinstellungen Natürlich, Kräftig, Matt und SW und Regler für Belichtung, Kontrast, Lichter, Tiefen, Weißabgleich, Dynamik, Sättigung, Klarheit und Dunst; „.“ zeigt das Original. Neu ist auch Zuschneiden und Geraderichten (Taste R). Die Vorschau rechnet die Grafikkarte, ohne Verzögerung. RAW-Dateien werden richtig entwickelt. Das Original bleibt unverändert — Raster, Export, Animator und Video nehmen die bearbeitete Fassung.
-
-Video-Assistent — Neben „Schnell-Video“ führt der Assistent in neun Seiten zum fertigen Projekt: Titel, Art des Videos, Karte, Einblendungen, Fotos, Orte, Kamera, Abspann und Musik. Alles bleibt im Animator bearbeitbar, ein ⌘Z nimmt es zurück.</description>
 </item>
 </channel>
 </rss>

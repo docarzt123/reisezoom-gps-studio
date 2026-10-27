@@ -1384,6 +1384,7 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
   border-radius: 8px; z-index: 50; cursor: zoom-in; overflow: hidden; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   transition: bottom 0.18s ease; }
 .anim-ueb[hidden], .anim-ueb-auf[hidden] { display: none; }
+body.rz-schild-zieht .anim-ueb, body.rz-schild-zieht .anim-ueb-auf { pointer-events: none; }   /* Schild über die Übersicht ziehen */
 .anim-ueb.ohne-track, .anim-ueb-auf.ohne-track { display: none; }   /* kein Track (leeres Projekt) */
 .anim-ueb.gross { width: 40%; max-width: 560px; cursor: zoom-out; }
 .anim-ueb-svg { width: 100%; height: 100%; display: block; }
@@ -1433,8 +1434,10 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .timeline-actions .anim-transport .tp-aussen { position: absolute; left: calc(100% + 4px); top: 50%; transform: translateY(-50%); }
 .anim-transport .tp-ton { min-width: 24px; font-size: 12px; }
 .anim-transport .tp-ton.ist-stumm { opacity: 0.6; }
-/* Platz für die außen angehängte Zeit, damit „Alle weg" nicht darunter rutscht */
-.timeline-actions.mit-transport .tl-akt-rechts { padding-left: 132px; }
+/* Platz für die außen angehängte Zeit, damit „Alle weg" nicht darunter rutscht.
+   26.10.2026 (Klicktest 1485×812, Keyframe-Editor an) — passte die rechte Gruppe (Vorschau-Wahl, „Fahrt neu erzeugen …“,
+   „Alle weg“) nicht in ihre Spalte, lief sie wegen flex-end nach LINKS über Zeit und 🔊; jetzt bricht sie in eine zweite Zeile um. */
+.timeline-actions.mit-transport .tl-akt-rechts { padding-left: 148px; flex-wrap: wrap; row-gap: 4px; min-width: 0; }
 .anim-transport.schwebend { bottom: 14px; }
 .anim-ansicht { display: inline-flex; gap: 4px; margin-left: 8px; }
 .ansicht-knopf { width: 30px; height: 24px; padding: 3px; border-radius: 6px; border: 1px solid var(--border, rgba(255,255,255,0.15));

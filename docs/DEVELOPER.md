@@ -8488,6 +8488,34 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   `map_style` „kartenlook“ + `kartenlook.id`, sonst `RZ_NORTH_SVG`). Animator: `_kompassSvg()` im Container „nord“,
   `_kompassAktualisieren()` nach jedem Stil-Laden (`rebuildPreviewLayers`). Python-Spiegel `core/northarrow.py
   north_svg_fuer()` (liest dieselben Dateien; Web-Karten-Export). Test `test_kompass`.
+- **Kamera-Export: weitere Touren (27.10.2026, B11 GPS Studio Karten).** `__rzKameraKopf().weitere_touren` =
+  `__rzKameraTouren()` (module.js `_kamTourenListe`): in fester Reihenfolge `art` „laufend“ (`_swPrev`: Schwarm,
+  Taktgeber außerhalb der Kette), „ganz“ (`_ganzPrev`, §72) und „etappe“ (`_reiseBahn.teile[1…]`, Quellen
+  `mtour-prev-*`), je `{name, gpx, punkte[[lon,lat,ele]] wie gezeichnet (gedünnt), stil{farbe, breite, deckkraft, strich,
+  strich_abstand, strich_muster, schatten, gluehen, punkt{zeigen,stil,groesse}, kontur_breite, kontur_farbe, blass?}}`;
+  Höhen ergänzt `szene._kamera_schreiben` je Tour aus ihrer GPX (`_kamera_hoehen`). Je Bild `touren_fortschritt`
+  (`_kamTourenBild`) = je Tour `[Ende-Index (−1 = nichts), Deckkraft-Faktor (0 = aus), Breiten-Faktor, Laufpunkt-Index|null]`,
+  gelesen aus dem, was die Szene gerade gezeichnet hat: `t.__kL`/`t.__k` (gesetzt in `_animSchwarmPreviewAdvance`),
+  `e.__z` (`_ganzAdvance`), `_reiseBahn.__quellStand[i].ende`. `track.haupt_bis` = `_reiseBahn.teile[0].bis` bei einer
+  Reise (die Hauptlinie zeichnet nur Etappe 1), sonst null. Test `tests/test_kamera_export_touren.py` (Reise, Schwarm,
+  Ganz zeigen).
+- **`overlay-export --with-labels` (27.10.2026, B10).** `params.overlay_mit_beschriftung` → `mode.mitBeschriftung` →
+  `_alphaRenderEbenen` überspringt Symbol-Ebenen (außer eigenen Spur-Ebenen); welche sichtbar sind, haben vorher die
+  Beschriftungs-Schalter gesetzt. Ergebnis-Zeile `"labels": bool`. `--without-track` blendet jetzt auch `ganz-prev-*` aus.
+  Test `tests/test_cli_overlay_export.py` Teil E (Luftbild + Beschriftung).
+- **Strichmuster je Ebene (27.10.2026, A4).** `rzDashFuerBreite(muster, lw, ebeneW)` (ui/js/util.js, Spiegel
+  `core/animator.py _dash_fuer_breite`): runde Enden verlängern jeden Strich um die halbe EBENEN-Breite; mit dem alten
+  „gleiche Pixellänge“-Muster füllten Kontur (lw + 2·Kontur) und Schatten (2,2·lw) die Lücken (Kontur 0,5 px Rest,
+  Schatten keiner) — gestrichelt sah durchgezogen aus. Jetzt: gleiche sichtbare Strichlänge wie die Linie, gleiche
+  Periode, jeder Strich MITTIG auf 0 (MapLibre beginnt jedes Muster mit einem Strich bei 0 → Muster `[h, Lücke, h − Fuge,
+  Fuge]`, die winzige Fuge schließen die runden Enden; sie geht vom Strich ab, damit die Periode exakt bleibt — sonst
+  laufen die Ebenen über die Länge auseinander). Darum benutzt auch die Linie selbst (`currentDasharray`) das zentrierte
+  Muster; das eingestellte Muster liefert `currentDashBasis()`. Test `tests/test_track_gestrichelt_abspielen.py`
+  (Ebenen beim Abspielen gestrichelt, JS = Python, Periode, sichtbare Länge).
+- **`build.sh` schont Kommandozeilen-Aufrufe (27.10.2026, B9).** Statt `pkill -f ReisezoomGPSStudio` beendet
+  `_rz_fenster_beenden` nur Prozesse `….app/Contents/MacOS/ReisezoomGPSStudio` ohne ` cli `; vor dem Ersetzen des
+  Bundles wartet `_rz_cli_abwarten` auf laufende `… cli …`-Aufrufe (laden Module aus dem Bundle nach), höchstens
+  `RZ_BUILD_CLI_WARTEN_MIN` (Standard 90) Minuten.
 - **`gpsstudio overlay-export` (26.10.2026).** `--rzproj [--out] [--without-track] [--frames
   0,600] [--preview] [--overwrite]`, gleicher Kindprozess-Weg wie camera-export (`_im_temp_app_ordner`, `_paket_projekt`),
   im Kind `cli.overlay_aus_paket`: `szene.render_szene` mit `transparent_background` + `codec=prores4444`, Größe/fps/Dauern
@@ -8554,3 +8582,65 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
 - Nicht übernommen (bewusst): Track als 3D-Band (später, wenn überhaupt — Marc), eigene Kachel-Stufenlogik (macht
   MapLibre), Wolken, Foto-Look.
 
+
+## Video-Assistent mit acht Reitern wie die Web-Version (26.10.2026)
+
+Marc: „baue den Assistenten so, wie es im Web ist … auch mit den Erklärvideos“. Das Schnell-Video bleibt unverändert.
+
+- `ui/js/schnellvideo.js` (`ASS`-Zweig von `rzSchnellVideo`): `vaRumpf()` hat acht `<section data-va="1…8">` — Route ·
+  Kamera · Karte · Linie · Titel · Fotos · Infos · Video. Kopf `#va-kopf` = Reiterleiste `.va-reiter` (`data-va-geh`),
+  Start bei 2 (wie die Web-Version nach dem Laden); „Weiter: {Name}“ (`va.w.s8_weiter`), kein Zurück-Knopf. Jede Seite
+  schreibt live (`vaLive`), auch Seite 1. Prüfstand `window.__rzVaSeite(n)` mit den neuen Nummern.
+- Bedienelemente behalten die IDs des Schnell-Videos (`data-sv-gruppe`, `#sv-titel`, `#sv-zahlen` …), die Logik dahinter
+  ist dieselbe. Neu nur im Assistenten: `w.hoehe`, `w.lp`/`w.lpFz`, `w.ls` (nur eigene Linien-Wahl über dem Look),
+  `w.beschr` (nur eigene Wahl), `w.gelaende`, `w.ghost` (null = wie Look/Projekt).
+- `vaPatch(o)` (in `uebernehmen`, vor `nurAblauf`) legt sie über `animatorPatch()`: Mitfliegen „Nah“ verschiebt die
+  Zoom-Keyframes der Fahrt (Anker 0…1, `value_offset > −0,1`) um +1 (wie `web_kamera`/`_fahrt_zoom_versetzen` im Web);
+  „Hoch“ = Flugstil `reiseflughoehe` (in `kamOptSetzen`), sonst `begleiter`. `show_*_labels` aus `beschrStand(k)`
+  (ohne Wahl: Look ≠ „natuerlich“). Laufpunkt → `marker_dot_show/style`; Linie → `line_color/line_width/line_style/
+  kontur_breite/shadow_strength/glow_strength`; Vorab-Strecke → `ghost_track_enabled`.
+- Folgen (genordet): `vaFolgenHoehe()` nach dem Schreiben setzt `#anim-zoom` = Basis + {nah 1,2 · mittel 0 · hoch −0,8};
+  die Basis wird nur neu gelesen, wenn dort nicht mehr der eigene Wert steht (sonst wanderte „Hoch“ bei jedem Schreiben).
+- Vorlage folgt der Karte: `LOOK_VORLAGE` (wie `studio.js` im Web). `#sv-vorlagen` bleibt versteckt für die Logik.
+- „?“: `hilfeKnopf(k)`/`hilfeBox(k)` in `feldKopf`/`schalter` (5./4. Parameter); Klick (Capture auf dem Rumpf) füllt die
+  Klappe mit `va.w.hilfe_<k>` und den Clips aus `HILFE_CLIPS` → `ui/media/hilfe/*.mp4` (aus `gps-studio-web/assets/hilfe/clips`,
+  480×270, H.264, ohne Ton). Texte der Web-Version liegen unter `va.w.*` in `i18n/*.json`.
+- „Video erstellen …“ (`#va-erstellen`): `uebernehmen("fertig")`, dann `window.__rzExportDialogOeffnen()`, sobald `#anim-render` frei ist.
+- Eigene Vorlagen speichern zusätzlich `hoehe, laufpunkt, linie, beschriftung, gelaende, ghost` (`app.py
+  videostil_vorlage_speichern` → `erlaubt`).
+- Nur einer zugleich: `svSchonOffen()` = `_svStartet` (vom Aufruf bis der Dialog steht und in `los()` bis das Projekt
+  angelegt ist) oder `#va-fenster` / `.sv-dialog` im offenen Modal. Zweiter Aufruf → Hinweis, kein zweites Projekt.
+- Musik: `w.musikAn` startet immer aus (Schnell-Video und Assistent); ein Stück wählen schaltet sie ein.
+- Tests: `test_videoassistent_ui` (Reiter, „?“, Höhe, Karte, Linie, Fotoart, Doppelstart, Musik aus, übernehmen/⌘Z/Abbrechen),
+  `_kamera`, `_geschichte`, `_medien`, `_halte`, `_vorschau`, `_vorlagen` auf die neuen Reiter umgestellt.
+
+## Klicktest-Funde 26.10.2026: Tooltips im Assistenten, Zeitleiste „nur was man braucht“, Fotostopp-Zuordnung
+
+- **Assistent ohne Fließtext:** `kopf(h, sub)` setzt den Untertitel als `rz-q` (Tooltip über util.js, `data-tip`) an die
+  Überschrift; `schalter(…, text)` ebenso; Karten tragen ihren Text nur noch als `title`. `hilfeKnopf(k)` ist ein `rz-q`
+  mit `va.w.hilfe_<k>` als Tooltip, der Klick klappt nur die Clips auf (`hilfeBox` nur bei `HILFE_CLIPS[k]`). Wechselnde
+  Hinweise (`#va-t-erkl`, `#sv-fotos-info`, `#va-h-lead`, `#va-g-lead`, `#va-g-kapitel`) schreibt der Code weiter in
+  versteckte Felder; `vaTipSpiegel` (MutationObserver) setzt sie als `data-tip` an das passende „?“.
+- **Format beim Öffnen:** `ASS` liest `rzReadModuleSettings("animator")` width/height → `w.format`, `w.qualitaet`.
+- **Zeitleiste:** `ui/js/timeline.js` `_platzSchaffen(vorrang)` — passt die Zeitleiste nicht in `_TL_ANTEIL_MAX` (60 %),
+  klappt sie vorübergehend zu: `tl-kf-autozu` (Kamera-Detailspuren), dann `_balkenGruppe.autoZuSetzen(true)` für Ton,
+  Overlays, Schilder (`autoZu` ≠ gemerktes `offen`). Erst wird wieder aufgeklappt, was passt (Schilder zuerst), dann
+  zugeklappt, bis es passt; `_tlVorrang` (= `g.box` bzw. „kf“) bleibt offen. `_platzPlanen()` (60 ms gesammelt) nach jeder
+  Spur-Änderung → `_tlSSetzen` → `_platzSchaffen` vor `_tlSKappen`. Klick auf eine auto-zugeklappte Gruppe / ▸ am Cluster
+  öffnet ohne zu merken. Test: `test_zeitleiste_platz`.
+- **Fotostopp-Zuordnung:** Halte der Tempo-Kurve zeigen per `ref: "fs:<Listenplatz>"` auf ihr Schild. Wurde die Liste
+  umsortiert ohne `__rzFotostoppGeaendert` (Highlights abgleichen, ⌘Z, Assistent), zeigten sie auf falsche Schilder —
+  `_fsSpurFenster` fand die Fotos nicht, die Vorschau griff am Halt zum falschen Schild. `__rzFotostoppKurvePruefen()` läuft
+  bei jeder Aktualisierung der Schilder-Spur (`_sgSpurAktualisieren`) und holt die Kurve neu, wenn `_fotostoppHalte()` nicht
+  mehr `_fsKurveStand` entspricht.
+- **`_fsNachziehen`** (Fotostopp gezogen): erster Schritt mit der Achsensteigung `anim / (B − A)`, danach Sekante innerhalb
+  einer Klammer (Stellen mit Balkenanfang vor/hinter dem Ziel), sonst Mitte; bis 6 Runden, ≤ 0,04 s; Protokoll
+  `[sg-spur] nachziehen n: …`. Test: `test_fotostopp_nach_assistent` (Masca, 5 Fotostopps).
+- `ui/js/util.js` Undo-Controller meldet `rz-undo` {richtung, label}; `vaBericht` schließt sich beim ⌘Z des Assistenten.
+- Übersichtskarte: Linienfarbe wird bei jedem `_uebZeichnen` nachgezogen (`dataset.farbe`).
+- Transportleiste: `.tl-akt-rechts` bricht um (`flex-wrap`), statt nach links über Zeit/🔊 zu laufen.
+- Zugeklappte Gruppe: Mini-Striche `top = 3 + i·min(4, 12/(n−1))` px, `.ov-mini { overflow: hidden }` (vorher ≥ 2 px je Eintrag →
+  bei 52 Schildern über 100 px aus der Zeile).
+- `_platzSchaffen(vorrang, wiederAuf)`: wieder aufgeklappt wird nur bei Anlass (Fenster/Spurhöhe, Nutzer klappt); `_platzPlanen`
+  (nach Spur-Änderungen) klappt nur zu und meldet `rz-timeline-hoehe` nur bei echter Höhenänderung — vorher öffnete/schloss
+  jede Spur-Aktualisierung probehalber und meldete die Höhe jedes Mal.

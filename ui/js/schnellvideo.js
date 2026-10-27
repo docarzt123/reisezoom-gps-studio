@@ -19,6 +19,26 @@
   /** 11.10.2026 (Marc: „für die Kamerabewegung brauchen wir kleine Videos, dass man sieht, was man da einstellt“) —
    *  kurze, stumme Endlos-Clips (Teide, 480 px) aus ui/media/kamera: fahrt · folgen · fest · panorama · nah · ruhig. */
   const kamClip = (k, cls) => `<video class="va-k-clip${cls ? " " + cls : ""}" src="${(window.__rzAssetBase || "")}media/kamera/${k}.mp4" autoplay loop muted playsinline preload="auto" aria-hidden="true"></video>`;
+  // 26.10.2026 — Erklärclips hinter dem „?“ im Video-Assistenten (aus der Web-Version, ui/media/hilfe): Einstellung →
+  // [Beschriftung (va.w.<k>, leer = keine), Datei]. Gleiche Zuordnung wie gps-studio-web assets/hilfe/clips/clips.json.
+  const HILFE_CLIPS = {
+    titel: [["", "titel-0"]], z_zahlen: [["", "z_zahlen-0"]], z_profil: [["", "z_profil-0"]], z_highlights: [["", "z_highlights-0"]], z_schluss: [["", "z_schluss-0"]],
+    kamera: [["k_mitfliegen", "kamera-k-mitfliegen"], ["k_folgen_nord", "kamera-k-folgen-nord"], ["k_ganze_tour", "kamera-k-ganze-tour"]],
+    laufpunkt: [["lp_pfeil", "laufpunkt-lp-pfeil"], ["lp_kugel", "laufpunkt-lp-kugel"], ["lp_fahrzeug", "laufpunkt-lp-fahrzeug"]],
+    fotos_als: [["fa_sofortbild", "fotos_als-fa-sofortbild"], ["fa_gross", "fotos_als-fa-gross"], ["fa_pip", "fotos_als-fa-pip"]],
+    kartenlook: ["natuerlich", "reiseatlas", "nachtkarte", "minimal", "schatzkarte", "topo", "seekarte", "pastell"].map(n => ["look_" + n, "kartenlook-look-" + n]),
+    format: [["f_quer", "format-f-quer"], ["f_hoch", "format-f-hoch"], ["f_quadrat", "format-f-quadrat"]],
+    gelaende: [["hilfe_an", "gelaende-hilfe-an"], ["hilfe_aus", "gelaende-hilfe-aus"]],
+    beschriftung: [["hilfe_aus", "beschriftung-hilfe-aus"], ["hilfe_an", "beschriftung-hilfe-an"]],
+  };
+  /** Beschriftungen der Karte (wie die Schalter unter Karte → „Alle aus“ im Animator). */
+  const VA_BESCHR = ["places", "roads", "poi", "transit", "admin"];
+  const VA_BESCHR_KEY = { places: "show_place_labels", roads: "show_road_labels", poi: "show_poi_labels", transit: "show_transit_labels", admin: "show_admin_boundaries" };
+  // wie gps-studio-web (studio.js LOOK_VORLAGE; Marc 07.10.2026: „der Unterschied zwischen Vorlage und Karte ist mir nicht klar“) —
+  // im Assistenten nur EINE Wahl (Karte); die Vorlage (Schrift, Einblendungen) folgt daraus
+  const LOOK_VORLAGE = { natuerlich: "weite", reiseatlas: "tagebuch", nachtkarte: "puls", minimal: "weite",
+                         schatzkarte: "tagebuch", topo: "weite", seekarte: "weite", pastell: "tagebuch" };
+  const VA_LINIE_FARBEN = ["#48d6c4", "#ff6b35", "#e63946", "#ffd166", "#ffffff", "#1f2d31", "#7b61ff", "#2a9d8f"];
   /** 11.10.2026 — Symbole der Assistenten-Liste als Strich-Symbol (rzIcon), keine Emojis. */
   const vaIc = (n, g) => (typeof rzIcon === "function" && rzIcon(n, { size: g || 15 })) || "";
   const I = (n, g) => (typeof rzIcon === "function" ? rzIcon(n, { size: g || 14 }) : "");
@@ -923,7 +943,7 @@
     return api_;
   }
   /** Stufe → Bereich der Seitenleiste, der kurz aufleuchtet („Das findest du später hier“). */
-  const VA_BEREICH = { 1: "format", 2: "signs", 3: "signs", 4: "signs", 5: "camera", 6: "overlays", 7: "map", 8: "overlays", 9: "ton" };
+  const VA_BEREICH = { 2: "camera", 3: "map", 4: "track", 5: "overlays", 6: "signs", 7: "signs", 8: "ton" };
   function vaLeuchten(seite) {
     document.querySelectorAll(".va-leuchtet").forEach(x => x.classList.remove("va-leuchtet"));
     document.querySelectorAll(".va-hier").forEach(x => x.remove());
@@ -949,11 +969,31 @@
       <p class="muted" style="font-size:11.5px">${esc(T("va.bericht_hinweis", "Alles ist jetzt normal bearbeitbar: Schilder in der Zeitleiste, Kamera unter „Kamera“, Einblendungen unter „Overlays“. ⌘Z nimmt den ganzen Assistenten zurück."))}</p>`;
     p.querySelector(".sign-editor-x").onclick = () => p.remove();
     document.getElementById("va-bericht")?.remove();
+    // 26.10.2026 (Klicktest) — ⌘Z nimmt den Assistenten zurück → der Bericht darüber gehört weg
+    const nachUndo = (e) => {
+      if (!p.isConnected) { window.removeEventListener("rz-undo", nachUndo); return; }
+      if (e.detail && e.detail.richtung === "undo" && e.detail.label === T("va.undo_label", "Video-Assistent")) { p.remove(); window.removeEventListener("rz-undo", nachUndo); }
+    };
+    window.addEventListener("rz-undo", nachUndo);
     if (!(window.rzDetailSpalte && window.rzDetailSpalte.aufnehmen(p, T("va.titel", "Video-Assistent")))) document.body.appendChild(p);
   }
 
+  // 26.10.2026 (Marc: „Video-Assistent und dann direkt Schnell-Video geklickt … dass das 2× gleichzeitig erstellt wird“) —
+  // immer nur EIN Schnell-Video/Assistent: offen = Assistenten-Fenster oder Schnell-Video-Dialog im DOM; `_svStartet` deckt die
+  // Zeit davor (Vorschlag wird geladen) und das Anlegen nach dem Schließen ab.
+  let _svStartet = false;
+  const svSchonOffen = () => _svStartet || !!document.getElementById("va-fenster")
+    || !!document.querySelector("#modal-overlay:not([hidden]) #modal-body .sv-dialog");
   async function rzSchnellVideo(pfad, opts) {
     if (!pfad) return;
+    if (svSchonOffen()) {
+      const f = document.getElementById("va-fenster");
+      toast(f ? T("va.schon_offen", "Der Video-Assistent ist schon offen — erst ihn beenden.") : T("schnell.schon_offen", "Es wird gerade schon ein Video eingerichtet — erst diesen Dialog beenden."), "info", 4500);
+      if (f && !f.hidden) { f.classList.add("va-blink"); setTimeout(() => f.classList.remove("va-blink"), 900); }
+      try { applog("info", "[schnell] zweiter Start abgewiesen — schon offen"); } catch (_) {}
+      return;
+    }
+    _svStartet = true;
     const P = (opts && opts.projekt && opts.projekt.id) ? opts.projekt : null;
     const ausAnimator = !!opts;   // aus dem Animator aufgerufen (das Archiv übergibt keine opts)
     const animS = (opts && +opts.animatorS > 0) ? Math.round(+opts.animatorS * 10) / 10 : 0;   // Länge im Animator (Intro + Animation + Halten)
@@ -962,7 +1002,7 @@
     let v;
     try { v = await rzWarten("schnellvideo_vorschlag", () => api().schnellvideo_vorschlag(pfad)); }
     catch (e) { v = { ok: false, error: String(e) }; }
-    if (!v || !v.ok) { toast((v && v.error) || T("common.error", "Fehler"), "error", 6000); return; }
+    if (!v || !v.ok) { _svStartet = false; toast((v && v.error) || T("common.error", "Fehler"), "error", 6000); return; }
     const L = v.letzte || {};
     const w = {
       format: FORMATE[L.format] ? L.format : "9:16",
@@ -977,7 +1017,7 @@
       // 02.10.2026 — Zutaten unter „Mehr" (Marc: „beim Schnell-Video bleiben und eine erweiterte Option machen")
       mehrOffen: !!L.mehr_offen,
       fotosAn: L.fotos_an !== false, clipsAn: L.clips_an !== false, clipTon: !!L.clip_ton,
-      logbuch: L.logbuch !== false, musikAn: L.musik_an !== false, musik: L.musik || "builtin:unterwegs", klick: L.klick !== false,
+      logbuch: L.logbuch !== false, musikAn: false, musik: L.musik || "builtin:unterwegs", klick: L.klick !== false,   // 26.10.2026 (Marc: „mach Musik per Default überall aus“) — Musik jedes Mal aus, an nur per Klick
       uebersicht: !!L.uebersicht, schlussAn: L.schluss_an !== false,
       gebaeude: L.gebaeude,   // undefined = noch nie gewählt → vorwählen, wenn die Tour durch einen Ort führt
       // 05.10.2026 — Vorlage (Weite/Tagebuch/Puls) und Fotoart; „angepasst" = eine Zutat weicht von der Vorlage ab
@@ -998,7 +1038,18 @@
     }
     if (!w.fotoArt) w.fotoArt = VORLAGEN[w.vorlage].fotoArt;
     // Der Assistent schlägt vor — Fotos, Highlights, Schlusskarte und Musik an, auch wenn das Schnell-Video zuletzt ohne lief
-    if (ASS) { w.look = VORLAGEN[w.vorlage].look; w.kamera = "fahrt"; w.fotosAn = true; w.highlights = true; w.schlussAn = true; w.musikAn = true; w.logbuch = true; }
+    if (ASS) { w.look = VORLAGEN[w.vorlage].look; w.kamera = "fahrt"; w.fotosAn = true; w.highlights = true; w.schlussAn = true; w.logbuch = true;
+      // 26.10.2026 — Reiter wie im Web: Höhe, Laufpunkt, Linie (nur Eigenes über dem Look), Beschriftung/Gelände/Vorab-Strecke
+      // (null = wie Look bzw. Projekt), Fotoart mit Vorgabe Sofortbild
+      w.hoehe = "mittel"; w.lp = "arrow"; w.lpFz = "wanderer"; w.ls = {}; w.beschr = {}; w.gelaende = null; w.ghost = null; w.fotoArt = "sofortbild";
+      // 26.10.2026 (Klicktest: ein 16:9-Projekt in 3840×2160 wurde beim Öffnen 9:16 in 1080 — das Format kam vom letzten
+      // Schnell-Video) — Format und Auflösung des offenen Projekts bleiben, bis man sie im Reiter Kamera ändert
+      try {
+        const a_ = (window.rzReadModuleSettings && window.rzReadModuleSettings("animator")) || {};
+        const bw = +a_.width, bh = +a_.height;
+        if (bw > 0 && bh > 0) { const r = bw / bh; w.format = r > 1.2 ? "16:9" : r < 0.8 ? "9:16" : "1:1"; w.qualitaet = Math.max(bw, bh) >= 3000 ? "4k" : "1080"; }
+      } catch (e) { if (window.rzSwallow) rzSwallow(e, "assistent:format"); }
+    }
     // 07.10.2026 (Web-Fund F-5) — offizielle Parameter beim Aufruf (Web, Skripte): Fotoart, Größe des Sofortbilds,
     // Fotopause ohne Heranfahren. Der Dialog bleibt schlank (F-14: die Fotoart kommt sonst aus der Vorlage).
     if (opts && FOTO_ARTEN.includes(opts.fotoArt)) w.fotoArt = opts.fotoArt;
@@ -1089,17 +1140,25 @@
       };
     })();
     if (ASS && w.hlArten == null) w.hlArten = new Set(w.highlights ? HL_ARTEN : []);
-    const kopf = (h, sub, subId) => `<h2 class="va-h">${esc(h)}</h2><p class="va-sub"${subId ? ` id="${subId}"` : ""}>${esc(sub || "")}</p>`;
+    const kopf = (h, sub) => `<h2 class="va-h">${esc(h)}${sub ? q(sub) : ""}</h2>`;
     /** Bildkarte: Bild/Clip oben, Häkchen bei Auswahl, Titel + eine Zeile. */
-    const karte = (attr, bild, titel, text, an, tip) => `<button type="button" class="va-bk${an ? " is-on" : ""}" ${attr}${tip ? ` title="${esc(tip)}"` : ""}>`
-      + `<span class="va-bk-bild">${bild}<span class="va-haken">${I("check", 13)}</span></span><b>${esc(titel)}</b><span class="va-bk-text">${esc(text)}</span></button>`;
+    const karte = (attr, bild, titel, text, an, tip) => `<button type="button" class="va-bk${an ? " is-on" : ""}" ${attr}${(tip || text) ? ` title="${esc(tip || text)}"` : ""}>`
+      + `<span class="va-bk-bild">${bild}<span class="va-haken">${I("check", 13)}</span></span><b>${esc(titel)}</b></button>`;
     /** Gleich breite Wahlknöpfe (Format, Länge, Dauer …) — `attr` = data-Attribut der Gruppe. */
     const wahl = (huelle, attr, items, aktiv) => `<div class="va-wahl" ${huelle}>` + items.map(([wert, ic, l, sub]) =>
       `<button type="button" class="sv-wahl${wert === aktiv ? " is-on" : ""}" ${attr}="${esc(wert)}">${ic ? I(ic, 15) : ""}<span>${esc(l)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></button>`).join("") + `</div>`;
-    const schalter = (id, an_, titel, text) => `<label class="va-schalter-zeile"><span class="va-sz-text"><b>${esc(titel)}</b>${text ? `<small>${esc(text)}</small>` : ""}</span>`
-      + `<input type="checkbox" class="va-schalter" id="${id}"${an_ ? " checked" : ""}></label>`;
+    // 26.10.2026 — „?“ wie im Web: Hilfetext + kurze Clips (HILFE_CLIPS), aufgeklappt unter der Einstellung
+    // 26.10.2026 (Marc beim Klicktest: „da ist zu viel Blabla-Text. mach sowas immer als ? Tooltip, wie an vielen anderen
+    // Stellen auch“) — Erklärungen stehen nur noch hinter einem „?“ (rz-q: Tooltip beim Überfahren, util.js). Hat die
+    // Einstellung Clips, klappt ein Klick aufs „?“ sie zusätzlich auf.
+    const hilfeKnopf = (k) => k ? `<button type="button" class="rz-q va-hilfe-knopf" data-va-hilfe="${k}" data-tip="${esc(T("va.w.hilfe_" + k, ""))}" aria-expanded="false">?</button>` : "";
+    const hilfeBox = (k) => k && HILFE_CLIPS[k] ? `<div class="va-hilfe" data-va-hilfe-box="${k}" hidden></div>` : "";
+    /** „?“ mit Tooltip; leer = unsichtbar (wechselnde Hinweise setzen den Text später, siehe vaTipSpiegel). */
+    const q = (text, id) => `<span class="rz-q va-q" tabindex="0"${id ? ` id="${id}"` : ""} data-tip="${esc(text || "")}"${text ? "" : " hidden"}>?</span>`;
+    const schalter = (id, an_, titel, text, hk) => `<label class="va-schalter-zeile"><span class="va-sz-text"><b>${esc(titel)}${hk ? hilfeKnopf(hk) : (text ? q(text) : "")}</b></span>`
+      + `<input type="checkbox" class="va-schalter" id="${id}"${an_ ? " checked" : ""}></label>${hilfeBox(hk)}`;
     const details = (titel, inhalt, id, offen) => `<details class="va-details"${id ? ` id="${id}"` : ""}${offen ? " open" : ""}><summary>${I("chevron-down", 15)}<span>${esc(titel)}</span><span class="va-details-n"></span></summary><div class="va-details-inhalt">${inhalt}</div></details>`;
-    const feldKopf = (ic, text, rechts) => `<div class="va-feld-kopf">${ic ? I(ic, 16) : ""}<span>${esc(text)}</span>${rechts || ""}</div>`;
+    const feldKopf = (ic, text, rechts, hk) => `<div class="va-feld-kopf">${ic ? I(ic, 16) : ""}<span>${esc(text)}</span>${hilfeKnopf(hk)}${rechts || ""}</div>${hilfeBox(hk)}`;
     /** Grafik „wie viel Text“: die eigene Linie, dein Titel, bei mehr Text ein Foto mit Unterschrift. */
     const textBild = (menge) => {
       const f0 = (w.fotos || []).find(f => f.thumb);
@@ -1116,127 +1175,147 @@
     const LOOK_KURZ = { natuerlich: T("va.lk_natuerlich", "Realistisches Luftbild"), reiseatlas: T("va.lk_reiseatlas", "Illustrierte Papierkarte"),
       nachtkarte: T("va.lk_nachtkarte", "Dunkel und reduziert"), minimal: T("va.lk_minimal", "Klar und aufgeräumt"), schatzkarte: T("va.lk_schatzkarte", "Pergament und Tinte"),
       topo: T("va.lk_topo", "Höhenlinien und Gelände"), seekarte: T("va.lk_seekarte", "Wasser in Tiefenstufen"), pastell: T("va.lk_pastell", "Sanfte Farben") };
+    // 26.10.2026 (Marc: „baue den Assistenten so, wie es im Web ist … auch mit den Erklärvideos“) — acht Reiter wie die
+    // Web-Version: Route · Kamera · Karte · Linie · Titel · Fotos · Infos · Video. Jeder Reiter ist jederzeit anklickbar,
+    // alles ist vorbelegt; hinter dem „?“ stehen kurze Erklärclips (ui/media/hilfe, aus der Web-Version). Was es nur in der
+    // App gibt (Momente aus dem Logbuch, Halte, Textmenge, Musik, eigene Vorlagen), sitzt im passenden Reiter.
+    const vaLookLinie = () => { const L_ = window.rzLooks && window.rzLooks.LOOKS[w.look || (VORLAGEN[w.vorlage] || VORLAGEN.weite).look]; return (L_ && L_.linie) || { line_color: "#48d6c4", line_width: 3.5, kontur_breite: 1.5, glow_strength: 0 }; };
     const vaRumpf = () => `<div class="sv-dialog va-rumpf">
       <div class="sv-vorschau" id="sv-vorschau" hidden><div class="sv-vk" id="sv-vk"><div class="sv-vk-karte" id="sv-vk-karte"></div><div class="sv-vk-titel" id="sv-vk-titel"></div><div class="sv-vk-zahlen" id="sv-vk-zahlen" hidden></div><div class="sv-vk-profil" id="sv-vk-profil" hidden></div></div></div>
       <div class="va-kopf" id="va-kopf"></div>
 
       <section data-va="1">
-        ${kopf(T("va.h1", "Was möchtest du erzählen?"), T("va.h1_sub", "Wähle einen Startpunkt und probier ihn aus."))}
-        <div class="va-karten va-karten-3" id="va-zweck">
-          ${karte('data-va-zweck="erinnerung"', vaClip("assistent/vorlage_erinnerung.mp4"), T("va.z_erinnerung", "Erinnerung"), T("va.z_erinnerung_k", "Deine Lieblingsmomente"), !w.eigeneVorlage && w.vorlage === "tagebuch", T("va.z_erinnerung_t", "für dich und die Familie — Orte und Fotos, 16:9, eine Minute"))}
-          ${karte('data-va-zweck="social"', vaClip("assistent/vorlage_social.mp4", "va-clip-hoch"), T("va.z_social", "Social"), T("va.z_social_k", "Kurz und direkt"), !w.eigeneVorlage && w.vorlage === "puls", T("va.z_social_t", "Reel oder Short — hochkant, kurz, mit Zahlen"))}
-          ${karte('data-va-zweck="landschaft"', vaClip("assistent/vorlage_landschaft.mp4"), T("va.z_landschaft", "Landschaft"), T("va.z_landschaft_k", "Große Aussichten"), !w.eigeneVorlage && w.vorlage === "weite", T("va.z_landschaft_t", "Luftbild, große Fotos, ruhig — 16:9, 40 Sekunden"))}
-          <span id="sv-eigene" class="sv-eigene"></span>
+        ${kopf(T("va.r_h", "Deine Strecke"), T("va.r_sub", "Aus dieser Tour entsteht das Video. Alles ist schon vorbelegt — du kannst jeden Reiter direkt anklicken."))}
+        <div class="va-strecke">
+          <span class="va-strecke-bild va-gb">${routeSvg()}</span>
+          <span class="va-strecke-text"><b>${esc(v.name || "")}</b><small>${esc([datumText(v), ortKurz(v.ort)].filter(Boolean).join(" · "))}</small>
+            <span class="va-strecke-zahlen">${km ? `<span>${I("route", 13)} ${esc(km)}</span>` : ""}${aufM ? `<span>${I("trending-up", 13)} ${esc(aufM)}</span>` : ""}${hoechst ? `<span>${I("mountain", 13)} ${esc(hoechst)}</span>` : ""}</span></span>
         </div>
-        <div class="muted sv-vl-stand" id="sv-vl-stand"></div>
+        ${profilSvg() ? `<div class="va-strecke-profil va-gb va-gb-profil">${profilSvg()}</div>` : ""}
+        <div id="va-eigene-feld" hidden>
+          ${feldKopf("star", T("va.r_eigene", "Mit einem gemerkten Stil starten"))}
+          <div class="va-karten va-karten-3" id="va-zweck"><span id="sv-eigene" class="sv-eigene"></span></div>
+        </div>
+        <div class="muted sv-vl-stand" id="sv-vl-stand" hidden></div>
         <div class="sv-vorlagen" id="sv-vorlagen" hidden>${VORLAGE_NAMEN.map(n => `<button type="button" class="sv-vorlage${n === w.vorlage ? " is-on" : ""}" data-sv-vorlage="${n}"></button>`).join("")}</div>
-        ${feldKopf("monitor", T("schnell.format", "Format"))}
-        ${wahl('data-sv-gruppe="format"', "data-sv-wert", [["16:9", "monitor", "16:9"], ["9:16", "smartphone", "9:16"], ["1:1", "square", "1:1"]], w.format)}
-        ${feldKopf("clock", T("schnell.laenge", "Länge"))}
+      </section>
+
+      <section data-va="2">
+        ${kopf(T("va.w.s8_kamera_h", "Wie fliegt die Kamera?"), T("va.w.s8_kamera_erkl", "Wie die Kamera fliegt, wie hoch, welches Format und wie lang das Video wird."))}
+        ${feldKopf("video", T("va.l_kamera", "Kamera"), "", "kamera")}
+        <div class="va-karten va-karten-3" id="va-kamera">
+          ${karte('data-va-kamera="fahrt"', kamClip("fahrt"), T("va.w.k_mitfliegen", "Mitfliegen"), T("va.k_mitfliegen_k", "Hinter dem Laufpunkt her, mit Überblick und Schlussblick"), w.kamera === "fahrt")}
+          ${karte('data-va-kamera="folgen"', kamClip("folgen"), T("va.w.k_folgen_nord", "Folgen (genordet)"), T("va.k_folgen_nord_k", "Über dem Laufpunkt, Norden bleibt oben"), w.kamera === "folgen")}
+          ${karte('data-va-kamera="fest"', kamClip("fest"), T("va.w.k_ganze_tour", "Ganze Tour"), T("va.k_fest_k", "Die ganze Route im Blick"), w.kamera === "fest")}
+        </div>
+        <div id="va-hoehe-feld">
+          ${feldKopf("mountain", T("va.w.hoehe", "Höhe"), "", "hoehe")}
+          ${wahl('id="va-hoehe"', "data-va-hoehe", [["nah", "", T("va.w.h_nah", "Nah")], ["mittel", "", T("va.w.h_mittel", "Mittel")], ["hoch", "", T("va.w.h_hoch", "Hoch")]], w.hoehe)}
+        </div>
+        ${feldKopf("monitor", T("schnell.format", "Format"), "", "format")}
+        ${wahl('data-sv-gruppe="format"', "data-sv-wert", [["16:9", "monitor", T("va.w.f_quer", "16:9 quer")], ["9:16", "smartphone", T("va.w.f_hoch", "9:16 hochkant")], ["1:1", "square", T("va.w.f_quadrat", "1:1")]], w.format)}
+        ${feldKopf("clock", T("schnell.laenge", "Länge"), "", "laenge")}
         ${wahl('data-sv-gruppe="laenge"', "data-sv-wert", [["kurz", "", T("schnell.kurz", "Kurz"), "20 s"], ["normal", "", T("schnell.normal", "Normal"), "40 s"], ["lang", "", T("schnell.lang", "Lang"), "60 s"], ["eigen", "", T("va.eigen", "Eigene"), "…"]], w.laenge)}
         <div class="sv-eigen-zeile" id="sv-eigen-zeile"${w.laenge === "eigen" ? "" : " hidden"}><input type="number" id="sv-eigen" class="lib-input" min="${LAENGE_MIN}" max="${LAENGE_MAX}" step="5" value="${w.eigenS}"> <span class="muted">${esc(T("schnell.eigen_laenge_s", "Sekunden ({min}–{max})", { min: LAENGE_MIN, max: LAENGE_MAX }))}</span></div>
       </section>
 
-      <section data-va="2">
-        ${kopf(T("va.h2", "Welche Momente gehören dazu?"), T("logbuch.laedt", "Logbuch wird geladen …"), "va-g-lead")}
-        <div class="va-g-liste" id="va-g-liste"></div>
-        <p class="va-klein" id="va-g-kapitel"></p>
-        <p class="va-klein">${esc(T("va.g_hinweis", "Das findest du später in der Zeitleiste und bei den Schildern wieder. Fotostopps bekommen ihren Ort automatisch."))}</p>
-        <label hidden><input type="checkbox" id="sv-logbuch"${w.logbuch ? " checked" : ""}></label>
-        <label hidden><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}></label>
-      </section>
-
-      <section data-va="3" class="sv-zutat" data-sv-zutat="fotos">
-        ${kopf(T("va.h3", "Deine Lieblingsbilder."), T("va.h3_sub", "Eine abwechslungsreiche Auswahl für deine Tour."))}
-        <div class="sv-zutat-teil"><div class="sv-fotos va-fotos" id="sv-fotos"><span class="muted">${esc(T("schnell.fotos_suchen", "Fotos dieser Tour werden gesucht …"))}</span></div></div>
-        <div class="va-zeile-info"><span id="va-f-lead"></span>
-          <label class="va-schalter-mini" title="${esc(T("va.f_an_tip", "Fotos im Video zeigen"))}"><span>${esc(T("va.f_an", "Fotos im Video"))}</span><input type="checkbox" class="va-schalter" id="sv-fotos-an"${w.fotosAn ? " checked" : ""}></label></div>
-        <div class="sv-zutat-teil">
-          ${feldKopf("images", T("va.f_anzahl", "Anzahl Fotos im Video"))}
-          ${wahl('id="va-f-mengen"', "data-va-f-menge", [["0.1", "", T("va.f_wenige", "Wenige")], ["0.5", "", T("va.f_ausgewogen", "Ausgewogen")], ["0.9", "", T("va.f_viele", "Viele")]], "")}
-        </div>
-        <div class="va-knoepfe">
-          <button type="button" class="va-knopf" data-sv-alle title="${esc(T("schnell.alle_tip", "Alle Fotos und Videos dieser Tour ansehen und selbst auswählen"))}">${I("images", 16)}<span>${esc(T("va.f_alle", "Alle Medien"))}<span class="sv-alle-n"></span></span></button>
-          <button type="button" class="va-knopf" data-sv-plus="dateien" title="${esc(T("schnell.fotos_plus_tip", "Eigene Fotos dazunehmen — sie werden der Strecke zugeordnet (GPS, sonst Aufnahmezeit)"))}">${I("plus", 16)}<span>${esc(T("va.f_plus", "Fotos dazu"))}</span></button>
-          <button type="button" class="va-knopf" data-sv-plus="ordner" title="${esc(T("schnell.fotos_plus_tip", "Eigene Fotos dazunehmen — sie werden der Strecke zugeordnet (GPS, sonst Aufnahmezeit)"))}">${I("folder-plus", 16)}<span>${esc(T("va.f_ordner", "Ordner dazu"))}</span></button>
-        </div>
-        <div class="sv-alle" id="sv-alle" hidden></div>
-        <p class="va-klein sv-fotos-info" id="sv-fotos-info"></p>
+      <section data-va="3">
+        ${kopf(T("va.w.s8_look_h", "Welche Karte?"), T("va.w.s8_look_erkl", "Kartenstil, Gelände und Beschriftung — die Vorschau zeigt es sofort."))}
+        ${feldKopf("map", T("va.l_karte", "Karte"), "", "kartenlook")}
+        <div class="va-karten va-karten-4 va-looks" id="va-looks">${(window.rzLooks ? window.rzLooks.NAMEN : []).map(n =>
+          karte(`data-va-look="${n}"`, `<img class="va-look-bild" src="${(window.__rzAssetBase || "")}media/assistent/look_${n}.jpg" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'va-look-bild rz-look-bild rz-look-${n}'}))">`,
+            T("look." + n, n), LOOK_KURZ[n] || "", n === w.look, T("look." + n + ".tip", ""))).join("")}</div>
+        <button type="button" class="va-link" data-va-mehr-looks>${esc(T("va.mehr_looks", "Weitere Kartenstile im Animator"))} ${I("arrow-right", 14)}</button>
+        ${schalter("va-gelaende", false, T("va.w.gelaende", "3D-Gelände"), "", "gelaende")}
+        ${schalter("va-beschr", false, T("va.w.beschriftung", "Beschriftung"), "", "beschriftung")}
+        ${details(T("va.w.beschr_mehr", "mehr"), `<div class="va-chips">${VA_BESCHR.map(k => `<label class="va-chip"><input type="checkbox" data-va-beschr="${k}"><span>${I("check", 13)}${esc(T("va.w.beschr_" + k, k))}</span></label>`).join("")}</div>`, "va-beschr-mehr")}
+        ${schalter("sv-gebaeude", !!w.gebaeude, T("va.gebaeude", "3D-Häuser in Orten"), T("va.gebaeude_k", "Gebäude wachsen beim Heranfliegen aus der Karte."))}
       </section>
 
       <section data-va="4">
-        ${kopf(T("va.h4", "Zeit für deine Bilder."), T("va.h4_sub", "Wie sollen die Fotos unterwegs erscheinen?"))}
-        <div class="va-karten va-karten-2" id="va-h-art">
-          ${karte('data-va-h-art="an"', vaClip("assistent/halt_an.mp4"), T("va.h_an", "Kurz anhalten"), T("va.h_an_k", "Ein eigener Moment für jedes Bild."), true)}
-          ${karte('data-va-h-art="weiter"', vaClip("assistent/halt_weiter.mp4"), T("va.h_weiter", "Weiterfliegen"), T("va.h_weiter_k", "Die Tour läuft weiter, das Foto steht daneben."), false)}
+        ${kopf(T("va.w.s8_linie_h", "Wie sieht die Strecke aus?"), T("va.w.s8_linie_erkl", "Farbe und Stil der Linie und was über die Strecke läuft."))}
+        ${feldKopf("navigation", T("va.laufpunkt", "Laufpunkt"), "", "laufpunkt")}
+        ${wahl('id="va-lp"', "data-va-lp", [["arrow", "navigation", T("va.w.lp_pfeil", "Pfeil")], ["dot", "", T("va.w.lp_kugel", "Kugel")], ["fahrzeug", "car", T("va.w.lp_fahrzeug", "Fahrzeug")], ["aus", "x", T("va.w.lp_aus", "Aus")]], w.lp)}
+        <div class="va-lp-fz" id="va-lp-fz-zeile" hidden><select id="va-lp-fz" class="lib-select"></select></div>
+        ${feldKopf("route", T("va.w.linie_aussehen", "Linie"), `<button type="button" class="va-link va-link-klein" id="va-ls-zurueck">${esc(T("va.w.linie_zurueck", "↺ Wie die Karte"))}</button>`, "linie_aussehen")}
+        <div class="va-farben" id="va-ls-farben"></div>
+        ${wahl('id="va-ls-strich"', "data-va-strich", [["solid", "", T("animator.line_style.solid", "Durchgezogen")], ["dashed", "", T("animator.line_style.dashed", "Gestrichelt")], ["dotted", "", T("animator.line_style.dotted", "Gepunktet")], ["dashdot", "", T("animator.line_style.dashdot", "Strich-Punkt")]], "")}
+        <div class="va-regler-zeile"><span>${esc(T("va.w.linie_breite", "Breite"))}</span><input type="range" class="va-regler" id="va-ls-breite" min="1" max="12" step="0.5" value="${vaLookLinie().line_width}"><span class="va-regler-wert" id="va-ls-breite-v"></span></div>
+        ${details(T("va.w.linie_effekte", "Effekte"), schalter("va-ls-kontur", false, T("va.w.linie_kontur", "Kontur"))
+          + schalter("va-ls-schatten", false, T("va.w.linie_schatten", "Schlagschatten")) + schalter("va-ls-leuchten", false, T("va.w.linie_leuchten", "Leuchten")), "va-ls-effekte")}
+        ${schalter("va-ghost", true, T("va.w.ghost", "Strecke vorab zeigen"), "", "ghost")}
+      </section>
+
+      <section data-va="5">
+        ${kopf(T("va.w.s8_titel_h", "Was steht am Anfang?"), T("va.w.s8_titel_erkl", "Titel und Unterzeile erscheinen am Anfang des Videos."))}
+        ${feldKopf("type", T("schnell.titel", "Titel"), "", "titel")}
+        <input type="text" id="sv-titel" class="lib-input va-eingabe" value="${esc(w.titel)}" aria-label="${esc(T("schnell.titel", "Titel"))}">
+        <div class="sv-titel-vorschlaege" id="sv-titel-vorschl"></div>
+        <label class="va-feld-kopf" for="sv-unter"><span>${esc(T("va.untertitel", "Untertitel"))}</span></label>
+        <input type="text" id="sv-unter" class="lib-input va-eingabe" value="${esc(w.unter)}">
+        ${feldKopf("", T("va.t_menge_frage", "Wie viel Text möchtest du?"), q("", "va-t-erkl-q"))}
+        ${wahl('id="va-t-menge"', "data-va-t-menge", [["wenige", "", T("va.t_wenig_g", "Wenig"), T("va.t_wenig_k", "Nur der Titel")], ["normal", "", T("va.t_ausgewogen_g", "Ausgewogen"), T("va.t_ausgewogen_k2", "Mit Bildunterschriften")], ["viele", "", T("va.t_mehr_g", "Mehr"), T("va.t_mehr_k2", "Auch Kapitel")]], w.textMenge || "normal")}
+        <span id="va-t-erkl" hidden></span>
+      </section>
+
+      <section data-va="6" class="sv-zutat" data-sv-zutat="fotos">
+        ${kopf(T("va.w.s8_fotos_h", "Fotos von unterwegs"), T("va.w.s8_fotos_erkl", "Fotos mit Ort oder Uhrzeit landen an der richtigen Stelle der Strecke."))}
+        <div class="sv-zutat-teil"><div class="sv-fotos va-fotos" id="sv-fotos"><span class="muted">${esc(T("schnell.fotos_suchen", "Fotos dieser Tour werden gesucht …"))}</span></div></div>
+        <div class="va-zeile-info"><span id="va-f-lead"></span>
+          <label class="va-schalter-mini" title="${esc(T("va.f_an_tip", "Fotos im Video zeigen"))}"><span>${esc(T("va.f_an", "Fotos im Video"))}</span><input type="checkbox" class="va-schalter" id="sv-fotos-an"${w.fotosAn ? " checked" : ""}></label>${hilfeKnopf("fotos_an")}</div>
+        ${hilfeBox("fotos_an")}
+        <div class="va-knoepfe">
+          <button type="button" class="va-knopf" data-sv-alle title="${esc(T("schnell.alle_tip", "Alle Fotos und Videos dieser Tour ansehen und selbst auswählen"))}">${I("images", 16)}<span>${esc(T("va.f_alle", "Alle Medien"))}<span class="sv-alle-n"></span></span></button>
+          <button type="button" class="va-knopf" data-sv-plus="dateien" title="${esc(T("schnell.fotos_plus_tip", "Eigene Fotos dazunehmen — sie werden der Strecke zugeordnet (GPS, sonst Aufnahmezeit)"))}">${I("plus", 16)}<span>${esc(T("va.f_plus", "Fotos dazu"))}</span></button>
+          <button type="button" class="va-knopf" data-sv-plus="ordner" title="${esc(T("schnell.fotos_plus_tip", "Eigene Fotos dazunehmen — sie werden der Strecke zugeordnet (GPS, sonst Aufnahmezeit)"))}">${I("folder-plus", 16)}<span>${esc(T("va.f_ordner", "Ordner"))}</span></button>
         </div>
-        <input type="checkbox" id="va-h-alle" hidden checked>
-        <p class="va-klein" id="va-h-lead"></p>
+        <div class="sv-alle" id="sv-alle" hidden></div>
+        <span class="sv-fotos-info" id="sv-fotos-info" hidden></span>
+        <div class="sv-zutat-teil">
+          ${feldKopf("images", T("va.f_anzahl", "Anzahl Fotos im Video"), q("", "sv-fotos-info-q"))}
+          ${wahl('id="va-f-mengen"', "data-va-f-menge", [["0.1", "", T("va.f_wenige", "Wenige")], ["0.5", "", T("va.f_ausgewogen", "Ausgewogen")], ["0.9", "", T("va.f_viele", "Viele")]], "")}
+        </div>
+        ${feldKopf("image", T("va.fa_label", "Fotos als"), "", "fotos_als")}
+        ${wahl('id="va-fa"', "data-va-fa", [["sofortbild", "", T("va.w.fa_sofortbild", "Sofortbild")], ["gross", "", T("va.w.fa_gross", "Groß mit Halt")], ["pip", "", T("va.w.fa_pip", "Bild im Bild")]], w.fotoArt)}
+        <span id="va-h-lead" hidden></span>
+        <label class="va-schalter-zeile"><span class="va-sz-text"><b>${esc(T("va.h_alle", "An allen Foto-Schildern anhalten"))}${q(T("va.h_alle_tip", "Damit man die Bilder in Ruhe ansehen kann. Aus: die Fahrt läuft weiter, das Foto steht kurz daneben."), "va-h-lead-q")}</b></span>
+          <input type="checkbox" class="va-schalter" id="va-h-alle" checked></label>
         <div id="va-h-an-teil">
           ${feldKopf("timer", T("va.h_dauer_frage", "Wie lange bleiben die Bilder?"))}
           ${wahl('id="va-h-dauer"', "data-va-h-dauer", [["kurz", "", T("va.h_kurz_g", "Kurz"), "≈ 2 s"], ["normal", "", T("va.h_normal_g", "Normal"), "3 s"], ["lang", "", T("va.h_lang_g", "Lang"), "≈ 5 s"]], w.halteDauer || "normal")}
           ${schalter("va-h-heran", w.fotoPause !== "stehen", T("va.h_heran_t", "Zu den Fotos heranfahren"), T("va.h_heran_k", "Die Kamera nähert sich sanft."))}
           ${schalter("va-h-kreisen", !!w.fotoKreisen, T("va.h_kreisen_t", "Einmal ums Foto kreisen"), T("va.h_kreisen_k", "Während des Halts fliegt die Kamera eine Runde um den Fotoort."))}
         </div>
-        ${details(T("va.details", "Details"), `<p class="va-klein">${esc(T("va.h_alle_tip", "Damit man die Bilder in Ruhe ansehen kann. Aus: die Fahrt läuft weiter, das Foto steht kurz daneben."))}</p><p class="va-klein">${esc(T("va.h_hinweis2", "Später an der Schilder-Spur: Der Pause-Knopf hält an allen Foto-Schildern; jedes Schild hat im Editor seinen eigenen Halt."))}</p>`)}
-      </section>
-
-      <section data-va="5">
-        ${kopf(T("va.h5", "Wie fühlt sich deine Tour an?"), T("va.h5_sub", "Probier eine Kamerabewegung aus."))}
-        <div class="va-karten va-karten-3" id="va-kamera">
-          ${karte('data-va-kamera="fahrt"', kamClip("fahrt"), T("einfach.k_fahrt", "Kamerafahrt"), T("va.k_fahrt_k", "Überblick und schöne Übergänge"), w.kamera === "fahrt", T("va.k_fahrt_t", "Überblick, Flug entlang der Strecke, Blick auf die Höhepunkte, Schlussblick"))}
-          ${karte('data-va-kamera="folgen"', kamClip("folgen"), T("einfach.k_folgen", "Folgen"), T("va.k_folgen_k", "Hinter deinem Wegpunkt"), w.kamera === "folgen", T("va.k_folgen_t", "die Kamera fliegt die ganze Zeit hinter dem Punkt her"))}
-          ${karte('data-va-kamera="fest"', kamClip("fest"), T("einfach.k_fest", "Fest"), T("va.k_fest_k", "Die ganze Route im Blick"), w.kamera === "fest", T("va.k_fest_t", "die ganze Tour bleibt im Bild, nur die Linie wächst"))}
-        </div>
-        <div id="va-k-fahrt">
-          ${feldKopf("plane", T("va.k_flug", "Flugstil"))}
-          <div class="va-karten va-karten-3 va-flugstile" id="va-flug">${FLUGSTIL_NAMEN.map(k => karte(`data-va-flug="${k}"`, kamClip("flug_" + k), T("schnell.flug." + k, FLUGSTIL_TEXT[k][0]), T("schnell.flug." + k + "_k", FLUGSTIL_TEXT[k][1]), w.flug === k, "")).join("")}</div>
-          ${feldKopf("", T("va.k_leb", "Wie lebendig?"))}
-          <input type="range" class="va-regler" id="va-k-leb" min="0" max="1" step="0.05" value="${isFinite(+w.kamLeb) ? w.kamLeb : 0.5}">
-          <div class="va-regler-enden"><span>${I("mountain", 15)} ${esc(T("va.k_ruhig_g", "Ruhig & weit"))}</span><span>${esc(T("va.k_lebendig_g", "Lebendig & nah"))} ${I("zap", 15)}</span></div>
-          ${details(T("va.k_momente_g", "Bewegung an einzelnen Momenten"), `<div class="va-g-liste" id="va-k-momente"></div>`, "va-k-details")}
-        </div>
-      </section>
-
-      <section data-va="6">
-        ${kopf(T("va.h6", "Gib deiner Tour einen Titel."), T("va.h6_sub", "Ein paar Worte machen die Erinnerung persönlich."))}
-        <label class="va-feld-kopf" for="sv-titel"><span>${esc(T("schnell.titel", "Titel"))}</span></label>
-        <input type="text" id="sv-titel" class="lib-input va-eingabe" value="${esc(w.titel)}">
-        <div class="sv-titel-vorschlaege" id="sv-titel-vorschl"></div>
-        <label class="va-feld-kopf" for="sv-unter"><span>${esc(T("va.untertitel", "Untertitel"))}</span></label>
-        <input type="text" id="sv-unter" class="lib-input va-eingabe" value="${esc(w.unter)}">
-        ${feldKopf("", T("va.t_menge_frage", "Wie viel Text möchtest du?"))}
-        <div class="va-karten va-karten-3" id="va-t-menge">
-          ${karte('data-va-t-menge="wenige"', textBild("wenige"), T("va.t_wenig_g", "Wenig"), T("va.t_wenig_k", "Nur der Titel"), (w.textMenge || "normal") === "wenige")}
-          ${karte('data-va-t-menge="normal"', textBild("normal"), T("va.t_ausgewogen_g", "Ausgewogen"), T("va.t_ausgewogen_k", "Titel und Bildunterschriften"), (w.textMenge || "normal") === "normal")}
-          ${karte('data-va-t-menge="viele"', textBild("viele"), T("va.t_mehr_g", "Mehr"), T("va.t_mehr_k", "Auch Kapitel und Kameradaten"), (w.textMenge || "normal") === "viele")}
-        </div>
-        <p class="va-klein" id="va-t-erkl"></p>
       </section>
 
       <section data-va="7">
-        ${kopf(T("va.h7", "Der Look deiner Tour."), T("va.h7_sub", "Dieselbe Strecke. Eine andere Stimmung."))}
-        <div class="va-karten va-karten-3 va-looks" id="va-looks">${(window.rzLooks ? window.rzLooks.NAMEN : []).map(n =>
-          karte(`data-va-look="${n}"`, `<img class="va-look-bild" src="${(window.__rzAssetBase || "")}media/assistent/look_${n}.jpg" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'va-look-bild rz-look-bild rz-look-${n}'}))">`,
-            T("look." + n, n), LOOK_KURZ[n] || "", n === w.look, T("look." + n + ".tip", ""))).join("")}</div>
-        <button type="button" class="va-link" data-va-mehr-looks>${esc(T("va.mehr_looks", "Weitere Kartenstile im Animator"))} ${I("arrow-right", 14)}</button>
-        ${details(T("va.orte_haeuser", "Orte und 3D-Häuser"), schalter("sv-gebaeude", !!w.gebaeude, T("va.gebaeude", "3D-Häuser in Orten"), T("va.gebaeude_k", "Gebäude wachsen beim Heranfliegen aus der Karte.")))}
-      </section>
-
-      <section data-va="8">
-        ${kopf(T("va.h8", "Was möchtest du zeigen?"), T("va.h8_sub", "Nur das, was deine Geschichte unterstützt."))}
+        ${kopf(T("va.w.s8_infos_h", "Was wird eingeblendet?"), T("va.w.s8_infos_erkl", "Zahlen, Höhenprofil, Highlights und die Schlusskarte."))}
         <div class="va-zkarten">
           <label class="va-zk"><span class="va-zk-bild va-gb">${routeSvg()}<span class="va-gb-chip">${I("route", 11)} ${esc(km)}<i></i>${I("mountain", 11)} ${esc(aufM)}</span></span>
-            <span class="va-zk-text"><b>${esc(T("va.e_zahlen_g", "Strecke & Höhe"))}</b><small>${esc(T("va.e_zahlen_k", "Die wichtigsten Zahlen, ganz dezent."))}</small></span>
+            <span class="va-zk-text"><b>${esc(T("va.e_zahlen_g", "Strecke & Höhe"))}${hilfeKnopf("z_zahlen")}</b></span>
             <input type="checkbox" class="va-schalter" id="sv-zahlen"${w.zahlen ? " checked" : ""}></label>
           <label class="va-zk"><span class="va-zk-bild va-gb va-gb-profil">${profilSvg()}</span>
-            <span class="va-zk-text"><b>${esc(T("schnell.profil_kurz", "Höhenprofil"))}</b><small>${esc(T("va.e_profil_k", "Zeigt, wo es bergauf ging."))}</small></span>
+            <span class="va-zk-text"><b>${esc(T("schnell.profil_kurz", "Höhenprofil"))}${hilfeKnopf("z_profil")}</b></span>
             <input type="checkbox" class="va-schalter" id="sv-profil"${w.profil ? " checked" : ""}></label>
+        </div>
+        ${hilfeBox("z_zahlen")}${hilfeBox("z_profil")}
+        ${feldKopf("map-pin", T("va.i_momente", "Highlights und Momente"), "", "z_highlights")}
+        <span id="va-g-lead" hidden>${esc(T("logbuch.laedt", "Logbuch wird geladen …"))}</span><span id="va-g-kapitel" hidden></span>
+        <div class="va-g-liste" id="va-g-liste"></div>
+        <label hidden><input type="checkbox" id="sv-logbuch"${w.logbuch ? " checked" : ""}></label>
+        <label hidden><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}></label>
+        <div class="sv-zutat" data-sv-zutat="schluss">
+          ${feldKopf("milestone", T("schnell.z.schluss", "Schlusskarte"), `<input type="checkbox" class="va-schalter" id="sv-schluss-an"${w.schlussAn ? " checked" : ""} title="${esc(T("va.schluss_an_tip", "Schlusskarte an oder aus"))}">`, "z_schluss")}
+          <div class="sv-zutat-teil">
+            <div class="va-chips">${["dist_total", "elev_gain", "moving_time"].map(f => `<label class="va-chip"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${I("check", 13)}${esc(feldLabel(f))}</span></label>`).join("")}</div>
+            ${details(T("va.weitere_angaben", "Weitere Angaben"), `<div class="va-chips">${SCHLUSS_FELDER.filter(f => !["dist_total", "elev_gain", "moving_time"].includes(f)).map(f => `<label class="va-chip"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${I("check", 13)}${esc(feldLabel(f))}</span></label>`).join("")}</div>`, "va-felder-mehr", SCHLUSS_FELDER.some(f => !["dist_total", "elev_gain", "moving_time"].includes(f) && w.felder.includes(f)))}
+          </div>
         </div>
       </section>
 
-      <section data-va="9">
-        ${kopf(T("va.h9", "Ein schöner Abschluss."), T("va.h9_sub", "Gib deinem Video den passenden Klang."))}
+      <section data-va="8">
+        ${kopf(T("va.v_h", "Dein Video"), T("va.v_sub", "Alles steht schon im Projekt. Übernimm es — oder erstelle das Video gleich.") + " " + T("va.s9_hinweis2", "Du kannst im Animator jederzeit weitergestalten. ⌘Z nimmt den ganzen Assistenten zurück."))}
+        <div class="va-uebersicht" id="va-liste"></div>
         <div class="sv-zutat" data-sv-zutat="musik">
           ${feldKopf("music", T("schnell.z.musik", "Musik"), `<input type="checkbox" class="va-schalter" id="sv-musik-an"${w.musikAn ? " checked" : ""} title="${esc(T("va.musik_an_tip", "Musik an oder aus"))}">`)}
           <div class="sv-zutat-teil">
@@ -1250,24 +1329,11 @@
               <button type="button" class="va-link" id="sv-musik-datei" title="${esc(T("animator.ton.datei_tip", "Eigene Musik wählen (MP3, M4A, WAV, FLAC …)"))}">${I("plus", 15)} ${esc(T("va.musik_eigene", "Eigene Musik"))}</button></div>
           </div>
         </div>
-        <div class="sv-zutat" data-sv-zutat="schluss">
-          ${feldKopf("milestone", T("schnell.z.schluss", "Schlusskarte"), `<input type="checkbox" class="va-schalter" id="sv-schluss-an"${w.schlussAn ? " checked" : ""} title="${esc(T("va.schluss_an_tip", "Schlusskarte an oder aus"))}">`)}
-          <div class="sv-zutat-teil">
-            <div class="va-chips">${["dist_total", "elev_gain", "moving_time"].map(f => `<label class="va-chip"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${I("check", 13)}${esc(feldLabel(f))}</span></label>`).join("")}</div>
-            ${details(T("va.weitere_angaben", "Weitere Angaben"), `<div class="va-chips">${SCHLUSS_FELDER.filter(f => !["dist_total", "elev_gain", "moving_time"].includes(f)).map(f => `<label class="va-chip"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${I("check", 13)}${esc(feldLabel(f))}</span></label>`).join("")}</div>`, "va-felder-mehr", SCHLUSS_FELDER.some(f => !["dist_total", "elev_gain", "moving_time"].includes(f) && w.felder.includes(f)))}
-          </div>
-        </div>
-      </section>
-
-      <section data-va="10">
-        ${kopf(T("va.h10", "Das ist dein Video."), T("va.h10_sub", "Schau noch einmal rein. Alles bleibt bearbeitbar."))}
-        <div class="va-uebersicht" id="va-liste"></div>
         <button type="button" class="va-knopf va-knopf-rand" data-va-merken>${I("bookmark", 16)}<span>${esc(T("va.v_merken", "Als Vorlage merken"))}</span></button>
         <div class="va-vorlage-sp" id="va-vorlage-sp" hidden>
           <div class="va-vorlage-zeile"><input type="text" id="va-vorlage-name" class="lib-input" placeholder="${esc(T("va.v_name_ph", "Name, z. B. „Wandern hochkant“"))}">
-          <button type="button" class="va-knopf" id="va-vorlage-speichern">${I("star", 15)}<span>${esc(T("va.v_speichern_k", "Merken"))}</span></button></div>
-          <p class="va-klein">${esc(T("va.v_hinweis", "Gemerkt wird nur der Stil (Format, Länge, Look, Einblendungen, Kamera, Halte, Texte, Musik, Schluss) — beim Assistenten und beim Schnell-Video auf der ersten Seite wählbar."))}</p></div>
-        <p class="va-klein va-info">${I("info", 14)} <span>${esc(T("va.s9_hinweis2", "Du kannst im Animator jederzeit weitergestalten. ⌘Z nimmt den ganzen Assistenten zurück."))}${P.keyframes > 0 ? " " + esc(T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes)) : ""}</span></p>
+          <button type="button" class="va-knopf" id="va-vorlage-speichern">${I("star", 15)}<span>${esc(T("va.v_speichern_k", "Merken"))}</span></button>${q(T("va.v_hinweis2", "Gemerkt wird nur der Stil (Format, Länge, Kamera, Karte, Linie, Einblendungen, Texte, Musik, Schluss) — beim Assistenten im Reiter „Route“ und beim Schnell-Video wählbar."))}</div>
+        ${P.keyframes > 0 ? `<p class="va-klein va-info">${I("info", 14)} <span>${esc(T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes))}</span></p>` : ""}
       </section>
     </div>`;
     const m = (ASS ? vaFenster : openModal)({
@@ -1365,9 +1431,10 @@
       </div>`,
       footer: ASS ? `<button type="button" class="va-f-abbrechen" id="va-abbrechen" title="${esc(T("va.abbrechen_tip", "Alles, was der Assistent geändert hat, zurücknehmen"))}">${esc(T("common.cancel", "Abbrechen"))}</button>
           <span class="va-f-luecke"></span>
-          <button type="button" class="va-knopf" id="va-zurueck">${I("arrow-left", 16)}<span>${esc(T("va.zurueck_k", "Zurück"))}</span></button>
+          <button type="button" class="va-knopf" id="va-zurueck" hidden>${I("arrow-left", 16)}<span>${esc(T("va.zurueck_k", "Zurück"))}</span></button>
           <button type="button" class="va-knopf va-knopf-cta" id="va-weiter"><span>${esc(T("va.weiter", "Weiter"))}</span>${I("arrow-right", 17)}</button>
-          <button type="button" class="va-knopf va-knopf-cta" id="sv-uebernehmen" title="${esc(T("va.fertig_tip2", "Alles Gewählte bleibt im Projekt — ⌘Z nimmt den ganzen Assistenten zurück"))}"><span>${esc(T("va.uebernehmen", "Übernehmen"))}</span>${I("check", 17)}</button>
+          <button type="button" class="va-knopf" id="sv-uebernehmen" title="${esc(T("va.fertig_tip2", "Alles Gewählte bleibt im Projekt — ⌘Z nimmt den ganzen Assistenten zurück"))}">${I("check", 16)}<span>${esc(T("va.uebernehmen_k", "Übernehmen"))}</span></button>
+          <button type="button" class="va-knopf va-knopf-cta" id="va-erstellen" hidden title="${esc(T("va.erstellen_tip", "Übernehmen und gleich das Video exportieren"))}">${I("clapperboard", 16)}<span>${esc(T("schnell.erstellen", "Video erstellen …"))}</span></button>
           <button type="button" id="va-skip" hidden></button>
           <div class="va-ende" id="va-ende" hidden><span>${esc(T("va.ende_frage", "Assistent beenden?"))}</span>
         <button type="button" class="va-knopf" data-va-ende="verwerfen">${esc(T("va.verwerfen", "Verwerfen"))}</button>
@@ -1377,6 +1444,7 @@
         + `<button type="button" class="btn" id="sv-animator">${esc(P ? T("schnell.neues_projekt", "Neues Projekt") : T("schnell.im_animator", "Im Animator öffnen"))}</button>
                <button type="button" class="btn${P ? "" : " btn-primary"}" id="sv-rendern">🎬 ${esc(T("schnell.erstellen", "Video erstellen …"))}</button>`,
     });
+    _svStartet = false;   // ab hier zeigt der Dialog selbst, dass einer offen ist
     const box = (m && m.body) || document.getElementById("modal-body");
     const vorschau = svVorschau(box, v, w);
     box.querySelectorAll("[data-sv-gruppe]").forEach(r => r.addEventListener("click", (e) => {
@@ -1398,6 +1466,8 @@
       const z = box.querySelector("#sv-fotos-info"); if (!z) return;
       const an = w.fotos.filter((_, i) => !w.fotosAus.has(i));
       if (!w.fotos.length) { z.textContent = ""; return; }
+      // 26.10.2026 (Klicktest) — Fotos ausgeschaltet: kein „0 Fotostopps … passen nicht alle“
+      const fan = box.querySelector("#sv-fotos-an"); if (fan && !fan.checked) { z.textContent = ""; return; }
       let n;
       if (fotoArtJetzt() === "gross") {
         n = stoppsJetzt().filter(x => !x.clip).length;
@@ -1878,6 +1948,41 @@
       }));
       sync();
     }
+    /** 26.10.2026 — Reiter „Karte“: Gelände (ohne eigene Wahl: wie im Projekt) und Beschriftung (ohne eigene Wahl: wie der Look). */
+    function vaKarte() {
+      const g = box.querySelector("#va-gelaende");
+      if (g) g.checked = typeof w.gelaende === "boolean" ? w.gelaende : !!document.getElementById("anim-terrain")?.checked;
+      const st = VA_BESCHR.map(beschrStand);
+      const b = box.querySelector("#va-beschr"); if (b) b.checked = st.some(Boolean);
+      VA_BESCHR.forEach((k, i) => { const c = box.querySelector(`[data-va-beschr="${k}"]`); if (c) c.checked = st[i]; });
+    }
+    /** 26.10.2026 — Reiter „Linie“: zeigt, was gilt — die eigene Wahl (w.ls) oder sonst die Linie des Looks. */
+    function vaLinie() {
+      const LL = vaLookLinie(), ls = w.ls || {};
+      const farbe = String(ls.farbe || LL.line_color || "#48d6c4").toLowerCase();
+      const fb = box.querySelector("#va-ls-farben");
+      if (fb) fb.innerHTML = VA_LINIE_FARBEN.map(f => `<button type="button" class="va-farbe${f === farbe ? " is-on" : ""}" data-va-farbe="${f}" style="background:${f}" aria-label="${f}" aria-pressed="${f === farbe}"></button>`).join("")
+        + `<label class="va-farbe va-farbe-eigen${VA_LINIE_FARBEN.includes(farbe) ? "" : " is-on"}" title="${esc(T("va.w.linie_eigene", "Eigene Farbe"))}"><input type="color" id="va-ls-eigen" value="${esc(farbe)}"></label>`;
+      const strich = ls.strich || document.getElementById("anim-line-style")?.value || "solid";
+      box.querySelectorAll("[data-va-strich]").forEach(b => b.classList.toggle("is-on", b.dataset.vaStrich === strich));
+      const breite = ls.breite != null && isFinite(+ls.breite) ? +ls.breite : (+LL.line_width || 3.5);
+      const br = box.querySelector("#va-ls-breite"); if (br) br.value = String(breite);
+      const bv = box.querySelector("#va-ls-breite-v"); if (bv) bv.textContent = breite.toFixed(1) + " px";
+      const setz = (id, an_) => { const e = box.querySelector("#" + id); if (e) e.checked = !!an_; };
+      setz("va-ls-kontur", ls.kontur != null ? ls.kontur : +LL.kontur_breite > 0);
+      setz("va-ls-schatten", ls.schatten != null ? ls.schatten : +(document.getElementById("anim-shadow-strength")?.value || 0) > 0);
+      setz("va-ls-leuchten", ls.leuchten != null ? ls.leuchten : +LL.glow_strength > 0);
+      setz("va-ghost", typeof w.ghost === "boolean" ? w.ghost : true);
+      box.querySelectorAll("[data-va-lp]").forEach(b => b.classList.toggle("is-on", b.dataset.vaLp === w.lp));
+      const sel = box.querySelector("#va-lp-fz");
+      if (sel && !sel.options.length) {   // die Fahrzeuge des Animators (dieselben Namen wie dort)
+        const q = document.getElementById("anim-dot-style");
+        sel.innerHTML = (q ? [...q.options] : []).filter(o => !["dot", "leucht", "arrow", "bild"].includes(o.value))
+          .map(o => `<option value="${esc(o.value)}">${esc(o.textContent)}</option>`).join("");
+      }
+      if (sel && w.lpFz) sel.value = w.lpFz;
+      const fz = box.querySelector("#va-lp-fz-zeile"); if (fz) fz.hidden = w.lp !== "fahrzeug" || !(sel && sel.options.length);
+    }
     /** 11.10.2026 — Stufe „Halte“: an allen Foto-Schildern anhalten, Dauer, Heranfahren. */
     const HALT_FAKTOR = { kurz: 0.6, normal: 1, lang: 1.7 };
     /** Vorgabe nach der Foto-Art: große Fotos halten an, Sofortbilder/Bild im Bild fahren durch — bis man selbst wählt. */
@@ -1924,10 +2029,13 @@
     }
     function kamOptSetzen() {
       if (!ASS) return;
+      // 26.10.2026 (wie im Web) — Höhe statt Flugstil-Karten: Hoch = „Reiseflughöhe“, sonst „Begleiter“ (Nah: Zoom +1 in vaPatch)
+      w.flug = w.hoehe === "hoch" ? "reiseflughoehe" : "begleiter";
       w.kamOpt = w.kamera === "fahrt" ? { lebendig: isFinite(+w.kamLeb) ? +w.kamLeb : 0.5, momente: kamMomente().map(m => ({ bei: m.bei, bewegung: m.bewegung })) } : null;
     }
     function vaKamera() {
       const fahrt = box.querySelector("#va-k-fahrt"); if (fahrt) fahrt.hidden = w.kamera !== "fahrt";
+      const hf = box.querySelector("#va-hoehe-feld"); if (hf) hf.hidden = w.kamera === "fest";
       const liste = box.querySelector("#va-k-momente");
       if (liste) {
         const ms = kamMomente(), BT = BEW_TEXT();
@@ -2226,7 +2334,9 @@
                uebersicht: an("sv-uebersicht"), felder: w.felder.slice(), musik: mu ? mu.value : w.musik, kamera: w.kamera || null, flug: w.flug || null, foto_kreisen: !!w.fotoKreisen,
                kam_leb: isFinite(+w.kamLeb) ? +w.kamLeb : null, halte_dauer: w.halteDauer || null, halte_alle: typeof w.halteAlle === "boolean" ? w.halteAlle : null,
                text_menge: w.textMenge || null, foto_menge: isFinite(+w.fotoMenge) ? +w.fotoMenge : null, schluss_an: an("sv-schluss-an"),
-               foto_art: w.fotoArt, highlights: an("sv-highlights"), hl_arten: w.hlArten ? [...w.hlArten] : null, gebaeude: an("sv-gebaeude") };
+               foto_art: w.fotoArt, highlights: an("sv-highlights"), hl_arten: w.hlArten ? [...w.hlArten] : null, gebaeude: an("sv-gebaeude"),
+               // 26.10.2026 — Reiter wie im Web
+               ...(ASS ? { hoehe: w.hoehe, laufpunkt: w.lp === "fahrzeug" ? w.lpFz : w.lp, linie: Object.assign({}, w.ls), beschriftung: Object.assign({}, w.beschr), gelaende: w.gelaende, ghost: w.ghost } : {}) };
     };
     const eigeneSetzen = (id) => {
       const E = eigene.find(x => x.id === id); if (!E) return;
@@ -2254,6 +2364,15 @@
         if (st.text_menge) { w.textMenge = st.text_menge; box.querySelectorAll("[data-va-t-menge]").forEach(b => b.classList.toggle("is-on", b.dataset.vaTMenge === w.textMenge)); }
         if (st.foto_menge != null) w.fotoMenge = +st.foto_menge;
         if (ASS && Array.isArray(st.hl_arten)) w.hlArten = new Set(st.hl_arten.filter(a => HL_ARTEN.includes(a)));
+        if (ASS) {
+          if (["nah", "mittel", "hoch"].includes(st.hoehe)) { w.hoehe = st.hoehe; box.querySelectorAll("[data-va-hoehe]").forEach(b => b.classList.toggle("is-on", b.dataset.vaHoehe === w.hoehe)); }
+          if (typeof st.laufpunkt === "string" && st.laufpunkt) { if (["arrow", "dot", "aus"].includes(st.laufpunkt)) w.lp = st.laufpunkt; else { w.lp = "fahrzeug"; w.lpFz = st.laufpunkt; } }
+          if (st.linie && typeof st.linie === "object") w.ls = Object.assign({}, st.linie);
+          if (st.beschriftung && typeof st.beschriftung === "object") w.beschr = Object.assign({}, st.beschriftung);
+          if (typeof st.gelaende === "boolean") w.gelaende = st.gelaende;
+          if (typeof st.ghost === "boolean") w.ghost = st.ghost;
+          if (st.foto_art) box.querySelectorAll("[data-va-fa]").forEach(b => b.classList.toggle("is-on", b.dataset.vaFa === w.fotoArt));
+        }
       } finally { vlSetzt = false; }
       w.eigeneVorlage = id; w.angepasst = false;
       box.querySelectorAll("[data-sv-vorlage]").forEach(b => b.classList.remove("is-on"));
@@ -2324,6 +2443,41 @@
                musik_an: w.musikAn, musik: w.musik, klick: w.klick, uebersicht: w.uebersicht, schluss_an: w.schlussAn, gebaeude: w.gebaeude,
                vorlage: w.vorlage, foto_art: w.fotoArt, sofort_groesse: w.sofortGroesse, foto_pause: w.fotoPause, angepasst: !!w.angepasst, tempo_regie: !!w.tempoRegie };
     };
+    // 26.10.2026 — was die Reiter Kamera (Höhe), Karte (Gelände, Beschriftung) und Linie (Laufpunkt, Linie, Vorab-Strecke)
+    // gewählt haben, über den Look legen. Beschriftung ohne eigene Wahl: wie der Look (Satellit ohne Namen, die anderen mit).
+    const beschrStand = (k) => (w.beschr && typeof w.beschr[k] === "boolean") ? w.beschr[k] : (w.look || (VORLAGEN[w.vorlage] || VORLAGEN.weite).look) !== "natuerlich";
+    const VA_HOEHE_NAH = 1.0, VA_FOLGEN_HOEHE = { nah: 1.2, mittel: 0, hoch: -0.8 };   // wie gps-studio-web (studio.js HOEHE_NAH, FOLGEN_HOEHE)
+    const vaPatch = (o) => {
+      // Mitfliegen „Nah“: die Fahrt eine Zoomstufe näher (nicht Überblick/Schlussblick, die liegen außerhalb 0…1 bzw. ≤ −0,1)
+      if (w.kamera === "fahrt" && w.hoehe === "nah" && Array.isArray(o.timeline_events)) {
+        o.timeline_events = o.timeline_events.map(ev => (ev && ev.kind === "zoom" && typeof ev.value_offset === "number" && typeof ev.anchor === "number"
+          && ev.anchor >= -1e-6 && ev.anchor <= 1 + 1e-6 && ev.value_offset > -0.1) ? Object.assign({}, ev, { value_offset: Math.round(Math.max(-1.2, ev.value_offset + VA_HOEHE_NAH) * 1e4) / 1e4 }) : ev);
+      }
+      if (typeof w.gelaende === "boolean") o.enable_terrain = w.gelaende;
+      VA_BESCHR.forEach(k => { o[VA_BESCHR_KEY[k]] = beschrStand(k); });
+      if (w.lp === "aus") o.marker_dot_show = false;
+      else { o.marker_dot_show = true; o.marker_dot_style = w.lp === "fahrzeug" ? (w.lpFz || "wanderer") : (w.lp || "arrow"); }
+      const ls = w.ls || {}, LL = vaLookLinie();
+      if (ls.farbe) o.line_color = ls.farbe;
+      if (ls.breite != null && isFinite(+ls.breite)) o.line_width = +ls.breite;
+      if (ls.strich) o.line_style = ls.strich;
+      if (ls.kontur != null) o.kontur_breite = ls.kontur ? (+LL.kontur_breite || 2) : 0;
+      if (ls.schatten != null) o.shadow_strength = ls.schatten ? 4 : 0;
+      if (ls.leuchten != null) o.glow_strength = ls.leuchten ? 4 : 0;
+      if (typeof w.ghost === "boolean") o.ghost_track_enabled = w.ghost;
+      return o;
+    };
+    /** Folgen (genordet): die App setzt je Tour eine Höhe (anim-zoom) — Nah/Hoch darauf. Die Basis nur neu lesen, wenn dort
+     *  nicht mehr unser Wert steht (sonst wanderte „Hoch“ bei jedem Schreiben weiter nach oben; Klicktest Web 25.10.2026). */
+    let fzBasis = null, fzGesetzt = null;
+    const vaFolgenHoehe = () => {
+      if (w.kamera !== "folgen") return;
+      const z = document.getElementById("anim-zoom"); if (!z) return;
+      if (fzBasis == null || fzGesetzt == null || Math.abs(+z.value - fzGesetzt) > 0.01) fzBasis = +z.value || 12;
+      const soll = Math.max(+z.min || 0, Math.min(+z.max || 18, fzBasis + (VA_FOLGEN_HOEHE[w.hoehe] || 0)));
+      fzGesetzt = soll;
+      if (Math.abs(+z.value - soll) > 0.01) { z.value = String(soll); z.dispatchEvent(new Event("input", { bubbles: true })); z.dispatchEvent(new Event("change", { bubbles: true })); }
+    };
     /** In das offene Projekt schreiben: ein ⌘Z-Schritt („Schnell-Video übernommen"), vorher ein Arbeitsstand.
      *  11.10.2026 — Video-Assistent: `modus = "live"` schreibt nach jeder Stufe OHNE ⌘Z-Schritt (das Fenster bleibt
      *  offen, der Animator zeigt es sofort); „Fertig" macht daraus EINEN Schritt vom Stand vor dem Assistenten. */
@@ -2342,12 +2496,13 @@
       // 07.10.2026 (Web-Fund F-1) — neue Länge → die gespeicherte Raffung des vorigen Schnell-Videos verwerfen; sonst
       // rechnete die Tempo-Kurve mit ihr weiter und schrieb die alte Dauer zurück ins Feld (12,8 statt 33 s)
       voll.tempo_rate = null; voll.tempo_basis = null;
+      if (ASS) vaPatch(voll);
       const patch = look ? nurAblauf(voll) : voll;
       if (!ASS) m.close();
       if (P.keyframes > 0 && !kfBestaetigt) {
         const ja = await window.rzConfirm(T("schnell.kf_frage_titel", "Keyframes ersetzen?"),
           T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes),
-          T("schnell.kf_ersetzen", "Ersetzen"), true);
+          T("schnell.kf_ersetzen", "Ersetzen"), true, { nurKnoepfe: ASS });
         if (!ja) {
           toast(T("schnell.nichts_geaendert", "Nichts geändert."), "info", 3000);
           if (ASS) vaAbbrechen();
@@ -2384,7 +2539,8 @@
       // Blickrichtung aus der geglätteten Spur — gehört zum selben ⌘Z-Schritt (kein eigener)
       await new Promise(res => setTimeout(res, live ? 600 : 1200));
       if (live && !imAnimator()) return;
-      try { window.__rzUndoApplying = true; const n = window.__rzSchnellKamera ? window.__rzSchnellKamera(kursOpts(w)) : 0; applog("info", `[schnell] ${live ? "live" : "übernommen"} in ${P.id} · Look ${look ? "behalten" : "neu"} · Blickrichtung ${n} Keyframes`); }
+      // 27.10.2026 — Assistent mit Folgen (genordet) oder Ganze Tour: keine Blickrichtungs-Keyframes
+      try { window.__rzUndoApplying = true; if (ASS) vaFolgenHoehe(); const n = (window.__rzSchnellKamera && !(ASS && w.kamera && w.kamera !== "fahrt")) ? window.__rzSchnellKamera(kursOpts(w)) : 0; applog("info", `[schnell] ${live ? "live" : "übernommen"} in ${P.id} · Look ${look ? "behalten" : "neu"} · Blickrichtung ${n} Keyframes`); }
       catch (e) { try { applog("warn", "[schnell] Blickrichtung: " + e); } catch (_) {} }
       finally { setTimeout(() => { window.__rzUndoApplying = false; }, 0); }
       // Highlight-Schilder abgleichen — bis der Track mit den neuen Einstellungen steht (max. ~6 s)
@@ -2436,7 +2592,7 @@
       }
       return ph.intro + 0.6;
     };
-    const VA_ALLE_SCHILDER = { 2: true, 3: true, 4: true };
+    const VA_ALLE_SCHILDER = { 1: true, 6: true, 7: true };
     const vaVorschauStelle = () => {
       if (!ASS || !vaSeiteJetzt) return;
       const S_ = vaSeiteJetzt;
@@ -2447,7 +2603,7 @@
       // kurz vor Ende der Fahrt — die ganze Linie ist gezeichnet — und die Kamera auf die ganze Tour
       const ueberblick = !!VA_ALLE_SCHILDER[S_];
       const t = ueberblick ? Math.max(0, ph.intro + ph.anim - 0.2)
-        : { 1: 1.5, 6: 1.5, 7: freieStelle(ph), 8: freieStelle(ph), 9: Math.max(0, ph.G - 1) }[S_];
+        : { 2: freieStelle(ph), 3: freieStelle(ph), 4: freieStelle(ph), 5: 1.5, 8: Math.max(0, ph.G - 1) }[S_];
       if (t != null) window.__rzGeheZuZeit(Math.min(t, ph.G));
       if (ueberblick && window.__rzGesamtsicht) setTimeout(() => { if (vaSeiteJetzt === S_) window.__rzGesamtsicht(); }, 350);
     };
@@ -2462,6 +2618,7 @@
     }
     const los = async (rendern) => {
       if (laeuft) return; laeuft = true;
+      _svStartet = true;   // Dialog geht gleich zu — bis das Projekt angelegt ist, keinen zweiten Start
       const letzte = werteLesen();
       // 05.10.2026 (Audit K-1) — aus dem Animator gestartet: Ausgangsprojekt merken, ein Abbruch führt dorthin zurück
       let herkunft = null;
@@ -2476,6 +2633,7 @@
         r = rendern ? await api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte, schilder)   // warte-ok: eigener Bildschirm zeigt den Schritt
           : await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte, schilder));
       } catch (e) { r = { ok: false, error: String(e) }; }
+      _svStartet = false;
       if (!r || !r.ok) {
         laeuft = false;
         if (B) { B.fehler((r && r.error) || T("common.error", "Fehler")); B.knopf("schliessen").onclick = () => B.zu(); }
@@ -2532,10 +2690,11 @@
     if (ASS) {
       // 11.10.2026 — „Die Geschichte“ direkt nach „Was für ein Video“, dann Fotos, dann der Look
       // 11.10.2026 — Reihenfolge: erst die Geschichte, dann Bild und Text, zum Schluss der Look
-      const NAMEN = [null, T("va.n_vorlage", "Vorlage"), T("va.n_geschichte", "Die Geschichte"), T("va.n5", "Fotos"), T("va.n_halte", "Halte"),
-                     T("va.n7", "Kamera"), T("va.n_texte", "Texte"), T("va.n3", "Karte"), T("va.n4", "Einblendungen"), T("va.n8", "Schluss & Musik"), T("va.n9", "Fertig")];
+      // 26.10.2026 — die acht Reiter der Web-Version; wie dort beginnt es nach dem Laden bei „Kamera“
+      const NAMEN = [null, T("va.w.s8_route", "Route"), T("va.w.s8_kamera", "Kamera"), T("va.w.s8_look", "Karte"), T("va.w.s8_linie", "Linie"),
+                     T("va.w.s8_titel", "Titel"), T("va.w.s8_fotos", "Fotos"), T("va.w.s8_infos", "Infos"), T("va.w.s8_video", "Video")];
       const LETZTE = NAMEN.length - 1;
-      let seite = 1;
+      let seite = 2;
       const zusammenfassung = () => {
         try { werteLesen(); } catch (_) {}
         const stopps = (() => { try { return stoppsJetzt().length; } catch (_) { return 0; } })();
@@ -2545,7 +2704,9 @@
         const einbl = [w.zahlen && T("va.e_zahlen", "Zahlen unterwegs"), w.profil && T("va.e_profil", "Höhenprofil")].filter(Boolean);
         const nHl = w.highlights && w.hlArten ? hlListe().filter(h => w.hlArten.has(h.art)).length : 0;
         const mu = box.querySelector("#sv-musik"), muText = mu && mu.selectedOptions && mu.selectedOptions[0] ? mu.selectedOptions[0].textContent.trim() : "";
-        const kam = { fahrt: T("einfach.k_fahrt", "Kamerafahrt"), folgen: T("einfach.k_folgen", "Folgen"), fest: T("einfach.k_fest", "Fest") }[w.kamera] || "";
+        const kam = { fahrt: T("va.w.k_mitfliegen", "Mitfliegen"), folgen: T("va.w.k_folgen_nord", "Folgen (genordet)"), fest: T("va.w.k_ganze_tour", "Ganze Tour") }[w.kamera] || "";
+        const lpText = w.lp === "fahrzeug" ? (box.querySelector("#va-lp-fz")?.selectedOptions?.[0]?.textContent || T("va.w.lp_fahrzeug", "Fahrzeug"))
+          : { arrow: T("va.w.lp_pfeil", "Pfeil"), dot: T("va.w.lp_kugel", "Kugel"), aus: T("va.w.lp_aus", "Aus") }[w.lp] || "";
         vaListe = [
           ["tag", T("va.l_titel", "Titel"), [w.titel, w.unter].filter(Boolean).join(" · ") || "—"],
           ["clapperboard", T("va.l_format", "Format und Länge"), `${w.format} · ${laengeS(w)} s`],
@@ -2557,17 +2718,18 @@
           ["video", T("va.l_kamera", "Kamera"), kam],
           ["music", T("va.l_musik", "Musik"), w.musikAn ? (muText || "✓") : T("va.aus", "aus")],
           ["milestone", T("va.l_schluss", "Schlusskarte"), w.schlussAn ? (w.felder.length + " " + T("va.l_werte", "Werte")) : T("va.aus", "aus")],
+          ["route", T("va.laufpunkt", "Laufpunkt"), lpText],   // 26.10.2026 — hinten anfügen: die Zeilen unten lesen die Liste nach Stelle
         ];
         // 12.10.2026 (neue Optik) — kurz, je Zeile ein Sprung zurück zum Schritt
         const [wTitel, , wKarte, , wFotos, wSchilder, wHalte, , wMusik] = vaListe.map(x => x[2]);
         const zeilen = [
-          ["monitor", T("va.u_format", "Format & Länge"), `${w.format} · ${laengeS(w)} s`, 1],
-          ["map-pin", T("va.u_momente", "Momente"), wSchilder, 2],
-          ["image", T("va.l_fotos", "Fotos"), [wFotos, w.fotosAn ? wHalte : ""].filter(Boolean).join(" · "), 3],
-          ["camera", T("va.l_kamera", "Kamera"), kam, 5],
-          ["type", T("va.u_texte", "Texte"), wTitel, 6],
-          ["map", T("va.u_look", "Look"), [wKarte, einbl.length ? einbl.join(", ") : ""].filter(Boolean).join(" · "), 7],
-          ["music", T("va.u_musik", "Musik & Schluss"), [wMusik, w.schlussAn ? T("va.u_schluss", "Schlusskarte mit {n} Werten", { n: w.felder.length }) : ""].filter(Boolean).join(" · "), 9],
+          ["video", T("va.l_kamera", "Kamera"), [kam, w.kamera !== "fest" ? T("va.w.h_" + (w.hoehe || "mittel"), w.hoehe || "") : "", `${w.format} · ${laengeS(w)} s`].filter(Boolean).join(" · "), 2],
+          ["map", T("va.l_karte", "Karte"), wKarte, 3],
+          ["route", T("va.w.linie_aussehen", "Linie"), lpText, 4],
+          ["type", T("va.u_texte", "Texte"), wTitel, 5],
+          ["image", T("va.l_fotos", "Fotos"), [wFotos, w.fotosAn ? wHalte : ""].filter(Boolean).join(" · "), 6],
+          ["map-pin", T("va.w.s8_infos", "Infos"), [einbl.length ? einbl.join(", ") : "", wSchilder, w.schlussAn ? T("va.u_schluss", "Schlusskarte mit {n} Werten", { n: w.felder.length }) : ""].filter(Boolean).join(" · "), 7],
+          ["music", T("va.l_musik", "Musik"), wMusik, 8],
         ];
         const ul = box.querySelector("#va-liste");
         if (ul) ul.innerHTML = zeilen.map(([ic, k, v2, s_]) => `<div class="va-u-zeile"><span class="va-u-ic">${I(ic, 18)}</span><span class="va-g-text"><b>${esc(k)}</b><small>${esc(v2 || "—")}</small></span>`
@@ -2577,12 +2739,12 @@
       const zeigen = () => {
         box.querySelectorAll("[data-va]").forEach(e => e.classList.toggle("va-weg", +e.dataset.va !== seite));
         const k = box.querySelector("#va-kopf");
-        if (k) k.innerHTML = `<div class="va-schritt">${esc(T("va.schritt", "Schritt {n} von {m}", { n: seite, m: LETZTE }))} · <span>${esc(NAMEN[seite])}</span></div>
-          <div class="va-punkte">${NAMEN.slice(1).map((n, i) => `<button type="button" class="va-punkt${i + 1 === seite ? " is-on" : ""}${i + 1 < seite ? " ist-fertig" : ""}" data-va-geh="${i + 1}" title="${esc(n)}"></button>`).join("")}</div>`;
+        if (k) k.innerHTML = `<div class="va-reiter" role="tablist">${NAMEN.slice(1).map((n, i) => `<button type="button" role="tab" class="va-reiter-k${i + 1 === seite ? " is-on" : ""}" aria-selected="${i + 1 === seite}" data-va-geh="${i + 1}"><span class="n">${i + 1}</span><span>${esc(n)}</span></button>`).join("")}</div>`;
         k && k.querySelectorAll("[data-va-geh]").forEach(b => { b.onclick = () => { seite = +b.dataset.vaGeh; zeigen(); }; });
         const z = document.getElementById("va-zurueck"), wt = document.getElementById("va-weiter"), sk = document.getElementById("va-skip"), ue = document.getElementById("sv-uebernehmen");
-        if (z) z.disabled = seite <= 1;
-        if (wt) wt.hidden = seite >= LETZTE;
+        if (z) z.hidden = true;
+        if (wt) { wt.hidden = seite >= LETZTE; if (seite < LETZTE) wt.innerHTML = `<span>${esc(T("va.w.s8_weiter", "Weiter: {s}", { s: NAMEN[seite + 1] }))}</span>${I("arrow-right", 17)}`; }
+        const er = document.getElementById("va-erstellen"); if (er) er.hidden = seite < LETZTE;
         if (sk) sk.hidden = true;
         // 12.10.2026 (neue Optik: je Ansicht EINE Hauptaktion) — „Übernehmen“ am Ende; vorher beendet das ✕ mit der Wahl
         // „Übernehmen“ oder „Verwerfen“ (früher „Fertig“ auf jeder Stufe)
@@ -2592,12 +2754,14 @@
         box.querySelectorAll("video").forEach(vd => { try { if (!vd.closest(".va-weg") && !ruhig) { const p_ = vd.play(); if (p_ && p_.catch) p_.catch(() => {}); } else vd.pause(); } catch (_) {} });
         box.scrollTop = 0;
         if (seite === LETZTE) zusammenfassung();
-        if (seite === 3) try { fotosZeigen(); } catch (_) {}
-        if (seite === 4) vaHalte();
-        if (seite === 5) vaKamera();
-        if (seite === 6) vaTexte();
-        if (seite === 2) vaGeschichte();
-        if (seite > 1) vaLive();
+        if (seite === 1) { const ef = box.querySelector("#va-eigene-feld"), se = box.querySelector("#sv-eigene"); if (ef) ef.hidden = !(se && se.children.length); }
+        if (seite === 2) vaKamera();
+        if (seite === 3) vaKarte();
+        if (seite === 4) vaLinie();
+        if (seite === 5) vaTexte();
+        if (seite === 6) { try { fotosZeigen(); } catch (_) {} vaHalte(); }
+        if (seite === 7) vaGeschichte();
+        vaLive();
         vaLeuchten(seite);
         vaSeiteJetzt = seite; vaVorschauStelle();
         try { applog("info", `[assistent] Seite ${seite} · ${NAMEN[seite]}`); } catch (_) {}
@@ -2605,6 +2769,76 @@
       document.getElementById("va-zurueck").onclick = () => { if (seite > 1) { seite--; zeigen(); } };
       document.getElementById("va-weiter").onclick = () => { if (seite < LETZTE) { seite++; zeigen(); } };
       document.getElementById("va-skip").onclick = () => { if (seite < LETZTE) { seite++; zeigen(); } };   // Vorschlag lassen, wie er ist (Prüfstand)
+      // „Video erstellen …“: übernehmen (ein ⌘Z-Schritt), dann der Export-Dialog des Animators — wie „Video erstellen“ im Web
+      document.getElementById("va-erstellen").onclick = async () => {
+        await uebernehmen("fertig");
+        for (let i = 0; i < 40; i++) {
+          const q = document.getElementById("anim-render");
+          if (q && !q.disabled && window.__rzExportDialogOeffnen) { window.__rzExportDialogOeffnen(); return; }
+          await new Promise(res => setTimeout(res, 250));
+        }
+        toast(T("va.erstellen_spaeter", "Das Projekt ist eingerichtet — exportiere es oben rechts mit „Video exportieren“."), "info", 5000);
+      };
+      // ── 26.10.2026 — „?“: Hilfetext und Clips aufklappen (Capture, damit der Klick keinen Schalter umlegt und nichts schreibt) ──
+      box.addEventListener("click", (e) => {
+        const k = e.target.closest("[data-va-hilfe]"); if (!k) return;
+        e.preventDefault(); e.stopPropagation();
+        const key = k.dataset.vaHilfe, bx = box.querySelector(`[data-va-hilfe-box="${key}"]`); if (!bx) return;
+        const auf = bx.hidden;
+        if (auf && !bx.innerHTML) {   // der Text steht im Tooltip des „?“ — hier nur die Clips
+          bx.innerHTML = `<div class="va-hilfe-clips">${(HILFE_CLIPS[key] || []).map(([cap, f]) =>
+            `<figure><video src="${(window.__rzAssetBase || "")}media/hilfe/${f}.mp4"${ruhig ? " controls" : " autoplay"} loop muted playsinline preload="auto"></video>${cap ? `<figcaption>${esc(T("va.w." + cap, cap))}</figcaption>` : ""}</figure>`).join("")}</div>`;
+        }
+        bx.hidden = !auf; k.setAttribute("aria-expanded", String(auf)); k.classList.toggle("is-on", auf);
+        bx.querySelectorAll("video").forEach(vd => { try { if (auf && !ruhig) { const p_ = vd.play(); if (p_ && p_.catch) p_.catch(() => {}); } else vd.pause(); } catch (_) {} });
+      }, true);
+      // Wechselnde Hinweise (Texte, Fotos, Halte, Momente) schreibt der Code weiter in versteckte Felder — hier landen sie
+      // als Tooltip am passenden „?“
+      const vaTipSpiegel = () => {
+        const txt = (id) => ((box.querySelector("#" + id) || {}).textContent || "").trim();
+        const setz = (el, t) => { if (el) { el.dataset.tip = t; el.hidden = !t; } };
+        setz(box.querySelector("#va-t-erkl-q"), txt("va-t-erkl"));
+        setz(box.querySelector("#sv-fotos-info-q"), txt("sv-fotos-info"));
+        setz(box.querySelector("#va-h-lead-q"), [txt("va-h-lead"), T("va.h_alle_tip", "Damit man die Bilder in Ruhe ansehen kann. Aus: die Fahrt läuft weiter, das Foto steht kurz daneben.")].filter(Boolean).join(" "));
+        const hk = box.querySelector('[data-va-hilfe="z_highlights"]');
+        if (hk) hk.dataset.tip = [T("va.w.hilfe_z_highlights", ""), txt("va-g-lead"), txt("va-g-kapitel")].filter(Boolean).join(" ");
+      };
+      const spiegelBeob = new MutationObserver(vaTipSpiegel);
+      ["va-t-erkl", "sv-fotos-info", "va-h-lead", "va-g-lead", "va-g-kapitel"].forEach(id => { const e = box.querySelector("#" + id); if (e) spiegelBeob.observe(e, { childList: true, characterData: true, subtree: true }); });
+      vaTipSpiegel();
+      // Kamera: Höhe
+      box.querySelector("#va-hoehe")?.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-va-hoehe]"); if (!b) return;
+        w.hoehe = b.dataset.vaHoehe;
+        box.querySelectorAll("[data-va-hoehe]").forEach(x => x.classList.toggle("is-on", x === b));
+        kamOptSetzen(); vaLive();
+      });
+      // Karte: Gelände, Beschriftung (ein Schalter + „mehr“ mit fünf)
+      box.querySelector("#va-gelaende")?.addEventListener("change", (e) => { w.gelaende = !!e.target.checked; vaLive(); });
+      box.querySelector("#va-beschr")?.addEventListener("change", (e) => { const an_ = !!e.target.checked; w.beschr = Object.fromEntries(VA_BESCHR.map(k => [k, an_])); vaKarte(); vaLive(); });
+      box.querySelectorAll("[data-va-beschr]").forEach(c => c.addEventListener("change", () => { w.beschr = Object.assign({}, w.beschr, { [c.dataset.vaBeschr]: !!c.checked }); vaKarte(); vaLive(); }));
+      // Linie: Laufpunkt, Farbe, Strich, Breite, Effekte, Vorab-Strecke, „Wie die Karte“
+      box.querySelector("#va-lp")?.addEventListener("click", (e) => { const b = e.target.closest("[data-va-lp]"); if (!b) return; w.lp = b.dataset.vaLp; vaLinie(); vaLive(); });
+      box.querySelector("#va-lp-fz")?.addEventListener("change", (e) => { w.lpFz = e.target.value; vaLive(); });
+      const lsSetz = (patch_) => { w.ls = Object.assign({}, w.ls, patch_); vaLinie(); vaLive(); };
+      box.querySelector("#va-ls-farben")?.addEventListener("click", (e) => { const b = e.target.closest("[data-va-farbe]"); if (b) lsSetz({ farbe: b.dataset.vaFarbe }); });
+      box.querySelector("#va-ls-farben")?.addEventListener("change", (e) => { if (e.target.id === "va-ls-eigen") lsSetz({ farbe: e.target.value }); });
+      box.querySelector("#va-ls-strich")?.addEventListener("click", (e) => { const b = e.target.closest("[data-va-strich]"); if (b) lsSetz({ strich: b.dataset.vaStrich }); });
+      box.querySelector("#va-ls-breite")?.addEventListener("input", (e) => { const v_ = box.querySelector("#va-ls-breite-v"); if (v_) v_.textContent = (+e.target.value).toFixed(1) + " px"; });
+      box.querySelector("#va-ls-breite")?.addEventListener("change", (e) => lsSetz({ breite: +e.target.value }));
+      [["va-ls-kontur", "kontur"], ["va-ls-schatten", "schatten"], ["va-ls-leuchten", "leuchten"]].forEach(([id, k]) =>
+        box.querySelector("#" + id)?.addEventListener("change", (e) => lsSetz({ [k]: !!e.target.checked })));
+      box.querySelector("#va-ghost")?.addEventListener("change", (e) => { w.ghost = !!e.target.checked; vaLive(); });
+      box.querySelector("#va-ls-zurueck")?.addEventListener("click", () => { w.ls = {}; w.ghost = null; vaLinie(); vaLive(); });
+      // Fotos als: Sofortbild · Groß mit Halt · Bild im Bild (die Halte folgen der Art, bis man sie selbst ändert)
+      box.querySelector("#va-fa")?.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-va-fa]"); if (!b) return;
+        w.fotoArt = b.dataset.vaFa; delete w.halteAlle;
+        box.querySelectorAll("[data-va-fa]").forEach(x => x.classList.toggle("is-on", x === b));
+        try { fotosInfo(); zutatenStand(); vorschau.inhalt(); } catch (err) { if (window.rzSwallow) rzSwallow(err, "assistent:fotoart"); }
+        vaHalte(); try { fotosZeigen(); } catch (_) {}
+        vaLive();
+      });
       // ✕ = „Assistent beenden?“ mit Übernehmen/Verwerfen — das Schließen-Symbol verwirft nie stillschweigend
       const fuss = m.el && m.el.querySelector(".va-f-fuss");
       function endeZeigen(an_) { if (fuss) fuss.classList.toggle("va-ende-an", !!an_); const e = document.getElementById("va-ende"); if (e) e.hidden = !an_; }
@@ -2630,7 +2864,7 @@
         if (h && h.getAttribute("aria-expanded") === "false") h.click();
         // das Fenster liegt über der Seitenleiste — einklappen, damit man den Bereich sieht
         if (m.el && !m.el.classList.contains("va-zu")) m.el.querySelector("[data-va-klapp]")?.click();
-        vaLeuchten(7);
+        vaLeuchten(3);
       });
       box.querySelector("[data-va-musik-alle]")?.addEventListener("click", () => box.querySelector("#va-musik-liste")?.classList.toggle("alle"));
       box.querySelector("[data-va-merken]")?.addEventListener("click", (e) => {
@@ -2652,8 +2886,9 @@
       box.querySelector("#va-looks")?.addEventListener("click", (e) => {
         const b = e.target.closest("[data-va-look]"); if (!b) return;
         w.look = b.dataset.vaLook;
+        if (LOOK_VORLAGE[w.look]) { w.vorlage = LOOK_VORLAGE[w.look]; w.eigeneVorlage = null; }
         box.querySelectorAll("[data-va-look]").forEach(x => x.classList.toggle("is-on", x === b));
-        vorschau.stil();
+        vorschau.stil(); vaKarte(); vaLinie();   // Beschriftung und Linie ohne eigene Wahl folgen dem Look
       });
       box.querySelector("#va-kamera")?.addEventListener("click", (e) => {
         const b = e.target.closest("[data-va-kamera]"); if (!b) return;
