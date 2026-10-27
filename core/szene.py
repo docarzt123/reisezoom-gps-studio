@@ -783,7 +783,7 @@ def _kamera_schreiben(ziel: str, cfg, projekt_id: str, kopf: dict, bilder: dict,
     import sys as _sys
     kopf = kopf or {}
     kopf["punkte"] = _kamera_hoehen(kopf.get("punkte") or [], kopf.get("gpx") or "")
-    # 27.10.2026 (B11) — weitere Touren (Schwarm, „Ganz zeigen“, Etappen) mit Höhen aus ihrer GPX-Datei
+    # 27.10.2026 — weitere Touren (Schwarm, „Ganz zeigen“, Etappen) mit Höhen aus ihrer GPX-Datei
     touren = []
     for t in kopf.get("weitere_touren") or []:
         t = dict(t)

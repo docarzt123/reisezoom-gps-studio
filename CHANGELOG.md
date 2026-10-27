@@ -14,9 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.843] – 2026-10-27
+## [0.9.844] – 2026-10-27
 
-(0.9.839–0.9.842 were local builds only; their changes ship with this version.)
+(0.9.839–0.9.842 were local builds only, 0.9.843 was tagged but not published; their changes ship with this version.)
 
 ### Added
 - **Command line, `camera-export`: further tours** — stages of a trip, swarm tours and tours shown „whole“ are now in the
@@ -36,6 +36,13 @@ Bei jeder neuen Version:
 - **Dashed line looked solid in the video**: with an outline or shadow the dashes ran together — the wider layers have
   round ends that reached into the gaps (outline: 0.5 px gap left, shadow: none). Outline, shadow, glow and the faint
   full route now leave exactly the gaps of the line itself and sit centred on each dash.
+- **Dashed line still solid on long tours** (video and transparent export): the route line was measured along the whole
+  tour (MapLibre `lineMetrics`, needed only for colour gradients and stage gaps), so on long tours one dash became
+  hundreds of metres long. A dashed line without gradient now uses a source without `lineMetrics`; switching colours on
+  or off rebuilds it.
+- **Command line, further tours with a relative `gpx_path`** were looked up from the folder the command was started in,
+  so `camera-export` and `overlay-export` could see different tours — and a different camera. They are now looked up
+  next to the .rzproj (also in groups such as „Show whole“); a missing file is reported.
 - **Command line, `overlay-export --without-track`** left tours shown „whole“ in the overlay; they are now left out like
   the other tours (3D tools draw them from the camera export).
 - Building the app no longer ends running command-line exports (`camera-export`, `overlay-export`): only the app window is

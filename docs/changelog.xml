@@ -5,12 +5,12 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 27 Oct 2026 09:34:54 +0000</lastBuildDate>
+<lastBuildDate>Tue, 27 Oct 2026 10:23:31 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
-<title>v0.9.843</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-843</link>
-<guid isPermaLink="false">gps-studio-v0.9.843</guid>
+<title>v0.9.844</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-844</link>
+<guid isPermaLink="false">gps-studio-v0.9.844</guid>
 <pubDate>Tue, 27 Oct 2026 12:00:00 +0000</pubDate>
 <description>Video-Assistent wie im Web-Studio — Acht Reiter: Strecke, Kamera, Karte, Linie, Titel, Fotos, Infos, Video. Jeder ist jederzeit anklickbar und schon sinnvoll eingestellt. Neu: Kamerahöhe nah/mittel/hoch, 3D-Gelände und Beschriftung, ein eigener Reiter für die Linie und „Fotos als“ Sofortbild, groß mit Pause oder Bild im Bild. Ein „?“ erklärt jede Einstellung, oft mit kurzen Clips, wie es im Video aussieht.
 
@@ -18,7 +18,7 @@ Musik ist erst einmal aus — im Schnell-Video und im Assistenten. Wählst du ei
 
 Zeitleiste zeigt nur, was du brauchst — Wird sie zu hoch, klappt sie zu, woran du gerade nicht arbeitest. Ein Klick öffnet alles wieder. Eine Gruppe mit sehr vielen Zeilen (etwa 50 Schilder) rollt in sich, statt die Vorschau zuzudecken.
 
-Gestrichelte Linie bleibt gestrichelt — Mit Kontur oder Schatten liefen die Striche im Video ineinander. Jetzt sind die Lücken wirklich frei.</description>
+Gestrichelte Linie bleibt gestrichelt — Mit Kontur oder Schatten liefen die Striche im Video ineinander, auf langen Touren wurde die Linie sogar ganz durchgezogen. Jetzt sind die Lücken wirklich frei.</description>
 </item>
 <item>
 <title>v0.9.838</title>

@@ -8488,7 +8488,7 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   `map_style` „kartenlook“ + `kartenlook.id`, sonst `RZ_NORTH_SVG`). Animator: `_kompassSvg()` im Container „nord“,
   `_kompassAktualisieren()` nach jedem Stil-Laden (`rebuildPreviewLayers`). Python-Spiegel `core/northarrow.py
   north_svg_fuer()` (liest dieselben Dateien; Web-Karten-Export). Test `test_kompass`.
-- **Kamera-Export: weitere Touren (27.10.2026, B11 GPS Studio Karten).** `__rzKameraKopf().weitere_touren` =
+- **Kamera-Export: weitere Touren (27.10.2026).** `__rzKameraKopf().weitere_touren` =
   `__rzKameraTouren()` (module.js `_kamTourenListe`): in fester Reihenfolge `art` „laufend“ (`_swPrev`: Schwarm,
   Taktgeber außerhalb der Kette), „ganz“ (`_ganzPrev`, §72) und „etappe“ (`_reiseBahn.teile[1…]`, Quellen
   `mtour-prev-*`), je `{name, gpx, punkte[[lon,lat,ele]] wie gezeichnet (gedünnt), stil{farbe, breite, deckkraft, strich,
@@ -8499,11 +8499,11 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   `e.__z` (`_ganzAdvance`), `_reiseBahn.__quellStand[i].ende`. `track.haupt_bis` = `_reiseBahn.teile[0].bis` bei einer
   Reise (die Hauptlinie zeichnet nur Etappe 1), sonst null. Test `tests/test_kamera_export_touren.py` (Reise, Schwarm,
   Ganz zeigen).
-- **`overlay-export --with-labels` (27.10.2026, B10).** `params.overlay_mit_beschriftung` → `mode.mitBeschriftung` →
+- **`overlay-export --with-labels` (27.10.2026).** `params.overlay_mit_beschriftung` → `mode.mitBeschriftung` →
   `_alphaRenderEbenen` überspringt Symbol-Ebenen (außer eigenen Spur-Ebenen); welche sichtbar sind, haben vorher die
   Beschriftungs-Schalter gesetzt. Ergebnis-Zeile `"labels": bool`. `--without-track` blendet jetzt auch `ganz-prev-*` aus.
   Test `tests/test_cli_overlay_export.py` Teil E (Luftbild + Beschriftung).
-- **Strichmuster je Ebene (27.10.2026, A4).** `rzDashFuerBreite(muster, lw, ebeneW)` (ui/js/util.js, Spiegel
+- **Strichmuster je Ebene (27.10.2026).** `rzDashFuerBreite(muster, lw, ebeneW)` (ui/js/util.js, Spiegel
   `core/animator.py _dash_fuer_breite`): runde Enden verlängern jeden Strich um die halbe EBENEN-Breite; mit dem alten
   „gleiche Pixellänge“-Muster füllten Kontur (lw + 2·Kontur) und Schatten (2,2·lw) die Lücken (Kontur 0,5 px Rest,
   Schatten keiner) — gestrichelt sah durchgezogen aus. Jetzt: gleiche sichtbare Strichlänge wie die Linie, gleiche
@@ -8512,7 +8512,18 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   laufen die Ebenen über die Länge auseinander). Darum benutzt auch die Linie selbst (`currentDasharray`) das zentrierte
   Muster; das eingestellte Muster liefert `currentDashBasis()`. Test `tests/test_track_gestrichelt_abspielen.py`
   (Ebenen beim Abspielen gestrichelt, JS = Python, Periode, sichtbare Länge).
-- **`build.sh` schont Kommandozeilen-Aufrufe (27.10.2026, B9).** Statt `pkill -f ReisezoomGPSStudio` beendet
+- **Strichlinie und `lineMetrics` (27.10.2026).** Mit `lineMetrics: true` rechnet MapLibre die Linienstrecke je Kachel als
+  Anteil der GANZEN Linie (`lineClips`, `scaledDistance · (MAX_LINE_DISTANCE − 1)`) statt in Kachel-Einheiten — das
+  Strichmuster wächst mit der Tourlänge, auf langen Touren ist ein Strich Hunderte Meter lang (sieht durchgezogen aus).
+  `preview-track` bekommt `lineMetrics` darum nur, wenn `_trackBrauchtLm()` (kein Strich, oder Verlauf `_verlaufAn`
+  bzw. Maske `_maskeAusdruck`) es verlangt; `rebuildPreviewLayers` legt Quelle samt Ebenen neu an, wenn sich das ändert
+  (`_trackLm`), `applyPreviewColorGradient` stößt das über `applyLineStyle()` an (Verlauf/Maske an ↔ aus;
+  `_trackLmMuss` verhindert Hin und Her je Koordinatensatz). Test `test_track_gestrichelt_abspielen` (Quelle mit/ohne
+  `lineMetrics`, Verlauf an und aus).
+- **Kommandozeile: relative Tour-Pfade (27.10.2026).** `cli._tourpfade_neben_paket`: relative `extra_tours[].gpx_path`
+  gelten neben der .rzproj (nicht im Startordner); derselbe Pfad wird überall im Animator-Block ersetzt (Gruppen
+  `mitglieder[]` usw.), fehlende Dateien gehen als `warning:` auf stderr. Test `test_cli_tourpfade`.
+- **`build.sh` schont Kommandozeilen-Aufrufe (27.10.2026).** Statt `pkill -f ReisezoomGPSStudio` beendet
   `_rz_fenster_beenden` nur Prozesse `….app/Contents/MacOS/ReisezoomGPSStudio` ohne ` cli `; vor dem Ersetzen des
   Bundles wartet `_rz_cli_abwarten` auf laufende `… cli …`-Aufrufe (laden Module aus dem Bundle nach), höchstens
   `RZ_BUILD_CLI_WARTEN_MIN` (Standard 90) Minuten.

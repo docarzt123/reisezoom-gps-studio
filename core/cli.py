@@ -457,7 +457,39 @@ def _paket_projekt(app, api, paket: Path):
         kand = [kv for kv in kand if str(kv[1].get("name") or "").startswith(aktiv_name)] or kand
     if not kand:
         return {"ok": False, "error": "no project in the package"}
+    _tourpfade_neben_paket(app, P, projekte, kand[0][0], paket)
     return kand[0]
+
+
+def _tourpfade_neben_paket(app, P, projekte: dict, pid: str, paket: Path) -> None:
+    """27.10.2026 — weitere Touren mit relativem `gpx_path` gelten neben der .rzproj, nicht im Startordner der
+    Kommandozeile: sonst sahen Kamera- und Overlay-Export je nach Aufrufort verschiedene Touren (und damit eine andere
+    Kamera). Was dort auch nicht liegt, wird gemeldet."""
+    an = (projekte.get(pid) or {}).get("animator") or {}
+    neu = {}
+    for t in an.get("extra_tours") or []:
+        roh = str((t or {}).get("gpx_path") or "")
+        if not roh or Path(roh).is_absolute() or roh in neu:
+            continue
+        neben = (paket.parent / roh).resolve()
+        if neben.is_file():
+            neu[roh] = str(neben)
+        else:
+            _melden(f"warning: tour file not found next to the package: {roh}")
+
+    def tauschen(x):   # derselbe Pfad steht auch in Gruppen (gruppen[].mitglieder[].gpx_path), Reihenfolgen usw.
+        if isinstance(x, dict):
+            return {k: tauschen(v) for k, v in x.items()}
+        if isinstance(x, list):
+            return [tauschen(v) for v in x]
+        return neu.get(x, x) if isinstance(x, str) else x
+    geaendert = bool(neu)
+    if geaendert:
+        projekte[pid]["animator"] = tauschen(an)
+    if geaendert:
+        daten = P.laden(app.DATEN_ORT)
+        (daten.get("projects") or {})[pid] = projekte[pid]
+        P.speichern(app.DATEN_ORT, daten)
 
 
 def kamera_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0) -> dict:

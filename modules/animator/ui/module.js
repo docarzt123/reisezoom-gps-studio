@@ -7626,12 +7626,22 @@ function mountAnimator(body, headerActions, opts) {
     if (typeof window.__rzEtappeNeuZeichnen === "function") setTimeout(() => { try { window.__rzEtappeNeuZeichnen(); } catch (e) { applog("warn", "[etappe] nach Stilwechsel: " + e); } }, 0);
     const color = currentLineColor();
     const lw = currentLineWidth();
+    // 27.10.2026 — mit lineMetrics misst MapLibre Striche am Anteil der ganzen Linie (lineClips), nicht in
+    // Linienbreiten: auf langen Touren werden die Striche riesig, die Linie wirkt durchgezogen. Gestrichelt ohne
+    // Verlauf/Maske deshalb ohne lineMetrics; ändert sich das, wird die Quelle samt Ebenen neu angelegt.
+    const lm = _trackBrauchtLm();
+    if (map.getSource("preview-track") && _trackLm !== null && _trackLm !== lm) {
+      try {
+        for (const l of (map.getStyle().layers || [])) if (l.source === "preview-track") map.removeLayer(l.id);
+        map.removeSource("preview-track");
+      } catch (e) { applog("warn", "[track] Quelle neu: " + e); }
+    }
     if (!map.getSource("preview-track")) {
+      _trackLm = lm;
       map.addSource("preview-track", {
         type: "geojson",
-        // v0.9.434 — lineMetrics für die Track-Alterung (line-gradient). Immer an,
-        // damit ein Laufzeit-Toggle die Source nicht neu aufbauen muss (harmlos).
-        lineMetrics: true,
+        // v0.9.434 — lineMetrics für die Track-Alterung (line-gradient)
+        lineMetrics: lm,
         data: { type: "Feature", geometry: { type: "LineString", coordinates: currentCoords || [] } },
       });
     } else if (currentCoords) {
@@ -8256,6 +8266,9 @@ function mountAnimator(body, headerActions, opts) {
       // zusammen — wo die Maske greift, entfällt der Strich-Stil).
       // Neuer Track → neu rechnen (Selbst-Invalidierung über die Array-Identität).
       const m = _maskeAusdruck(i0, i1);
+      // 27.10.2026 — Quelle passend zu Maske/Strich (lineMetrics), sonst Neuaufbau
+      if (m && _trackLm === false) _trackLmMuss = currentCoords;
+      if ((m && _trackLm === false) || (!m && _trackLm === true && currentDasharray() && !_trackBrauchtLm())) { applyLineStyle(); _gradStand = null; }
       // Ohne Maske (eine Tour, kein Verlauf) steht der Wert bild für bild auf null —
       // einmal je Ebenen-Satz schreiben reicht.
       if (!m && _gradStand && _gradStand.leer === _gradStand.lyr && _gradStand.lyr) { window.__rzPerfZaehler.gradUebersprungen++; window.__rzPerfZaehler.setPaint--; _colorsPrevOn = false; return; }
@@ -8291,6 +8304,7 @@ function mountAnimator(body, headerActions, opts) {
     // 20.09.2026 (Beta-Tester, Windows: „Mehrere Track-Farben" aus → Track bleibt bunt):
     // der Merker „kein Verlauf gesetzt" wurde beim Einschalten nie gelöscht — das
     // Ausschalten übersprang deshalb das Zurücksetzen. Hier steht jetzt ein Verlauf.
+    if (_trackLm === false) { applyLineStyle(); _gradStand = null; }   // 27.10.2026 — Verlauf braucht lineMetrics
     if (_gradStand) _gradStand.leer = null;
     const g = _verlaufAusdruck(i0, i1, metric);
     if (_segStarts && _segStarts.length && map.getLayer("preview-kontur")) {
@@ -8364,6 +8378,17 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzTagesFarben = () => ({ an: currentFarbeJeTag(), starts: _tagesStarts().slice(), farben: [0, 1, 2, 3].map(_tagesFarbe) });   // Prüfstand
 
   /** Der helle Kern bekommt nur die Lücken der Etappen (in Weiß), nie den Farbverlauf. */
+  // 27.10.2026 — braucht die Hauptlinie lineMetrics (Verlauf oder Maske)? Gestrichelt ohne beides: nein (s. rebuildPreviewLayers)
+  var _trackLm = null, _trackLmMuss = null;   // _trackLmMuss: für diese Koordinaten kam schon eine Maske (kein Hin und Her)
+  function _trackBrauchtLm() {
+    if (!currentDasharray() || (_trackLmMuss && _trackLmMuss === currentCoords)) return true;
+    try {
+      if (_verlaufAn(previewMetricArr())) return true;
+      const n = currentCoords ? currentCoords.length : 0;
+      if (n > 1 && _maskeAusdruck(0, n - 1)) return true;
+    } catch (_) { return true; }
+    return false;
+  }
   function _kernMaske(i0, i1, mitLuecken) {
     if (!map || !map.getLayer("preview-kern")) return;
     let mk = null;
@@ -25424,7 +25449,7 @@ function mountAnimator(body, headerActions, opts) {
              padding: pad && (pad.top || pad.bottom || pad.left || pad.right) ? pad : null,
              touren_fortschritt: _kamTourenBild() };
   };
-  /** 27.10.2026 (GPS Studio Karten B11) — weitere Touren für den Kamera-Export, in fester Reihenfolge:
+  /** 27.10.2026 (für 3D-Programme) — weitere Touren für den Kamera-Export, in fester Reihenfolge:
    *  „laufend“ (Schwarm, Taktgeber außerhalb der Kette — _swPrev), „ganz“ (§72 Ganz zeigen — _ganzPrev) und „etappe“
    *  (Etappen 2 … n einer Reise — eigene Quellen mtour-prev-*). Koordinaten so, wie die Szene sie zeichnet (gedünnt). */
   function _kamTourName(tour, gpx) {
@@ -25503,7 +25528,7 @@ function mountAnimator(body, headerActions, opts) {
              viewport_css: [cont.clientWidth, cont.clientHeight], leinwand_px: [cv.width, cv.height], kartenstil: map.__rzSpec ? (map.__rzSpec.id || null) : null,
              projekt: { id: (_activeProject && _activeProject.id) || null, name: (_activeProject && _activeProject.name) || null },
              gpx: currentGpx || null,
-             // 27.10.2026 (B11) — weitere Touren; bei einer Reise zeichnet die Hauptlinie nur die erste Etappe (bis Punkt haupt_bis)
+             // 27.10.2026 — weitere Touren; bei einer Reise zeichnet die Hauptlinie nur die erste Etappe (bis Punkt haupt_bis)
              weitere_touren: window.__rzKameraTouren(),
              haupt_bis: (_reiseAktiv() && _reiseBahn && _reiseBahn.teile[0]) ? _reiseBahn.teile[0].bis : null };
   };
