@@ -1514,13 +1514,15 @@ function uebersetzeMarkup(wurzel) {
  * rohe Key in der UI. Diese Signatur schaltet ~780 vorhandene Fallbacks
  * scharf, ohne die 11 Platzhalter-Aufrufe zu brechen.
  */
-/** Pace aus km/h: „5:23 min/km“ (11.10.2026, für Läufer). Unter ~1,5 km/h (Stehen, Pause) „—“ statt einer Riesenzahl. */
-function fmtPace(kmh) {
+/** Pace aus km/h: „5:23 min/km“ (11.10.2026, für Läufer). Unter ~1,5 km/h (Stehen, Pause) „—“ statt einer Riesenzahl.
+ *  27.10.2026 — `je` = "mi" rechnet je Meile („8:40 min/mi“). */
+function fmtPace(kmh, je) {
   const v = Number(kmh);
   if (!(v >= 1.5) || !isFinite(v)) return "—";
-  let sek = Math.round(3600 / v);
+  const mi = je === "mi";
+  let sek = Math.round(3600 * (mi ? 1.609344 : 1) / v);
   const m = Math.floor(sek / 60), s = sek - m * 60;
-  return m + ":" + String(s).padStart(2, "0") + " min/km";
+  return m + ":" + String(s).padStart(2, "0") + (mi ? " min/mi" : " min/km");
 }
 window.fmtPace = fmtPace;
 

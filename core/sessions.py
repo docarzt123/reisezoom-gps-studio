@@ -293,7 +293,8 @@ def _project_from_defaults(name: str, defaults: dict) -> dict:
     # Wasserzeichen — sie sollen nicht plötzlich ein Logo im Video haben.
     # `@lockup-white` ist ein Sentinel, kein Pfad: er löst sich auf jedem
     # Rechner auf und überlebt den Projekt-Export.
-    anim.setdefault("watermark", {"path": "@lockup-white", "x": 84.5, "y": 91.3,
+    # 27.10.2026 (Marc: „unten überlagert es immer den Kompass“) — oben mittig statt unten rechts (x = 50 − w/2)
+    anim.setdefault("watermark", {"path": "@lockup-white", "x": 42.5, "y": 3,
                                   "w": 15, "op": 0.65})
     # 05.10.2026 (Farbkonzept „Nachtkarte“, Marc: „Gelbgrün, und wenn wir zum Track generell auch noch eine eigene
     # Konturfarbe bekommen, ist das auch cool“) — NEUE Projekte starten mit gelbgrüner Route und dunkler Kontur.

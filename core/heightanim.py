@@ -1137,6 +1137,16 @@ async def render(cfg: HeightConfig,
 
         emit(0.92, _t("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
         mux.abschliessen(is_cancelled)   # warten (Zeitgrenze), prüfen, Teildatei → Ziel
+        # 27.10.2026 — Herkunft im Video (©too/©cmt), wie beim Animator (core/videometa)
+        try:
+            import sys as _sys
+            from core import videometa as _vm
+            _app = _sys.modules.get("app") or _sys.modules.get("__main__")
+            _v = str(getattr(_app, "APP_VERSION", "") or "")
+            if _v:
+                _vm.schreiben(cfg.output_path, _v, cfg.width, cfg.height, cfg.fps)
+        except Exception as _e:  # noqa: BLE001 — das Video ist fertig, daran soll es nicht scheitern
+            _log.warning("Video-Herkunft: %s", _e)
 
         await browser.close()
 

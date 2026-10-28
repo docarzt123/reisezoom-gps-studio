@@ -761,6 +761,8 @@ Die App wählt die Quelle anhand der Track-Lage; unter dem Stil-Feld steht, welc
 >
 > 💡 **Gratistarif:** 100.000 Kachelabrufe pro Monat, das reicht für viele Renders. Er ist auf **nicht-kommerzielle Nutzung** begrenzt — für einen monetarisierten Kanal ist der Flex-Tarif (ca. 30 $/Monat) gedacht. Videos für Kanäle bis 100.000 Abonnenten sind laut MapTiler Cloud Terms §5 erlaubt; darüber vorher bei MapTiler nachfragen.
 
+> ⚠️ **Was MapTiler außerdem verlangt (seit v0.9.845 in der App umgesetzt):** Im Gratistarif müssen Nennung **und MapTiler-Logo** die ganze Zeit sichtbar sein. **Standbilder und Screenshots** mit MapTiler-Karte darfst du nicht weitergeben (nur Videos). Die Karte darf nicht verändert werden — **Schärfe, Dunst und Abdunkeln bleiben bei MapTiler deshalb aus**. **Auftragsvideos für andere** (Veranstalter, Firmen) deckt auch Flex nicht, dafür braucht es einen eigenen Vertrag mit MapTiler. Ein 1-Minuten-Video braucht grob 400–500 Kachelabrufe, die Vorschau beim Bearbeiten meist mehr.
+
 #### Mapbox-Token besorgen (kostenlos — aber lies erst den Hinweis)
 Mapbox erlaubt die **Veröffentlichung von Videos** mit seinem Kartenmaterial **nur mit gekauften Videorechten** (Product Terms §1.7 „Print or Video Use"). Für YouTube, Instagram & Co. also einen kostenlosen Stil oder MapTiler nehmen. Der Token ist trotzdem sinnvoll, wenn du die Mapbox-Stile privat nutzt oder Rechte gekauft hast.
 
@@ -802,6 +804,8 @@ Ein Klick öffnet ein Fenster in der Mitte mit allem, was nur die Ausgabedatei b
 
 Der kleine Pfeil **▾** neben dem Knopf bietet **Aktuelles Bild exportieren** (das Bild, das gerade in der Vorschau
 steht, als PNG) und **Als Tour-Map öffnen**. Die Export-Einstellungen gelten je Projekt; Esc schließt das Fenster.
+
+**Herkunft im Video (seit v0.9.845).** Jedes exportierte Video trägt in seinen Metadaten „GPS Studio by Reisezoom.com“ mit Version, System, Größe und Bildrate, dazu den Titel deiner Tour, falls du einen gesetzt hast. Persönliches steht nicht drin. Schickst du mir ein Video, das irgendwo nicht läuft, sehe ich so sofort, womit es gebaut wurde.
 
 ### 🖼 Medien der Tour (seit v0.9.782)
 
@@ -1992,6 +1996,9 @@ Verschiedenes. Neben jedem steht ein **„?“**, das es erklärt; hier zum Nach
   bleiben, nimm den Ordner unter „Ordner & Einlesen“ heraus.
 * **In den Papierkorb** — verschiebt die Datei wirklich, in den Papierkorb deines
   Systems. Genau wie beim Löschen im Finder oder Explorer.
+  Hast du die Tour bearbeitet oder aus Fotos gemacht, zeigt das Archiv ihre neueste Version aus der Bibliothek; dann
+  fragt GPS Studio „Diese Tour mit allen Versionen in den Papierkorb legen?“ und räumt die ganze Tour weg — deine
+  eigene Datei und alle Versionen (seit v0.9.845).
 
 **Wann ist eine Datei endgültig weg?** Erst, wenn du deinen Papierkorb leerst.
 GPS Studio löscht nie selbst etwas endgültig; bis dahin kannst du die Datei dort
@@ -2701,6 +2708,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   - *WYSIWYG (seit v0.9.325):* Diese Werte laufen schon **in der Vorschau** mit — beim Ziehen des Scrubbers und im Probelauf zählen sie genau wie im fertigen Video, und das Höhenprofil füllt sich bis zur Marker-Position. Du siehst also vorab bildgenau, wie die Stats im Render aussehen.
 - **Gesamt:** Strecke, Zeit (Gesamtzeit), **Fahrzeit** (Bewegungszeit ohne Pausen), **Ø Tempo** (aus Fahrzeit), **Ø Tempo (gesamt)** (aus Gesamtzeit), **Max. Tempo**, Bergauf, Bergab, **Höchster Punkt**, **Tiefster Punkt**.
   - *Pace für Läufer (seit v0.9.789):* Neben dem Tempo gibt es **Pace** (live), **Ø Pace**, **Ø Pace (gesamt)** und **Beste Pace** in min/km. Bei einer Tour mit der Fortbewegung **Laufen** zeigen auch die Tempo-Werte automatisch Pace („Ø Pace 5:23 min/km“). In einer Wert-Zeile mit Tempo wählst du unter **„Tempo als“**: automatisch, km/h oder Pace — das gilt fürs ganze Projekt. Im Stand (unter 1,5 km/h) steht „—“ statt einer Riesenzahl; die Live-Pace ist geglättet, damit sie bei GPS-Rauschen nicht springt. Im Archiv steht bei Lauf-Touren zusätzlich die **Ø Pace**.
+  - *Einheiten (seit v0.9.845):* Strecke in **Kilometern, Meilen oder Seemeilen**, Höhe in **Metern oder Fuß**, Tempo in **km/h, mph, Knoten, m/s** oder als **Pace**. Du stellst das in einer Wert-Zeile ein: bei Strecken-Werten unter **„Strecke in“**, bei Höhen-Werten unter **„Höhe in“**, bei Tempo-Werten unter **„Tempo als“**. Es gilt fürs ganze Projekt — alle Einblendungen, die Höhepunkt-Schilder („Höchster Punkt“, „Schnellste Stelle“) und der Maßstab. „Automatisch“ beim Tempo folgt der Strecke: Meilen → mph, Seemeilen → Knoten, Laufen → Pace (bei Meilen in min/mi). Vorschau und Video zeigen dasselbe.
   - *Standard (seit v0.9.324):* Neue Tracks zeigen **Strecke · Fahrzeit · Ø Tempo · Max. Tempo · Aufstieg · Abstieg**. Die **Fahrzeit** ist die angezeigte Zeit statt der Gesamtzeit — beides bleibt frei wählbar. Hast du deine Lieblings-Auswahl eingestellt, merkt sich die App sie mit **„Als eigene Standardwerte speichern"** (Projekt-Menü) für **alle** neuen Projekte.
   - *Pausenerkennung:* Eine Pause ist ein Abschnitt, in dem du über ein **60-Sekunden-Fenster netto kaum vorangekommen** bist — nicht das momentane Tempo zählt. So gilt langsames Steil-Gehen (~1 km/h, aber stetig) als Bewegung, nur echtes Stehenbleiben als Pause.
   - *Genauigkeit (seit v0.9.324):* **Fahrzeit** und **Max. Tempo** werden auf der **vollen Track-Auflösung** berechnet — das Spitzentempo wird nicht mehr durch die Render-Vereinfachung weggeglättet.
@@ -3856,6 +3864,7 @@ gpsstudio render tour.gpx --template "Mein Wanderlook" --format 9:16 --length 40
 gpsstudio map-image 11660e04ed1c9695 --out karte.png
 gpsstudio camera-export --rzproj tour.rzproj --out tour.kamera.json
 gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay.mov
+gpsstudio project-render --rzproj tour.rzproj --height 1080 --out tour.mp4
 ```
 
 - **Tour:** eine GPX-/FIT-/…-Datei (irgendwo, muss nicht im Archiv liegen), die **id** aus `gpsstudio tours` oder ein
@@ -3874,6 +3883,12 @@ gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay
   Strecke und Laufpunkt weg (auch weitere Touren), `--with-labels` lässt die Beschriftung der Karte stehen (Orte, POIs,
   Straßen, Verkehr — so, wie die Schalter im Projekt stehen; die Karte selbst bleibt durchsichtig), `--frames 600,1199`
   schreibt nur diese Bilder als PNG (zum Testen).
+- **Projekt-Video (seit v0.9.845):** `project-render` rendert das Video eines exportierten Projekts **genau wie der
+  Video-Export der App** — Keyframes, Schilder, Fotos, Touren, Beschriftung und Musik wie im Projekt, Bild für Bild
+  deckungsgleich mit `camera-export`. `--height 1080` macht aus einem 4K-Projekt Full HD (Breite nach dem
+  Seitenverhältnis), `--size 1920x1080` ebenso; ein anderes Seitenverhältnis lehnt der Befehl ab. Qualität und Codec
+  kommen aus *Einstellungen → Qualität & Export*, `--out …mov` liefert ProRes 422. Auch für KI-Assistenten als
+  Werkzeug `render_project`.
 - **Mehrere Touren:** `camera-export` liefert auch Etappen, Schwarm-Touren und Touren „Ganz zeigen“ — je Tour die
   Strecke und ihr Aussehen, je Bild, wie weit sie gezeichnet ist und wie deckend.
 

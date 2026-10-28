@@ -721,6 +721,8 @@ La app elige la fuente según la posición del track; bajo el campo de estilo se
 >
 > 💡 **Plan gratis:** 100.000 peticiones de teselas al mes, suficiente para muchos renders. Está limitado a **uso no comercial** — un canal monetizado necesita el plan Flex (unos 30 $/mes). Los vídeos para canales de hasta 100.000 suscriptores están permitidos según MapTiler Cloud Terms §5; por encima, pregunta antes a MapTiler.
 
+> ⚠️ **Lo que MapTiler exige además (aplicado en la app desde v0.9.845):** En el plan gratis la atribución **y el logo de MapTiler** deben verse todo el tiempo. No puedes compartir **imágenes fijas ni capturas** con mapa de MapTiler (solo vídeos). El mapa no se puede alterar: **nitidez, neblina y oscurecer quedan desactivados con MapTiler**. Los **vídeos por encargo para terceros** (organizadores, empresas) tampoco los cubre Flex; hace falta un contrato propio con MapTiler. Un vídeo de un minuto necesita unas 400–500 peticiones de teselas; la vista previa al editar, normalmente más.
+
 #### Conseguir un token de Mapbox (gratis — pero lee antes el aviso)
 Mapbox permite **publicar vídeos** con su cartografía **solo con derechos de vídeo comprados** (Product Terms §1.7 «Print or Video Use»). Para YouTube, Instagram, etc. elige un estilo gratis o MapTiler. El token sigue teniendo sentido si usas los estilos Mapbox en privado o has comprado derechos.
 
@@ -762,6 +764,8 @@ clic abre una ventana en el centro con todo lo que solo afecta al archivo de sal
 
 La pequeña flecha **▾** junto al botón ofrece **Exportar fotograma actual** (la imagen que se ve en la vista previa,
 como PNG) y **Abrir como Tour-Map**. Los ajustes de exportación se guardan por proyecto; Esc cierra la ventana.
+
+**Origen en el vídeo (desde v0.9.845).** Cada vídeo exportado lleva en sus metadatos «GPS Studio by Reisezoom.com» con versión, sistema, tamaño y fotogramas por segundo, además del título de tu recorrido si le pusiste uno. No guarda nada personal. Si me mandas un vídeo que no se reproduce en algún sitio, veo enseguida con qué se hizo.
 
 ### 🖼 Medios de la ruta (desde v0.9.782)
 
@@ -1905,6 +1909,9 @@ distintas. Junto a cada uno hay un **«?»** que lo explica; para consultarlo:
   lectura».
 * **A la papelera**: mueve el fichero de verdad, a la papelera de tu sistema.
   Igual que al borrarlo en Finder o en el Explorador.
+  Si editaste el recorrido o lo creaste a partir de fotos, el archivo muestra su versión más reciente de la biblioteca;
+  entonces GPS Studio pregunta «¿Mover este recorrido con todas sus versiones a la papelera?» y retira el recorrido
+  entero: tu propio fichero y todas las versiones (desde v0.9.845).
 
 **¿Cuándo desaparece un archivo del todo?** Solo cuando vacías la papelera. GPS
 Studio nunca borra nada de forma definitiva por su cuenta; hasta entonces puedes
@@ -2559,6 +2566,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
   - *Detección de pausas:* una pausa es un tramo en el que, a lo largo de una **ventana de 60 segundos, apenas has avanzado neto** — no cuenta la velocidad momentánea. Así, caminar despacio en fuerte pendiente (~1 km/h, pero de forma constante) cuenta como movimiento, y solo la detención real cuenta como pausa.
   - *Precisión (desde v0.9.324):* el **tiempo en movimiento** y la **velocidad máx.** se calculan sobre la **resolución completa del track** — la velocidad punta ya no se suaviza y elimina por la simplificación del render.
   - *Ritmo para corredores (desde v0.9.789):* Además de la velocidad hay **Ritmo** (en vivo), **Ritmo medio**, **Ritmo medio (total)** y **Mejor ritmo** en min/km. En una ruta con el tipo **Correr**, los valores de velocidad pasan solos a ritmo («Ritmo medio 5:23 min/km»). En una fila de valor con velocidad eliges en **«Velocidad como»**: automático, km/h o ritmo, para todo el proyecto. Parado (por debajo de 1,5 km/h) aparece «—» en lugar de una cifra enorme; el ritmo en vivo está suavizado para que no salte con el ruido del GPS. En el archivo, las rutas de carrera muestran además el **ritmo medio**.
+  - *Unidades (desde v0.9.845):* Distancia en **kilómetros, millas o millas náuticas**, altitud en **metros o pies**, velocidad en **km/h, mph, nudos, m/s** o como **ritmo**. Se elige en una fila de valor: en los valores de distancia en **«Distancia en»**, en los de altitud en **«Altitud en»**, en los de velocidad en **«Velocidad como»**. Vale para todo el proyecto: todos los rótulos, los carteles de momentos destacados («Punto más alto», «Tramo más rápido») y la escala. «Automático» en la velocidad sigue a la distancia: millas → mph, millas náuticas → nudos, correr → ritmo (min/mi con millas). La vista previa y el vídeo muestran lo mismo.
 - **❤️ Valores de sensores (desde v0.9.330):** si tu track trae datos de sensores — como un **archivo FIT/TCX** de Garmin, Wahoo, Polar o Coros, o un **archivo GPX con extensiones de frecuencia cardíaca** —, los campos disponibles (**frecuencia cardíaca, cadencia, temperatura, potencia** y quizá otros) aparecen automáticamente **al final de la lista de campos en directo**. Marca, ordena y da estilo como a cualquier otro valor en directo; corren en el render y en la vista previa **punto por punto, sincronizados con el track** (WYSIWYG). Si tu track no tiene sensores, aquí tampoco aparece nada.
   - **✎ Renombrar y unidad (desde v0.9.334):** cada campo de sensor tiene un **✎**. Con él puedes cambiar la **etiqueta y la unidad por proyecto** — hacer legibles abreviaturas crípticas de dispositivo como `GRD_PCT` o `NGP`, renombrar «cadencia» al correr como «cadencia de zancada / spm», o indicar la velocidad en «nudos» al navegar a vela. «Restablecer» devuelve el valor por defecto.
 - Los valores que tu track no proporciona (p. ej. velocidad/tiempo sin marcas de tiempo, altitud/pendiente sin datos de altitud) se **atenúan automáticamente**.

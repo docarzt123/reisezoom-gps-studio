@@ -237,7 +237,8 @@
       zeit: { von: { art: "video_ende", wert: 2.5 }, bis: null },
       blende: { ein: "fade", aus: "none", ein_s: 0.6, aus_s: 0.6 } })),
     logo: (t) => normalisieren(Object.assign({}, STILE.ohne, { stil: "ohne", vorlage: "logo", name: t("container.v.logo", "Logo"),
-      anker: "br", x: 2, y: 3, deckkraft: 0.65, zeilen: [zeile("bild", { pfad: "@lockup-white", b: 15 })] })),
+      // 27.10.2026 (Marc) — oben mittig: unten rechts teilte sich das Logo die Ecke mit Nordpfeil + Maßstab
+      anker: "tc", x: 0, y: 3, deckkraft: 0.65, zeilen: [zeile("bild", { pfad: "@lockup-white", b: 15 })] })),
     nord: (t) => normalisieren(Object.assign({}, STILE.ohne, { stil: "ohne", vorlage: "nord", name: t("container.v.nord", "Nordpfeil + Maßstab"),
       anker: "br", x: 2, y: 3, anordnung: "neben", spaltenabstand: 1, inhalt_v: "b",
       zeilen: [zeile("massstab"), zeile("nord")] })),

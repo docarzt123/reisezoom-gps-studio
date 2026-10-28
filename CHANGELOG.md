@@ -14,6 +14,38 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.845] – 2026-10-28
+
+### Added
+- **Units for overlays**: distance in kilometres, miles or nautical miles, elevation in metres or feet, speed as km/h,
+  mph, knots, m/s or pace (min/km, min/mi when the distance is in miles). Set per project in the overlay field editor
+  („Distance in“, „Elevation in“, „Show speed as“); applies to live and total values, stage and swarm sums, highlight
+  signs and the scale bar. „Automatic“ speed follows the distance unit (miles → mph, nautical miles → knots; running →
+  pace). Preview and video are identical.
+- **Command line, `project-render`**: renders the video of an exported project (.rzproj) exactly like the app's video
+  export — keyframes, signs, photos, tours, labels and music as in the project, same frames as `camera-export`.
+  `--height 1080` / `--size 1920x1080` render a 4K project in Full HD (aspect ratio must match), `--preview` as for the
+  other commands, `.mov` gives ProRes 422; quality from Settings → Quality & export. Also as MCP tool `render_project`.
+- **Videos say where they come from**: every exported MP4/MOV carries „GPS Studio by Reisezoom.com — Desktop <version>
+  <system>“ as software (©too), a comment with edition, version, system, size and frame rate (©cmt) and the tour title
+  if one is set (©nam) — same scheme as the web version. Nothing personal. Helps when someone sends a video that won't
+  play. Written with the bundled ExifTool; without it (Linux without the package) comment and title still come from
+  ffmpeg in MP4.
+
+### Changed
+- **MapTiler follows its terms more closely**: sharpening, haze and dimming are not applied to MapTiler maps (their
+  terms forbid modifying map content); the rights table no longer shows stills as allowed for MapTiler and notes that
+  the free plan needs credit and MapTiler logo visible and commissioned work needs a custom contract; source register
+  re-checked (27.10.2026).
+- **GPS Studio logo now sits top centre by default** (new projects and the „Logo“ overlay template). Bottom right it
+  always covered the north arrow and scale bar. Existing projects keep their position.
+
+### Fixed
+- **Tours with an edited or generated version could not be deleted**: the archive shows the newest version, which lives
+  only in the library; deleting refused it and pointed to the versions, where the newest is locked. Deleting such a tour
+  now moves the whole tour to the trash — the user's own file(s) and all library versions — and forgets it; tours used
+  by projects ask first, as before. The confirmation says „this tour with all its versions“.
+
 ## [0.9.844] – 2026-10-27
 
 (0.9.839–0.9.842 were local builds only, 0.9.843 was tagged but not published; their changes ship with this version.)

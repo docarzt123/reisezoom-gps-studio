@@ -739,6 +739,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 <blockquote>⚠️ <strong>Beim Schlüssel „Allowed HTTP origins&quot; leer lassen.</strong> Trägst du dort eine Website ein, sperrt MapTiler den Render aus (der läuft ohne Browser-Adresse) — die Vorschau ginge, das Video bliebe schwarz.</blockquote>
 <blockquote></blockquote>
 <blockquote>💡 <strong>Gratistarif:</strong> 100.000 Kachelabrufe pro Monat, das reicht für viele Renders. Er ist auf <strong>nicht-kommerzielle Nutzung</strong> begrenzt — für einen monetarisierten Kanal ist der Flex-Tarif (ca. 30 $/Monat) gedacht. Videos für Kanäle bis 100.000 Abonnenten sind laut MapTiler Cloud Terms §5 erlaubt; darüber vorher bei MapTiler nachfragen.</blockquote>
+<blockquote>⚠️ <strong>Was MapTiler außerdem verlangt:</strong> Im Gratistarif müssen Nennung <strong>und MapTiler-Logo</strong> die ganze Zeit sichtbar sein. <strong>Standbilder und Screenshots</strong> mit MapTiler-Karte darfst du nicht weitergeben (nur Videos). Die Karte darf nicht verändert werden — <strong>Schärfe, Dunst und Abdunkeln bleiben bei MapTiler deshalb aus</strong>. <strong>Auftragsvideos für andere</strong> (Veranstalter, Firmen) deckt auch Flex nicht, dafür braucht es einen eigenen Vertrag mit MapTiler. Ein 1-Minuten-Video braucht grob 400–500 Kachelabrufe, die Vorschau beim Bearbeiten meist mehr.</blockquote>
 <h4 id="mapbox-token-besorgen-kostenlos-aber-lies-erst-den-hinweis">Mapbox-Token besorgen (kostenlos — aber lies erst den Hinweis)</h4>
 <p>Mapbox erlaubt die <strong>Veröffentlichung von Videos</strong> mit seinem Kartenmaterial <strong>nur mit gekauften Videorechten</strong> (Product Terms §1.7 „Print or Video Use&quot;). Für YouTube, Instagram &amp; Co. also einen kostenlosen Stil oder MapTiler nehmen. Der Token ist trotzdem sinnvoll, wenn du die Mapbox-Stile privat nutzt oder Rechte gekauft hast.</p>
 <ol>
@@ -778,6 +779,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 </ul>
 <p> (<code>Projekt_20261006-1130.mp4</code>). <strong>Exportieren</strong> legt sofort los, <strong>Ändern …</strong> öffnet den Systemdialog.  Eine vorhandene Datei wird nie überschrieben — dann heißt die neue <code>…-2.mp4</code>.</p>
 <p>Der kleine Pfeil <strong>▾</strong> neben dem Knopf bietet <strong>Aktuelles Bild exportieren</strong> (das Bild, das gerade in der Vorschau steht, als PNG) und <strong>Als Tour-Map öffnen</strong>. Die Export-Einstellungen gelten je Projekt; Esc schließt das Fenster.</p>
+<p><strong>Herkunft im Video.</strong> Jedes exportierte Video trägt in seinen Metadaten „GPS Studio by Reisezoom.com“ mit Version, System, Größe und Bildrate, dazu den Titel deiner Tour, falls du einen gesetzt hast. Persönliches steht nicht drin. Schickst du mir ein Video, das irgendwo nicht läuft, sehe ich so sofort, womit es gebaut wurde.</p>
 <h3 id="medien-der-tour">🖼 Medien der Tour</h3>
 <p>Hast du im Archiv unter <strong>Medien</strong> Ordner eingelesen, kennt der Animator die Fotos und Videos, die <strong>während der Tour</strong> entstanden sind (zugeordnet über GPS, sonst über die Aufnahmezeit):</p>
 <ul>
@@ -1319,7 +1321,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 <ul>
 <li><strong>In den Papierkorb</strong> — verschiebt die Datei wirklich, in den Papierkorb deines</li>
 </ul>
-<p> Systems. Genau wie beim Löschen im Finder oder Explorer.</p>
+<p> Systems. Genau wie beim Löschen im Finder oder Explorer.  Hast du die Tour bearbeitet oder aus Fotos gemacht, zeigt das Archiv ihre neueste Version aus der Bibliothek; dann  fragt GPS Studio „Diese Tour mit allen Versionen in den Papierkorb legen?“ und räumt die ganze Tour weg — deine  eigene Datei und alle Versionen.</p>
 <p><strong>Wann ist eine Datei endgültig weg?</strong> Erst, wenn du deinen Papierkorb leerst. GPS Studio löscht nie selbst etwas endgültig; bis dahin kannst du die Datei dort jederzeit zurückholen. Das gilt auch, wenn du mehrere Touren auf einmal in den Papierkorb legst.</p>
 <p><strong>Dateien, aus denen keine Tour wird.</strong> Steht in der Kopfzeile ein Hinweis wie <strong>„12 Dateien ohne Strecke&quot;</strong> oder <strong>„3 Dateien nicht lesbar&quot;</strong>, klick ihn an. Der Dialog trennt zwei Dinge, die leicht verwechselt werden:</p>
 <ul>
@@ -1759,6 +1761,7 @@ python -m playwright install chromium-headless-shell</code></pre>
 <li><em>WYSIWYG:</em> Diese Werte laufen schon <strong>in der Vorschau</strong> mit — beim Ziehen des Scrubbers und im Probelauf zählen sie genau wie im fertigen Video, und das Höhenprofil füllt sich bis zur Marker-Position. Du siehst also vorab bildgenau, wie die Stats im Render aussehen.</li>
 <li><strong>Gesamt:</strong> Strecke, Zeit (Gesamtzeit), <strong>Fahrzeit</strong> (Bewegungszeit ohne Pausen), <strong>Ø Tempo</strong> (aus Fahrzeit), <strong>Ø Tempo (gesamt)</strong> (aus Gesamtzeit), <strong>Max. Tempo</strong>, Bergauf, Bergab, <strong>Höchster Punkt</strong>, <strong>Tiefster Punkt</strong>.</li>
 <li><em>Pace für Läufer:</em> Neben dem Tempo gibt es <strong>Pace</strong> (live), <strong>Ø Pace</strong>, <strong>Ø Pace (gesamt)</strong> und <strong>Beste Pace</strong> in min/km. Bei einer Tour mit der Fortbewegung <strong>Laufen</strong> zeigen auch die Tempo-Werte automatisch Pace („Ø Pace 5:23 min/km“). In einer Wert-Zeile mit Tempo wählst du unter <strong>„Tempo als“</strong>: automatisch, km/h oder Pace — das gilt fürs ganze Projekt. Im Stand (unter 1,5 km/h) steht „—“ statt einer Riesenzahl; die Live-Pace ist geglättet, damit sie bei GPS-Rauschen nicht springt. Im Archiv steht bei Lauf-Touren zusätzlich die <strong>Ø Pace</strong>.</li>
+<li><em>Einheiten:</em> Strecke in <strong>Kilometern, Meilen oder Seemeilen</strong>, Höhe in <strong>Metern oder Fuß</strong>, Tempo in <strong>km/h, mph, Knoten, m/s</strong> oder als <strong>Pace</strong>. Du stellst das in einer Wert-Zeile ein: bei Strecken-Werten unter <strong>„Strecke in“</strong>, bei Höhen-Werten unter <strong>„Höhe in“</strong>, bei Tempo-Werten unter <strong>„Tempo als“</strong>. Es gilt fürs ganze Projekt — alle Einblendungen, die Höhepunkt-Schilder („Höchster Punkt“, „Schnellste Stelle“) und der Maßstab. „Automatisch“ beim Tempo folgt der Strecke: Meilen → mph, Seemeilen → Knoten, Laufen → Pace (bei Meilen in min/mi). Vorschau und Video zeigen dasselbe.</li>
 <li><em>Standard:</em> Neue Tracks zeigen <strong>Strecke · Fahrzeit · Ø Tempo · Max. Tempo · Aufstieg · Abstieg</strong>. Die <strong>Fahrzeit</strong> ist die angezeigte Zeit statt der Gesamtzeit — beides bleibt frei wählbar. Hast du deine Lieblings-Auswahl eingestellt, merkt sich die App sie mit <strong>„Als eigene Standardwerte speichern&quot;</strong> (Projekt-Menü) für <strong>alle</strong> neuen Projekte.</li>
 <li><em>Pausenerkennung:</em> Eine Pause ist ein Abschnitt, in dem du über ein <strong>60-Sekunden-Fenster netto kaum vorangekommen</strong> bist — nicht das momentane Tempo zählt. So gilt langsames Steil-Gehen (~1 km/h, aber stetig) als Bewegung, nur echtes Stehenbleiben als Pause.</li>
 <li><em>Genauigkeit:</em> <strong>Fahrzeit</strong> und <strong>Max. Tempo</strong> werden auf der <strong>vollen Track-Auflösung</strong> berechnet — das Spitzentempo wird nicht mehr durch die Render-Vereinfachung weggeglättet.</li>
@@ -2564,7 +2567,8 @@ gpsstudio render &quot;Gantrisch&quot; --template landscape --out video.mp4
 gpsstudio render tour.gpx --template &quot;Mein Wanderlook&quot; --format 9:16 --length 40 --out ~/Videos/
 gpsstudio map-image 11660e04ed1c9695 --out karte.png
 gpsstudio camera-export --rzproj tour.rzproj --out tour.kamera.json
-gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay.mov</code></pre>
+gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay.mov
+gpsstudio project-render --rzproj tour.rzproj --height 1080 --out tour.mp4</code></pre>
 <ul>
 <li><strong>Tour:</strong> eine GPX-/FIT-/…-Datei (irgendwo, muss nicht im Archiv liegen), die <strong>id</strong> aus <code>gpsstudio tours</code> oder ein</li>
 </ul>
@@ -2586,6 +2590,10 @@ gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay
 <li><strong>Einblendungen transparent:</strong> <code>overlay-export</code> rendert alles außer der Karte (Titel, Höhenprofil, Werte, Schilder,</li>
 </ul>
 <p> Fotos …) als ProRes 4444 mit Durchsicht — Bild für Bild deckungsgleich mit <code>camera-export</code>. <code>--without-track</code> lässt  Strecke und Laufpunkt weg (auch weitere Touren), <code>--with-labels</code> lässt die Beschriftung der Karte stehen (Orte, POIs,  Straßen, Verkehr — so, wie die Schalter im Projekt stehen; die Karte selbst bleibt durchsichtig), <code>--frames 600,1199</code>  schreibt nur diese Bilder als PNG (zum Testen).</p>
+<ul>
+<li><strong>Projekt-Video:</strong> <code>project-render</code> rendert das Video eines exportierten Projekts **genau wie der</li>
+</ul>
+<p> Video-Export der App** — Keyframes, Schilder, Fotos, Touren, Beschriftung und Musik wie im Projekt, Bild für Bild  deckungsgleich mit <code>camera-export</code>. <code>--height 1080</code> macht aus einem 4K-Projekt Full HD (Breite nach dem  Seitenverhältnis), <code>--size 1920x1080</code> ebenso; ein anderes Seitenverhältnis lehnt der Befehl ab. Qualität und Codec  kommen aus <em>Einstellungen → Qualität &amp; Export</em>, <code>--out …mov</code> liefert ProRes 422. Auch für KI-Assistenten als  Werkzeug <code>render_project</code>.</p>
 <ul>
 <li><strong>Mehrere Touren:</strong> <code>camera-export</code> liefert auch Etappen, Schwarm-Touren und Touren „Ganz zeigen“ — je Tour die</li>
 </ul>

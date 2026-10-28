@@ -85,6 +85,16 @@ WERKZEUGE = [
      "inputSchema": {"type": "object", "required": ["tour"], "properties": {
          "tour": {"type": "string", "description": "Tour id from search_tours (preferred) or a unique tour name"}}},
      "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}},
+    {"name": "render_project",
+     "title": "Render a project video",
+     "description": "Start rendering the video of an exported GPS Studio project (.rzproj file) exactly like the app's video "
+                    "export — keyframes, signs, photos, tours, labels and music as in the project, same frames as the camera "
+                    "export. Optionally another output height (e.g. 1080 for a 4K project). Returns a job_id; poll job_status.",
+     "inputSchema": {"type": "object", "required": ["rzproj"], "properties": {
+         "rzproj": {"type": "string", "description": "Path of the .rzproj file (Project → Export project)"},
+         "height": {"type": "integer", "minimum": 64, "maximum": 4320, "description": "Output height in px; width follows the project's aspect ratio"},
+         "preview": {"type": "string", "description": "Preview size in CSS px as in the app, e.g. 960x540 (as for the camera export)"}}},
+     "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}},
     {"name": "job_status",
      "title": "Job status",
      "description": "State of a render job: queued, running (with progress 0–100), done (with file) or error. Waits up to "
@@ -334,6 +344,19 @@ class Server:
             if a.get("circle_photos"):
                 args.append("--circle-photos")
             return self.auftraege.neu("video", args, tour), []
+        if name == "render_project":   # 27.10.2026 — Projekt-Video (.rzproj), wie `gpsstudio project-render`
+            paket = Path(str(a.get("rzproj") or "")).expanduser()
+            if paket.suffix.lower() != ".rzproj" or not paket.is_file():
+                raise _Fehler(f"not an existing .rzproj file: {paket}")
+            args = ["project-render", "--rzproj", str(paket.resolve())]
+            if a.get("height") is not None:
+                hh = int(a["height"])
+                if not 64 <= hh <= 4320:
+                    raise _Fehler("height must be between 64 and 4320")
+                args += ["--height", str(hh)]
+            if a.get("preview"):
+                args += ["--preview", str(a["preview"])]
+            return self.auftraege.neu("video", args, paket.name), []
         if name == "render_map_image":
             tour = str(a.get("tour") or "")
             self._tour_pruefen(tour)

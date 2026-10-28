@@ -1564,21 +1564,28 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'provider': 'MapTiler AG',
   'dataset': 'MapTiler Cloud (Satellite, Outdoor, Streets …)',
   'dataset_url': 'https://www.maptiler.com/cloud/',
-  'license': 'MapTiler Cloud Terms of Service (Free: nicht kommerziell; Flex: Videos bis 100.000 Abonnenten)',
+  'license': 'MapTiler Cloud Terms of Service (Free: nicht kommerziell; Flex: Videos bis 100.000 Abonnenten; Auftragsarbeit: Custom)',
   'license_url': 'https://www.maptiler.com/terms/cloud/',
   'commercial_video': 'license_required',
   'modification_notice_required': False,
   'onscreen_credit': '© MapTiler © OpenStreetMap contributors',
   'service_terms_url': 'https://www.maptiler.com/terms/cloud/',
-  'service_limits': 'Eigener API-Schlüssel je Nutzer; Endnutzer-Anfragen direkt an MapTiler; nur temporärer '
-                    'Geräte-Cache; Bulk/Server-Cache nur mit Vereinbarung.',
+  'service_limits': 'Eigener API-Schlüssel je Nutzer (CT §3); Endnutzer-Anfragen direkt an MapTiler, kein Proxy '
+                    '(CT §6); nur temporärer Cache je Nutzer (CT §5); Server-Cache, Render-Server, Bulk-Download, '
+                    'Screenshots/Standbilder zur Weitergabe nur mit Vereinbarung bzw. verboten (CT §6/§7); '
+                    'Karteninhalte nicht verändern (GT §4). MapLibre ohne SDK: jede Kachel = 1 Request.',
   'confidence': 'hoch',
-  'notes': 'Free-Tarif nicht kommerziell. Flex-Tarif: begrenzte Internetvideos bis 100.000 Kanalabonnenten '
-           'mit sichtbarer Attribution; größere Kanäle/TV/Film individuell. Quelle: Konzept 07.09.2026 §4.3.',
+  'notes': 'Free-Tarif nicht kommerziell (Nennung und MapTiler-Logo immer sichtbar). Flex-Tarif: begrenzte '
+           'Internetvideos bis 100.000 Kanalabonnenten mit sichtbarer Nennung; größere Kanäle/TV/Film und '
+           'Auftragsarbeit für Dritte nur mit Custom-Vertrag. Standbilder/Screenshots nicht weitergeben, '
+           'Karteninhalte nicht verändern (Schärfe/Dunst/Abdunkeln bleiben aus), nur temporärer Cache je Nutzer, '
+           'kein Render-Server. Abgerechnet wird bei MapLibre je Kachel.',
   'sources': ['https://www.maptiler.com/terms/cloud/',
               'https://www.maptiler.com/cloud/geolayers/',
               'https://www.maptiler.com/cloud/pricing/'],
-  'checked_at': '2026-09-07',
+  'checked_at': '2026-10-27',
+  # 27.10.2026 — „ok“ = Bild für Bild auf dem Rechner des Nutzers mit SEINEM Schlüssel (direkt an MapTiler, temporärer
+  # Cache je Nutzer) — erlaubt. Ein gemeinsamer Render-Server mit Cache wäre es nicht (CT §6/§7); den gibt es nicht.
   'render_server': 'ok',
   'credit_kurz': '© MapTiler © OpenStreetMap'},
  {'id': 'mapbox',

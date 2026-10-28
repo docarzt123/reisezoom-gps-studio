@@ -36,9 +36,20 @@
     }
     return undefined;
   }
+  /** 27.10.2026 — MapTiler-Stil? Deren Bedingungen verbieten, Karteninhalte zu verändern („manipulate or modify map
+   *  content, in the form of vectors, pixels“): Schärfe, Dunst und Abdunkeln bleiben bei MapTiler aus. Linie,
+   *  Beschriftung und Einblendungen ÜBER der Karte sind normale Nutzung. */
+  function istMapTiler(map) {
+    try {
+      const src = (map.getStyle() || {}).sources || {};
+      return Object.values(src).some((q) => /api\.maptiler\.com/.test(String((q && q.url) || "") + " " + ((q && q.tiles) || []).join(" ")));
+    } catch (_) { return false; }
+  }
+  window.rzIstMapTiler = istMapTiler;
   /** Live anwenden. `hasRaster` wird aus dem Stil gelesen: Raster → Paint, sonst Abdunkel-Ebene. */
   function applyAdjust(map, adj, def) {
     if (!map || !map.getStyle) return;
+    if (istMapTiler(map)) { try { if (map.getLayer("rz-dim")) map.removeLayer("rz-dim"); } catch (_) {} return; }
     const a = norm(adj, def), p = paint(a);
     let layers = [];
     try { layers = (map.getStyle() || {}).layers || []; } catch (_) { return; }
@@ -188,6 +199,7 @@
   /** Schärfe, Dunst und Farbkorrektur (je 0…100) auf EINER Ebene; alle 0 = Ebene weg. */
   function applyLook(map, sharpPct, hazePct, gradePct) {
     if (!map || !map.getStyle || !map.addLayer) return;
+    if (istMapTiler(map)) { sharpPct = 0; hazePct = 0; }   // MapTiler: keine Pixelveränderung (s. istMapTiler)
     const v = sharpNorm(sharpPct), A = v / 100 * SHARP_MAX_A;
     const hz = sharpNorm(hazePct), H = hz / 100;
     // 25.10.2026 — Farbkorrektur nicht mehr hier (Kacheln der Weiche, s. applyAdjust); gradePct wird ignoriert

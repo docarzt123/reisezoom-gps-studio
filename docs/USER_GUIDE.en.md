@@ -711,6 +711,8 @@ The app picks the source from the track's location; the style field shows which 
 >
 > 💡 **Free plan:** 100,000 tile requests per month, enough for many renders. It is limited to **non-commercial use** — a monetised channel needs the Flex plan (about $30/month). Videos for channels up to 100,000 subscribers are allowed under MapTiler Cloud Terms §5; above that, ask MapTiler first.
 
+> ⚠️ **What MapTiler also requires (built into the app since v0.9.845):** On the free plan the credit **and the MapTiler logo** must stay visible the whole time. You may not share **stills or screenshots** with a MapTiler map (videos only). The map must not be altered — **sharpening, haze and dimming are therefore off with MapTiler**. **Commissioned videos for others** (organisers, companies) aren't covered by Flex either; that needs a separate contract with MapTiler. A one-minute video needs roughly 400–500 tile requests; the preview while editing usually more.
+
 #### Getting a Mapbox token (free — but read the note first)
 Mapbox permits **publishing videos** containing its map content **only with purchased video rights** (Product Terms §1.7 "Print or Video Use"). For YouTube, Instagram etc. pick a free style or MapTiler. The token still makes sense if you use the Mapbox styles privately or have bought rights.
 
@@ -752,6 +754,8 @@ opens a window in the middle with everything that only concerns the output file:
 
 The small arrow **▾** next to the button offers **Export current frame** (the picture currently in the preview, as
 PNG) and **Open as Tour-Map**. Export settings are stored per project; Esc closes the window.
+
+**Origin in the video (since v0.9.845).** Every exported video carries “GPS Studio by Reisezoom.com” in its metadata, with version, system, size and frame rate, plus your tour's title if you set one. Nothing personal is stored. If you send me a video that won't play somewhere, I can see straight away what it was made with.
 
 ### 🖼 Media of the tour (since v0.9.782)
 
@@ -1865,6 +1869,9 @@ Next to each is a **“?”** that explains it; for reference:
   watched. To keep it out for good, remove the folder under “Folders & scanning”.
 * **Move to trash** — actually moves the file, into your system's trash. Just
   like deleting it in Finder or Explorer.
+  If you edited the tour or made it from photos, the archive shows its newest version from the library; then GPS
+  Studio asks “Move this tour with all its versions to the trash?” and removes the whole tour — your own file and all
+  versions (since v0.9.845).
 
 **When is a file gone for good?** Only once you empty your trash. GPS Studio
 never permanently deletes anything by itself; until then you can restore the file
@@ -2503,6 +2510,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
   - *WYSIWYG (since v0.9.325):* These values already update **in the preview** — while dragging the scrubber and in the test run they count exactly as in the finished video, and the elevation profile fills up to the marker position. So you see in advance, pixel-accurate, how the stats will look in the render.
 - **Totals:** Distance, Time (total time), **Moving time** (motion time without pauses), **Ø speed** (from moving time), **Ø speed (overall)** (from total time), **Max. speed**, Ascent, Descent, **Highest point**, **Lowest point**.
   - *Pace for runners (since v0.9.789):* Besides speed there are **Pace** (live), **Avg. pace**, **Avg. pace (total)** and **Best pace** in min/km. For a tour with the activity **Running**, the speed values switch to pace automatically (“Avg. pace 5:23 min/km”). In a value row with speed, choose under **“Show speed as”**: automatic, km/h or pace — for the whole project. When standing (below 1.5 km/h) it shows “—” instead of a huge number; the live pace is smoothed so it doesn’t jump with GPS noise. In the archive, running tours also show the **Avg. pace**.
+  - *Units (since v0.9.845):* Distance in **kilometres, miles or nautical miles**, elevation in **metres or feet**, speed in **km/h, mph, knots, m/s** or as **pace**. Set it in a value row: for distance values under **“Distance in”**, for elevation values under **“Elevation in”**, for speed values under **“Show speed as”**. It applies to the whole project — all overlays, the highlight signs (“Highest point”, “Fastest spot”) and the scale bar. “Automatic” speed follows the distance: miles → mph, nautical miles → knots, running → pace (min/mi with miles). Preview and video show the same.
   - *Default (since v0.9.324):* New tracks show **Distance · Moving time · Ø speed · Max. speed · Ascent · Descent**. The **moving time** is the displayed time instead of the total time — both stay freely selectable. Once you've set your favorite selection, the app remembers it with **"Save as my defaults"** (project menu) for **all** new projects.
   - *Pause detection:* A pause is a segment in which, over a **60-second window, you barely made net progress** — the instantaneous speed doesn't count. So slow steep hiking (~1 km/h, but steady) counts as movement, and only actually standing still counts as a pause.
   - *Accuracy (since v0.9.324):* **Moving time** and **Max. speed** are computed at the **full track resolution** — the peak speed is no longer smoothed away by the render simplification.

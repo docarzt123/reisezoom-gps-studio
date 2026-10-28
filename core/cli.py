@@ -12,6 +12,9 @@
                              [--preview WxH]
                                          overlays as transparent ProRes 4444 (or single PNG frames), no map
                                          (--with-labels: keep the map's place/POI/road names as set in the project)
+    gpsstudio project-render --rzproj PROJECT.rzproj [--out FILE.mp4] [--height 1080 | --size 1920x1080] [--preview WxH]
+                                         the project's video exactly like the app's video export (map, line, signs,
+                                         photos, tours, labels, music), optionally in another size
     (global: --library FOLDER)
 
 Befehle, Schalter und das Ergebnis-JSON sind englisch (Marc: „wir wollen international sein“); die lesbaren
@@ -545,17 +548,79 @@ def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0,
                     **({} if dateien else {"error": "no frames written (numbers outside the video?)"}))
     if not ziel.is_file():
         return {"ok": False, "error": "render ended without file"}
-    n = 0
-    try:   # Bildzahl mit ffmpeg selbst (ffprobe liegt nicht überall bei): Strom ins Leere kopieren, letzte „frame=“
+    return dict({"ok": True, "file": str(ziel), "datei": str(ziel), "frames": _bildzahl(ziel)}, **info)
+
+
+def _bildzahl(ziel: Path):
+    """Bildzahl mit ffmpeg selbst (ffprobe liegt nicht überall bei): Strom ins Leere kopieren, letzte „frame=“."""
+    try:
         import re
         import subprocess
+        from core import animator as A
         err = subprocess.run([A.find_ffmpeg(), "-hide_banner", "-i", str(ziel), "-map", "0:v:0", "-c", "copy", "-f", "null", "-"],
                              capture_output=True, text=True, timeout=300).stderr
         treffer = re.findall(r"frame=\s*(\d+)", err or "")
-        n = int(treffer[-1]) if treffer else 0
+        return int(treffer[-1]) if treffer else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def projekt_video_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0, breite: int = 0, hoehe: int = 0) -> dict:
+    """27.10.2026 (für 3D-Programme: Vergleichsvideos vom selben Projekt) — das Video des Projekts genau wie der
+    Video-Export der App: dieselbe Szene, Kamera, Bilder und Bildrate wie `camera-export`, alle Ebenen, Musik/Ton wie im
+    Projekt, Qualität aus den Einstellungen („Qualität & Export“). `breite`/`hoehe`: andere Ausgabegröße (z. B. 4K-Projekt
+    → 1080p); nur `hoehe` = Breite aus dem Seitenverhältnis. Ein anderes Seitenverhältnis lehnt es ab (die Szene würde
+    verzerrt). `.mov` → ProRes 422 HQ, sonst der Codec aus den Einstellungen (H.264/H.265)."""
+    pp = _paket_projekt(app, api, paket)
+    if isinstance(pp, dict):
+        return pp
+    pid, projekt = pp
+    an = projekt.get("animator") or {}
+    from core import animator as A
+    from core import szene
+    pb, ph = int(an.get("width") or 1920), int(an.get("height") or 1080)
+    if breite and hoehe:
+        if abs(breite / hoehe - pb / ph) > 0.01:
+            return {"ok": False, "error": f"--size {breite}x{hoehe} has another aspect ratio than the project ({pb}x{ph})"}
+        b, hh = int(breite), int(hoehe)
+    elif hoehe:
+        hh = int(hoehe)
+        b = int(round(pb * hh / ph / 2.0)) * 2
+    else:
+        b, hh = pb, ph
+    rq = {}
+    try:
+        rq = (app._load_settings().get("render") or {})
     except Exception:  # noqa: BLE001
         pass
-    return dict({"ok": True, "file": str(ziel), "datei": str(ziel), "frames": n or None}, **info)
+    codec = "prores422" if ziel.suffix.lower() == ".mov" else (str(rq.get("codec") or "h264").lower())
+    if ziel.suffix.lower() != ".mov" and codec not in ("h264", "h265", "hevc"):
+        codec = "h264"   # ProRes gehört in .mov
+    farbraum = str(an.get("farbraum") or "sdr").lower()
+    cfg = A.AnimatorConfig(gpx_path="", output_path=str(ziel), mapbox_token=app._active_mapbox_token() or "",
+                           width=b, height=hh, fps=int(an.get("fps") or 30),
+                           duration_s=float(an.get("duration_s") or 12), intro_s=float(an.get("intro_s") or 0),
+                           hold_s=float(an.get("hold_s") or 0))
+    cfg.codec = codec
+    cfg.crf = int(rq.get("crf", 20) or 20)
+    cfg.encoder_preset = str(rq.get("encoder_preset") or "fast").lower()
+    cfg.frame_format = str(rq.get("frame_format") or "jpeg").lower()
+    cfg.jpeg_quality = int(rq.get("jpeg_quality", 92) or 92)
+    cfg.farbraum = farbraum if farbraum in ("sdr", "hlg", "pq") else "sdr"
+    params = {"szene_projekt_id": pid, "szene_vorschau_w": int(w or 0), "szene_vorschau_h": int(h or 0)}
+    letzt = [-1]
+
+    def fortschritt(p, m):
+        if int(p * 20) != letzt[0]:
+            letzt[0] = int(p * 20)
+            _melden(f"{int(p * 100):3d} % · {m}")
+    asyncio.run(szene.render_szene(cfg, api=api, projekt_id=pid, params=params, on_progress=fortschritt,
+                                   on_preview=lambda x: None, is_cancelled=lambda: _ABGEBROCHEN.is_set()))
+    if not ziel.is_file():
+        return {"ok": False, "error": "render ended without file"}
+    return {"ok": True, "file": str(ziel), "datei": str(ziel), "frames": _bildzahl(ziel),
+            "project": {"id": pid, "name": projekt.get("name")}, "width": b, "height": hh, "fps": cfg.fps,
+            "codec": codec, "project_size": f"{pb}x{ph}"}
 
 
 def _selbst_aufruf(app) -> list:
@@ -670,6 +735,37 @@ def _overlay_export(app, a) -> dict:
                                "overlay export")
 
 
+def _groesse(text: str | None) -> tuple:
+    if not text:
+        return 0, 0
+    try:
+        w, h = (int(x) for x in text.lower().split("x"))
+        if w >= 64 and h >= 64:
+            return w, h
+    except ValueError:
+        pass
+    raise CliFehler("--size must look like 1920x1080", code=2, fehler="--groesse braucht die Form 1920x1080")
+
+
+def _projekt_render(app, a) -> dict:
+    paket = _paket_pruefen(a)
+    w, h = _vorschau_mass(a.preview)
+    breite, hoehe = _groesse(a.size)
+    if a.height and not breite:
+        if not 64 <= int(a.height) <= 4320:
+            raise CliFehler("--height must be between 64 and 4320", code=2)
+        hoehe = int(a.height)
+    if os.environ.get(_KAMERA_KIND) == "1":
+        return projekt_video_aus_paket(app, app.Api(), paket, Path(a.out), w, h, breite, hoehe)
+    stamm = paket.stem
+    ziel = _ziel(app, None, a.out or str(paket.parent / (stamm + ".mp4")), stamm, ".mp4", a.overwrite)
+    befehl = ["project-render", "--rzproj", str(paket), "--out", str(ziel)] + (["--preview", a.preview] if a.preview else []) \
+        + (["--size", f"{breite}x{hoehe}"] if breite else (["--height", str(hoehe)] if hoehe else []))
+    return _im_temp_app_ordner(app, befehl, [ziel.parent],
+                               _t(app, "cli.schritt_projekt", "Projekt-Video wird gerendert: {p}").replace("{p}", str(ziel)),
+                               "project render")
+
+
 # ── Einstieg ────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def _parser() -> argparse.ArgumentParser:
@@ -709,6 +805,13 @@ def _parser() -> argparse.ArgumentParser:
     o.add_argument("--frames", "--bilder", dest="frames", help="only these frames (0-based, e.g. 600,1199) as PNG with alpha: NAME_<nr>.png")
     o.add_argument("--preview", "--vorschau", dest="preview", help="preview size in CSS px as in the app, e.g. 960x540")
     o.add_argument("--overwrite", action="store_true", help="overwrite existing files (default: add a timestamp)")
+    pr = sub.add_parser("project-render", help="video of an exported project (.rzproj) exactly like the app's video export, same frames as the camera export")
+    pr.add_argument("--rzproj", required=True, help="project exported from GPS Studio (Project → Export project (.rzproj))")
+    pr.add_argument("--out", "--ziel", dest="out", help="output .mp4 (or .mov for ProRes 422) or folder (default: next to the .rzproj, NAME.mp4)")
+    pr.add_argument("--height", "--hoehe", dest="height", type=int, help="output height, width from the project's aspect ratio (e.g. 1080 for a 4K project)")
+    pr.add_argument("--size", "--groesse", dest="size", help="output size WxH with the project's aspect ratio, e.g. 1920x1080")
+    pr.add_argument("--preview", "--vorschau", dest="preview", help="preview size in CSS px as in the app, e.g. 960x540 (as for camera-export)")
+    pr.add_argument("--overwrite", action="store_true", help="overwrite an existing file (default: add a timestamp)")
     s = sub.add_parser("mcp", help="run as MCP server for AI assistants (stdio; started by the AI app, not by hand)")
     s.add_argument("--out-dir", help="folder for videos and map images (default: the app's render folder)")
     return ap
@@ -743,8 +846,9 @@ def main(argv: list, app) -> int:
         import signal
         signal.signal(signal.SIGTERM, _abbrechen)
     try:
-        if a.command in ("camera-export", "overlay-export"):   # 26.10.2026 — eigener Temp-App-Ordner, nicht die Bibliothek
-            erg = _kamera_export(app, a) if a.command == "camera-export" else _overlay_export(app, a)
+        if a.command in ("camera-export", "overlay-export", "project-render"):   # 26.10.2026 — eigener Temp-App-Ordner, nicht die Bibliothek
+            erg = (_kamera_export(app, a) if a.command == "camera-export" else _overlay_export(app, a) if a.command == "overlay-export"
+                   else _projekt_render(app, a))
             ausgabe(erg)
             return 0 if erg.get("ok") else 1
         global _API

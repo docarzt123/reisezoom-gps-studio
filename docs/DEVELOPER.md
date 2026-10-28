@@ -8523,6 +8523,42 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
 - **Kommandozeile: relative Tour-Pfade (27.10.2026).** `cli._tourpfade_neben_paket`: relative `extra_tours[].gpx_path`
   gelten neben der .rzproj (nicht im Startordner); derselbe Pfad wird überall im Animator-Block ersetzt (Gruppen
   `mitglieder[]` usw.), fehlende Dateien gehen als `warning:` auf stderr. Test `test_cli_tourpfade`.
+- **Einheiten der Einblendungen (27.10.2026).** Projekt-Felder `einheit_strecke` (`km`|`mi`|`sm`), `einheit_hoehe`
+  (`m`|`ft`), `tempo_als` (`auto`|`kmh`|`mph`|`kn`|`ms`|`pace`). Gerechnet nur in `modules/animator/ui/module.js`
+  (`_ovFmtKm`, `_ovFmtM`, `_ovTempo`, `_ovPace`, `_ovTempoArt`; `fmtPace(kmh, "mi")` in `ui/js/util.js`) — das Video
+  spielt dieselbe Seite ab (Szene), also gleich in Vorschau und Render. `auto` folgt der Strecke (mi → mph, sm → kn,
+  Laufen → Pace). Der Maßstab (`_ovUpdateNorthScale`) rechnet in derselben Einheit (Meilen unter ½ mi in Fuß); die
+  Einheit gehört zu seinem Cache-Schlüssel. Interne Werte bleiben metrisch (m, km/h).
+- **Tour ganz löschen (27.10.2026).** `library_trash` mit einem Pfad im Bibliotheks-Tourordner (Archiv zeigt eine
+  Version: bearbeitete Tour, Tour aus Fotos) ruft `_tour_ganz_wegwerfen`: Projekte-Sperre wie gehabt, eigene Dateien
+  per `clib.trash_file` in den Papierkorb, alle Versionen der Kette per `cbib.version_weg`, Register-Einträge und
+  Speicher-Zeilen weg, `touren_bestimmen`. Vorher lehnte es ab — und `tour_version_loeschen` sperrt die neueste:
+  eine Sackgasse. Die Oberfläche erkennt solche Pfade (`touren/xx/<16 hex>.gpx.gz`) und fragt nach der ganzen Tour.
+- **Herkunft im Video (27.10.2026).** `core/videometa.py`: ©too „GPS Studio by Reisezoom.com — Desktop <Version>
+  <System>“, ©cmt „Erstellt mit … · reisezoom.com/gps · Desktop <V> · <System Version> · B×H · fps“, ©nam = Tour-Titel
+  (`titel_aus_animator`: Titelkarte, sonst erste Titel-Einblendung). Gemeinsames Schema mit Web (Mediabunny
+  `setMetadataTags`) und iOS. ffmpeg überschreibt ©too immer mit „Lavf…“ → nach Render und Tonspur schreibt ExifTool
+  (`schreiben`, ItemList/UTF-8; bei MOV werden ffmpegs UserData-Felder inkl. ©swr gelöscht, eigene UserData-Texte
+  liest ffprobe als MacRoman). MP4 bekommt Kommentar/Titel zusätzlich schon per `-metadata` (`ffmpeg_args`) — bleibt
+  ohne ExifTool. Eingebaut in `szene.render_szene` (`_herkunft`/`_herkunft_args`) und `heightanim`. Dateischutz:
+  `nutzer_ziel` + `foto_schreiben_pruefen(gesichert=True)` (eben gerendert). Test `test_video_herkunft`.
+- **Takt-Test mit künstlicher Uhr (27.10.2026).** `test_vorschau_takt_120hz` maß echte Zeichenzeiten gegen 8,33 ms
+  und kippte mit der Rechnerlast (auch auf alten Ständen rot). Jetzt ersetzt eine Uhr `performance.now()` und
+  `requestAnimationFrame`: Zeit springt je Bild auf die nächste 120-Hz-Grenze und dann um eine vorgegebene Zeichenzeit
+  (`window.__rzKosten`, nur wenn MapLibre wirklich gezeichnet hat — `render`-Ereignis); im Leerlauf läuft sie mit der
+  echten Zeit. Damit prüft der Test nur die Takt-Logik (`_taktUeberspringen`) — deterministisch, auch dreifach parallel;
+  mit abgeschalteter Logik 7 Fehler (Gegenprobe). Muster für weitere Zeit-Tests.
+- **MapTiler-Bedingungen (27.10.2026).** `rz-mapadjust.js`: `istMapTiler(map)` (Quelle mit `api.maptiler.com`) →
+  `applyLook` ohne Schärfe/Dunst, `applyAdjust` ohne Abdunkel-Ebene (GT §4: Karteninhalte nicht verändern). Rechte-Tabelle
+  (`ui/js/app.js`) MapTiler: 📷 privat ⚠️, sonst ❌ (CT §7). `kartenquellen.py` nachgeprüft; `render_server: 'ok'` heißt
+  Bild für Bild auf dem Nutzerrechner mit seinem Schlüssel (erlaubt) — ein gemeinsamer Render-Server wäre es nicht.
+  Abrechnung bei MapLibre: je Kachel ein Request (gemessen ≤ 140 je 20-s-Render). Test `test_maptiler_unveraendert`.
+- **`gpsstudio project-render` (27.10.2026).** `cli.projekt_video_aus_paket`: Paket wie `overlay_aus_paket` einspielen,
+  dann `szene.render_szene` ohne Transparenz — Größe aus dem Projekt oder `--height`/`--size` (Seitenverhältnis muss
+  passen, ±1 %), Codec/CRF/Preset/Bildformat aus `settings.render` wie `_animator_start_render_inner`, `.mov` → ProRes 422,
+  Farbraum aus dem Projekt. Läuft wie die anderen Paket-Befehle als Kindprozess im leeren Temp-App-Ordner
+  (`_im_temp_app_ordner`). MCP: `render_project` (Auftrag wie `render_video`). Bildzahl = `camera-export`.
+  Tests `test_cli_project_render` (Szene ersetzt), `test_mcp` (7 Werkzeuge).
 - **`build.sh` schont Kommandozeilen-Aufrufe (27.10.2026).** Statt `pkill -f ReisezoomGPSStudio` beendet
   `_rz_fenster_beenden` nur Prozesse `….app/Contents/MacOS/ReisezoomGPSStudio` ohne ` cli `; vor dem Ersetzen des
   Bundles wartet `_rz_cli_abwarten` auf laufende `… cli …`-Aufrufe (laden Module aus dem Bundle nach), höchstens

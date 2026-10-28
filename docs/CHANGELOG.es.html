@@ -117,9 +117,24 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.845</span>
+    <span class="version-date">28 de octubre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>Unidades en los rótulos</strong> &mdash; Distancia en kilómetros, millas o millas náuticas, altitud en metros o pies, velocidad en km/h, mph, nudos, m/s o como ritmo (min/km, min/mi con millas). Se elige en el editor de campos del rótulo y vale para todo el proyecto, también para los carteles de momentos destacados y la escala. «Automático» usa mph con millas y nudos con millas náuticas.</li>
+    <li><strong>Los recorridos editados se pueden borrar de nuevo</strong> &mdash; Un recorrido editado o creado a partir de fotos no se podía borrar en el archivo. Ahora todo el recorrido con todas sus versiones va a la papelera.</li>
+    <li><strong>Logo arriba en el centro</strong> &mdash; En los proyectos nuevos el logo de GPS Studio va arriba en el centro. Abajo a la derecha tapaba siempre la flecha norte y la escala. Los proyectos existentes conservan su posición.</li>
+    <li><strong>Los vídeos indican su origen</strong> &mdash; Cada vídeo exportado indica en sus metadatos que se hizo con GPS Studio, con versión, sistema, tamaño y fotogramas por segundo, además del título de tu recorrido. Nada personal. Ayuda cuando un vídeo no se reproduce en otro equipo.</li>
+    <li><strong>MapTiler según sus reglas</strong> &mdash; Nitidez, neblina y oscurecer quedan desactivados en los mapas de MapTiler, porque MapTiler prohíbe alterar la imagen del mapa. El resumen de derechos lo dice claro: no compartir imágenes fijas, en el plan gratis atribución y logo visibles, vídeos por encargo solo con contrato propio.</li>
+    <li><strong>Vídeo del proyecto desde la línea de comandos</strong> &mdash; <code>gpsstudio project-render</code> renderiza un proyecto exportado igual que la exportación de vídeo de la app, también más pequeño (p.&nbsp;ej. un proyecto 4K en Full HD con <code>--height 1080</code>). También para asistentes de IA como la herramienta <code>render_project</code>.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.844</span>
     <span class="version-date">27 de octubre de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <ul>
     <li><strong>Asistente de vídeo como en el estudio web</strong> &mdash; Ocho pestañas: Ruta, Cámara, Mapa, Línea, Título, Fotos, Datos, Vídeo. Cada una se puede abrir en cualquier momento y ya viene bien ajustada. Nuevo: altura de cámara cerca/media/alta, terreno 3D y rótulos, una pestaña propia para la línea y «Fotos como» foto instantánea, grande con pausa o imagen en imagen. Un «?» explica cada ajuste, a menudo con clips cortos de cómo se ve en el vídeo.</li>

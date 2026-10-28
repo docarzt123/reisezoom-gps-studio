@@ -157,7 +157,8 @@ function mountAnimator(body, headerActions, opts) {
   }
   // Vorgabe für NEUE Projekte (01.09.2026, Marc: „größe, opacity und position
   // per default so, wie im aktuell offenen projekt").
-  const WM_STANDARD = { path: "@lockup-white", x: 84.5, y: 91.3, w: 15, op: 0.65 };
+  // 27.10.2026 (Marc: unten rechts lag es immer auf dem Kompass) — oben mittig, wie core/sessions.py
+  const WM_STANDARD = { path: "@lockup-white", x: 42.5, y: 3, w: 15, op: 0.65 };
   // v0.9.212 — Schilder/Fotos pro Modul trennen. Animator behält den Root-Key
   // "signs" (Back-Compat zu bestehenden Projekten); Reiseroute bekommt eigene
   // "reiseroute_signs". Sonst würde Reiseroute die Animator-Schilder zeigen.
@@ -19807,16 +19808,36 @@ function mountAnimator(body, headerActions, opts) {
   // (min/km). Projekt-Einstellung `tempo_als`: „auto“ (Standard: Pace bei Fortbewegung „Laufen“), „kmh“ oder „pace“.
   // Wirkt auf die Tempo-Werte (Tempo, Ø Tempo, Max. Tempo → Beste Pace); die Pace-Werte zeigen immer Pace.
   const _OV_TEMPO_ZU_PACE = { speed: "pace", avg_speed: "avg_pace", avg_speed_total: "avg_pace_total", max_speed: "best_pace" };
+  const _OV_STRECKEN_FELDER = new Set(["dist_done", "dist_left", "dist_total", "stage_dist", "swarm_total", "pace", "avg_pace", "avg_pace_total", "best_pace"]);
+  const _OV_HOEHEN_FELDER = new Set(["ele_now", "elev_gain", "elev_loss", "ele_high", "ele_low", "asc_done", "desc_done"]);
   const _ovTempoEinstellung = () => {
     const p = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
     const v = p && p.tempo_als;
-    return v === "kmh" || v === "pace" ? v : "auto";
+    return ["kmh", "mph", "kn", "ms", "pace"].includes(v) ? v : "auto";
   };
-  const _ovTempoAlsPace = () => {
+  // 27.10.2026 (Nutzer-Wunsch Seemeilen; Marc: „km/h, Meilen, Fuß … alles halbwegs Gängige“) — Einheiten der
+  // Einblendungen, je Projekt: `einheit_strecke` km | mi | sm, `einheit_hoehe` m | ft, Tempo über `tempo_als`
+  // (automatisch folgt es der Strecke: km → km/h, mi → mph, sm → Knoten; Laufen → Pace). Vorschau und Video rechnen
+  // hier — das Video spielt dieselbe Seite ab.
+  const _OV_STRECKE = { km: 1, mi: 1.609344, sm: 1.852 };
+  const _ovProjWert = (k) => {
+    const p = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+    return p ? p[k] : undefined;
+  };
+  const _ovStrecke = () => { const v = _ovProjWert("einheit_strecke"); return _OV_STRECKE[v] ? v : "km"; };
+  const _ovHoeheFt = () => _ovProjWert("einheit_hoehe") === "ft";
+  const _ovStreckeKurz = (e) => e === "mi" ? "mi" : e === "sm" ? t("einheit.sm", "sm") : "km";
+  /** Höhe/Höhenmeter in der gewählten Einheit, gerundet: „1.234 m“ bzw. „4.049 ft“. */
+  const _ovFmtM = (m) => Math.round((+m || 0) * (_ovHoeheFt() ? 3.28084 : 1)) + (_ovHoeheFt() ? " ft" : " m");
+  /** Pace je km — oder je Meile, wenn die Strecke in Meilen läuft. */
+  const _ovPace = (kmh) => fmtPace(kmh, _ovStrecke() === "mi" ? "mi" : "km");
+  const _ovTempoArt = () => {
     const v = _ovTempoEinstellung();
-    if (v !== "auto") return v === "pace";
-    return !!(_gpxStats && _gpxStats.activity === "laufen");
+    if (v !== "auto") return v;
+    if (_gpxStats && _gpxStats.activity === "laufen") return "pace";
+    return { mi: "mph", sm: "kn" }[_ovStrecke()] || "kmh";
   };
+  const _ovTempoAlsPace = () => _ovTempoArt() === "pace";
   /** Tempo für die Live-Pace: über ±4 Punkte gemittelt (die Reihe ist schon ±2 geglättet) — sonst springt die
    *  Pace bei GPS-Rauschen um Minuten je km. */
   const _ovPaceTempo = (sr, i) => {
@@ -19825,7 +19846,12 @@ function mountAnimator(body, headerActions, opts) {
     for (let j = Math.max(0, i - 4); j <= Math.min(n - 1, i + 4); j++) { const v = +a[j]; if (isFinite(v)) { s += v; k++; } }
     return k ? s / k : 0;
   };
-  const _ovTempo = (kmh) => _ovTempoAlsPace() ? fmtPace(kmh) : (Number(kmh) || 0).toFixed(1) + " km/h";
+  const _ovTempo = (kmh, stellen = 1) => {
+    const art = _ovTempoArt(), v = Number(kmh) || 0;
+    if (art === "pace") return _ovPace(v);
+    const [f, e] = { mph: [1.609344, " mph"], kn: [1.852, " kn"], ms: [3.6, " m/s"] }[art] || [1, " km/h"];
+    return (v / f).toFixed(stellen) + e;
+  };
   // v0.9.330 — FIT-Sensorfelder dynamisch an den Live-Katalog anhängen (id = "sensor:<key>").
   const _ovSensorMeta = (key) => (_ovSensorFields || []).find(f => f.key === key);
   const _ovSensorCatItems = () => (_ovSensorFields || []).map(f => ({ id: "sensor:" + f.key, req: "none" }));
@@ -19864,7 +19890,10 @@ function mountAnimator(body, headerActions, opts) {
     : req === "ele" ? _ovHasEle()
     : req === "stages" ? _ovHasStages()
     : req === "schwarm" ? (_istSchwarm() && _extraTours.length > 0) : true;
-  const _ovFmtKm = (km) => km < 100 ? km.toFixed(1) + " km" : km.toFixed(0) + " km";
+  const _ovFmtKm = (km) => {
+    const e = _ovStrecke(), v = (+km || 0) / _OV_STRECKE[e];
+    return (v < 100 ? v.toFixed(1) : v.toFixed(0)) + " " + _ovStreckeKurz(e);
+  };
   const _ovFmtDur = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60, p = n => n < 10 ? "0" + n : "" + n; return h > 0 ? h + ":" + p(m) + ":" + p(x) : p(m) + ":" + p(x); };
   // Font-Stacks (Spiegel von core/animator.py _OVERLAY_FONTS). Google-Fonts werden
   // in der App-WebView wie im Render per <link>/@import geladen; hier reicht der Stack.
@@ -19948,20 +19977,20 @@ function mountAnimator(body, headerActions, opts) {
       case "speed": case "avg_speed": return _ovTempo(avgMov);
       case "avg_speed_total": return _ovTempo(avgTotal);
       case "max_speed": return maxKmh > 0 ? _ovTempo(maxKmh) : "—";
-      case "pace": case "avg_pace": return fmtPace(avgMov);
-      case "avg_pace_total": return fmtPace(avgTotal);
-      case "best_pace": return maxKmh > 0 ? fmtPace(maxKmh) : "—";
+      case "pace": case "avg_pace": return _ovPace(avgMov);
+      case "avg_pace_total": return _ovPace(avgTotal);
+      case "best_pace": return maxKmh > 0 ? _ovPace(maxKmh) : "—";
       case "moving_time": return _ovFmtDur(movS);
       case "time_elapsed": case "duration": return _ovFmtDur(dur);
       case "time_left": return _ovFmtDur(0);
-      case "ele_now": return lastEle != null ? lastEle + " m" : "—";
+      case "ele_now": return lastEle != null ? _ovFmtM(lastEle) : "—";
       case "grade": return "0 %";
-      case "elev_gain": return "↑ " + Math.round(ascM) + " m";
-      case "elev_loss": return "↓ " + Math.round(descM) + " m";
-      case "ele_high": return eleH != null ? Math.round(eleH) + " m" : "—";
-      case "ele_low": return eleL != null ? Math.round(eleL) + " m" : "—";
-      case "asc_done": return "↑ " + Math.round(ascM) + " m";
-      case "desc_done": return "↓ " + Math.round(descM) + " m";
+      case "elev_gain": return "↑ " + _ovFmtM(ascM);
+      case "elev_loss": return "↓ " + _ovFmtM(descM);
+      case "ele_high": return eleH != null ? _ovFmtM(eleH) : "—";
+      case "ele_low": return eleL != null ? _ovFmtM(eleL) : "—";
+      case "asc_done": return "↑ " + _ovFmtM(ascM);
+      case "desc_done": return "↓ " + _ovFmtM(descM);
       case "swarm_total": return (_statsTouren().length + 1) + " · " + _ovFmtKm(km);
       case "swarm_underway": return "0 / " + (_statsTouren().length + 1);
       // 26.09.2026 (Klicktest RE-04) — Etappenfelder im Ruhezustand = Endzustand
@@ -20077,16 +20106,16 @@ function mountAnimator(body, headerActions, opts) {
         switch (id) {
           case "dist_done": v = _ovFmtKm((_sw ? _sw.done : sr.cumDistM[i]) / 1000); break;
           case "dist_left": v = _ovFmtKm(Math.max(0, ((_sw ? _sw.gesamt : totD) - (_sw ? _sw.done : sr.cumDistM[i])) / 1000)); break;
-          case "speed": if (sr.has_time) v = _ovTempoAlsPace() ? fmtPace(_ovPaceTempo(sr, i)) : Math.round(sr.speedKmh[i]) + " km/h"; break;
-          case "pace": if (sr.has_time) v = fmtPace(_ovPaceTempo(sr, i)); break;
+          case "speed": if (sr.has_time) v = _ovTempoAlsPace() ? _ovPace(_ovPaceTempo(sr, i)) : _ovTempo(sr.speedKmh[i], 0); break;
+          case "pace": if (sr.has_time) v = _ovPace(_ovPaceTempo(sr, i)); break;
           case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i] + (_sw ? _sw.tzeit : 0)); break;
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
-          case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
+          case "ele_now": if (sr.has_ele) v = _ovFmtM(sr.ele[i]); break;
           // 26.09.2026 — Reise: Zeitzone je Punkt (tzOffS), sonst die der Tour
           case "datetime_now": if (sr.has_time && sr.epochS) v = fmtDateTimeJS(sr.epochS[i], sr.tzOffS ? sr.tzOffS[i] : (sr.tz_offset_min || 0), sr.lang || "de"); break;
           case "time_now": if (sr.has_time && sr.epochS) v = fmtTimeJS(sr.epochS[i], sr.tzOffS ? sr.tzOffS[i] : (sr.tz_offset_min || 0)); break;
           case "day_no": if (sr.has_time) { const st = _tagesStarts(); let d = 1; for (const x of st) { if (x <= i) d++; else break; } v = String(d); } break;
-          case "asc_done": if (sr.has_ele) v = "↑ " + Math.round(_ovCumHm(sr).asc[i] + (_sw ? _sw.asc : 0)) + " m"; break;
+          case "asc_done": if (sr.has_ele) v = "↑ " + _ovFmtM(_ovCumHm(sr).asc[i] + (_sw ? _sw.asc : 0)); break;
           // 29.08.2026 (Marc: „noch unterwegs funktioniert nicht") — das Feld
           // hatte in der VORSCHAU keinen Rechen-Fall (nur im Render). Spiegel
           // zu swarmFertig: fertig = Fortschritts-Index ≥ vorletzter Punkt.
@@ -20104,7 +20133,7 @@ function mountAnimator(body, headerActions, opts) {
             v = m + " / " + (_statsTouren().length + 1);
             break;
           }
-          case "desc_done": if (sr.has_ele) v = "↓ " + Math.round(_ovCumHm(sr).desc[i] + (_sw ? _sw.desc : 0)) + " m"; break;
+          case "desc_done": if (sr.has_ele) v = "↓ " + _ovFmtM(_ovCumHm(sr).desc[i] + (_sw ? _sw.desc : 0)); break;
           case "grade": if (sr.has_ele) { const g = sr.gradePct[i]; v = (g >= 0 ? "+" : "") + g.toFixed(0) + " %"; } break;
           // 23.08.2026 — Etappen-Werte, wortgleich zu core/animator.py
           case "stage_name": if (sr.stage) v = sr.stage.name[i] || t("animator.stage_fallback_name", "Etappe {n}", { n: sr.stage.nr[i] }); break;
@@ -20287,13 +20316,13 @@ function mountAnimator(body, headerActions, opts) {
       case "avg_speed": return movS > 0 ? _ovTempo(km / (movS / 3600)) : "—";
       case "avg_speed_total": return dur > 0 ? _ovTempo(km / (dur / 3600)) : "—";
       case "max_speed": return _ovTempo(st.max_speed_kmh || 0);
-      case "avg_pace": return movS > 0 ? fmtPace(km / (movS / 3600)) : "—";
-      case "avg_pace_total": return dur > 0 ? fmtPace(km / (dur / 3600)) : "—";
-      case "best_pace": return fmtPace(st.max_speed_kmh || 0);
-      case "elev_gain": return "↑ " + Math.round(st.ascent_m || 0) + " m";
-      case "elev_loss": return "↓ " + Math.round(st.descent_m || 0) + " m";
-      case "ele_high": return st.ele_max != null ? Math.round(st.ele_max) + " m" : "—";
-      case "ele_low": return st.ele_min != null ? Math.round(st.ele_min) + " m" : "—";
+      case "avg_pace": return movS > 0 ? _ovPace(km / (movS / 3600)) : "—";
+      case "avg_pace_total": return dur > 0 ? _ovPace(km / (dur / 3600)) : "—";
+      case "best_pace": return _ovPace(st.max_speed_kmh || 0);
+      case "elev_gain": return "↑ " + _ovFmtM(st.ascent_m || 0);
+      case "elev_loss": return "↓ " + _ovFmtM(st.descent_m || 0);
+      case "ele_high": return st.ele_max != null ? _ovFmtM(st.ele_max) : "—";
+      case "ele_low": return st.ele_min != null ? _ovFmtM(st.ele_min) : "—";
       case "date": return fmtDateRangeJS(st.start_epoch, st.end_epoch, off, lang);
       case "time_span": return fmtTimeSpanJS(st.start_epoch, st.end_epoch, off);
     }
@@ -21289,7 +21318,7 @@ function mountAnimator(body, headerActions, opts) {
     const rand = (i) => { const f = anteil(i); return f < 0.03 || f > 0.97; };   // Start/Ziel zeigt der Film ohnehin
     if (arten.includes("hoechster") && eg) {
       let bi = 0; for (let i = 1; i < n; i++) if (eg[i] > eg[bi]) bi = i;
-      if (!rand(bi)) aus.push({ art: "hoechster", i: bi, wert: Math.round(eg[bi]) + " m" });
+      if (!rand(bi)) aus.push({ art: "hoechster", i: bi, wert: _ovFmtM(eg[bi]) });
     }
     if (arten.includes("steilste") && eg) {
       // Steigung über ein Fenster (≥ 150 m, bei langen Touren 2 % der Strecke, max. 500 m) —
@@ -21316,7 +21345,7 @@ function mountAnimator(body, headerActions, opts) {
       const q = sp.length ? sp[Math.floor(sp.length * 0.98)] * 1.15 : 0;
       let bi = -1;
       for (let i = 0; i < n; i++) { const v = sr.speedKmh[i]; if (v <= q && (bi < 0 || v > sr.speedKmh[bi])) bi = i; }
-      if (bi >= 0 && sr.speedKmh[bi] >= 3 && !rand(bi)) aus.push({ art: "schnellste", i: bi, wert: Math.round(sr.speedKmh[bi]) + " km/h" });
+      if (bi >= 0 && sr.speedKmh[bi] >= 3 && !rand(bi)) aus.push({ art: "schnellste", i: bi, wert: _ovTempo(sr.speedKmh[bi], 0) });
     }
     if (arten.includes("halbe")) {
       let bi = 0; while (bi < n - 1 && cd[bi] - d0 < L / 2) bi++;
@@ -21399,7 +21428,7 @@ function mountAnimator(body, headerActions, opts) {
         const gipfel = h.art === "hoechster" ? _hlGipfelName(c[1], c[0]) : "";
         const s = sg.normalize({ ...HL_SCHILD, style: ps.stil, color: farbe, size: ps.groesse, icon: h.art,
                                  // Gipfel: Name UND seine Höhe aus OpenStreetMap (Teide 3715 statt GPS 3727)
-                                 text: (gipfel ? gipfel.name : _hlText(h.art)) + "\n" + (gipfel && isFinite(+gipfel.ele) && gipfel.ele ? Math.round(+gipfel.ele) + " m" : h.wert),
+                                 text: (gipfel ? gipfel.name : _hlText(h.art)) + "\n" + (gipfel && isFinite(+gipfel.ele) && gipfel.ele ? _ovFmtM(+gipfel.ele) : h.wert),
                                  lat: c[1], lon: c[0], auto: key });
         s.auto_sig = _hlSig(s);
         neu.push(s);
@@ -22368,7 +22397,10 @@ function mountAnimator(body, headerActions, opts) {
     let b = "";
     if (z.typ === "wert") {
       b += `<select data-zk="bezug">${_ctBezugOptionen(z)}</select><select data-zk="feld">${_ctFeldOptionen(z)}</select>`
-        + (_OV_TEMPO_ZU_PACE[z.feld] ? `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.tempo_als", "Tempo als"))} <select class="ct-tempo-als">${[["auto", t("container.tempo_auto", "automatisch (Laufen → Pace)")], ["kmh", "km/h"], ["pace", t("container.tempo_pace", "Pace (min/km)")]].map(([v, x]) => _ctOpt(v, _ovTempoEinstellung(), x)).join("")}</select></label></div>` : "")
+        + (_OV_TEMPO_ZU_PACE[z.feld] ? `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.tempo_als", "Tempo als"))} <select class="ct-tempo-als">${[["auto", t("container.tempo_auto", "automatisch (Laufen → Pace)")], ["kmh", "km/h"], ["mph", "mph"], ["kn", t("container.tempo_kn", "Knoten (kn)")], ["ms", "m/s"], ["pace", t("container.tempo_pace", "Pace (min/km)")]].map(([v, x]) => _ctOpt(v, _ovTempoEinstellung(), x)).join("")}</select></label></div>` : "")
+        // 27.10.2026 — Einheit gilt fürs ganze Projekt (alle Einblendungen, Maßstab, Höhepunkt-Schilder)
+        + (_OV_STRECKEN_FELDER.has(z.feld) ? `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.strecke_in", "Strecke in"))} <select class="ct-einheit" data-einheit="einheit_strecke">${[["km", t("container.einheit_km", "Kilometer (km)")], ["mi", t("container.einheit_mi", "Meilen (mi)")], ["sm", t("container.einheit_sm", "Seemeilen (sm)")]].map(([v, x]) => _ctOpt(v, _ovStrecke(), x)).join("")}</select></label></div>` : "")
+        + (_OV_HOEHEN_FELDER.has(z.feld) ? `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.hoehe_in", "Höhe in"))} <select class="ct-einheit" data-einheit="einheit_hoehe">${[["m", t("container.einheit_m", "Meter (m)")], ["ft", t("container.einheit_ft", "Fuß (ft)")]].map(([v, x]) => _ctOpt(v, _ovHoeheFt() ? "ft" : "m", x)).join("")}</select></label></div>` : "")
         + `<div class="ct-ez-reihe"><input type="text" data-zk="label" placeholder="${_ctEsc(_ovFieldLabel(z.feld))}" value="${_ctEsc(z.label || "")}">`
         + `<label title="${_ctEsc(t("container.label_aus", "Beschriftung ausblenden"))}"><input type="checkbox" data-zk="label_aus"${z.label_aus ? " checked" : ""}> ${_ctEsc(t("container.aus", "aus"))}</label></div>`;
     } else if (z.typ === "text") {
@@ -22556,6 +22588,14 @@ function mountAnimator(body, headerActions, opts) {
     p.addEventListener("compositionend", (e) => beiEingabe(e.target));
     p.addEventListener("change", (e) => {
       const el = e.target;
+      if (el.classList && el.classList.contains("ct-einheit")) {   // 27.10.2026 — gilt fürs ganze Projekt
+        const k = el.getAttribute("data-einheit");
+        saveProjectSettings(_MODKEY, { [k]: el.value });
+        try { if (_activeProject && _activeProject[_MODKEY]) _activeProject[_MODKEY][k] = el.value; } catch (_) {}
+        _ovNSKey = "";
+        _ctSpeichern(JSON.parse(JSON.stringify(_ctListe())), k === "einheit_hoehe" ? t("container.hoehe_in", "Höhe in") : t("container.strecke_in", "Strecke in"));
+        return;
+      }
       if (el.classList && el.classList.contains("ct-tempo-als")) {   // 11.10.2026 — gilt fürs ganze Projekt
         saveProjectSettings(_MODKEY, { tempo_als: el.value });
         try { if (_activeProject && _activeProject[_MODKEY]) _activeProject[_MODKEY].tempo_als = el.value; } catch (_) {}
@@ -22736,7 +22776,7 @@ function mountAnimator(body, headerActions, opts) {
     _ovNSLast = now;
     let brg = 0, zoom = 0, lat = 0;
     try { brg = map.getBearing() || 0; zoom = map.getZoom(); lat = map.getCenter().lat; } catch (_) {}
-    const key = brg.toFixed(1) + "|" + zoom.toFixed(2) + "|" + lat.toFixed(2);
+    const key = brg.toFixed(1) + "|" + zoom.toFixed(2) + "|" + lat.toFixed(2) + "|" + _ovStrecke();
     if (!force && key === _ovNSKey) return;
     _ovNSKey = key;
     nn.forEach(n => n.style.setProperty("--rz-north", (-brg) + "deg"));
@@ -22746,15 +22786,21 @@ function mountAnimator(body, headerActions, opts) {
     const k = (layer.offsetWidth ? sw / layer.offsetWidth : 1);   // Layer-px → Bildschirm-px (Layer ist rw breit, auf sw skaliert)
     const maxLayer = 120 * ovs, maxScreen = maxLayer * k;
     const mpp = 40075016.686 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, zoom));   // Meter je CSS-Pixel in der Bildmitte
-    const dist = mpp * maxScreen;
-    if (!(dist > 0) || !isFinite(dist)) return;
+    // 27.10.2026 — Maßstab in der Einheit der Einblendungen: Meilen (unter einer halben Meile Fuß), Seemeilen, km/m
+    const e = _ovStrecke();
+    const [je, kurz, klein, kleinKurz] = e === "mi" ? [1609.344, "mi", 0.3048, "ft"] : e === "sm" ? [1852, _ovStreckeKurz("sm"), 0, ""] : [1000, "km", 1, "m"];
+    const distM = mpp * maxScreen;
+    if (!(distM > 0) || !isFinite(distM)) return;
+    const gross = !klein || distM >= je * (e === "mi" ? 0.5 : 1);
+    const f = gross ? je : klein, dist = distM / f;
     const p10 = Math.pow(10, Math.floor(Math.log10(dist))); let r = dist / p10;
     r = r >= 10 ? 10 : r >= 5 ? 5 : r >= 3 ? 3 : r >= 2 ? 2 : 1;
-    const nice = r * p10;
+    const nice = r * p10 * f;
+    const beschr = (m) => { const v = m / f; return (Math.round(v * 100) / 100) + " " + (gross ? kurz : kleinKurz); };
     ss.forEach(s => {
-      s.style.setProperty("--rz-scale-w", (maxLayer * nice / dist) + "px");
+      s.style.setProperty("--rz-scale-w", (maxLayer * nice / distM) + "px");
       const txt = s.querySelector(".ov-scale-txt");
-      if (txt) txt.textContent = nice >= 1000 ? (Math.round(nice / 100) / 10) + " km" : Math.round(nice) + " m";
+      if (txt) txt.textContent = beschr(nice);
     });
   }
 

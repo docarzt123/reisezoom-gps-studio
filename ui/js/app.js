@@ -302,7 +302,11 @@ function rzRightsTableHtml() {
     [t("rights.row.osm", "OpenFreeMap · OpenStreetMap-Karten"),
      cell("✅", "✅", "✅"), cell("✅", "✅", "✅"), cell("✅", "✅", "⚠️", t("rights.note.osm", "Web bei viel Traffic: eigener Kachelserver"))],
     [t("rights.row.maptiler", "MapTiler (eigener Schlüssel)"),
-     cell("✅", "✅", "❌"), cell("✅", "✅", "❌", t("rights.note.maptiler_pub", "Video bis 100.000 Abonnenten")), cell("⚠️", "⚠️", "❌", t("rights.note.maptiler_com", "Flex-Tarif (ca. 30 $/Mon.) nötig; Web: nicht im Export"))],
+     // 27.10.2026 — nach den MapTiler-Bedingungen (CT §5/§7): Standbilder/Screenshots nicht weitergeben, Free nicht
+     // kommerziell und mit MapTiler-Logo, Auftragsarbeit nur mit Custom-Vertrag
+     cell("✅", "⚠️", "❌", t("rights.note.maptiler_priv", "Foto nur für dich, nicht weitergeben")),
+     cell("✅", "❌", "❌", t("rights.note.maptiler_pub", "Free: ohne Geld, Nennung + MapTiler-Logo immer sichtbar; Video bis 100.000 Abonnenten; keine Standbilder")),
+     cell("⚠️", "❌", "❌", t("rights.note.maptiler_com", "Flex-Tarif (ca. 30 $/Mon.) bis 100.000 Abonnenten; Auftragsvideos nur mit Custom-Vertrag"))],
     [t("rights.row.mapbox", "Mapbox (Token)"),
      cell("⚠️", "✅", "❌", t("rights.note.mapbox_priv", "Video formal nur mit Videorechten")), cell("❌", "⚠️", "❌", t("rights.note.mapbox_pub", "Video: Rechte kaufen; Foto: kein Druck")), cell("❌", "⚠️", "❌", t("rights.note.mapbox_com", "Video: Rechte kaufen; Web: nicht im Export"))],
   ];

@@ -4517,16 +4517,20 @@ function mountLibrary(body, headerActions) {
   /** Rückfrage vors Verschieben in den Papierkorb — für eine Tour wie für
    *  hundert. Liefert true, wenn der Nutzer zustimmt. */
   function frageTrash(n, pfad) {
+    // 27.10.2026 — zeigt das Archiv eine Version aus der Bibliothek (bearbeitete Tour, Tour aus Fotos), geht die ganze
+    // Tour mit allen Versionen weg; der interne Speicherpfad sagt dem Nutzer nichts
+    const ganz = n === 1 && /[\\/]touren[\\/][0-9a-f]{2}[\\/][0-9a-f]{16}\.gpx\.gz$/i.test(pfad || "");
     return new Promise((fertig) => {
       let beantwortet = false;
       const m = openModal({
         title: T("library.trash", "In den Papierkorb"),
         body: `<div class="lib-fmodal">
-          <p>${n === 1
+          <p>${ganz ? T("library.trash_ganz_q", "Diese Tour mit allen Versionen in den Papierkorb legen?")
+            : n === 1
             ? T("library.trash_q", "Diese Datei in den Papierkorb legen?")
             : T("library.trash_many_q", "{n} Touren in den Papierkorb legen?")
                 .replace("{n}", num(n))}</p>
-          ${pfad ? `<p class="lib-hint">${esc(pfad)}</p>` : ""}
+          ${pfad && !ganz ? `<p class="lib-hint">${esc(pfad)}</p>` : ""}
           <p class="lib-hint">${T("library.trash_note", "Die Tour verschwindet aus dem Archiv. Aus dem Papierkorb kannst du sie zurückholen, solange er nicht geleert ist.")}</p>
           <div class="lib-actions" style="margin-top:12px;">
             <button class="btn btn-sm" id="lib-trash-cancel">${T("library.cancel", "Abbrechen")}</button>

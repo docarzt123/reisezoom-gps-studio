@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.844"
+APP_VERSION = "0.9.845"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -8760,14 +8760,13 @@ class Api:
         try:
             # 02.09.2026, Audit: Dieser Weg wirft die DATEI DES NUTZERS weg.
             # Auf unsere eigene Kopie in der Bibliothek darf er nie zeigen —
-            # das wäre kein Aufräumen, sondern der Verlust der Tour. Wer eine
-            # Version loswerden will, nimmt `tour_version_loeschen`.
+            # das wäre kein Aufräumen, sondern der Verlust der Tour.
+            # 27.10.2026 (Nutzer-Meldung: Fehlversuch ließ sich nicht löschen) — zeigt das Archiv eine Version aus der
+            # Bibliothek (jede bearbeitete Tour, jede Tour aus Fotos), war das eine Sackgasse: hier abgelehnt, bei den
+            # Versionen ist die neueste gesperrt. Jetzt heißt das: die GANZE Tour weg, alle Versionen und Dateien.
             if BIB_BEREIT and Path(path).resolve().is_relative_to(
                     cbib.touren_ordner(BIB).resolve()):
-                return {"ok": False, "error": _ui_t()(
-                    "library.trash_speicher",
-                    "Das ist die Kopie in der Bibliothek, nicht deine Datei. "
-                    "Einzelne Versionen entfernst du in der Tour bei den Versionen.")}
+                return self._tour_ganz_wegwerfen(path, mit_projekten)
         except (OSError, ValueError):
             pass
         try:
@@ -8798,6 +8797,67 @@ class Api:
                 "library.kein_papierkorb", "Dieses Laufwerk hat keinen Papierkorb (z. B. ein NAS) — die Datei bleibt, wo sie ist. Lösch sie bei Bedarf im Finder.")}
         except Exception as e:
             log.exception("library_trash")
+            return {"ok": False, "error": str(e)}
+
+    def _tour_ganz_wegwerfen(self, path: str, mit_projekten: bool) -> dict:
+        """Eine Tour samt aller Versionen wegwerfen — Weg für Touren, deren Archiv-Eintrag eine Bibliotheks-Version ist.
+
+        Eigene Dateien des Nutzers (Original, auch Touren aus Fotos) gehen in den Papierkorb, die Versionen der
+        Bibliothek ebenso (`version_weg`), das Register vergisst die Tour. Projekte: wie bei `library_trash`.
+        """
+        try:
+            conn = self._lib()
+            zeile = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (path,)).fetchone()
+            gh0 = (zeile["geo_hash"] if zeile else "") or ""
+            info = self.tour_projekte(path)
+            halter = info.get("projekte") or []
+            if halter and not mit_projekten:
+                return {"ok": False, "grund": "benutzt",
+                        "projekte": [h["name"] for h in halter],
+                        "error": _ui_t()("library.tour_benutzt",
+                        "Diese Tour wird von {n} Projekt(en) benutzt.").replace(
+                            "{n}", str(len(halter)))}
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                t = _projekte.tour_von_hash(daten, gh0) if gh0 else None
+                hashes = {gh for gh, _e in _projekte.kette(daten, t["id"])} if t and t.get("id") else set()
+            hashes.add(gh0)
+            tid = info.get("tour_id") or ""
+            if tid:
+                hashes |= {z["geo_hash"] for z in conn.execute(
+                    "SELECT DISTINCT geo_hash FROM tracks WHERE tour_id = ?", (tid,)).fetchall()}
+            hashes.discard("")
+            speicher = str(cbib.touren_ordner(BIB).resolve())
+            zeilen = [z["path"] for gh in hashes for z in conn.execute(
+                "SELECT path FROM tracks WHERE geo_hash = ?", (gh,)).fetchall()]
+            eigene = [p for p in zeilen if not str(Path(p).resolve()).startswith(speicher)]
+            # Erst die Dateien des Nutzers (ein Laufwerk ohne Papierkorb lehnt ab) — dann erst Versionen und Register
+            for p in eigene:
+                _ds.nutzer_ziel(p)
+                clib.trash_file(conn, p)
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                for gh in hashes:
+                    (daten.get("touren") or {}).pop(gh, None)
+                if halter and mit_projekten:
+                    for h in halter:
+                        _projekte.loeschen(daten, h["id"])
+                _projekte.speichern(DATEN_ORT, daten)
+            for gh in hashes:
+                cbib.version_weg(BIB, gh)
+            conn.executemany("DELETE FROM tracks WHERE geo_hash = ? AND path LIKE ?",
+                             [(gh, speicher + "%") for gh in hashes])
+            conn.commit()
+            reg, neuste = self._register_fuer_archiv()
+            clib.touren_bestimmen(conn, reg, neuste)
+            log.info("library_trash: ganze Tour weg (%d Versionen, %d eigene Dateien, %d Projekte)",
+                     len(hashes), len(eigene), len(halter) if mit_projekten else 0)
+            return {"ok": True, "moved_to": "Papierkorb", "echter_papierkorb": True, "ganze_tour": True}
+        except clib.KeinPapierkorb:
+            return {"ok": False, "kein_papierkorb": True, "error": _ui_t()(
+                "library.kein_papierkorb", "Dieses Laufwerk hat keinen Papierkorb (z. B. ein NAS) — die Datei bleibt, wo sie ist. Lösch sie bei Bedarf im Finder.")}
+        except Exception as e:
+            log.exception("_tour_ganz_wegwerfen")
             return {"ok": False, "error": str(e)}
 
     def library_set_fields(self, path: str, fav=None, tags=None, note=None) -> dict:

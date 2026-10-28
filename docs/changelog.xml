@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 27 Oct 2026 10:23:31 +0000</lastBuildDate>
+<lastBuildDate>Wed, 28 Oct 2026 07:44:36 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.845</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-845</link>
+<guid isPermaLink="false">gps-studio-v0.9.845</guid>
+<pubDate>Wed, 28 Oct 2026 12:00:00 +0000</pubDate>
+<description>Einheiten für die Einblendungen — Strecke in Kilometern, Meilen oder Seemeilen, Höhe in Metern oder Fuß, Tempo in km/h, mph, Knoten, m/s oder als Pace (min/km, bei Meilen min/mi). Einstellen im Feld-Editor der Einblendung; gilt fürs ganze Projekt, auch für Höhepunkt-Schilder und den Maßstab. „Automatisch“ nimmt bei Meilen mph und bei Seemeilen Knoten.
+
+Bearbeitete Touren lassen sich wieder löschen — Hattest du eine Tour bearbeitet oder aus Fotos gemacht, ließ sie sich im Archiv nicht löschen. Jetzt wandert die ganze Tour mit allen Versionen in den Papierkorb.
+
+Logo oben in der Mitte — Das GPS-Studio-Logo sitzt bei neuen Projekten oben mittig. Unten rechts lag es immer auf Nordpfeil und Maßstab. Bestehende Projekte behalten ihre Position.
+
+Videos tragen ihre Herkunft — Jedes exportierte Video sagt in seinen Metadaten, dass es mit GPS Studio gemacht wurde, mit Version, System, Größe und Bildrate, dazu den Titel deiner Tour. Nichts Persönliches. Hilft, wenn mal ein Video bei jemandem nicht läuft.</description>
+</item>
 <item>
 <title>v0.9.844</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-844</link>
@@ -247,19 +260,6 @@ Linien-Looks, Farblooks und Farbe je Tag — Glut und Neon lassen die Linie von 
 Schärferes 3D-Gelände — Höhendaten von Mapterhorn: amtliche Geländemodelle (Deutschland 1 m, Alpen und Skandinavien bis 0,5 m) statt grober Kacheln — schärferes Relief und richtige Gipfelhöhen.
 
 Logbuch auf der Tour-Seite — Die Tour Tag für Tag neben der Karte: Pausen, Übernachtungen, Notizen. Ein Klick auf einen Eintrag zeigt die Stelle auf der Karte; umbenennen, Notiz, zusammenfassen.</description>
-</item>
-<item>
-<title>v0.9.788</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-788</link>
-<guid isPermaLink="false">gps-studio-v0.9.788</guid>
-<pubDate>Sat, 10 Oct 2026 12:00:00 +0000</pubDate>
-<description>4K wieder scharf — Mit „Karte glätten“ wurden 4K-Videos seit 0.9.782 viel zu weich — Karte und Track sahen aus wie hinter einem Filter, obwohl die Vorschau stimmte. Die Bilder werden jetzt wieder auf dem bewährten Weg aufgenommen (wie bei ProRes schon immer). Das Glätten wirkt nur noch auf die Karte: Track, Geister-Spur und Punkt bleiben gestochen scharf. Ein Render dauert dafür etwas länger.
-
-Einmal um die Welt — Routen und Etappen über die Datumsgrenze: Jede Etappe nimmt den kürzeren Weg von der vorigen Station, ob ost- oder westwärts ergibt sich aus der Reihenfolge deiner Punkte. Linie und Kamera springen nicht mehr quer über die Weltkarte, „Straße folgen“ klappt auch jenseits von 180°. GPX-Tracks über die Datumsgrenze (Fidschi, Pazifikflüge) werden ebenfalls richtig gezeichnet.
-
-Entfernen in der Zeitleiste — Einen Balken anklicken — Schild, Foto, Fotostopp oder Overlay — und Entf drücken: weg. Bei einem Overlay mit mehreren Zeiträumen nur der angeklickte; ⌘Z holt alles zurück.
-
-Kein Geister-Pin mehr — Wurde der letzte Fotostopp eines Projekts gelöscht, blieb sein kleiner runder Foto-Pin auf der Karte stehen. Jetzt verschwindet er mit.</description>
 </item>
 </channel>
 </rss>

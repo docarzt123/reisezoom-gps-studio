@@ -117,9 +117,24 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.845</span>
+    <span class="version-date">28 October 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>Units for overlays</strong> &mdash; Distance in kilometres, miles or nautical miles, elevation in metres or feet, speed in km/h, mph, knots, m/s or as pace (min/km, min/mi with miles). Set it in the overlay field editor; it applies to the whole project, including highlight signs and the scale bar. „Automatic“ uses mph with miles and knots with nautical miles.</li>
+    <li><strong>Edited tours can be deleted again</strong> &mdash; A tour you had edited or made from photos could not be deleted in the archive. Now the whole tour with all its versions goes to the trash.</li>
+    <li><strong>Logo at the top centre</strong> &mdash; In new projects the GPS Studio logo sits at the top centre. Bottom right it always covered the north arrow and scale bar. Existing projects keep their position.</li>
+    <li><strong>Videos carry their origin</strong> &mdash; Every exported video now says in its metadata that it was made with GPS Studio, with version, system, size and frame rate, plus the title of your tour. Nothing personal. Helps when a video won't play for someone.</li>
+    <li><strong>MapTiler by its rules</strong> &mdash; Sharpening, haze and dimming stay off on MapTiler maps, because MapTiler forbids altering the map image. The rights overview now says it clearly: don't share stills, on the free plan keep credit and logo visible, commissioned videos only with a separate contract.</li>
+    <li><strong>Project video from the command line</strong> &mdash; <code>gpsstudio project-render</code> renders an exported project exactly like the app's video export, smaller if you like (e.g. a 4K project in Full HD with <code>--height 1080</code>). Also for AI assistants as the tool <code>render_project</code>.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.844</span>
     <span class="version-date">27 October 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <ul>
     <li><strong>Video assistant like the web studio</strong> &mdash; Eight tabs: Route, Camera, Map, Line, Title, Photos, Info, Video. Each can be clicked at any time and is already set up sensibly. New: camera height close/medium/high, 3D terrain and labels, a tab of its own for the line, and „Photos as“ instant photo, large with pause or picture in picture. A „?“ explains every setting, often with short clips of how it looks in the video.</li>

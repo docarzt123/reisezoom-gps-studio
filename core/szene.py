@@ -43,6 +43,7 @@ from typing import Callable, Optional
 from . import animator as A
 from . import tileproxy as _tileproxy
 from . import tonspur as _tonspur
+from . import videometa as _videometa   # 27.10.2026 — Herkunft im Video (Programm, Ausgabe, Version)
 from . import logger as _logger   # 16.10.2026 — freier Arbeitsspeicher fürs Render-Log
 from .frame_driver import FrameMuxer, muxer_fuer, teildatei
 
@@ -128,6 +129,25 @@ def _bridge_factory(api):
 _HDR_TRC = {"hlg": "arib-std-b67", "pq": "smpte2084"}
 
 
+def _herkunft(cfg, api=None, projekt_id: str = "") -> None:
+    """Version und Tour-Titel für die Video-Metadaten an `cfg` hängen (core/videometa)."""
+    app = sys.modules.get("app") or sys.modules.get("__main__")
+    cfg._rz_version = str(getattr(app, "APP_VERSION", "") or "")
+    titel = ""
+    try:
+        from core import projekte as _pj
+        anim = ((_pj.laden(app.DATEN_ORT).get("projects") or {}).get(projekt_id) or {}).get("animator")
+        titel = _videometa.titel_aus_animator(anim)
+    except Exception:  # noqa: BLE001 — ohne Titel geht es auch
+        pass
+    cfg._rz_titel = titel
+
+
+def _herkunft_args(cfg) -> list[str]:
+    v = getattr(cfg, "_rz_version", "")
+    return _videometa.ffmpeg_args(cfg.output_path, v, cfg.width, cfg.height, cfg.fps, getattr(cfg, "_rz_titel", "")) if v else []
+
+
 def _hdr_cmd(cfg, farbraum: str, ffmpeg_bin: str) -> list[str]:
     """Bildstrom (sRGB) → linear (Weiß = 203 nits) → BT.2020 + HLG/PQ, 10 Bit. ProRes bleibt ProRes (422 HQ),
     alles andere wird HEVC Main10 (H.264 kann kein HDR, das Player und Schnittprogramme verstehen)."""
@@ -151,7 +171,7 @@ def _hdr_cmd(cfg, farbraum: str, ffmpeg_bin: str) -> list[str]:
         cmd += ["-vf", ",".join(vf + ["format=yuv420p10le"]), "-c:v", "libx265", "-profile:v", "main10",
                 "-preset", (cfg.encoder_preset or "fast"), "-crf", str(cfg.crf), "-x265-params", x265,
                 *farbe, "-tag:v", "hvc1", "-movflags", "+faststart"]
-    cmd += ["-f", muxer_fuer(cfg.output_path), teildatei(cfg.output_path)]
+    cmd += [*_herkunft_args(cfg), "-f", muxer_fuer(cfg.output_path), teildatei(cfg.output_path)]
     return cmd
 
 
@@ -182,7 +202,7 @@ def _ffmpeg_cmd(cfg) -> list[str]:
                "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
         if vcodec == "libx265":
             cmd += ["-tag:v", "hvc1"]
-    cmd += ["-f", muxer_fuer(cfg.output_path), teildatei(cfg.output_path)]
+    cmd += [*_herkunft_args(cfg), "-f", muxer_fuer(cfg.output_path), teildatei(cfg.output_path)]
     return cmd
 
 
@@ -1029,6 +1049,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
         _nur = {int(x) for x in ((params or {}).get("nur_bilder") or []) if 0 <= int(x) < total_frames}
         _nur_basis = str(Path(cfg.output_path).with_suffix(""))
         NUR_PNG.clear()
+        _herkunft(cfg, api, projekt_id)
         mux = None if _nur else FrameMuxer(_ffmpeg_cmd(cfg), cfg.output_path, total_frames, log=_log, cancelled_cls=A.RenderCancelled)
         preview_every = max(1, cfg.fps // 10)
         # 30.09.2026 (Marc: „das Komoot-Video rendert so schnell, bei uns dauert es ewig") — wohin geht die
@@ -1166,6 +1187,9 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             _ton = _tonspur.anlegen(cfg.output_path, _tonplan, A.find_ffmpeg(), total_frames / cfg.fps)
             if not _ton.get("ok"):
                 _log.warning("Szene: Tonspur fehlgeschlagen — Video bleibt stumm: %s", _ton.get("error"))
+        if mux is not None and getattr(cfg, "_rz_version", ""):
+            # 27.10.2026 — ©too/©cmt/©nam: womit, in welcher Ausgabe und Version das Video entstand
+            _videometa.schreiben(cfg.output_path, cfg._rz_version, cfg.width, cfg.height, cfg.fps, getattr(cfg, "_rz_titel", ""))
         _log.info("Szene: Kacheln %s", _stats_json(getattr(page, "_rz_tile_stats", None)))
         _gl = _tileproxy.geladen()
         _log.info("Szene: über die Kachel-Weiche aus dem Netz geladen: %d Kacheln, %.1f MB", _gl["kacheln"], _gl["bytes"] / 1e6)
