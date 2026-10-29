@@ -805,6 +805,8 @@ Ein Klick öffnet ein Fenster in der Mitte mit allem, was nur die Ausgabedatei b
 Der kleine Pfeil **▾** neben dem Knopf bietet **Aktuelles Bild exportieren** (das Bild, das gerade in der Vorschau
 steht, als PNG) und **Als Tour-Map öffnen**. Die Export-Einstellungen gelten je Projekt; Esc schließt das Fenster.
 
+**Während des Renderns** zeigt GPS Studio den Fortschritt als kleine Wanderung: Der Pfad füllt sich, der Laufpunkt wandert mit, und in der Sprechblase stehen Sprüche zur Lage. Pulsiert der Punkt, lädt die Karte gerade Kacheln nach (seit v0.9.846).
+
 **Herkunft im Video (seit v0.9.845).** Jedes exportierte Video trägt in seinen Metadaten „GPS Studio by Reisezoom.com“ mit Version, System, Größe und Bildrate, dazu den Titel deiner Tour, falls du einen gesetzt hast. Persönliches steht nicht drin. Schickst du mir ein Video, das irgendwo nicht läuft, sehe ich so sofort, womit es gebaut wurde.
 
 ### 🖼 Medien der Tour (seit v0.9.782)
@@ -996,10 +998,10 @@ Fotos, Titel, Zahlen, Höhenprofil, Highlights, Schlusskarte); noch ein Klick kl
 Der Assistent ist ein **schwebendes Fenster links über den Werkzeugen** — die Karte rückt daneben und bleibt ganz sichtbar;
 verschieben am Kopf (⠿), mit ⌃ einklappen, die Lage merkt er sich. **Jede Wahl wirkt sofort**: hinter dem Fenster siehst du im Animator, was sich ändert, und der passende Bereich
 der Seitenleiste leuchtet kurz auf („Das findest du später hier“). Du darfst nebenbei im Animator weiterarbeiten.
-**✕** fragt „Assistent beenden?“ — **Ins Projekt übernehmen** oder **Verwerfen**. Alles steht **bearbeitbar** im Projekt — Schilder
-in der Zeitleiste, Kamera unter „Kamera“, Einblendungen unter „Overlays“ —, rechts erscheint **„Das hat der Assistent
-gemacht“**, und **ein ⌘Z** nimmt den ganzen Assistenten zurück. **„Abbrechen“** (oder ✕ → Verwerfen) stellt dein Projekt wieder so
-her, wie es vor dem Assistenten war. Der Unterschied zum Schnell-Video: das Schnell-Video macht mit wenigen
+Am Ende behält **„Übernehmen“** alles: Es steht **bearbeitbar** im Projekt — Schilder in der Zeitleiste, Kamera unter
+„Kamera“, Einblendungen unter „Overlays“ —, rechts erscheint **„Das hat der Assistent gemacht“**, und **ein ⌘Z** nimmt den
+ganzen Assistenten zurück. **„Abbrechen“** unten oder das **✕** oben rechts schließen den Assistenten und stellen dein
+Projekt wieder so her, wie es vor dem Assistenten war (seit v0.9.846; vorher fragte das ✕ erst nach). Der Unterschied zum Schnell-Video: das Schnell-Video macht mit wenigen
 Entscheidungen eine fertige Datei, der Assistent richtet dein Projekt ein, damit du danach weiterarbeitest.
 
 **Immer nur einer (seit 26.10.2026).** Solange der Assistent oder das Schnell-Video offen ist, startet kein zweites —
@@ -1448,7 +1450,7 @@ auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
 - **Keyframe aus Versehen verändert?** Ist ein Keyframe gewählt und du verschiebst, drehst oder zoomst die Karte, übernimmt er die neue Ansicht — unten steht dann leise „Keyframe #2 übernimmt die Karte — ⌘Z macht es rückgängig“. **Ein ⌘Z** (Windows: Strg+Z) holt den Keyframe genau zurück.
 - **Fotostopp:** Der runde Foto-Pin nach dem Stopp richtet sich nach „Bleibt sichtbar“ und der Ausblendung, statt bis zum Videoende stehen zu bleiben; den Balken in der Zeitleiste kannst du rechts kürzer ziehen. Verschiebst du einen Fotostopp in der Zeitleiste, wandert sein Ort entlang der Strecke mit — die Kamera fliegt zum neuen Ort. Liegt der Fotostopp dann mehr als 200 m vom Aufnahmeort entfernt, nennt die Bildunterschrift den Ort an der neuen Stelle; die Uhrzeit bleibt die der Aufnahme.
 - **Pausen** aus dem Logbuch stehen an der richtigen Stelle, auch wenn die Route zweimal am selben Ort vorbeikommt, und das Symbol lässt sich wieder auf die **Kaffeetasse** zurückstellen.
-- **Schild bearbeiten = wie im Video:** Das Schild, das du gerade bearbeitest, sitzt jetzt genau so wie im fertigen Video — gleiche Größe, und am Bildrand genauso hereingeschoben. Willst du es ganz sehen, schieb die Kamera etwas. Textschilder lassen sich nach „↔ Verschieben“ wieder am Text greifen, und ein Leerzeichen beim Tippen auf der Karte springt nicht mehr an den Anfang.
+- **Schild bearbeiten = wie im Video:** Das Schild, das du gerade bearbeitest, sitzt jetzt genau so wie im fertigen Video — gleiche Größe, gleicher Platz (seit v0.9.846 auch am Bildrand genau auf seinem Punkt). Willst du es ganz sehen, schieb die Kamera etwas. Textschilder lassen sich nach „↔ Verschieben“ wieder am Text greifen, und ein Leerzeichen beim Tippen auf der Karte springt nicht mehr an den Anfang.
 - **Vergrößerte Zeitleiste:** Keyframes außerhalb des sichtbaren Ausschnitts lassen sich nicht mehr aus Versehen greifen (das zog die Kamera mitunter in den Sternenhimmel).
 
 ### Neu in v0.9.796: kleine Korrekturen
@@ -1477,7 +1479,7 @@ auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
 - **Keyframes übernehmen die verschobene Karte:** Ein Keyframe ohne feste Mitte („Kamera folgt dem Track“ bzw. Gesamtsicht) merkt sich jetzt auch, wohin du die Karte geschoben hast — als Versatz zu seiner Mitte. Die Kamera folgt weiter, nur genau mit deinem Ausschnitt; zwischen zwei solchen Keyframes wird der Versatz verblendet. Schaltest du „Kamera folgt dem Track“ am Keyframe neu ein, ist der Versatz weg.
 - **Ansicht nicht gespeichert:** Verschiebst du die Karte, ohne dass ein Keyframe ausgewählt ist (etwa nachdem die Vorschau bis zum Ende gelaufen ist), steht unten im Bild eine leise Warnzeile — „erst Keyframe #2 anklicken, dann übernimmt er die Karte“ bzw. „„Hier Keyframe“ legt an dieser Stelle einen an“. Sie hat keine Knöpfe und verschwindet von selbst.
 - **Während des Renderns** ist auch die Detailspalte rechts ausgegraut und gesperrt.
-- **Schilder am Bildrand:** Ein Schild knapp am Rand wird höchstens um ein Drittel seiner Größe ins Bild geschoben. Fährt die Kamera weiter, klebt es nicht mehr am Rand, sondern wandert mit der Karte und geht über den Rand hinaus — im Editor genauso wie im Video.
+- **Schilder am Bildrand:** Seit v0.9.846 steht ein Schild immer genau auf seinem Punkt. Am Bildrand läuft es mit der Karte hinaus, und unter dem Logo verschwindet es dahinter — es wird nicht mehr ins Bild geschoben und rutscht deshalb auch bei fahrender Kamera nicht mehr gegen das Gelände. Im Editor genauso wie im Video. (Vorher wurde es am Rand um bis zu ein Drittel seiner Größe hereingeholt.)
 - **Flug in der Luft:** Die senkrechten Linien unter einem hohen Bogen flimmern in der Vorschau nicht mehr — stehen sie auf dem Bildschirm zu dicht, zeichnet die App nur jede zweite, vierte … Linie.
 
 ### 🩺 Track-Check — das Archiv sagt dir, was am Track nicht stimmt (seit v0.9.688)

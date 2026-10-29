@@ -755,6 +755,8 @@ opens a window in the middle with everything that only concerns the output file:
 The small arrow **▾** next to the button offers **Export current frame** (the picture currently in the preview, as
 PNG) and **Open as Tour-Map**. Export settings are stored per project; Esc closes the window.
 
+**While rendering**, GPS Studio shows the progress as a little hike: the path fills up, the walking dot follows it, and the speech bubble has a saying for the moment. If the dot pulses, the map is still loading tiles (since v0.9.846).
+
 **Origin in the video (since v0.9.845).** Every exported video carries “GPS Studio by Reisezoom.com” in its metadata, with version, system, size and frame rate, plus your tour's title if you set one. Nothing personal is stored. If you send me a video that won't play somewhere, I can see straight away what it was made with.
 
 ### 🖼 Media of the tour (since v0.9.782)
@@ -939,9 +941,10 @@ title, numbers, elevation profile, highlights, end card); another click closes i
 The assistant is a **floating window on the left, over the tools** — the map moves aside and stays fully visible; drag it
 by its header (⠿), collapse it with ⌃, it remembers where it was. **Every choice takes effect right away**: behind the window you see the change in the Animator, and the matching
 area of the sidebar lights up briefly („You'll find this here later“). You may keep working in the Animator meanwhile.
-**✕** asks „Close the assistant?“ — **Apply to project** or **Discard**. Everything is **editable** in the project — signs in the
-timeline, camera under „Camera“, overlays under „Overlays“ —, **„What the assistant did“** appears on the right, and
-**one ⌘Z** takes the whole assistant back. **„Cancel“** (or ✕ → Discard) puts your project back the way it was before. The difference to the quick video: the quick video makes a finished file with a few choices, the
+At the end **„Apply“** keeps everything: it is **editable** in the project — signs in the timeline, camera under „Camera“,
+overlays under „Overlays“ —, **„What the assistant did“** appears on the right, and **one ⌘Z** takes the whole assistant
+back. **„Cancel“** at the bottom or the **✕** at the top right close the assistant and put your project back the way it was
+before (since v0.9.846; before, the ✕ asked first). The difference to the quick video: the quick video makes a finished file with a few choices, the
 assistant sets up your project so you can keep working on it.
 
 **Only one at a time (since 26.10.2026).** While the assistant or the quick video is open, no second one starts — a click
@@ -1372,7 +1375,7 @@ when you start it, and it needs a new track in the inbox.
 - **Keyframes keep the moved map:** a keyframe without a fixed centre (“camera follows the track”, or the overall view) now also remembers where you moved the map — as an offset to its centre. The camera keeps following, just with your framing; between two such keyframes the offset is blended. Switching “camera follows the track” on again at the keyframe clears the offset.
 - **View not saved:** if you move the map with no keyframe selected (for example after the preview has played to the end), a quiet warning line appears at the bottom of the picture — “click keyframe #2 first …” or ““Capture keyframe” adds one at this spot”. It has no buttons and goes away by itself.
 - **While rendering**, the detail column on the right is greyed out and locked as well.
-- **Signs at the edge:** a sign near the edge is pushed into the picture by at most a third of its size. When the camera moves on, it no longer clings to the edge but moves with the map and leaves over the edge — in the editor just like in the video.
+- **Signs at the edge:** since v0.9.846 a sign always stands exactly on its point. At the edge it moves out with the map, and under the logo it disappears behind it — it is no longer pushed into the picture, so it no longer slides against the terrain while the camera moves. In the editor just like in the video. (Before, it was pulled in at the edge by up to a third of its size.)
 - **Flight in the air:** the vertical lines under a high arc no longer flicker in the preview — when they are too close on screen, the app draws only every second, fourth … line.
 
 ### 🩺 Track check — the archive tells you what is wrong with a track (since v0.9.688)

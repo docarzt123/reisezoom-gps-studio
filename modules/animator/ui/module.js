@@ -1687,6 +1687,17 @@ function mountAnimator(body, headerActions, opts) {
         <div class="progress-meta">
           <div class="progress-percent" id="anim-pct">0%</div>
           <div class="progress-bar"><div class="progress-fill" id="anim-fill"></div></div>
+          <!-- 29.10.2026 — Fortschritt als kleine Wanderung (wie die Web-Version): Pfad füllt sich, Laufpunkt läuft mit,
+               Sprüche in einer Sprechblase über ihm -->
+          <div class="anim-tour" id="anim-tour" hidden aria-hidden="true">
+            <div class="anim-blase" id="anim-blase"><span id="anim-blase-text"></span></div>
+            <svg viewBox="0 0 400 64" preserveAspectRatio="none">
+              <path id="anim-pfad-grau" class="anim-pfad-grau" d="M6,50 C54,50 66,20 112,22 S176,56 226,42 S300,8 346,18 S386,30 394,28"/>
+              <path id="anim-pfad" class="anim-pfad" d="M6,50 C54,50 66,20 112,22 S176,56 226,42 S300,8 346,18 S386,30 394,28"/>
+              <g id="anim-laeufer" class="anim-laeufer"><circle r="7"/><circle class="kern" r="3"/></g>
+              <g transform="translate(394,28)" class="anim-gipfel"><path d="M0,-2 L0,-20 L11,-15 L0,-10"/></g>
+            </svg>
+          </div>
           <div class="progress-status" id="anim-status">${t("animator.status.start")}</div>
         </div>
         <button class="btn" id="anim-cancel">⨯ ${t("animator.btn.cancel")}</button>
@@ -15664,8 +15675,8 @@ function mountAnimator(body, headerActions, opts) {
     }
     /** 18.10.2026 (Marc: „Im Editor muss man die Kamera halt verschieben, wenn man das Schild sehen will.“) — Größe und
      *  Randversatz des HTML-Schilds im Editor wie die Schild-Ebene im Video: Größenfaktor aus sign_draw.js rzSignGroesse,
-     *  Versatz aus rzSignRandPx (dieselbe Regel: höchstens ein Drittel der Schildgröße, nichts bei Schildern breiter als
-     *  das Bild, ohne Gedächtnis). Läuft bei jeder Kamerabewegung; beim Ziehen bleibt der Versatz stehen, nach dem
+     *  Versatz aus rzSignRandPx (seit 29.10.2026 immer 0: Schilder stehen auf ihrem Punkt, wie die Schild-Ebene). Läuft
+     *  bei jeder Kamerabewegung; beim Ziehen bleibt der Versatz stehen, nach dem
      *  Loslassen wird neu aufgebaut. `zsc` = Zoom-Faktor des CSS-Platzhalters (der skaliert per transform). */
     function _animSignDomRand(mk, zsc) {
       if (!mk || !mk.marker || !mk.wrap || !map) return;
@@ -29666,6 +29677,76 @@ function mountAnimator(body, headerActions, opts) {
 
   let pollTimer = null;
   let _lastPreviewB64 = "";
+  // 29.10.2026 (Marc: „beim Rendern hat der Webchat so eine coole Animation gebaut. Übernimm die.“) — Fortschritt als
+  // kleine Wanderung wie in der Web-Version: Pfad füllt sich, der Laufpunkt läuft mit, Sprüche in einer Sprechblase über
+  // ihm passen zur Lage (Start, 4K, Karte/Gelände lädt, Bergfest, Gipfel), dazwischen die Wartesprüche der App
+  // (wartespruch.01–30). Ob die Karte gerade wartet, steht in der Statuszeile der Szene (szene.m_karte/m_gelaende).
+  const WANDER_SPRUCH_MS = 13000, WANDER_WARTE_AB_MS = 2500;
+  const WANDER_SPAET = /gleich|fertig|gipfel|oben|almost|nearly|summit|top|casi|cumbre|arriba|listo/i;
+  let _wander = null;
+  function _wanderStart() {
+    const tour = document.getElementById("anim-tour"), pfad = document.getElementById("anim-pfad"), grau = document.getElementById("anim-pfad-grau");
+    const laeufer = document.getElementById("anim-laeufer"), blase = document.getElementById("anim-blase"), txt = document.getElementById("anim-blase-text");
+    if (!tour || !pfad || !grau || !blase || !txt) return null;
+    const lage = (k) => String(t("animator.wander." + k, "") || "").split("|").map(x => x.trim()).filter(Boolean);
+    const alle = []; for (let i = 1; i <= 30; i++) { const x = t("wartespruch." + String(i).padStart(2, "0"), ""); if (x) alle.push(x); }
+    const vor = (k, d) => String(t(k, d)).split("{s}")[0].replace(/[…\s]+$/, "").trim();
+    const wKarte = vor("szene.m_karte", "wartet auf die Karte (Kacheln, Gelände) … {s} s"), wGel = vor("szene.m_gelaende", "lädt die Geländehöhen nach … {s} s");
+    const w = parseInt(document.getElementById("anim-w")?.value, 10) || 0, h = parseInt(document.getElementById("anim-h")?.value, 10) || 0;
+    const ist4k = w >= 3000 || Math.min(w, h) >= 2160;
+    const schon = new Set();
+    let zuletzt = "", seit = 0, p = 0, tippen = 0, halb = false, ende = false, vier = false, warteSeit = 0, wartet = "", gesagt = false;
+    const L = grau.getTotalLength();
+    pfad.style.strokeDasharray = L; pfad.style.strokeDashoffset = L;
+    tour.hidden = false; document.querySelector("#anim-progress .progress-bar")?.classList.add("rz-weg");
+    const stellen = () => {
+      const pt = grau.getPointAtLength(p * L), box = grau.ownerSVGElement.viewBox.baseVal;
+      laeufer.setAttribute("transform", `translate(${pt.x},${pt.y})`);
+      pfad.style.strokeDashoffset = L * (1 - p);
+      // Blase an den echten Rändern halten (sie ist so breit wie ihr Text), der Zipfel zeigt trotzdem auf den Laufpunkt
+      const W = tour.clientWidth || 1, bw = blase.offsetWidth || 0, mx = pt.x / box.width * W, links = Math.max(0, Math.min(W - bw, mx - bw / 2));
+      blase.style.left = links + "px"; blase.style.setProperty("--zipfel", Math.max(12, Math.min(bw - 12, mx - links)) + "px");
+      tour.style.setProperty("--y", (pt.y / box.height * 100) + "%");
+    };
+    const zeige = (text) => {
+      if (!text || text === zuletzt) return;
+      zuletzt = text; seit = performance.now();
+      blase.classList.remove("rz-plopp"); void blase.offsetWidth; blase.classList.add("rz-plopp");
+      clearInterval(tippen); let n = 0; txt.textContent = "";
+      tippen = setInterval(() => { n += 2; txt.textContent = text.slice(0, n); stellen(); if (n >= text.length) clearInterval(tippen); }, 28);
+    };
+    const zufall = (arr) => arr.length ? arr[Math.floor(Math.random() * arr.length)] : "";
+    zeige(zufall(lage("start"))); stellen();
+    const takt = setInterval(() => {
+      const jetzt = performance.now(), lang = wartet && jetzt - warteSeit > WANDER_WARTE_AB_MS;
+      laeufer.classList.toggle("rz-wartet", !!lang);
+      if (lang && !gesagt) { gesagt = true; zeige(zufall(lage(wartet === "gelaende" ? "gelaende" : "karte"))); }
+      if (ist4k && !vier && jetzt - seit > 6000) { vier = true; zeige(zufall(lage("vierk"))); return; }
+      if (!halb && p >= 0.5) { halb = true; zeige(zufall(lage("halb"))); return; }
+      if (!ende && p >= 0.9) { ende = true; zeige(zufall(lage("ende"))); return; }
+      // „Gleich fertig“, „Gipfel“ … erst gegen Ende; keine Wiederholung, bis alle passenden einmal dran waren
+      if (jetzt - seit > WANDER_SPRUCH_MS && alle.length) {
+        let frei = alle.filter(x => (p >= 0.6 || !WANDER_SPAET.test(x)) && !schon.has(x));
+        if (!frei.length) { schon.clear(); frei = alle.filter(x => p >= 0.6 || !WANDER_SPAET.test(x)); }
+        const x = zufall(frei); schon.add(x); zeige(x);
+      }
+    }, 500);
+    return {
+      fort: (x, status) => {
+        p = Math.max(0, Math.min(1, +x || 0)); stellen();
+        const st = String(status || ""), neu = (wGel && st.includes(wGel)) ? "gelaende" : (wKarte && st.includes(wKarte)) ? "karte" : "";
+        if (neu && !wartet) warteSeit = performance.now();
+        if (!neu) { warteSeit = 0; gesagt = false; }
+        wartet = neu;
+      },
+      stopp: (fertig) => {
+        clearInterval(takt); clearInterval(tippen);
+        if (fertig) { p = 1; stellen(); zeige(zufall(lage("fertig"))); laeufer.classList.remove("rz-wartet"); }
+        else { tour.hidden = true; document.querySelector("#anim-progress .progress-bar")?.classList.remove("rz-weg"); }
+      },
+    };
+  }
+  function _wanderStopp(fertig) { if (_wander) { try { _wander.stopp(fertig); } catch (_) {} _wander = null; } }
 
   /* Läuft beim Betreten des Moduls noch ein Render? Dann dranbleiben.
    *
@@ -29748,6 +29829,10 @@ function mountAnimator(body, headerActions, opts) {
     _pctEl.textContent = pct + "%";
     document.getElementById("anim-fill").style.width = pct + "%";
     document.getElementById("anim-status").textContent = s.status || "";
+    if (s.running) {
+      if (!_wander) { try { _wander = _wanderStart(); } catch (e) { applog("warn", "[wanderung] " + e); } }
+      try { if (_wander) _wander.fort(s.progress || 0, s.status); } catch (_) {}
+    }
 
     // Live-Preview-Bild updaten — nur wenn neuer Frame angekommen ist
     // (sonst flackert das Image bei jedem 350-ms-Poll).
@@ -29765,6 +29850,7 @@ function mountAnimator(body, headerActions, opts) {
     }
 
     if (s.cancelled) {
+      _wanderStopp(false);
       document.getElementById("anim-progress").classList.remove("show");
       clearTimeout(pollTimer);
       setRenderingState(false);     // v0.9.12 — UI wieder freigeben
@@ -29773,6 +29859,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     if (s.error) {
+      _wanderStopp(false);
       document.getElementById("anim-progress").classList.remove("show");
       clearTimeout(pollTimer);
       setRenderingState(false);     // v0.9.12 — UI wieder freigeben
@@ -29782,6 +29869,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     if (!s.running && s.progress >= 1.0) {
+      _wanderStopp(false);   // die Fertig-Ansicht übernimmt; beim nächsten Render beginnt die Wanderung neu
       document.getElementById("anim-progress").classList.remove("show");
       setRenderingState(false);     // v0.9.12 — UI wieder freigeben
       const done = document.getElementById("anim-done");

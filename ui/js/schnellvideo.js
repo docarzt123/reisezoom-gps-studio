@@ -866,7 +866,7 @@
     f.innerHTML = `<div class="va-f-kopf"><span class="va-f-griff" aria-hidden="true">${I("grip-vertical", 16)}</span><b class="va-f-titel">${esc(o.title || "")}</b>
         <span class="va-f-status muted" hidden><span class="spinner"></span> ${esc(T("va.traegt_ein", "wird eingetragen …"))}</span><span class="va-f-luecke"></span>
         <button type="button" class="va-f-knopf" data-va-klapp title="${esc(T("va.einklappen", "Einklappen"))}">${I("chevron-up", 16)}</button>
-        <button type="button" class="va-f-knopf" data-va-x title="${esc(T("va.beenden_tip", "Assistent beenden — du wählst, ob die Änderungen bleiben"))}">${I("x", 17)}</button></div>
+        <button type="button" class="va-f-knopf" data-va-x title="${esc(T("va.schliessen_tip", "Schließen — nimmt alles zurück, was der Assistent geändert hat"))}">${I("x", 17)}</button></div>
       <div class="va-f-rumpf">${o.body || ""}</div><div class="va-f-fuss">${o.footer || ""}</div>`;
     document.body.appendChild(f);
     const LAGE = "rz.va.lage2";
@@ -1435,11 +1435,7 @@
           <button type="button" class="va-knopf va-knopf-cta" id="va-weiter"><span>${esc(T("va.weiter", "Weiter"))}</span>${I("arrow-right", 17)}</button>
           <button type="button" class="va-knopf" id="sv-uebernehmen" title="${esc(T("va.fertig_tip2", "Alles Gewählte bleibt im Projekt — ⌘Z nimmt den ganzen Assistenten zurück"))}">${I("check", 16)}<span>${esc(T("va.uebernehmen_k", "Übernehmen"))}</span></button>
           <button type="button" class="va-knopf va-knopf-cta" id="va-erstellen" hidden title="${esc(T("va.erstellen_tip", "Übernehmen und gleich das Video exportieren"))}">${I("clapperboard", 16)}<span>${esc(T("schnell.erstellen", "Video erstellen …"))}</span></button>
-          <button type="button" id="va-skip" hidden></button>
-          <div class="va-ende" id="va-ende" hidden><span>${esc(T("va.ende_frage", "Assistent beenden?"))}</span>
-        <button type="button" class="va-knopf" data-va-ende="verwerfen">${esc(T("va.verwerfen", "Verwerfen"))}</button>
-        <button type="button" class="va-knopf va-knopf-cta" data-va-ende="behalten">${I("check", 15)}<span>${esc(T("va.uebernehmen", "Übernehmen"))}</span></button>
-        <button type="button" class="va-f-knopf" data-va-ende="weiter" title="${esc(T("va.weitermachen", "Weitermachen"))}">${I("x", 15)}</button></div>`
+          <button type="button" id="va-skip" hidden></button>`
       : (P ? `<button type="button" class="btn btn-primary" id="sv-uebernehmen">${esc(T("schnell.in_projekt", "In dieses Projekt übernehmen"))}</button>` : "")
         + `<button type="button" class="btn" id="sv-animator">${esc(P ? T("schnell.neues_projekt", "Neues Projekt") : T("schnell.im_animator", "Im Animator öffnen"))}</button>
                <button type="button" class="btn${P ? "" : " btn-primary"}" id="sv-rendern">🎬 ${esc(T("schnell.erstellen", "Video erstellen …"))}</button>`,
@@ -2683,6 +2679,9 @@
     };
     const svA = document.getElementById("sv-animator"); if (svA) svA.onclick = () => los(false);
     if (P) document.getElementById("sv-uebernehmen").onclick = () => uebernehmen("fertig");
+    // 29.10.2026 (Marc: „Wenn ich rechts oben auf das X klicke, kann ich das Fenster nicht zumachen. Es geht nur durch
+    // Verwerfen unten.“ → ✕ schließt und verwirft) — vorher fragte das ✕ unten in der Fußleiste „Assistent beenden?“, weit
+    // weg vom ✕; das Fenster wirkte unschließbar. ✕ = „Abbrechen“: alles zurücknehmen, schließen. Behalten = „Übernehmen“.
     if (ASS) { document.getElementById("va-abbrechen").onclick = () => vaAbbrechen(); m.onX = () => vaAbbrechen(); }
     const svR = document.getElementById("sv-rendern"); if (svR) svR.onclick = () => los(true);
 
@@ -2746,10 +2745,9 @@
         if (wt) { wt.hidden = seite >= LETZTE; if (seite < LETZTE) wt.innerHTML = `<span>${esc(T("va.w.s8_weiter", "Weiter: {s}", { s: NAMEN[seite + 1] }))}</span>${I("arrow-right", 17)}`; }
         const er = document.getElementById("va-erstellen"); if (er) er.hidden = seite < LETZTE;
         if (sk) sk.hidden = true;
-        // 12.10.2026 (neue Optik: je Ansicht EINE Hauptaktion) — „Übernehmen“ am Ende; vorher beendet das ✕ mit der Wahl
-        // „Übernehmen“ oder „Verwerfen“ (früher „Fertig“ auf jeder Stufe)
+        // 12.10.2026 (neue Optik: je Ansicht EINE Hauptaktion) — „Übernehmen“ am Ende; vorher schließt nur „Abbrechen“/✕
+        // (verwirft alles, seit 29.10.2026)
         if (ue) ue.hidden = seite < LETZTE;
-        endeZeigen(false);
         // Clips nur auf der sichtbaren Seite abspielen
         box.querySelectorAll("video").forEach(vd => { try { if (!vd.closest(".va-weg") && !ruhig) { const p_ = vd.play(); if (p_ && p_.catch) p_.catch(() => {}); } else vd.pause(); } catch (_) {} });
         box.scrollTop = 0;
@@ -2838,16 +2836,6 @@
         try { fotosInfo(); zutatenStand(); vorschau.inhalt(); } catch (err) { if (window.rzSwallow) rzSwallow(err, "assistent:fotoart"); }
         vaHalte(); try { fotosZeigen(); } catch (_) {}
         vaLive();
-      });
-      // ✕ = „Assistent beenden?“ mit Übernehmen/Verwerfen — das Schließen-Symbol verwirft nie stillschweigend
-      const fuss = m.el && m.el.querySelector(".va-f-fuss");
-      function endeZeigen(an_) { if (fuss) fuss.classList.toggle("va-ende-an", !!an_); const e = document.getElementById("va-ende"); if (e) e.hidden = !an_; }
-      m.onX = () => { if (m.el && m.el.classList.contains("va-zu")) m.el.querySelector("[data-va-klapp]")?.click(); endeZeigen(true); };
-      fuss && fuss.addEventListener("click", (e) => {
-        const b = e.target.closest("[data-va-ende]"); if (!b) return;
-        if (b.dataset.vaEnde === "verwerfen") vaAbbrechen();
-        else if (b.dataset.vaEnde === "behalten") { endeZeigen(false); uebernehmen("fertig"); }
-        else endeZeigen(false);
       });
       // Bewegung reduzieren: Clips nur beim Darüberfahren
       if (ruhig) {

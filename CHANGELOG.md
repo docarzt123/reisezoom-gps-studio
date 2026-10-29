@@ -23,7 +23,19 @@ Bei jeder neuen Version:
   (the 3D tool places them on its own terrain) or without the dark gradients at the top and bottom.
 - **Command line, `project-render --frames 0,600,1169`**: only these frames of the project video as PNG, map included,
   exactly the video's frames; `--thumbs N` (`--thumb-width 320`) gives N small frames evenly over the film, e.g. for a
-  timeline. Single frames skip the tile pre-loading for the whole film (Masca: 3 frames in about 20 s instead of 40 s).
+  timeline. Single frames skip the tile pre-loading for the whole film (Masca: 3 frames in about 20 s instead of 40 s)
+  and wait until every map tile of the frame is there, so slow aerial imagery no longer leaves dark patches.
+
+### Changed
+- **Signs always stand on their point**, also at the edge of the picture and under the logo. Before, a sign at the edge
+  was pushed into the picture (and below the logo at the top centre), so while the camera moved it slid against the
+  terrain. Now it leaves over the edge with the map and goes behind the logo — in the editor just like in the video.
+- **Render progress as a little hike**: while a video is rendered, a path fills up and a walking dot follows it, with
+  sayings in a speech bubble that fit the moment (start, 4K, map or terrain still loading, halfway, summit) and the
+  app's waiting sayings in between. The dot pulses while the map is still loading tiles.
+- **Video assistant: the ✕ at the top right closes it** and undoes everything it changed, like „Cancel“. Before, the ✕
+  only showed a question in the footer, far away from it, and the window seemed impossible to close. „Apply“ keeps
+  everything as before.
 
 ### Fixed
 - **Transparent overlay export: the title card stayed for the whole film.** Overlays with a time window (title card,

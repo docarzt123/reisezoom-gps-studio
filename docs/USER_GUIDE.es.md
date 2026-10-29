@@ -765,6 +765,8 @@ clic abre una ventana en el centro con todo lo que solo afecta al archivo de sal
 La pequeña flecha **▾** junto al botón ofrece **Exportar fotograma actual** (la imagen que se ve en la vista previa,
 como PNG) y **Abrir como Tour-Map**. Los ajustes de exportación se guardan por proyecto; Esc cierra la ventana.
 
+**Mientras se renderiza**, GPS Studio muestra el progreso como una pequeña caminata: el camino se llena, el punto avanza con él y el bocadillo trae una frase para el momento. Si el punto late, el mapa aún está cargando teselas (desde v0.9.846).
+
 **Origen en el vídeo (desde v0.9.845).** Cada vídeo exportado lleva en sus metadatos «GPS Studio by Reisezoom.com» con versión, sistema, tamaño y fotogramas por segundo, además del título de tu recorrido si le pusiste uno. No guarda nada personal. Si me mandas un vídeo que no se reproduce en algún sitio, veo enseguida con qué se hizo.
 
 ### 🖼 Medios de la ruta (desde v0.9.782)
@@ -950,9 +952,10 @@ fotos, título, cifras, perfil de altitud, destacados, tarjeta final); otro clic
 El asistente es una **ventana flotante a la izquierda, sobre las herramientas** — el mapa se aparta y queda totalmente visible;
 se mueve por la cabecera (⠿), se pliega con ⌃ y recuerda dónde estaba. **Cada elección se aplica al momento**: detrás de la ventana ves el cambio en el Animator, y la zona correspondiente
 de la barra lateral se ilumina un momento («Aquí lo encontrarás después»). Mientras tanto puedes seguir trabajando en el Animator.
-**✕** pregunta «¿Cerrar el asistente?» — **Aplicar al proyecto** o **Descartar**. Todo queda **editable** en el proyecto — carteles
-en la línea de tiempo, cámara en «Cámara», rótulos en «Overlays» —, a la derecha aparece **«Lo que hizo el asistente»**, y
-**un ⌘Z** deshace todo el asistente. **«Cancelar»** (o ✕ → Descartar) deja tu proyecto como estaba antes. La diferencia con el vídeo rápido: el vídeo rápido crea un archivo terminado con pocas decisiones, el
+Al final, **«Aplicar»** lo conserva todo: queda **editable** en el proyecto — carteles en la línea de tiempo, cámara en
+«Cámara», rótulos en «Overlays» —, a la derecha aparece **«Lo que hizo el asistente»**, y **un ⌘Z** deshace todo el
+asistente. **«Cancelar»** abajo o la **✕** arriba a la derecha cierran el asistente y dejan tu proyecto como estaba antes
+(desde v0.9.846; antes la ✕ preguntaba primero). La diferencia con el vídeo rápido: el vídeo rápido crea un archivo terminado con pocas decisiones, el
 asistente prepara tu proyecto para que sigas trabajando en él.
 
 **Solo uno a la vez (desde el 26.10.2026).** Mientras el asistente o el vídeo rápido está abierto, no se inicia un segundo —
@@ -1395,7 +1398,7 @@ de importación…**. Solo se abre cuando lo inicias y necesita un track nuevo e
 - **Los fotogramas clave guardan el mapa desplazado:** un fotograma clave sin centro fijo («la cámara sigue el track» o la vista general) recuerda ahora también hacia dónde moviste el mapa, como desplazamiento respecto a su centro. La cámara sigue, pero con tu encuadre; entre dos de ellos el desplazamiento se mezcla. Al volver a activar «la cámara sigue el track» en el fotograma clave, el desplazamiento se borra.
 - **Vista sin guardar:** si mueves el mapa sin ningún fotograma clave seleccionado (por ejemplo, tras reproducir la vista previa hasta el final), aparece abajo una línea de aviso discreta — «primero haz clic en el fotograma clave #2 …» o ««Captura aquí» añade uno en este punto». No tiene botones y desaparece sola.
 - **Mientras se renderiza**, también la columna de detalles de la derecha queda gris y bloqueada.
-- **Carteles en el borde:** un cartel junto al borde se mete en la imagen como mucho un tercio de su tamaño. Cuando la cámara avanza, ya no se queda pegado al borde: se mueve con el mapa y sale por el borde, igual en el editor que en el vídeo.
+- **Carteles en el borde:** desde v0.9.846 un cartel está siempre exactamente sobre su punto. En el borde sale con el mapa y bajo el logo desaparece detrás: ya no se empuja hacia la imagen, así que tampoco resbala sobre el terreno mientras la cámara avanza. En el editor igual que en el vídeo. (Antes se metía en el borde hasta un tercio de su tamaño.)
 - **Vuelo en el aire:** las líneas verticales bajo un arco alto ya no parpadean en la vista previa: si en pantalla quedan demasiado juntas, la app dibuja solo una de cada dos, cuatro … líneas.
 
 ### 🩺 Revisión del track — el archivo te dice qué falla en un track (desde v0.9.688)

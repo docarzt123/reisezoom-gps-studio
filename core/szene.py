@@ -233,6 +233,7 @@ _WARTE_BILD_JS = """async () => {
 }""".replace("__RZ_RUHE_MS__", str(int(os.environ.get("RZ_BILD_RUHE_MS", "20") or 0))) \
    .replace("__RZ_RUHE_ANLAUF_MS__", str(int(os.environ.get("RZ_BILD_RUHE_ANLAUF_MS", "60") or 0))) \
    .replace("__RZ_ANLAUF__", "8")   # 30.09.2026 Messung: feste Pause je Bild; 05.10.2026: 20 ms, Anlauf 60 ms
+_KACHELN_DA_JS = "() => { const m = window.__rzLetzteKarte; try { return !m || (m.loaded() && m.areTilesLoaded()); } catch (_) { return true; } }"
 # 29.09.2026 — Vorwärmen: kürzere Wartegrenze je Halt (sonst bis 5 s × 200 Halte bei kaltem Speicher/langsamer Leitung)
 # Prüfstand: Zeiten des letzten Video-Renders (Hänger an der Warte-Grenze, längstes Warten, ms je Schritt)
 LETZTE_ZEITEN: dict = {}
@@ -1289,6 +1290,17 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     if _dem and (_dem.get("errored") or _dem.get("loading")) and not _dem_warnt:
                         _dem_warnt = True
                         _gelaende_warnen(f"Frame {frame + 1}", _dem)
+                    if _nur:
+                        # 29.10.2026 — Einzelbilder (--frames/--thumbs): nach dem Bündelsprung lädt die Karte die Stelle zum
+                        # ersten Mal; eine langsame Quelle (Luftbild Brandenburg) brauchte länger als die 5 s je Bild →
+                        # dunkle Rechtecke. Hier bis alle Kacheln da sind (höchstens 30 s), dann wie render_szene_frame ein
+                        # zweiter Sprung auf den geladenen Höhen.
+                        _te = time.time()
+                        while time.time() - _te < 30 and not await page.evaluate(_KACHELN_DA_JS):
+                            await page.evaluate(_WARTE_BILD_JS)
+                        await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
+                        await page.evaluate(_WARTE_BILD_JS)
+                        await _gelaende_nachladen(page, 2)
                     if _SEEK2:
                         # 07.09.2026 — mit Gelände bezieht MapLibre die Kamerahöhe auf die Bodenhöhe im
                         # Mittelpunkt; kommen DEM-Kacheln erst nach dem Sprung, stimmt der Ausschnitt nicht

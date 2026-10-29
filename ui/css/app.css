@@ -1111,6 +1111,31 @@ input[type="color"] {
   font-variant-numeric: tabular-nums;
 }
 
+/* 29.10.2026 — Fortschritt als kleine Wanderung (wie die Web-Version): Pfad füllt sich, Laufpunkt läuft mit, Sprechblase */
+#anim-progress .progress-bar.rz-weg { display: none; }
+.anim-tour { position: relative; width: 400px; max-width: 80vw; margin: 54px 0 6px; height: 64px; }
+.anim-tour[hidden] { display: none; }
+.anim-tour svg { width: 100%; height: 64px; overflow: visible; display: block; }
+.anim-pfad-grau, .anim-pfad { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.anim-pfad-grau { stroke: rgba(255, 255, 255, 0.22); stroke-width: 6; stroke-dasharray: 1 9; }
+.anim-pfad { stroke: var(--accent); stroke-width: 4; transition: stroke-dashoffset .4s linear; }
+.anim-laeufer circle { fill: var(--accent); stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.anim-laeufer circle.kern { fill: #fff; stroke: none; }
+.anim-laeufer { transition: transform .4s linear; }
+.anim-laeufer > circle:first-child { animation: rz-hops .9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.anim-laeufer.rz-wartet > circle:first-child { animation: rz-puls 1.4s ease-in-out infinite; }
+.anim-gipfel path { fill: var(--text-dim); stroke: var(--text-dim); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+@keyframes rz-hops { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
+@keyframes rz-puls { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.35) } }
+.anim-blase { position: absolute; bottom: calc(100% - var(--y, 50%) + 14px); left: 0; max-width: 320px; width: max-content;
+  background: #f4efe6; color: #1d2321; font-size: 13px; font-weight: 500; line-height: 1.35; padding: 7px 12px; border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28); transform-origin: var(--zipfel, 50%) 100%; }
+.anim-blase::after { content: ""; position: absolute; top: 100%; left: var(--zipfel, 50%); margin-left: -7px; border: 7px solid transparent; border-top-color: #f4efe6; }
+.anim-blase:empty, .anim-blase span:empty { display: none; }
+.anim-blase.rz-plopp { animation: rz-plopp .35s cubic-bezier(.3,1.6,.5,1); }
+@keyframes rz-plopp { 0% { transform: scale(.6); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .anim-laeufer > circle:first-child, .anim-blase.rz-plopp { animation: none; } .anim-pfad, .anim-laeufer, .anim-blase { transition: none; } }
+
 /* Cancel-Button im Progress-Overlay — etwas dezenter aber klar sichtbar */
 #anim-cancel {
   background: rgba(255, 90, 90, 0.12);
@@ -3970,12 +3995,9 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
 .va-f-rumpf { overflow: auto; padding: 16px 20px 20px; flex: 1; overscroll-behavior: contain; }
 .va-f-fuss { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
 .va-fenster.va-zu .va-f-rumpf, .va-fenster.va-zu .va-f-fuss { display: none; }
-.va-f-fuss.va-ende-an > :not(.va-ende) { display: none !important; }
 .va-f-fuss [hidden] { display: none !important; }
 .va-f-abbrechen { background: none; border: 0; color: var(--text-dim); font: inherit; font-size: 14px; padding: 8px 2px; cursor: pointer; }
 .va-f-abbrechen:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-.va-ende { display: flex; align-items: center; gap: 10px; width: 100%; }
-.va-ende > span { flex: 1; font-weight: 600; font-size: 14.5px; }
 
 /* Kopf: Schritt + Punkte, große Frage */
 .va-rumpf .va-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }

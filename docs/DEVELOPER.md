@@ -8589,6 +8589,24 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   nach dem letzten gewünschten Bild, Zwischenbilder in EINEM `evaluate` gesprungen (sonst zeichnet die Karte je Sprung und
   lädt Kacheln: Masca 3 Bilder 38 s / 733 Kacheln → 21 s / 223; Bilder gegen das echte Video gleich nah). Gilt auch für
   `overlay-export --frames`. Ergebnis `files`, `frames` (Nummern).
+- **Schilder ohne Randversatz (29.10.2026, Marc: „Das muss einfach nur an der richtigen Stelle stehen“).** Randregel (F-20,
+  13./15.10.) und Logo-Schutz (14.10.) entfernt: `rzSignRandSymbol`/`rzSignRandPx` → `[0, 0]`, `rzSignRandVersatz` setzt nur
+  alte `rzOff` auf 0 zurück; `rzSchutzFlaechen`, `RAND_ANTEIL` weg. Anlass: „Steilste Stelle“ rutschte bei fahrender Kamera
+  (oben am Rand und unter dem Logo, das seit 0.9.845 oben mittig steht, mitgeschoben). Tests `test_schild_bildrand`
+  (neu: kein Versatz), `test_fotostopp_look_wechsel`, `test_schild_editor_wysiwyg` angepasst. Die älteren Einträge zu F-20
+  unten sind damit überholt.
+- **Render-Fortschritt als Wanderung (29.10.2026).** `#anim-tour` in `#anim-progress` (module.js), Logik `_wanderStart()`
+  → `{fort(p, status), stopp(fertig)}` im Abfragetakt von `pollStatus` (Start beim ersten `running`, Stopp bei Abbruch,
+  Fehler, Fertig). SVG-Pfad (viewBox 400×64) mit `stroke-dashoffset`, Laufpunkt auf `getPointAtLength`, Sprechblase an
+  den Rändern gehalten (`--zipfel`, `--y`). Sprüche: `animator.wander.{start,karte,gelaende,vierk,halb,ende,fertig}`
+  (mit „|“ getrennt) und `wartespruch.01–30` ohne Wiederholung, späte („gleich“, „Gipfel“ …) erst ab 60 %. „Karte
+  wartet“ = Statuszeile enthält den Text vor `{s}` von `szene.m_karte`/`m_gelaende` länger als 2,5 s. CSS in app.css
+  (`.anim-tour`, `rz-hops`, `rz-puls`, `rz-plopp`, reduzierte Bewegung). Übernommen aus der Web-Version, ohne Emojis.
+  Test `test_render_wanderung` (echte Oberfläche, vorgetäuschter Fortschritt).
+- **Einzelbilder warten auf alle Kacheln (29.10.2026).** Im Einzelbild-Modus (`params.nur_bilder`) kam die Karte nach
+  dem Bündelsprung zum ersten Mal an die Stelle; das Bild wurde nach höchstens 5 s gegriffen — bei langsamem Luftbild
+  (Brandenburg) mit dunklen Rechtecken. Jetzt je gewünschtem Bild bis `_KACHELN_DA_JS` (höchstens 30 s), dann ein zweiter
+  Sprung wie `render_szene_frame`. Gemessen: Abweichung zum voll gewarteten Bild 3,9 → 0,06.
 - **Kamera-Export, Mittenhöhe (29.10.2026, Bitte der 3D-Seite).** `__rzKameraBild` las die Höhe der Bildmitte mit
   `queryTerrainElevation` (feinste geladene Höhenkachel) und rechnete die Kamera mit `rzMlCamRead` ebenso. MapLibre stellt
   die Kamera beim Zeichnen aber auf `transform.elevation` (`getCenterElevation`, Kachelstufe des Bilds) — Masca Bild
