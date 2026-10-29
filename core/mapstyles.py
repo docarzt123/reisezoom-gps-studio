@@ -243,6 +243,8 @@ ORTHO_REGIONS = [
      "attribution": "Aerial imagery: ACT Luxembourg (CC0)"},
     {"id": "ch", "name": "Schweiz", "country": "CH", "bbox": (5.95, 45.80, 10.50, 47.81), "maxzoom": 20,
      "tiles": ["https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg"],
+     # 29.10.2026 — swisstopo: höchstens 1.200 Abrufe je Minute und Gerät; wir bleiben deutlich darunter (Weiche, _takt)
+     "max_pro_minute": 1000,
      "attribution": "Aerial imagery: © swisstopo"},
     {"id": "nl", "name": "Niederlande", "country": "NL", "bbox": (3.30, 50.75, 7.22, 53.60), "maxzoom": 19,
      "tiles": ["https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_ortho25/EPSG:3857/{z}/{x}/{y}.jpeg"],
@@ -383,6 +385,12 @@ PROJECTION = {"type": ["interpolate", ["linear"], ["zoom"], 7, "vertical-perspec
 # mit halbtransparentem Luftbild rund dreimal so stark (gemessen 1276 gegen 419 px).
 ORTHO_FADE_FROM = 12.0
 ORTHO_FADE_TO = 13.5
+# 29.10.2026 (Marc, Masca: „das Startbild sieht verschwommen aus, erst beim Ranzoomen wird es detaillierter“) — bei
+# Zoom 12,47 waren es 31 % Luftbild, der Rest Sentinel-2. Deckt EIN Landesdienst die Tour samt Umgebung allein ab (kein
+# zweiter Dienst im Umkreis → keine Naht), blendet das Luftbild schon ab 10 ein und ist ab 11,5 voll da.
+# JS-Spiegel: ortho_fade_frueh / ORTHO_FRUEH_RAND_KM in ui/js/util.js (rzOrthoFrueh).
+ORTHO_FADE_FRUEH = (10.0, 11.5)
+ORTHO_FRUEH_RAND_KM = 25.0
 # 05.09.2026 (Beta-Tester: „bei Satellit in Hamburg nix") — weltweite Zwischenlage
 # zwischen Blue Marble und den amtlichen Luftbildern: Sentinel-2 cloudless 2016
 # von EOX, CC BY 4.0 (07.09.2026 aus den EOX-Capabilities: der 2016er Jahrgang ist
@@ -559,6 +567,34 @@ def region_for_bbox(bbox) -> Optional[dict]:
     return hits[0] if hits else None
 
 
+def ortho_frueh(stack: list[dict], bbox) -> bool:
+    """29.10.2026 — Luftbild schon in der Übersicht? Nur wenn genau EIN Landesdienst im Stapel ist, sein Rechteck die
+    Tour samt ORTHO_FRUEH_RAND_KM Umgebung enthält und kein anderer Dienst in diese Umgebung reicht (sonst Nähte)."""
+    b = bbox_tuple(bbox)
+    if not b or len(stack or []) != 1:
+        return False
+    import math
+    cy = (b[1] + b[3]) / 2.0
+    dy = ORTHO_FRUEH_RAND_KM / 111.32
+    dx = ORTHO_FRUEH_RAND_KM / (111.32 * max(0.05, math.cos(math.radians(cy))))
+    u = (b[0] - dx, b[1] - dy, b[2] + dx, b[3] + dy)
+    r = stack[0]["bbox"]
+    if not (r[0] <= u[0] and r[1] <= u[1] and u[2] <= r[2] and u[3] <= r[3]):
+        return False
+    for o in ORTHO_REGIONS:
+        if o is stack[0] or o.get("id") == stack[0].get("id") or not region_usable(o):
+            continue
+        ob = o["bbox"]
+        if ob[0] < u[2] and u[0] < ob[2] and ob[1] < u[3] and u[1] < ob[3]:
+            return False
+    return True
+
+
+def ortho_fade(stack: list[dict], bbox) -> tuple:
+    """Einblend-Zoom (von, bis) der Landesdienste: früh (ortho_frueh) oder wie bisher."""
+    return ORTHO_FADE_FRUEH if ortho_frueh(stack, bbox) else (ORTHO_FADE_FROM, ORTHO_FADE_TO)
+
+
 def region_stack(bbox) -> list[dict]:
     """Welche Regionen werden übereinandergelegt? Rechtecke der Bundesländer
     überlappen sich stark (Potsdam liegt im Rechteck von Sachsen-Anhalt). Da
@@ -642,7 +678,7 @@ def mit_farbe(url: str, g: int) -> str:
     return ohne + ("&" if "?" in ohne else "?") + f"g={g}" if g > 0 else ohne
 
 
-def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float = 1.0) -> dict:
+def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float = 1.0, fade: tuple = None) -> dict:
     """GL-Style mit einer Raster-Quelle je Region; unterste = größte Fläche."""
     # 25.10.2026 — Farbkorrektur je Kachel über die Weiche (`?g=`), statt Leinwand-Ebene (bremste Apple-Grafik)
     _farbe = ortho_farbe(adjust) if proxy_base else 0
@@ -680,9 +716,10 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float
         if r.get("scheme") == "tms" and not proxy_base:   # die Weiche spiegelt y selbst
             src["scheme"] = "tms"
         sources[sid] = src
-        lay = {"id": sid, "type": "raster", "source": sid, "minzoom": ORTHO_FADE_FROM}
+        f0, f1 = fade or (ORTHO_FADE_FROM, ORTHO_FADE_TO)   # 29.10.2026 — ortho_fade (früh, wenn ein Dienst allein deckt)
+        lay = {"id": sid, "type": "raster", "source": sid, "minzoom": f0}
         paint = dict(raster_adjust_paint(adjust))
-        paint["raster-opacity"] = ["interpolate", ["linear"], ["zoom"], ORTHO_FADE_FROM, 0.0, ORTHO_FADE_TO, 1.0]
+        paint["raster-opacity"] = ["interpolate", ["linear"], ["zoom"], f0, 0.0, f1, 1.0]
         lay["paint"] = paint
         layers.append(lay)
     # 17.09.2026 — Relief (Hillshade) über allen Luftbild-Ebenen, unter der Beschriftung.
@@ -725,7 +762,7 @@ def sentinel_leaflet() -> dict:
             "attr": SENTINEL_LAYER["attribution"], "sentinel": True}
 
 
-def stack_leaflet(stack: list[dict], adjust=None) -> dict:
+def stack_leaflet(stack: list[dict], adjust=None, bbox=None) -> dict:
     """Leaflet-Kachelangabe für einen Stapel: `stack` = Liste unten → oben,
     immer mit dem Blue-Marble-Untergrund als erster Ebene, darüber Sentinel-2
     (05.09.2026, weltweit), darüber die Landesdienste. Leerer Stapel = nur
@@ -746,7 +783,7 @@ def stack_leaflet(stack: list[dict], adjust=None) -> dict:
     d["attr"] = stack_attribution(stack)
     if transparent:
         d["label"] = "Luftbild " + "/".join(r["name"] for r in stack)
-    d["stack"] = [base_leaflet(), sentinel_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=int(round(ORTHO_FADE_TO))) for r in reversed(stack) if not r.get("key")]   # 18.09.2026: kein Schlüssel ins HTML
+    d["stack"] = [base_leaflet(), sentinel_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=int(round(ortho_fade(stack, bbox)[1]))) for r in reversed(stack) if not r.get("key")]   # 18.09.2026: kein Schlüssel ins HTML
     d["adjust"] = ortho_adjust(adjust)   # Luftbild-Optik (CSS-Filter im Export)
     return d
 
@@ -998,7 +1035,7 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
             notes.append("no_coverage")
 
     if st["kind"] == "gov":
-        style = stack_style(stack, proxy_base=proxy_base, adjust=ortho, dpr=dpr)
+        style = stack_style(stack, proxy_base=proxy_base, adjust=ortho, dpr=dpr, fade=ortho_fade(stack, bbox))
     elif st["kind"] == "raster":
         style = raster_style(st["tiles"], tile_size=st.get("tileSize", 256),
                              maxzoom=st.get("maxzoom", 19), attribution=st.get("attribution", ""), dpr=dpr)
@@ -1063,6 +1100,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "region_keys": {r["key"]: bool(region_key_value(r)) for r in ORTHO_REGIONS if r.get("key")},   # 18.09.2026
         "base_layer": BASE_LAYER, "sentinel_layer": SENTINEL_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
         "ortho_fade": [ORTHO_FADE_FROM, ORTHO_FADE_TO],
+        "ortho_fade_frueh": list(ORTHO_FADE_FRUEH), "ortho_frueh_rand_km": ORTHO_FRUEH_RAND_KM,
         "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)
         "known_gaps": [{"id": g["id"], "name": g["name"], "bbox": list(g["bbox"]), "reason": g["reason"]} for g in KNOWN_GAPS],
         "ortho_adjust_default": ORTHO_ADJUST_DEFAULT,

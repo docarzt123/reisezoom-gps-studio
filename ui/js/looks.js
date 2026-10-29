@@ -130,6 +130,10 @@
     const liste = (schilder || []).map((s0) => {
       const s = Object.assign({}, s0);
       const stil = s.style || "callout";
+      // 29.10.2026 (Web-Fund F-53) — Highlight- und Logbuch-Schilder (mit Icon) und alle automatisch angelegten (`auto`,
+      // auch Stations-Schilder) bleiben: „pille“ steht zwar in SCHILD_EINFACH, die Highlight-Pille verlor beim Umstellen
+      // ihr Icon, und der Highlight-Schalter erkannte das Schild danach nicht mehr (Fingerabdruck enthält den Stil).
+      if (s.auto || s.icon) return s;
       if (!SCHILD_EINFACH.includes(stil)) return s;
       const foto = !!s.imageSrc;
       const ziel = foto ? (SCHILD_FOTO[name] || (stil === "sofortbild" ? stil : null)) : SCHILD_TEXT[name];

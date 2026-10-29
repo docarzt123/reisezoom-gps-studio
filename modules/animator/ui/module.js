@@ -822,6 +822,9 @@ function mountAnimator(body, headerActions, opts) {
               <input type="hidden" id="anim-dot-sym-farbe" value="linie">
               <input type="color" id="anim-dot-sym-dunkel" value="#2b3a40" hidden>
               <input type="color" id="anim-dot-sym-akzent" value="#4fc9ab" hidden>
+              <!-- 29.10.2026 — Laufpunkt hinter dem Gelände: verdecken / durchscheinen / obenauf (bedient vom Track-Editor rechts) -->
+              <input type="hidden" id="anim-dot-verdeckt" value="verdecken">
+              <input type="range" id="anim-dot-durch" min="0.1" max="0.9" step="0.05" value="0.4" hidden>
               <label class="field-label" style="margin-top:8px;">${t("animator.dot.size", "Größe")}
                 <span class="label-val" id="anim-dot-size-v">1.0×</span>
               </label>
@@ -7247,6 +7250,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (!map.getLayer(FLUG_LAUFPUNKT) && window.rzPunkt3d) {   // 15.10.2026 — der echte Laufpunkt in der Luft
       _flug.laufpunkt = window.rzPunkt3d.create(FLUG_LAUFPUNKT);
+      _flug.laufpunkt.sicht = _dotSicht;   // 29.10.2026 — auch in der Luft: hinter dem Berg wie am Boden
       try { map.addLayer(_flug.laufpunkt); } catch (e) { applog("warn", "[flug3d] Laufpunkt: " + e); _flugNochmal(); return; }
     }
     _flug.ebene.setTracks(spuren);
@@ -7569,6 +7573,137 @@ function mountAnimator(body, headerActions, opts) {
     dreh += bisher;
     return { bearing: bearing + dreh, pitch: pitch + (Math.max(pitch, HOCH_NEIGUNG) - pitch) * neig };
   }
+  /* ── 29.10.2026 — Ausweichen: die AUTOMATISCHE Kamera schaut steiler / höher, wo der Laufpunkt oder die Linie kurz
+   * dahinter hinter einer Geländefalte verschwände (ui/js/sichtausweichen.js; Marc, Masca: „ab Sekunde 6 springt der
+   * Laufpunkt an die falsche Stelle“). Nur Kameras ohne eigene Änderungen: Standard-Keyframes (Editor aus) oder eine
+   * erzeugte Fahrt (Schnell-Video, Video-Assistent, Kamera-Pille, „Fahrt neu erzeugen“), deren Kamera-Keyframes
+   * seitdem unverändert sind — gemerkt als Fingerabdruck `kamera_auto_sig`. Die Keyframes selbst bleiben unberührt;
+   * die Kurve wirkt beim Auswerten (Scrubben, Probelauf, ruhige Kamera, Video) — überall dieselbe. */
+  const _KAM_LANES = ["pitch", "bearing", "zoom", "center", "position"];
+  function _kamSig(ev) {
+    // Werte und Übergänge, nicht die Anker: die rechnet die App bei geänderter Dauer selbst um (Keyframe-Paar)
+    const r = (v) => (typeof v === "number") ? Math.round(v * 1e4) / 1e4 : (Array.isArray(v) ? v.map(r) : v);
+    const txt = (ev || []).filter(e => e && _KAM_LANES.includes(e.kind))
+      .map(e => [e.kind, r(e.value), r(e.value_offset), r(e.value_absolute), e.easing || ""].join("|")).join(";");
+    let h = 5381; for (let i = 0; i < txt.length; i++) h = ((h * 33) ^ txt.charCodeAt(i)) >>> 0;
+    return h.toString(16) + ":" + txt.length;
+  }
+  function _kameraIstAuto() {
+    if (!keyframesEnabled()) return true;
+    const ev = getRawTimelineEvents();
+    if (!ev || !ev.length) return true;
+    const st = ((window.rzReadModuleSettings && window.rzReadModuleSettings(_MODKEY)) || {}).kamera_auto_sig;
+    return !!st && st === _kamSig(ev);
+  }
+  /** Nach dem Erzeugen einer Fahrt: Fingerabdruck merken (ab dann gilt sie als automatisch, bis jemand sie ändert). */
+  function _kameraAutoMerken() {
+    try {
+      const sig = _kamSig(getRawTimelineEvents() || []);
+      if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, { kamera_auto_sig: sig });
+      _auswKurve = null; _auswSchluessel = "";
+    } catch (e) { applog("warn", "[ausweichen] merken: " + e); }
+  }
+  window.__rzKameraAutoMerken = _kameraAutoMerken;
+  let _auswKurve = null, _auswSchluessel = "", _auswLaeuft = null;
+  /** Wert der Ausweich-Kurve zur Zeit tz (0…1): { dp: Grad weniger Neigung, dz: Zoomstufen weniger } oder null. */
+  function _auswBei(tz) {
+    if (!_auswKurve || !window.rzSichtAusweichen) return null;
+    const w = window.rzSichtAusweichen.wert(_auswKurve, tz);
+    return (w && (w.dp > 1e-3 || w.dz > 1e-4)) ? w : null;
+  }
+  /** Kurve für die aktuelle Fahrt bereitstellen (gecacht über alles, was die Kamera bestimmt). totalMs = Videolänge. */
+  function _ausweichBereit(totalMs) {
+    try {
+      const SA = window.rzSichtAusweichen;
+      if (!SA || !map || !currentCoords || currentCoords.length < 2 || map.__rzEngine === "mapbox" || !map.getTerrain || !map.getTerrain()
+          || !_kameraIstAuto() || !document.getElementById("anim-pitch")) { _auswKurve = null; _auswSchluessel = ""; return Promise.resolve(false); }
+      const events = getEffectiveEvents();
+      const ti = introFraction(), tf = trackFraction();
+      const trim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
+      const A = Math.max(0, Math.min(1, trim.start ?? 0)), B = Math.max(A, Math.min(1, trim.end ?? 1));
+      const pitch0 = currentPitch(), rot0 = parseFloat(document.getElementById("anim-rot")?.value) || 0;
+      const fitBase = effectiveFitZoomBase();
+      if (fitBase == null) return Promise.resolve(false);
+      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      const cine = !proj?.[_MODKEY] || proj[_MODKEY].cinematic_flyto !== false;
+      const folgen = !!document.getElementById("anim-camera-follow")?.checked;
+      const hPx = (map.transform && map.transform.height) || map.getCanvas().clientHeight || 1080;
+      const fov = (map.transform && +map.transform.fov) || undefined;
+      const ter = map.getTerrain();
+      const n0 = currentCoords.length;
+      const schluessel = [_kamSig(events), JSON.stringify(events.filter(e => e && _KAM_LANES.includes(e.kind)).map(e => e.anchor)), Math.round(totalMs), n0,
+        currentCoords[0], currentCoords[n0 - 1], ti, tf, A, B, pitch0, rot0, fitBase, cine, folgen, hPx, fov, ter.source, ter.exaggeration,
+        _paceMap ? _paceMap.length + ":" + _paceMap[Math.floor(_paceMap.length / 2)] : 0].join("§");
+      if (schluessel === _auswSchluessel && _auswKurve) return Promise.resolve(true);
+      if (_auswLaeuft && _auswLaeuft.schluessel === schluessel) return _auswLaeuft.p;
+      const dem = SA.demLeser(map);
+      if (!dem) { _auswKurve = null; return Promise.resolve(false); }
+      const evZ = eventsMitZeit(events, ti, tf, A, B);
+      // Strecke kumuliert (m) für die Linienstücke hinter dem Punkt
+      const cum = new Float64Array(n0);
+      for (let i = 1; i < n0; i++) { const a = currentCoords[i - 1], b = currentCoords[i];
+        const dx = (b[0] - a[0]) * 111320 * Math.cos(b[1] * Math.PI / 180), dy = (b[1] - a[1]) * 111320; cum[i] = cum[i - 1] + Math.hypot(dx, dy); }
+      const zurueck = (f, m) => {   // Koordinate m Meter hinter dem gebrochenen Index f
+        const i0 = Math.max(0, Math.min(n0 - 1, Math.floor(f)));
+        const ziel = Math.max(0, cum[i0] + (f - i0) * ((cum[Math.min(n0 - 1, i0 + 1)] - cum[i0])) - m);
+        let lo = 0, hi = i0; while (hi - lo > 1) { const md = (lo + hi) >> 1; if (cum[md] <= ziel) lo = md; else hi = md; }
+        return coordBeiFrac(currentCoords, lo + (cum[hi] - cum[lo] > 0 ? (ziel - cum[lo]) / (cum[hi] - cum[lo]) : 0));
+      };
+      const nP = Math.max(2, Math.min(600, Math.round(totalMs / 1000 * 4)));   // 4 je Sekunde
+      const fitMitte = (() => { try { const fc = fitKameraGesamt(); return fc ? [fc.center.lng ?? fc.center[0], fc.center.lat ?? fc.center[1]] : null; } catch (_) { return null; } })();
+      const proben = [], punkte = [];
+      for (let k = 0; k < nP; k++) {
+        const tz = k / (nP - 1);
+        const a = zeitZuAnker(tz, ti, tf, A, B);
+        const ip = interpolateCameraJs(evZ, tz, pitch0, rot0, undefined, fitBase, { cinematic: cine });
+        const f = trackFracAusAnkerHaupt(Math.max(A, Math.min(B, a)));
+        let mitte = ip.center ? ip.center.slice(0, 2)
+          : (folgen ? _mitVersatz((_folgePunkt(f) || []).slice(0, 2), ip) : (fitMitte ? _mitVersatz(fitMitte, ip) : null));
+        if (!mitte || !isFinite(mitte[0]) || !isFinite(mitte[1])) { proben.push({ t: tz }); continue; }
+        const ziele = [coordBeiFrac(currentCoords, f), zurueck(f, 40), zurueck(f, 80), zurueck(f, 120), zurueck(f, 160)]
+          .filter(z => z && isFinite(z[0])).map(z => [z[0], z[1]]);
+        proben.push({ t: tz, mitte, zoom: fitBase + (ip.zoom_offset || 0), neigung: +ip.pitch || 0, richtung: +ip.bearing || 0, ziele });
+        punkte.push(mitte, ...ziele);
+      }
+      const dauerS = totalMs / 1000;
+      const p = (async () => {
+        const t0 = performance.now();
+        await dem.laden(punkte);
+        // Strahlen: Kacheln entlang der Sichtlinien (grob: Kameraort der Grundstellung und Strecke dazwischen)
+        const ray = [];
+        for (const q of proben) {
+          if (!q.mitte) continue;
+          const h = dem.hoehe(q.mitte[0], q.mitte[1]) || 0;
+          const kam = SA.kameraPos(q.mitte, h, q.zoom, q.neigung, q.richtung, hPx, fov);
+          for (let u = 0; u <= 1; u += 0.1) ray.push([kam.lng + (q.ziele[0][0] - kam.lng) * u, kam.lat + (q.ziele[0][1] - kam.lat) * u]);
+        }
+        await dem.laden(ray);
+        const kurve = SA.plan(proben, { hoehe: dem.hoehe, hoehePx: hPx, fov, dauerS, rampeS: 3 });
+        if (_auswLaeuft && _auswLaeuft.schluessel !== schluessel) return false;   // inzwischen überholt
+        _auswKurve = (kurve.geloest > 0) ? kurve : null;
+        _auswSchluessel = schluessel;
+        applog("info", `[ausweichen] ${proben.length} Stellen, verdeckt ${kurve.verdeckt}, ausgewichen ${kurve.geloest} — ${Math.round(performance.now() - t0)} ms (Gelände z${dem.z})`);
+        return true;
+      })().catch((e) => { applog("warn", "[ausweichen] " + e); _auswKurve = null; return false; })
+        .finally(() => { if (_auswLaeuft && _auswLaeuft.schluessel === schluessel) _auswLaeuft = null; });
+      _auswLaeuft = { schluessel, p };
+      return p;
+    } catch (e) { applog("warn", "[ausweichen] Aufbau: " + e + (e && e.stack ? " · " + String(e.stack).split("\n").slice(0, 3).join(" | ") : "")); _auswKurve = null; return Promise.resolve(false); }
+  }
+  function _gesamtMs() {
+    const i = parseNum(document.getElementById("anim-intro")?.value, 0), h = parseNum(document.getElementById("anim-hold")?.value, 0);
+    return Math.max(0, i * 1000) + Math.max(500, animSekunden() * 1000) + Math.max(0, h * 1000);
+  }
+  let _auswScrubT = null;
+  function _auswNachScrub(anchor) {
+    clearTimeout(_auswScrubT);
+    _auswScrubT = setTimeout(() => {
+      const vorher = _auswKurve;
+      _ausweichBereit(_gesamtMs()).then(() => { if (_auswKurve !== vorher && !_previewRaf) { try { scrubPreview(anchor, { skipSelectionSync: true }); } catch (_) {} } });
+    }, 400);
+  }
+  window.__rzAusweichen = () => ({ kurve: _auswKurve, auto: (() => { try { return _kameraIstAuto(); } catch (_) { return null; } })() });   // Prüfstand
+
   /** Quellen anzapfen: jedes setData der Bodenlinie/des Laufpunkts stellt auch die Flugspur nach. */
   function _flugQuellenHaken() {
     // 14.10.2026 (Hochflug: Laufpunkt als Pille nach einem Sprung von Zoom 3,9 auf 5,9) — die Punktlänge hängt am Zoom;
@@ -8799,6 +8934,11 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _symFarben(linie) { return window.rzBewegungFarben ? rzBewegungFarben(dotSymFarbe(), linie, dotSymDunkel(), dotSymAkzent()) : null; }
   function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
+  /** 29.10.2026 — was der Laufpunkt hinter einem Hang tut (rz-punkt3d sichtBei): "verdecken" (Vorgabe) | "durch" | "oben" */
+  const DOT_VERDECKT = ["verdecken", "durch", "oben"];
+  function dotVerdeckt() { const v = document.getElementById("anim-dot-verdeckt")?.value; return DOT_VERDECKT.includes(v) ? v : "verdecken"; }
+  function dotDurch() { const v = parseFloat(document.getElementById("anim-dot-durch")?.value); return isFinite(v) ? Math.max(0.1, Math.min(0.9, v)) : 0.4; }
+  function _dotSicht() { return { modus: dotVerdeckt(), durch: dotDurch() }; }
   function dotBild()       { return document.getElementById("anim-dot-bild")?.value || ""; }
   function dotBildForm()   { const v = document.getElementById("anim-dot-bild-form")?.value; return LP_FORMEN.includes(v) ? v : "plakette"; }
   function dotBildDrehen() { return !!document.getElementById("anim-dot-bild-drehen")?.checked; }
@@ -9174,6 +9314,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!_bodenPunktMoeglich()) return;
     try {
       if (!map.getLayer("anim-dot-gl")) { _bodenPkt = window.rzPunkt3d.create("anim-dot-gl"); map.addLayer(_bodenPkt); }
+      if (_bodenPkt) _bodenPkt.sicht = _dotSicht;   // 29.10.2026 — hinter dem Gelände (s. dotVerdeckt)
       if (!map.__rzLinieHook) {
         map.__rzLinieHook = true;
         // 25.10.2026 (zweiter Wurf) — das gezeichnete Linienende wird GEMESSEN, nicht aus Meldungen geschlossen: Die Meldung
@@ -9237,7 +9378,7 @@ function mountAnimator(body, headerActions, opts) {
     _bodenPkt.setPunkt({ lng: pos[0], lat: pos[1], agl: 0, bild, bildKey: key, cssPx: px * (sk > 0 ? sk : 1),
                          drehung: L.dreht ? (+brg || 0) : 0, karte: L.karte });
   }
-  window.__rzBodenPunkt = () => (_bodenPkt && map && map.getLayer("anim-dot-gl")) ? { punkt: _bodenPkt._punkt, gezeichnet: _bodenPkt._gezeichnet || 0, frac: _bodenFrac, linieBis: _linieBis } : null;   // Prüfstand
+  window.__rzBodenPunkt = () => (_bodenPkt && map && map.getLayer("anim-dot-gl")) ? { punkt: _bodenPkt._punkt, gezeichnet: _bodenPkt._gezeichnet || 0, frac: _bodenFrac, linieBis: _linieBis, sicht: _bodenPkt._sicht, modus: dotVerdeckt() } : null;   // Prüfstand
 
   /** Position + Fahrtrichtung setzen (jeder Frame bzw. bei jedem Scrubben).
    *  v0.9.510 — nimmt BRUCHTEILE und interpoliert zwischen den Punkten:
@@ -11585,6 +11726,12 @@ function mountAnimator(body, headerActions, opts) {
     } else {
       easeArgs.padding = { top: 0, bottom: 0, left: 0, right: 0 };
     }
+    // 29.10.2026 — automatische Kamera weicht Geländefalten aus (wie Probelauf und Video). Ist die Kurve nicht aktuell,
+    // wird sie im Hintergrund gebaut und die Stelle danach noch einmal gezeigt.
+    { const _tzA = ankerZuZeit(anchor, _sTi, _sTf, _sTa, _sTb);
+      const _aw = _auswBei(_tzA);
+      if (_aw) { easeArgs.pitch = Math.max(0, (+easeArgs.pitch || 0) - _aw.dp); if (easeArgs.zoom != null) easeArgs.zoom = Math.max(0, easeArgs.zoom - _aw.dz); }
+      if (!light) _auswNachScrub(anchor); }
     // Flug in der Luft: jumpTo mit Mittelpunkthöhe (easeTo übernimmt `elevation` nicht, und ein nachträgliches
     // setCenterElevation bricht die Fahrt ab) — wie der Probelauf
     if (_flugMitteSoll != null) { try { delete easeArgs.duration; } catch (_) {} easeArgs.elevation = _flugMitteSoll; map.jumpTo(easeArgs); }
@@ -12686,6 +12833,8 @@ function mountAnimator(body, headerActions, opts) {
               _ipH = Object.assign({}, ip, { bearing: _bl.bearing, pitch: _bl.pitch });
               zm -= _flugZoomMinus(_markerAt(a), zm, ll[1], _bl.pitch);
             }
+            { const _aw = _auswBei(tz);   // 29.10.2026 — automatische Kamera weicht Geländefalten aus
+              if (_aw) { _ipH = Object.assign({}, _ipH, { pitch: Math.max(0, (+_ipH.pitch || 0) - _aw.dp) }); zm -= _aw.dz; } }
             zm = Math.max(map.getMinZoom ? map.getMinZoom() : 0, Math.min(map.getMaxZoom ? map.getMaxZoom() : 24, isFinite(zm) ? zm : 0));   // 05.09.2026 (Audit): nie negativ
             _plan.push({ tz, a, ip: _ipH, zm, ll, db: _fsDreh });
           }
@@ -13151,6 +13300,8 @@ function mountAnimator(body, headerActions, opts) {
             jumpArgs.bearing = _bl.bearing; jumpArgs.pitch = _bl.pitch;
             jumpArgs.zoom = Math.max(0, jumpArgs.zoom - _flugZoomMinus(_fr, jumpArgs.zoom, _c[1], _bl.pitch));
           }
+          { const _aw = _auswBei(timelineProgress);   // 29.10.2026 — automatische Kamera weicht Geländefalten aus
+            if (_aw) { jumpArgs.pitch = Math.max(0, (+jumpArgs.pitch || 0) - _aw.dp); jumpArgs.zoom = Math.max(0, jumpArgs.zoom - _aw.dz); } }
           map.__rzFlugMitte = !!(_didFollow && _flug.an);
           if (_e != null) {
             jumpArgs.elevation = _e;
@@ -13291,6 +13442,10 @@ function mountAnimator(body, headerActions, opts) {
           step(_ms);
         } };
       const _fertig = () => { window.__rzPreviewStep.ready = true; };
+      // 29.10.2026 — erst die Ausweich-Kurve (die ruhige Kamera baut sie in ihre Stützstellen ein), dann wie bisher
+      const _faithBuild0 = _faithBuild;
+      if (_faithBuild0) _faithBuild = () => _ausweichBereit(totalMs).then(() => _faithBuild0());
+      else { _ausweichBereit(totalMs).then(_fertig); return; }
       if (_faithBuild) _faithBuild().then(_fertig).catch((e) => { try { applog("warn", "[smooth-cam] Stützstellen: " + _fehlerText(e)); } catch (_) {} _ruhigeKameraGescheitert(e); _useFaithful = false; _faithCams = null; _faithGew = null; _fertig(); });
       else _fertig();
       return;
@@ -13304,6 +13459,8 @@ function mountAnimator(body, headerActions, opts) {
         _previewT0 = performance.now() - (_startAnchor * totalMs);
         _previewRaf = requestAnimationFrame(step);
       };
+      const _faithBuild0 = _faithBuild;   // 29.10.2026 — erst die Ausweich-Kurve (höchstens DEM_WARTE_MS), dann die Stützstellen
+      _faithBuild = () => Promise.race([_ausweichBereit(totalMs), new Promise((ok) => setTimeout(ok, DEM_WARTE_MS))]).then(() => _faithBuild0());   // warte-ok: Sanduhr am Play-Knopf
       _faithBuild().then(_los).catch((e) => {
         try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + _fehlerText(e)); } catch (_) {}
       _ruhigeKameraGescheitert(e);
@@ -13311,7 +13468,13 @@ function mountAnimator(body, headerActions, opts) {
         _los();
       });
     } else {
-      _previewRaf = requestAnimationFrame(step);
+      // 29.10.2026 — klassischer Weg: höchstens DEM_WARTE_MS auf die Ausweich-Kurve warten (gecacht meist sofort)
+      _previewRaf = -1;
+      Promise.race([_ausweichBereit(totalMs), new Promise((ok) => setTimeout(ok, DEM_WARTE_MS))]).then(() => {   // warte-ok: Sanduhr am Play-Knopf
+        if (_previewRaf !== -1) return;   // inzwischen gestoppt
+        _previewT0 = performance.now() - (_startAnchor * totalMs);
+        _previewRaf = requestAnimationFrame(step);
+      });
     }
   }
   // v0.7.6: _previewRaf wird oben in mountAnimator() deklariert (TDZ-Fix).
@@ -19516,7 +19679,7 @@ function mountAnimator(body, headerActions, opts) {
                     marker_dot_rueckblick_m: dotRueckblick(),
                     marker_dot_bild: dotBild(), marker_dot_bild_form: dotBildForm(), marker_dot_bild_drehen: dotBildDrehen(),
                     marker_dot_sym_farbe: dotSymFarbe(), marker_dot_sym_dunkel: dotSymDunkel(), marker_dot_sym_akzent: dotSymAkzent(),
-                    marker_dot_nach_logbuch: _lbSymAn() };
+                    marker_dot_nach_logbuch: _lbSymAn(), marker_dot_verdeckt: dotVerdeckt(), marker_dot_durch: dotDurch() };
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
     else if (typeof saveSettings === "function") saveSettings({ animator: patch });
   }
@@ -19588,6 +19751,11 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-dot-bild-drehen")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-fz-stil")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-lb")?.addEventListener("change", () => dotGeaendert(true));   // 19.10.2026 — Symbol nach Aktivität
+  // 29.10.2026 — hinter dem Gelände: die Ebene liest die Wahl bei jeder Zeichnung, hier nur neu zeichnen + speichern
+  for (const id of ["anim-dot-verdeckt", "anim-dot-durch"]) {
+    document.getElementById(id)?.addEventListener("input", () => { try { map && map.triggerRepaint(); } catch (_) {} });
+    document.getElementById(id)?.addEventListener("change", () => { try { map && map.triggerRepaint(); } catch (_) {} dotGeaendert(true); });
+  }
   // die Videodauer entscheidet, welche Abschnitte lang genug für ein eigenes Symbol sind → Hinweis nachziehen
   document.getElementById("anim-dur")?.addEventListener("change", () => { try { document.querySelectorAll("[data-lb-sym-zeile]").forEach(_lbSymZeileFuellen); } catch (_) {} });
   try { _dotWahlZeichnen(); } catch (e) { applog("warn", "[dot] Auswahl: " + e); }
@@ -19647,6 +19815,9 @@ function mountAnimator(body, headerActions, opts) {
       const lpf = document.getElementById("anim-dot-bild-form"); if (lpf) lpf.value = LP_FORMEN.includes(a.marker_dot_bild_form) ? a.marker_dot_bild_form : "plakette";
       const lpd = document.getElementById("anim-dot-bild-drehen"); if (lpd) lpd.checked = !!a.marker_dot_bild_drehen;
       const lbs = document.getElementById("anim-dot-lb"); if (lbs) lbs.checked = !!a.marker_dot_nach_logbuch;   // 19.10.2026
+      // 29.10.2026 — fehlt die Angabe (ältere Projekte), gilt „verdecken“ (Marc: Vorgabe verdeckt)
+      const vd = document.getElementById("anim-dot-verdeckt"); if (vd) vd.value = DOT_VERDECKT.includes(a.marker_dot_verdeckt) ? a.marker_dot_verdeckt : "verdecken";
+      const du = document.getElementById("anim-dot-durch"); if (du) du.value = (a.marker_dot_durch != null && isFinite(+a.marker_dot_durch)) ? +a.marker_dot_durch : 0.4;
       const hx = (v, d) => /^#[0-9a-f]{6}$/i.test(String(v || "")) ? v : d;
       const sf = document.getElementById("anim-dot-sym-farbe"); if (sf) sf.value = a.marker_dot_sym_farbe === "fest" ? "fest" : "linie";
       const sd = document.getElementById("anim-dot-sym-dunkel"); if (sd) sd.value = hx(a.marker_dot_sym_dunkel, "#2b3a40");
@@ -20629,6 +20800,7 @@ function mountAnimator(body, headerActions, opts) {
     const rest = alt.filter(e => !(e && e.kind === "bearing" && +e.anchor >= -1e-6 && +e.anchor <= 1 + 1e-6));
     const neu = kf.map((k, i) => ({ kind: "bearing", anchor: k.anchor, value: k.value, easing: i === 0 ? easing0 : "linear" }));
     setTimelineEvents(rest.concat(neu).sort((x, y) => (+x.anchor || 0) - (+y.anchor || 0)));
+    _kameraAutoMerken();   // 29.10.2026 — erzeugte Fahrt: ab jetzt weicht sie Geländefalten aus, bis jemand sie ändert
     return neu.length;
   };
   window.__rzKursKeyframes = _kursKeyframes;   // Prüfstand
@@ -21512,6 +21684,22 @@ function mountAnimator(body, headerActions, opts) {
     const sr = _ovSeries, co = currentCoords;
     if (_hlEin() && (!sr || !co)) return 0;   // Track noch nicht geladen → später
     const alt = (sg.list() || []).slice();
+    // 29.10.2026 (Web-Fund F-53) — ein Look-Wechsel stellte Highlight-Pillen auf den Schildstil des Looks um (Kasten ohne
+    // Icon), danach passte ihr Fingerabdruck nicht mehr: der Highlight-Schalter ließ sie stehen. looks.js lässt sie jetzt
+    // aus; schon umgestellte holt das hier EINMAL je Projekt zurück — nur wenn außer dem Stil alles wie angelegt ist.
+    let _hlRepariert = 0;
+    const _ms = (window.rzReadModuleSettings && window.rzReadModuleSettings(_MODKEY)) || {};
+    if (!_ms.hl_look_repariert) {
+      const st0 = _hlStil().stil;
+      alt.forEach((s, i) => {
+        if (!s || !s.auto || !s.icon || s.style === st0 || s.auto_sig === _hlSig(s)) return;
+        if (!["callout", "plain", "karte", "pille", "sofortbild"].includes(s.style)) return;
+        const z = Object.assign({}, s, { style: st0 });
+        if (_hlSig(z) === s.auto_sig) { alt[i] = z; _hlRepariert++; }
+      });
+      if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, { hl_look_repariert: true });
+      if (_hlRepariert) applog("info", `[hl] ${_hlRepariert} vom Look umgestellte Highlight-Schilder zurückgeholt`);
+    }
     const bleiben = alt.filter(s => !(s && s.auto && s.auto_sig === _hlSig(s)));
     const belegt = new Set(bleiben.filter(s => s && s.auto).map(s => s.auto));
     const neu = [];
@@ -21568,7 +21756,7 @@ function mountAnimator(body, headerActions, opts) {
     _hlZeitlichTrennen(neu);
     const gleich = (a, b) => a.length === b.length && a.every((x, i) => x.auto === b[i].auto && _hlSig(x) === _hlSig(b[i]));
     const altAuto = alt.filter(s => s && s.auto && s.auto_sig === _hlSig(s));
-    if (gleich(altAuto, neu)) return 0;
+    if (!_hlRepariert && gleich(altAuto, neu)) return 0;
     const warUndo = window.__rzUndoApplying;
     if (leise) window.__rzUndoApplying = true;
     try { sg.speichern(bleiben.concat(neu), leise ? undefined : t("animator.hl.undo", "Highlights")); }
@@ -21973,7 +22161,9 @@ function mountAnimator(body, headerActions, opts) {
         + `<g class="ct-ele-marken"></g>`
         + `<polygon class="ct-ele-fill" points="" fill="url(#${gid})"/>`
         + `<polyline class="ct-ele-line" points="" fill="none" stroke="${lc}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`
-        + `<circle class="ct-ele-dot" cx="0" cy="0" r="4.5" fill="#ffffff" stroke="${lc}" stroke-width="2"/></svg></div>`;
+        // 29.10.2026 (Marc: „ein Ei statt eines runden Punkts“) — das Profil ist mit preserveAspectRatio="none" gestreckt; der
+        // Punkt ist deshalb eine Ellipse, deren Breite _ctHoeheAt aus der Kastengröße ausgleicht, Rand ohne Streckung
+        + `<ellipse class="ct-ele-dot" cx="0" cy="0" rx="4.5" ry="4.5" fill="#ffffff" stroke="${lc}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></div>`;
     }
     if (z.typ === "bild") {
       return `<div class="ct-z ct-bildz" data-f="${escA(z.id)}"><img class="ct-bild" data-bild="${escA(z.pfad)}" alt="" draggable="false" style="width:${z.b}cqw"></div>`;
@@ -22236,7 +22426,16 @@ function mountAnimator(body, headerActions, opts) {
       const fill = el.querySelector(".ct-ele-fill");
       if (fill) fill.setAttribute("points", pairs.length >= 2 ? `${pairs[0][0].toFixed(1)},${H} ${ps} ${pairs[pairs.length - 1][0].toFixed(1)},${H}` : "");
       const dot = el.querySelector(".ct-ele-dot");
-      if (dot) { const q = pairs[pairs.length - 1]; dot.setAttribute("cx", q[0].toFixed(1)); dot.setAttribute("cy", q[1].toFixed(1)); }
+      if (dot) {
+        const q = pairs[pairs.length - 1]; dot.setAttribute("cx", q[0].toFixed(1)); dot.setAttribute("cy", q[1].toFixed(1));
+        // rund trotz Streckung: in x um sy/sx schmaler (Kastenmaße ohne CSS-Transform — das Verhältnis bleibt gleich)
+        const sv = dot.ownerSVGElement, bw = sv ? sv.clientWidth : 0, bh = sv ? sv.clientHeight : 0;
+        if (bw > 0 && bh > 0) {
+          const sx = bw / W, sy = bh / H;
+          dot.setAttribute("rx", (4.5 * sy / sx).toFixed(3));
+          dot.setAttribute("stroke-width", (2 * sy).toFixed(2));
+        }
+      }
     });
   }
 
@@ -24132,6 +24331,14 @@ function mountAnimator(body, headerActions, opts) {
           <button type="button" class="btn btn-sm" data-sym-zurueck title="${_animEscapeHtml(t("animator.dot.sym_zurueck_tip", "Schiefer und Mint"))}">${t("animator.dot.sym_zurueck", "Vorgabe")}</button></div></div>
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.size", "Größe")} <b data-v="dot_size">${st.dot_size}</b>×</label>
         <input type="range" data-stil="dot_size" min="0.5" max="3" step="0.1" value="${st.dot_size}"></div>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile dot-verdeckt-zeile" data-nur-dot data-verdeckt-zeile ${st.dot_show && !ganz ? "" : "hidden"}>
+        <label title="${_animEscapeHtml(t("animator.dot.verdeckt_tip", "Was der Laufpunkt tut, wenn er hinter einem Hang oder Grat läuft und die Linie dort vom Gelände verdeckt ist."))}">${t("animator.dot.verdeckt", "Hinter dem Gelände")}</label>
+        <div class="dot-bild-formen" role="group">
+          <button type="button" class="btn btn-sm dot-bild-form" data-verdeckt="verdecken" title="${_animEscapeHtml(t("animator.dot.verdeckt_verdecken_tip", "Der Punkt verschwindet weich hinter dem Berg, wie die Linie"))}">${t("animator.dot.verdeckt_verdecken", "Verdecken")}</button>
+          <button type="button" class="btn btn-sm dot-bild-form" data-verdeckt="durch" title="${_animEscapeHtml(t("animator.dot.verdeckt_durch_tip", "Der Punkt schimmert durch den Berg"))}">${t("animator.dot.verdeckt_durch", "Durchscheinen")}</button>
+          <button type="button" class="btn btn-sm dot-bild-form" data-verdeckt="oben" title="${_animEscapeHtml(t("animator.dot.verdeckt_oben_tip", "Der Punkt bleibt immer sichtbar, auch hinter dem Berg"))}">${t("animator.dot.verdeckt_oben", "Immer obenauf")}</button></div>
+        <div class="dot-durch-zeile" data-durch-zeile hidden><label>${t("animator.dot.durch", "Deckkraft beim Durchscheinen")} <b data-durch-v></b> %</label>
+          <input type="range" data-durch min="0.1" max="0.9" step="0.05"></div></div>` : ""}
       <div class="anim-stil-zeile" data-nur-pfeil ${st.dot_show && !ganz && st.dot_style === "arrow" ? "" : "hidden"}><label>${t("animator.dot.smooth", "Ruhe des Pfeils")} <b data-v="dot_smooth">${dotGlaettung()}</b> <span class="muted">(${t("animator.stil.alle_pfeile", "alle Pfeile")})</span></label>
         <input type="range" data-global="anim-dot-smooth" min="0" max="10" step="1" value="${dotGlaettung()}"></div>`;
     {   // 07.10.2026 — Laufpunkt-Kacheln: Klick setzt die (versteckte) Liste, deren Änderung wie bisher verarbeitet wird
@@ -24171,6 +24378,28 @@ function mountAnimator(body, headerActions, opts) {
           const c = document.getElementById("anim-dot-lb"); if (c) { c.checked = e.target.checked; c.dispatchEvent(new Event("change")); }
         });
         _lbSymZeileFuellen(lbz);
+        // 29.10.2026 — „Hinter dem Gelände“: bedient die versteckten #anim-dot-verdeckt / #anim-dot-durch
+        const vz = el.querySelector("[data-verdeckt-zeile]");
+        if (vz) {
+          const fuellen = () => {
+            const m = dotVerdeckt();
+            vz.querySelectorAll("[data-verdeckt]").forEach(b => b.classList.toggle("ist-an", b.dataset.verdeckt === m));
+            const dz = vz.querySelector("[data-durch-zeile]"); if (dz) dz.hidden = m !== "durch";
+            const r = vz.querySelector("[data-durch]"); if (r) r.value = dotDurch();
+            const v = vz.querySelector("[data-durch-v]"); if (v) v.textContent = Math.round(dotDurch() * 100);
+          };
+          vz.querySelectorAll("[data-verdeckt]").forEach(b => b.addEventListener("click", () => {
+            const h = document.getElementById("anim-dot-verdeckt"); if (h) { h.value = b.dataset.verdeckt; h.dispatchEvent(new Event("change")); }
+            fuellen();
+          }));
+          const r = vz.querySelector("[data-durch]");
+          r?.addEventListener("input", () => {
+            const h = document.getElementById("anim-dot-durch"); if (h) { h.value = r.value; h.dispatchEvent(new Event("input")); }
+            const v = vz.querySelector("[data-durch-v]"); if (v) v.textContent = Math.round(parseFloat(r.value) * 100);
+          });
+          r?.addEventListener("change", () => { const h = document.getElementById("anim-dot-durch"); if (h) { h.value = r.value; h.dispatchEvent(new Event("change")); } });
+          fuellen();
+        }
       }
     }
     el.querySelector("[data-fw-einstieg]")?.addEventListener("click", () => _fwEinstieg(ziel === "haupt" ? "haupt" : tr));   // 19.10.2026

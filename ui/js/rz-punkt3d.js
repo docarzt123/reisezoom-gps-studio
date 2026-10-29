@@ -13,7 +13,14 @@
  *   p.setPunkt({ lng, lat, agl, bild, bildKey, cssPx, drehung, karte, deckkraft });   // bild: {width,height,data} | Image | Canvas
  *   p.setPunkt(null);                                                                  // ausblenden
  *
- * Projektion wie rz-line3d (MapLibre-Prelude, auch Globus); keine Tiefenprüfung — der Punkt bleibt sichtbar wie vorher.
+ * Projektion wie rz-line3d (MapLibre-Prelude, auch Globus); keine Tiefenprüfung im Shader.
+ *
+ * 29.10.2026 (Marc, Masca: „ab Sekunde 6 springt der Laufpunkt an die falsche Stelle“ — er lief hinter einem Grat, die
+ * Linie war dort verdeckt, der Punkt nicht) — `p.sicht = () => ({ modus, durch })` regelt, was hinter dem Gelände passiert:
+ *   "verdecken"  weich ausblenden wie die Schilder (rzSignSicht, Sichtstrahl Kamera → Punkt) — Vorgabe
+ *   "durch"      halb durchscheinen: Deckkraft fällt höchstens auf `durch` (0…1)
+ *   "oben"       immer obenauf (wie bis 0.9.846)
+ * Gerechnet wird je Zeichnung aus Kamera und Gelände — Vorschau und Video gleich, auch wenn nur die Kamera sich bewegt.
  */
 (function () {
   "use strict";
@@ -141,6 +148,19 @@ void main() {
         try { aglMin = 3 * 78271.517 * Math.cos(p.lat * Math.PI / 180) / Math.pow(2, m.getZoom()); } catch (_) {}
         return boden + Math.max(aglMin, Math.max(0, +p.agl || 0) * this._ueberhoehung());
       },
+      /** 1 = frei, sonst Deckkraft-Faktor nach `this.sicht()` (s. oben); h = Höhe der Mitte in m */
+      sichtBei(p, h) {
+        let w = null;
+        try { w = typeof this.sicht === "function" ? this.sicht() : null; } catch (_) {}
+        const modus = (w && w.modus) || "verdecken";
+        if (modus === "oben" || typeof window.rzSignSicht !== "function") { this._sicht = 1; return 1; }
+        // am Boden zählt der Boden (wie die Linie), nicht die um ~3 Bildpunkte angehobene Zeichenhöhe; in der Luft die Flughöhe.
+        // Schmaler Übergang (12 m): schon kleine Falten verdecken die Linie ganz.
+        const s = window.rzSignSicht(this._map, p.lng, p.lat, (+p.agl > 0) ? h : undefined, 12);
+        const unten = modus === "durch" ? Math.max(0, Math.min(1, w && w.durch != null ? +w.durch : 0.4)) : 0;
+        this._sicht = unten + (1 - unten) * s;   // Prüfstand
+        return this._sicht;
+      },
       render(gl, args) {
         const p = this._punkt, MC = window.maplibregl && window.maplibregl.MercatorCoordinate;
         if (!p || !MC || !this._map) return;
@@ -173,7 +193,7 @@ void main() {
         gl.uniform1f(L.karte, p.karte === false ? 0 : 1);
         gl.uniform2f(L.res, gl.canvas.width, gl.canvas.height);
         gl.uniform1i(L.bild, 0);
-        gl.uniform1f(L.deckkraft, p.deckkraft == null ? 1 : +p.deckkraft);
+        gl.uniform1f(L.deckkraft, (p.deckkraft == null ? 1 : +p.deckkraft) * this.sichtBei(p, h));
         gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE);
         gl.bindBuffer(gl.ARRAY_BUFFER, this._vbo);

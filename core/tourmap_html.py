@@ -77,7 +77,7 @@ def tile_style(style_id: str, bbox=None) -> dict:
         from . import mapstyles as _ms
         stack = _ms.region_stack(bbox)
         if stack:
-            return _ms.stack_leaflet(stack)
+            return _ms.stack_leaflet(stack, bbox=bbox)
         import logging
         logging.getLogger("rzgps.tourmap").warning(
             "Satellit (kostenlos): keine Abdeckung für bbox=%s → OpenStreetMap", bbox)

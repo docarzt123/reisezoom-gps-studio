@@ -104,6 +104,7 @@
         if (!ctrl || !sz) return;
         ctrl.applyState(Object.assign({}, a, { keyframes_enabled: true, camera_follow_track: false, kamera_vorgabe: "startziel",
           timeline_events: startZielKeyframes(sz[0], sz[1], bbox) }), T("einfach.k_startziel", "Start → Ziel"));
+        if (window.__rzKameraAutoMerken) window.__rzKameraAutoMerken();   // 29.10.2026 — erzeugte Fahrt weicht Geländefalten aus
         return;
       }
       if (!ctrl || !window.__rzSchnellKamerafahrt || !bbox) { feld("anim-camera-follow", true); return; }
@@ -148,6 +149,8 @@
       const behalten = (a.timeline_events || []).filter((e) => !(e && KAMERA_LANES.includes(e.kind)));
       const neu = Object.assign({}, a, felder, { keyframes_enabled: true, timeline_events: behalten.concat(kamera) });
       ctrl.applyState(neu, T("animator.kf.fahrt_neu_undo", "Kamerafahrt neu erzeugt"));
+      // 29.10.2026 — erzeugte Fahrt weicht Geländefalten aus (bei „fahrt“ merkt __rzSchnellKamera nach der Blickrichtung)
+      if (art !== "fahrt" && window.__rzKameraAutoMerken) window.__rzKameraAutoMerken();
       if (art === "fahrt" && window.__rzSchnellKamera) {
         // Blickrichtung aus der geglätteten Spur — gehört zum selben Undo-Schritt (wie im Video-Assistenten)
         await new Promise((res) => setTimeout(res, 600));

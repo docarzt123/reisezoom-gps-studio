@@ -814,9 +814,36 @@
    *  Ankerpunkt; MapLibre prüft dabei nicht, ob ein Berg davor liegt (die Linie liegt dagegen AUF dem Gelände und wird
    *  verdeckt). Hier der Sichtstrahl Kamera → Ankerpunkt am Boden: ragt das Gelände dazwischen darüber, ist das Schild
    *  verdeckt. Weich über ÜBERSTAND_M Meter (kein Flackern am Grat), je Bild aus Kamera und Gelände gerechnet — Vorschau
-   *  und Video gleich. 1 = frei, 0 = verdeckt; ohne Gelände immer 1. */
-  var RZ_SICHT_PROBEN = 28, RZ_SICHT_UEBERSTAND_M = 40;
-  function rzSignSicht(map, lng, lat) {
+   *  und Video gleich. 1 = frei, 0 = verdeckt; ohne Gelände immer 1.
+   *  29.10.2026 — auch für den Laufpunkt (rz-punkt3d): `zielHoehe` = Höhe des Ziels in m über dem Meer (Überhöhung
+   *  eingerechnet, z. B. ein Punkt in Flughöhe); fehlt sie, gilt Boden + 3 m wie bei den Schildern. `weichM` = Breite des
+   *  weichen Übergangs (Vorgabe RZ_SICHT_UEBERSTAND_M; der Laufpunkt nimmt 12 m — eine 15-m-Falte verdeckt die Linie ganz). */
+  var RZ_SICHT_PROBEN = 48, RZ_SICHT_UEBERSTAND_M = 40, RZ_SICHT_EIGEN_M = 25;
+  /** 29.10.2026 — Geländehöhe so, wie MapLibre sie ZEICHNET: aus der Höhenkachel der Geländekachel, die an der Stelle
+   *  gerade gezeichnet wird. queryTerrainElevation nimmt die Stufe der Bildmitte; nah an der Kamera zeichnet MapLibre
+   *  feiner — in Masca lag dazwischen eine 15-m-Falte, die die Linie verdeckte, die Abfrage aber nicht kannte. */
+  function rzGelaendeKacheln(map) {
+    try {
+      var sc = map.terrain && map.terrain.sourceCache;
+      if (!sc || !sc.getRenderableTiles || !map.terrain.getElevationForLngLatZoom) return null;
+      return sc.getRenderableTiles().map(function (t) { return t.tileID.canonical; });
+    } catch (_) { return null; }
+  }
+  function rzHoeheGezeichnet(map, lng, lat, kacheln) {
+    if (kacheln && kacheln.length && window.maplibregl && window.maplibregl.LngLat) {
+      try {
+        var x = (lng + 180) / 360, sn = Math.sin(lat * Math.PI / 180), y = 0.5 - Math.log((1 + sn) / (1 - sn)) / (4 * Math.PI);
+        var zt = -1;
+        for (var i = 0; i < kacheln.length; i++) {
+          var c = kacheln[i], n = Math.pow(2, c.z);
+          if (c.z > zt && x * n >= c.x && x * n < c.x + 1 && y * n >= c.y && y * n < c.y + 1) zt = c.z;
+        }
+        if (zt >= 0) return map.terrain.getElevationForLngLatZoom(new window.maplibregl.LngLat(lng, lat), zt);
+      } catch (_) {}
+    }
+    return map.queryTerrainElevation({ lng: lng, lat: lat });
+  }
+  function rzSignSicht(map, lng, lat, zielHoehe, weichM) {
     try {
       if (!map || !map.getTerrain || !map.getTerrain() || !map.queryTerrainElevation) return 1;
       // unter Zoom 9 zeichnet die Karte (teils) als Kugel (mapstyles.PROJECTION) — die Merkator-Rechnung hier gilt dann nicht
@@ -834,20 +861,25 @@
         if (rc && rc.pos) cam = new MC(rc.pos[0], rc.pos[1], rc.pos[2]);
       }
       if (!cam || !isFinite(cam.x) || !isFinite(cam.y) || !isFinite(cam.z)) return 1;
-      var boden = map.queryTerrainElevation({ lng: lng, lat: lat });
+      var kacheln = rzGelaendeKacheln(map);
+      var boden = rzHoeheGezeichnet(map, lng, lat, kacheln);
       if (typeof boden !== "number" || !isFinite(boden)) return 1;
-      var ziel = MC.fromLngLat({ lng: lng, lat: lat }, boden + 3);
+      var ziel = MC.fromLngLat({ lng: lng, lat: lat }, (typeof zielHoehe === "number" && isFinite(zielHoehe)) ? zielHoehe : boden + 3);
       var schlimm = 0;
+      // 29.10.2026 (Masca, Laufpunkt bei 6,5 s) — der Grat lag gut 100 m vor dem Punkt, der Strahl war 4 km lang: gleich-
+      // mäßig 28 Proben (alle 150 m) und „die letzten 3 % auslassen“ übersprangen ihn. Jetzt zum Ziel hin dichter
+      // (t = 1 − (1 − u)², zuletzt im Meterbereich); ausgelassen wird nur noch der eigene Hang, RZ_SICHT_EIGEN_M vor dem Ziel.
+      var waagM = Math.hypot(ziel.x - cam.x, ziel.y - cam.y) / ziel.meterInMercatorCoordinateUnits();
       for (var k = 1; k < RZ_SICHT_PROBEN; k++) {
-        var t = k / RZ_SICHT_PROBEN;
-        if (t > 0.97) break;   // die letzten Meter vor dem Anker: der eigene Hang
+        var u = k / RZ_SICHT_PROBEN, t = 1 - (1 - u) * (1 - u);
+        if ((1 - t) * waagM < RZ_SICHT_EIGEN_M) break;   // die letzten Meter vor dem Anker: der eigene Hang
         var x = cam.x + (ziel.x - cam.x) * t, y = cam.y + (ziel.y - cam.y) * t, z = cam.z + (ziel.z - cam.z) * t;
         var p = new MC(x, y, 0), ll = p.toLngLat();
         var hoehe = z / p.meterInMercatorCoordinateUnits();
-        var gel = map.queryTerrainElevation(ll);
+        var gel = rzHoeheGezeichnet(map, ll.lng, ll.lat, kacheln);
         if (typeof gel === "number" && isFinite(gel) && gel - hoehe > schlimm) schlimm = gel - hoehe;
       }
-      return Math.max(0, Math.min(1, 1 - schlimm / RZ_SICHT_UEBERSTAND_M));
+      return Math.max(0, Math.min(1, 1 - schlimm / ((weichM > 0) ? weichM : RZ_SICHT_UEBERSTAND_M)));
     } catch (_) { return 1; }
   }
   if (typeof window !== "undefined") window.rzSignSicht = rzSignSicht;

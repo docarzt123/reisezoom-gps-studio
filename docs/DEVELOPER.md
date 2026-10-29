@@ -3063,6 +3063,7 @@ Zoomstufen nur der Fallback, überall"; 06.09.2026 eine Stufe später, Marc: „
 schaltet er so früh aufs Luftbild" — Sentinel 10 m/px reicht bis ~4K-Zoom 13, und die
 Gelände-Kachelnaht flimmert mit halbtransparentem Luftbild 3× stärker):**
 `ORTHO_FADE_FROM = 12`, `ORTHO_FADE_TO = 13.5` (mapstyles) — Landes-Ebenen
+  29.10.2026: `ortho_fade(stack, bbox)` → `ORTHO_FADE_FRUEH` (10, 11,5), wenn `ortho_frueh`: genau ein Dienst im Stapel, sein Rechteck enthält die Tour + `ORTHO_FRUEH_RAND_KM` (25 km), kein anderer nutzbarer Dienst reicht hinein. `stack_style(…, fade=)`, `stack_leaflet(…, bbox=)`; JS-Spiegel `rzOrthoFade` (util.js, Katalog `ortho_fade_frueh` / `ortho_frueh_rand_km`) → `_stackStyle(stack, ortho, fadeZ)`. Masca-Startbild Zoom 12,47: Kantenmaß 8,1 → 19,1. Test `test_luftbild_frueh` (inkl. JS = Python).
 `rz-raster-<id>` haben `minzoom 12` und
 `raster-opacity` als Zoom-Rampe 12→0 … 13.5→1; darunter zeigt der Stapel nur
 `rz-base` + `rz-raster-sentinel`. Sentinel trägt KEINE Luftbild-Optik (rz-
@@ -5792,6 +5793,32 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    Culling, Überschätzen kostet ein paar Randkacheln. Schalter `window.__rzNoAabbMargin`.
    Verworfen: «Cull-Hold» (Knoten drei Bilder halten): gehaltene Knoten wurden weiter unterteilt,
    35 statt 50 fps und große Blitzer.
+9. `/* rz-patch morph */` (29.10.2026, Marc: „die Höhe der Berge springt, als wenn das Gittermodell sich verändern
+   würde“): Beim Stufenwechsel einer Geländekachel (z. B. z13 → vier z14) kommen ein feineres Höhenmodell und ein doppelt
+   so dichtes Netz — gemessen Masca (Vorschau 754 px, Zoom 14,19, Stufengrenze knapp darunter) bis 25 m Höhensprung von
+   einem Bild aufs nächste. Kein Ladefehler; bei 960 px Vorschau (Zoom 14,54) kein Wechsel, daher „mal ja, mal nein“.
+   Lösung (Geomorphing wie CDLOD):
+   - `coveringTiles` (`xe`): für die Geländekacheln (`rzTerrainTiles`) und deren DEM-Quelle (`usedForTerrain`) wird die
+     Stufe um `rzMorphBias()` = 0,6 angehoben (`window.__rzMorphBias`), nur im Merkator-Anbieter. Dabei werden die
+     Kameradaten an `terrain.__rzMorph` gelegt: `ax, ay` (Kamerapunkt), `g`, `M0` (Stufe bei Abstand 0, mit Vorlauf),
+     `C1`, `A` (= Hysterese, ≥ 0,2). Die Stufe je Punkt ist exakt `λ(o) = M0 − C1·log2(hypot(o, g)/g)` (die Form von
+     `calculateTileZoom`: nur der 2D-Abstand o hängt am Punkt); C1 wird aus zwei Abständen bestimmt und an einem dritten
+     geprüft, sonst kein Gleiten.
+   - Shader (`rz_mh` in terrain/terrainDepth/terrainCoords): je Gitterpunkt λ, `ks = floor(λ − A)`, Mischfaktor
+     `m = 1 − smoothstep(A, A+0,4, λ − ks)`, Höhe = mix(G_ks, G_ks−1, m). `G_k` ist das Netz der Stufe k (Abstand
+     64·2^(L−k) in Kachelkoordinaten, Dreiecke wie `getTerrainMesh`: Diagonale (0,0)–(1,1)), abgetastet mit dem
+     Höhenmodell, das eine Kachel der Stufe k selbst hätte: eigenes DEM (k = L), Eltern-DEM (k = L−1, Einheit 4),
+     Großeltern-DEM (k ≤ L−2, Einheit 5) — `rzMorphU`/`rzAncDem` (Matrix aufs eigene Kachelkoordinatensystem
+     umgerechnet), gebunden über `rzMorphBind` in allen drei Durchgängen. Damit ist die Oberfläche unabhängig von der
+     Stufe der Kachel: eine neue feine Kachel sieht im Moment ihres Entstehens genau aus wie die grobe davor.
+   - Vorfahren-DEMs: nur die EXAKTE Stufe (`rzAncOk`), sonst Rückfall aufs eigene — MapLibres `getSourceTile` greift
+     sonst auf irgendeinen geladenen Vorfahren zurück (gemessen: grobes DEM aus der Weltansicht, 816 m Fehler). Die
+     DEM-Quelle lädt Eltern und Großeltern ihrer Kacheln mit (`rzMitEltern`).
+   - CPU: `Terrain.getElevation` rechnet über `rzMorphH` dasselbe (Laufpunkt, Schilder, Sichtprüfung, Kamera-Sitz,
+     Nahtflicken `rzStitch` — dessen Cache hängt an `__rzMorph.id`, wird also je Bild neu gerechnet).
+   Schalter `window.__rzNoMorph = true` = Original. Masca nachher: größte Höhenänderung je Bild an festen Punkten 1,0 m
+   (vorher 25 m), Bewegungsanalyse: der Block-Sprung bei 15,97 s (19 Blöcke) ist weg. Tests:
+   `tests/test_gelaende_gleiten.py` (Zoomfahrt über eine Stufengrenze, Gegenprobe ohne Gleiten), `test_vendor_patches`.
 Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.
@@ -8457,6 +8484,34 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
 - **Gelände z16**: `mapstyles.TERRAIN_PROXY_MAXZOOM = 16` (nur über die Weiche); `tileproxy._gelaende_vergroessert()`
   rechnet z>15 aus der Elternkachel (bilinear, Terrarium neu kodiert), wenn Mapterhorn fehlt oder AWS-only gilt.
 - **Schilder hinter Bergen (25.10.2026).** `sign_draw.js rzSignSicht(map, lng, lat)`: Sichtstrahl von `getFreeCameraOptions().position` zum Anker (Gelände + 3 m), 28 Proben mit `queryTerrainElevation`, die letzten 3 % ausgelassen; Überstand des Geländes über den Strahl → Deckkraft `1 − Überstand/40 m`. Kamera: Mapbox `getFreeCameraOptions`, MapLibre `rzMlCamRead` (`transform.getCameraAltitude()` ist hier NaN, `_pixelPerMeter` fehlt). Unter Zoom 9 (Kugel, `mapstyles.PROJECTION`) und ohne Gelände 1. `rzSignApplyFrame` multipliziert die Feature-State-Deckkraft damit (höchstens 60 Schilder je Bild). Test `test_schild_sicht` (Merkator-Nachbau in node).
+- **Sicht hinter dem Gelände, Stand 29.10.2026.** `rzSignSicht(map, lng, lat, zielHoehe?, weichM?)` misst jetzt mit den
+  Höhen, die MapLibre ZEICHNET: `rzHoeheGezeichnet` nimmt die Geländekachel aus `terrain.sourceCache.getRenderableTiles()`
+  an der Stelle und `terrain.getElevationForLngLatZoom(LngLat, z)` (statt `queryTerrainElevation` auf `tileZoom` — in
+  Masca lag dazwischen eine 15-m-Falte). Abtastung 48 Proben, zum Ziel hin dichter (`t = 1 − (1 − u)²`), ausgelassen nur
+  `RZ_SICHT_EIGEN_M` = 25 m vor dem Ziel. `zielHoehe` (m ü. M., überhöht) für Ziele in der Luft; `weichM` = Breite des
+  weichen Übergangs (Schilder 40 m, Laufpunkt 12 m).
+- **Laufpunkt hinter dem Gelände (29.10.2026).** `rz-punkt3d.js`: `layer.sicht = () => ({ modus, durch })`, `sichtBei(p, h)`
+  multipliziert die Deckkraft je Zeichnung (auch wenn sich nur die Kamera bewegt): `verdecken` (Vorgabe) = rzSignSicht,
+  `durch` = höchstens auf `durch` (0,1…0,9, Vorgabe 0,4), `oben` = 1. Am Boden zählt der Boden (+3 m), in der Luft die
+  Flughöhe. Animator: versteckte Felder `#anim-dot-verdeckt` / `#anim-dot-durch`, gespeichert als `marker_dot_verdeckt` /
+  `marker_dot_durch` (fehlt → verdecken / 0,4), Zeile „Hinter dem Gelände“ im Track-Editor (Track 1). Prüfstand
+  `__rzBodenPunkt().sicht`; Einzelbilder (`project-render --frames`) schreiben Ort und Sicht des Punkts ins Protokoll.
+  Test `test_laufpunkt_verdeckt`.
+- **Kamera weicht Geländefalten aus (29.10.2026).** `ui/js/sichtausweichen.js` (ohne MapLibre, Test in node):
+  `kameraPos` (MapLibre-Geometrie: Abstand = 0,5·Höhe/tan(fov/2) px über Weltbreite 512·2^z), `plan(proben, opt)` —
+  je Stützstelle (4/s) Laufpunkt + Linie 40/80/120/160 m dahinter prüfen; verdeckt heißt Gelände näher als
+  `KLAR_M` = 15 m (nah am Ziel 15 % des Abstands) an der Sichtlinie (Dreiecksnetz!); Stufen `STUFEN` erst Neigung −5…−20°,
+  dann Zoom −0,25…−1 (hilft geometrisch kaum: gleiche Sichtlinie zur Bildmitte); keine Stufe → 0 (bleibt verdeckt);
+  Verteilung `max(need · smoothstep(1 − |Δt|/3 s))`. `demLeser(map)` liest die Höhenkacheln der Geländequelle der Karte
+  selbst (Terrarium/Mapbox/custom, z 14 bei 256er, 13 bei 512er Kacheln), nicht `api.dem_hoehen` (AWS ≠ Mapterhorn).
+  Animator: `_ausweichBereit(totalMs)` baut die Kurve (Schlüssel über Kamera-Events, Dauer, Schnitt, Neigung, Fit-Zoom,
+  Viewport, Gelände, Tempo), `_auswBei(tz)` wirkt an drei Stellen — Scrubben (`scrubPreview`, baut bei Bedarf 400 ms
+  später nach und zeigt die Stelle neu), klassischer Probelauf (`jumpArgs`), ruhige Kamera (`_plan` in `_faithBuild`).
+  Start: Video (`__rzStepMode`) wartet auf die Kurve, Vorschau höchstens `DEM_WARTE_MS`. Nur bei automatischer Kamera
+  (`_kameraIstAuto`): Editor aus / keine eigenen Keyframes, oder `kamera_auto_sig` = `_kamSig(Kamera-Events)` (Werte und
+  Übergänge, nicht Anker — die rechnet die App bei geänderter Dauer selbst um). Gemerkt von `_kameraAutoMerken` am Ende
+  von `__rzSchnellKamera` (Schnell-Video, Assistent, Kamera-Pille „Kamerafahrt“, Fahrt neu „fahrt“) und in `einfach.js`
+  (Start → Ziel, Fahrt neu „startziel“/„standard“). Prüfstand `__rzAusweichen()`. Test `test_kamera_ausweichen`.
 - **Vorschau-Detailgrad + Punkt am Linienende (25.10.2026).** `util.js rzApplyPreviewQuality` setzt zusätzlich
   `__rzPreviewDemMax` (flott/schnell: 15 → Animator kappt `mapbox-dem.maxzoom`) und `__rzPreviewOhneSchatten` (schnell:
   `_stackStyle` ohne `rz-schatten`); Render-Modus immer voll. Schalter `#tl-sel-vorschau` in `timeline.js` (speichert

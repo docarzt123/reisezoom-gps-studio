@@ -1325,6 +1325,15 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     _t = time.perf_counter()
                     if _nur:
                         NUR_PNG.append(_png_schreiben(shot, f"{_nur_basis}_{frame}.png", cfg.width, cfg.height))
+                        # 29.10.2026 — Laufpunkt des Einzelbilds ins Protokoll (Stelle, Sicht hinter dem Gelände)
+                        try:
+                            _bp = await page.evaluate("() => { const b = window.__rzBodenPunkt && window.__rzBodenPunkt();"
+                                                      " return b && b.punkt ? { lng: b.punkt.lng, lat: b.punkt.lat, sicht: b.sicht,"
+                                                      " modus: b.modus } : null; }")
+                            if _bp:
+                                _log.info("Szene: Einzelbild %d Laufpunkt %s", frame, json.dumps(_bp))
+                        except Exception:  # noqa: BLE001
+                            pass
                     else:
                         mux.schreiben(shot, frame + 1)
                     _geschrieben = True

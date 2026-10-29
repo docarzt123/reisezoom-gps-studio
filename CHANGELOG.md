@@ -15,6 +15,14 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- **Moving dot behind terrain**: when the tour runs behind a slope or ridge, the moving dot now fades out softly like the
+  line instead of being drawn on top of the mountain. Track editor, under the moving dot: “Behind terrain” — Hide
+  (default), Show through (with an opacity slider, default 40 %) or Always on top (the previous behaviour). Preview,
+  scrubbing and video, on the ground and in the air.
+- **The automatic camera avoids terrain folds**: quick video, video assistant, the camera presets, “New camera flight”
+  and “Camera follows track” without own keyframes now look down more steeply (at most 20°, ramping in and out over
+  about 3 s) where the moving dot or the line just behind it would disappear behind a fold. If that is not enough, the
+  spot stays hidden. Your own keyframes are never changed; once you edit a generated move it counts as yours.
 - **Command line, `highlights-export`**: the highlight signs (highest point, steepest section, top speed, half way, GPX
   waypoints) one by one for 3D tools — each as a transparent PNG in video size with its anchor point, place, terrain
   height and, frame by frame, opacity and size (pop-up and perspective, exactly as the map draws it). `--height` for
@@ -34,6 +42,15 @@ Bei jeder neuen Version:
   position as a small sign.
 
 ### Changed
+- **Aerial imagery sources re-checked**: Baden-Württemberg, New South Wales (Australia) and Alaska are left out
+  for now — their licences for use in published videos are unclear or contradictory (Alaska's imagery is commercially
+  licensed SPOT, not public domain). There „Satellite (free)“ shows Sentinel-2 and the style note names the reason.
+  The on-screen credits for Spain, Slovenia, Czechia, France, Poland, Bremen, Brandenburg (plus Geoportal Berlin),
+  Lower Saxony, Rhineland-Palatinate and Flanders now follow the providers' wording exactly (year, “modified”).
+- **Free satellite: sharp overview at the start**: when a single official aerial imagery service covers the tour and
+  25 km around it, the aerial imagery now fades in from zoom 10 (complete at 11.5) instead of 12 (13.5). The opening
+  overview no longer shows the soft Sentinel-2 image first. Near borders between services nothing changes, so no
+  seams appear.
 - **Signs always stand on their point**, also at the edge of the picture and under the logo. Before, a sign at the edge
   was pushed into the picture (and below the logo at the top centre), so while the camera moved it slid against the
   terrain. Now it leaves over the edge with the map and goes behind the logo — in the editor just like in the video.
@@ -45,6 +62,19 @@ Bei jeder neuen Version:
   everything as before.
 
 ### Fixed
+- **Mountains no longer jump in height while the camera moves**: when the terrain switched to its next level of
+  detail, ridges and valleys could change height by up to 25 m from one frame to the next, as if the mesh underneath
+  was swapped. The terrain now glides between the levels as the camera approaches, so the switch is invisible
+  (Masca: largest change per frame 25 m → under 1 m). It mostly showed with certain window sizes. Preview and video;
+  the moving dot, signs and camera follow the gliding surface.
+- **Highlight signs keep their icon when you switch the look**: switching to a look such as Satellite, Minimal or
+  Travel atlas turned the highlight pills (highest point, steepest section, …) into plain boxes without icon, and the
+  highlight switch could no longer remove them. Highlight, logbook and other automatic signs now stay as they are;
+  signs already changed this way are turned back into pills once when the project opens.
+- **Elevation profile**: the moving dot in the elevation profile overlay is round again instead of an egg — the profile
+  is stretched to its box, the dot now compensates for that.
+- **Signs behind mountains**: the check whether a mountain hides a sign now uses the terrain exactly as the map draws it
+  and samples the line of sight densely near the sign — small folds just in front of it were missed before.
 - **Preview kept jumping between two views** after clicking into the timeline at some places with 3D terrain (most
   visible with a high terrain exaggeration): the map re-seated its centre height on the terrain after every camera
   move, and that re-seat itself counted as a camera move. Where two terrain detail levels gave different heights, it

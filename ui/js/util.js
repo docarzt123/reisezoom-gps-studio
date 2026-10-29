@@ -414,7 +414,27 @@ function rzGlowAusdruck(breiteExpr, glowExpr) {
 }
 window.rzGlowAusdruck = rzGlowAusdruck;
 
-function _stackStyle(stack, ortho) {
+/** 29.10.2026 (Marc, Masca: „das Startbild sieht verschwommen aus“) — Luftbild schon in der Übersicht? Nur wenn genau
+ *  EIN Landesdienst im Stapel ist, sein Rechteck die Tour samt `ortho_frueh_rand_km` Umgebung enthält und kein anderer
+ *  Dienst hineinreicht (sonst Nähte). Spiegel: mapstyles.ortho_frueh / ortho_fade. Liefert [von, bis] der Einblendung. */
+function rzOrthoFade(stack, bbox) {
+  const cat = mapCatalog(), std = cat.ortho_fade || [12, 13.5];
+  const b = mapBboxArray(bbox);
+  if (!b || !stack || stack.length !== 1 || !cat.ortho_fade_frueh) return std;
+  const km = +cat.ortho_frueh_rand_km || 25, cy = (+b[1] + +b[3]) / 2;
+  const dy = km / 111.32, dx = km / (111.32 * Math.max(0.05, Math.cos(cy * Math.PI / 180)));
+  const u = [+b[0] - dx, +b[1] - dy, +b[2] + dx, +b[3] + dy], r = stack[0].bbox;
+  if (!(r[0] <= u[0] && r[1] <= u[1] && u[2] <= r[2] && u[3] <= r[3])) return std;
+  const kv = (cat.key_values || {}).regions || {};
+  for (const o of cat.regions || []) {
+    if (o.id === stack[0].id || (o.key && !kv[o.key])) continue;
+    const ob = o.bbox;
+    if (ob[0] < u[2] && u[0] < ob[2] && ob[1] < u[3] && u[1] < ob[3]) return std;
+  }
+  return cat.ortho_fade_frueh;
+}
+window.rzOrthoFade = rzOrthoFade;
+function _stackStyle(stack, ortho, fadeZ) {
   const transparent = true;   // 04.09.2026: auch einzeln als PNG mit Alpha, sonst weiß außerhalb der Grenze (synchron zu mapstyles.stack_style)
   const sources = {}, layers = [];
   const proxy = (mapCatalog().proxy_base || "").replace(/\/$/, "");
@@ -445,7 +465,7 @@ function _stackStyle(stack, ortho) {
     sources[sid] = src;
     // 05.09.2026 (Spiegel von mapstyles.stack_style): Landesdienste erst ab ORTHO_FADE_FROM,
     // weich eingeblendet bis ORTHO_FADE_TO — darunter zeigt nur Sentinel-2 (einheitlich, keine Naht).
-    const fade = mapCatalog().ortho_fade || [12, 13.5];   // Spiegel von mapstyles.ORTHO_FADE_* (06.09.2026: 12 → 13,5)
+    const fade = fadeZ || mapCatalog().ortho_fade || [12, 13.5];   // Spiegel von mapstyles.ORTHO_FADE_* (06.09.2026: 12 → 13,5; 29.10.2026 früh: rzOrthoFade)
     const lay = { id: sid, type: "raster", source: sid, minzoom: fade[0] };
     const paint = Object.assign({}, rzRasterAdjustPaint(ortho), { "raster-opacity": ["interpolate", ["linear"], ["zoom"], fade[0], 0, fade[1], 1] });
     lay.paint = paint;
@@ -540,7 +560,7 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho, look) {
     for (const m of mapKeyedRegionsMissing(bbox)) notes.push("no_key:" + m.id);   // 18.09.2026: Luftbild gäbe es, Schlüssel fehlt
   }
   let style;
-  if (d.kind === "gov") style = _stackStyle(stack, ortho);
+  if (d.kind === "gov") style = _stackStyle(stack, ortho, rzOrthoFade(stack, bbox));
   else if (d.kind === "raster") style = _rasterStyle(d.tiles, d.tileSize, d.maxzoom, d.attribution);
   else if (d.kind === "look") style = _lookStyle(d, look, cat);
   else style = String(d.style_url || "").replace("{maptiler_key}", mt);

@@ -109,6 +109,29 @@ def _drossel(region: Optional[dict]):
     return sem
 
 
+# 29.10.2026 (Lizenzprüfung: swisstopo erlaubt je Gerät 1.200 Abrufe pro Minute, sonst Kontakt VOR der Inbetriebnahme) —
+# höchstens region["max_pro_minute"] Abrufe je Minute beim Dienst: die Abrufe starten im Abstand 60/n s. Gilt für alle
+# Seiten eines Renders zusammen (Vorläufer + Bildschleife), weil alle über diese Weiche gehen.
+_takt_lock = _threading.Lock()
+_takt_naechster: dict = {}   # region → frühester Start des nächsten Abrufs (time.monotonic)
+
+
+def _takt(region: Optional[dict]) -> float:
+    """Wartet, bis der nächste Abruf beim Dienst erlaubt ist. Liefert die gewartete Zeit (s)."""
+    n = int((region or {}).get("max_pro_minute") or 0)
+    if n <= 0:
+        return 0.0
+    abstand = 60.0 / n
+    with _takt_lock:
+        jetzt = time.monotonic()
+        start = max(jetzt, _takt_naechster.get(region["id"], 0.0))
+        _takt_naechster[region["id"]] = start + abstand
+    warte = start - jetzt
+    if warte > 0:
+        time.sleep(warte)
+    return warte
+
+
 def _cache_suffix(region: Optional[dict], z: int) -> str:
     return SEA_MASK_VERSION if (region is not None and region.get("sea_mask") and z <= SEA_MASK_MAX_Z) else ""
 
@@ -780,6 +803,7 @@ def _fetch_tile_roh(region_id: str, z: int, x: int, y: int, transparent: bool,
             if _sem is not None:
                 _sem.acquire()
             try:
+                _takt(region)
                 req = urllib.request.Request(url, headers=_UA)
                 with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
                     ct = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()

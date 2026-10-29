@@ -1692,6 +1692,11 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .dot-bild-formen { display: flex; gap: 6px; }
 .dot-bild-form.ist-an { border-color: var(--accent, #48d6c4); background: color-mix(in srgb, var(--accent, #48d6c4) 18%, transparent); }
 .dot-kachel-bild img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
+/* 29.10.2026 — Laufpunkt hinter dem Gelände: Verdecken / Durchscheinen / Immer obenauf + Deckkraft */
+.dot-verdeckt-zeile { display: flex; flex-direction: column; gap: 6px; }
+.dot-verdeckt-zeile .dot-bild-formen { flex-wrap: wrap; }
+.dot-durch-zeile { display: flex; flex-direction: column; gap: 4px; }
+.dot-durch-zeile[hidden] { display: none; }
 
 /* 14.10.2026 — Hochflug: Knopf „Höhe“ je Abschnitt und der Höheneditor (ui/js/hoehenprofil.js) */
 .anim-etappe-editor .et-hoch { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; font-size: 10.5px; padding: 2px 6px; }
