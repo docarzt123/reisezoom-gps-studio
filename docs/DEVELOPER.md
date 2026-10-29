@@ -8589,6 +8589,21 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   nach dem letzten gewünschten Bild, Zwischenbilder in EINEM `evaluate` gesprungen (sonst zeichnet die Karte je Sprung und
   lädt Kacheln: Masca 3 Bilder 38 s / 733 Kacheln → 21 s / 223; Bilder gegen das echte Video gleich nah). Gilt auch für
   `overlay-export --frames`. Ergebnis `files`, `frames` (Nummern).
+- **Fotos platzieren (29.10.2026, Nutzer-Meldung, Marc-Entscheidungen 28.10.).** `_animSignsAttachDOM`: das im Editor offene
+  FOTO (`fi === _animSignEditorIdx && sn.imageSrc`) ist ohne „↔ Verschieben“ ziehbar (Textschilder weiter mit Knopf). `drag`
+  rastet bei `anchorMode !== "free"` live per `_animSignSnap` ein; `dragend` behält Art und `timeAnchor` (vorher: immer
+  frei, Zeitpunkt gelöscht). Editor oben `[data-se-lage]` Strecke/Frei (Strecke = auf nächsten Trackpunkt setzen, ein
+  ⌘Z-Schritt). Zeitleiste: `lageSvg`/`lageTip` je Zeile → `.tl-ov-lage` im Balken (auch Fotostopp). Freie Fotos: Ebenen
+  `anim-sign-frei-lyr`(+`-pkt`) — gestrichelte Linie zum Streckenpunkt (fester Zeitpunkt → `fracAusFortschritt`, sonst
+  `_animSignsNearestIdx`), nur Vorschau (nicht im Render-Modus). Test `test_foto_platzierung` (Chromium, echte Maus).
+- **Mittelpunkt-Sitz höchstens einmal je Kamerastellung (29.10.2026).** `rzSeatMapLibreCenter` (util.js) setzte 300 ms nach
+  jedem `moveend` `setCenterElevation(queryTerrainElevation(Mitte))`; das löst selbst ein `moveend` aus. Lieferte die
+  Abfrage mit der neuen Kamerahöhe eine andere Höhenkachel-Stufe (Oderland, Überhöhung 4: grob 193 m / fein 469 m), sprang
+  die Vorschau endlos. Jetzt merkt sich `map.__rzSeatStellung` (Mitte, Zoom, Neigung, Drehung) — derselbe Stand wird nicht
+  zweimal gesetzt. Test `test_sitz_schaukelt_nicht` (nachgebaute Karte, alter Code: 10 Sitze in 3 s). Offen: nach einem
+  Klick in die Zeitleiste stellt `scrubPreview` die Kamera über die Keyframe-Interpolation, der Sitz nimmt danach die
+  Geländeabfrage — das Video rechnet mit der ruhigen Kamera und deren fester Mittenhöhe; die angehaltene Vorschau kann
+  deshalb vom Videobild abweichen.
 - **Schilder ohne Randversatz (29.10.2026, Marc: „Das muss einfach nur an der richtigen Stelle stehen“).** Randregel (F-20,
   13./15.10.) und Logo-Schutz (14.10.) entfernt: `rzSignRandSymbol`/`rzSignRandPx` → `[0, 0]`, `rzSignRandVersatz` setzt nur
   alte `rzOff` auf 0 zurück; `rzSchutzFlaechen`, `RAND_ANTEIL` weg. Anlass: „Steilste Stelle“ rutschte bei fahrender Kamera

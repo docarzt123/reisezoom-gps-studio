@@ -1233,6 +1233,8 @@ function mountTimelineBar(opts) {
           const bild = o.bild ? `<span class="tl-ov-bild" style="background-image:url('${String(o.bild).replace(/'/g, "%27")}')"></span>`
                      : o.iconSvg ? `<span class="tl-ov-icon">${o.iconSvg}</span>`      // eigenes SVG aus sign_draw.js
                      : (o.symbol ? `<span class="tl-ov-symbol">${_esc(o.symbol)}</span>` : "");
+          // 29.10.2026 — Lage des Fotos/Schilds (Strecke oder frei) als kleines Zeichen am Balken
+          const lage = o.lageSvg ? `<span class="tl-ov-lage" title="${_esc(o.lageTip || "")}">${o.lageSvg}</span>` : "";
           // 06.10.2026 (Marc: „wann wie was passiert, sieht man in der Timeline nicht … Anflug, Abflug und Foto
           // groß im Balken ziehen“) — Fotostopp: Phasen Pin · Anflug · FOTO GROSS · Abflug · Pin, Griffe an den Grenzen
           if (sg.fs) {
@@ -1241,7 +1243,7 @@ function mountTimelineBar(opts) {
             const griffFs = (k, x, tip) => sg.fsGrenzen && sg.fsGrenzen[k] ? `<span class="tl-fs-griff" data-griff="fs-${k}" style="left:${p(x)}%" title="${_esc(tip)}"></span>` : "";
             b.classList.add("ist-fotostopp");
             b.innerHTML = teil(sg.an, f.anflug, "tl-fs-pin") + teil(f.anflug, f.halt, "tl-fs-flug")
-              + teil(f.halt, f.grossBis, "tl-fs-gross", bild + `<span class="tl-ov-name">${_esc(sg.text || "")}</span>`)
+              + teil(f.halt, f.grossBis, "tl-fs-gross", bild + lage + `<span class="tl-ov-name">${_esc(sg.text || "")}</span>`)
               + teil(f.grossBis, f.abflugBis, "tl-fs-flug") + teil(f.abflugBis, sg.aus, "tl-fs-pin")
               + griffFs("anflug", f.anflug, tlT("animator.fs.griff_anflug", "Anflug: früher = Kamera fährt länger heran"))
               + griffFs("grossBis", f.grossBis, tlT("animator.fs.griff_gross", "Foto groß: so lange steht das Foto"))
@@ -1255,7 +1257,7 @@ function mountTimelineBar(opts) {
           b.innerHTML =
             `<span class="tl-ov-rampe tl-ov-ein" style="width:${ein}%"></span>`
             + `<span class="tl-ov-rampe tl-ov-aus" style="width:${aus}%"></span>`
-            + bild
+            + bild + lage
             + `<span class="tl-ov-name">${_esc(sg.text || "")}</span>`
             + (g.blendenGriffe && !sg.ohneBlende ? `<span class="tl-ov-griff" data-griff="ein" style="left:${ein}%"></span>`
                                + `<span class="tl-ov-griff" data-griff="aus" style="left:${100 - aus}%"></span>` : "")

@@ -26,6 +26,13 @@ Bei jeder neuen Version:
   timeline. Single frames skip the tile pre-loading for the whole film (Masca: 3 frames in about 20 s instead of 40 s)
   and wait until every map tile of the frame is there, so slow aerial imagery no longer leaves dark patches.
 
+### Added
+- **Placing photos on the map**: a photo that is open in the editor can be dragged straight on the map, no „Move“ click
+  needed. At the top of the editor you choose its position: **route** (snaps to the track while dragging) or **free**
+  (stays where you let go; in the preview a dashed line leads to its point on the route). A fixed trigger time is kept
+  when dragging — before, every dragged sign became free and lost its time. Each photo bar in the timeline shows its
+  position as a small sign.
+
 ### Changed
 - **Signs always stand on their point**, also at the edge of the picture and under the logo. Before, a sign at the edge
   was pushed into the picture (and below the logo at the top centre), so while the camera moved it slid against the
@@ -38,6 +45,10 @@ Bei jeder neuen Version:
   everything as before.
 
 ### Fixed
+- **Preview kept jumping between two views** after clicking into the timeline at some places with 3D terrain (most
+  visible with a high terrain exaggeration): the map re-seated its centre height on the terrain after every camera
+  move, and that re-seat itself counted as a camera move. Where two terrain detail levels gave different heights, it
+  flipped back and forth endlessly. Now the centre is seated at most once per camera position.
 - **Transparent overlay export: the title card stayed for the whole film.** Overlays with a time window (title card,
   end card) were hidden by their timing, but their content was forced visible again in the transparent export. The
   normal video was not affected.

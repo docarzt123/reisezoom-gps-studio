@@ -1110,9 +1110,18 @@ function rzSeatMapLibreCenter(map) {
       if (window.__rzStepMode && window.__rzPreviewStep && window.__rzPreviewStep.ready) return;
       if (map.__rzFlugMitte) return;   // 05.10.2026 — Flug in der Luft: die Mitte liegt bewusst in Flughöhe
       if (!map.getTerrain || !map.getTerrain()) return;
-      const e = map.queryTerrainElevation(map.getCenter());
+      // 29.10.2026 (Marc, Bildschirmaufnahme „Oderlandweg“, Überhöhung 4: nach einem Klick in die Zeitleiste sprang die
+      // Karte an einer Stelle dauernd zwischen zwei Ansichten) — setCenterElevation ist für MapLibre selbst eine
+      // Kamerabewegung (moveend → nächster Sitz). Lieferte die Gelände-Abfrage mit der neuen Kamerahöhe eine andere
+      // Höhenkachel-Stufe (grob 193 m, fein 469 m), sprang der Sitz endlos hin und her. Darum je Kamerastellung (Mitte,
+      // Zoom, Neigung, Drehung) höchstens EIN Sitz; erst eine echte Kamerabewegung erlaubt den nächsten.
+      const c = map.getCenter();
+      const stellung = [c.lng.toFixed(6), c.lat.toFixed(6), (+map.getZoom()).toFixed(4), (+map.getPitch()).toFixed(2), (+map.getBearing()).toFixed(2)].join(",");
+      if (map.__rzSeatStellung === stellung) return;
+      const e = map.queryTerrainElevation(c);
       const have = map.getCenterElevation ? map.getCenterElevation() : 0;
       if (e != null && isFinite(e) && Math.abs(e - (have || 0)) > 1) {
+        map.__rzSeatStellung = stellung;
         map.setCenterElevation(e);
         if (map.triggerRepaint) map.triggerRepaint();
       }

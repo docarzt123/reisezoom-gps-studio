@@ -1256,3 +1256,8 @@ body.wert-zieht .timeline-marker.is-selected {
 .timeline-vorschau { padding: 4px 6px; gap: 4px; }
 .timeline-vorschau select { font-size: 12px; padding: 2px 4px; border-radius: 5px; background: var(--bg-2, #1d2329);
   color: var(--text, #eee); border: 1px solid var(--border, #333); cursor: pointer; }
+
+/* 29.10.2026 — Lage des Schilds/Fotos am Balken (Strecke oder frei) */
+.tl-ov-lage { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 15px; height: 15px; margin-right: 3px;
+  border-radius: 50%; background: rgba(0, 0, 0, 0.35); color: #fff; opacity: 0.9; }
+.tl-ov-lage svg { width: 11px; height: 11px; }

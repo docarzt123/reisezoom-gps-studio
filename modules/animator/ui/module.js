@@ -15578,6 +15578,39 @@ function mountAnimator(body, headerActions, opts) {
       } else _animSignsAttachGPU(allSigns, gpuAlle);
       const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
       _animSignsUpdateAtAnchor(a);
+      try { _animSignsFreiLinien(allSigns); } catch (e) { applog("warn", "[schild] Linien freier Fotos: " + e); }
+    }
+    /** 29.10.2026 (Marc-Entscheidung 28.10., Nutzer-Meldung Bilderplatzierung) — ein FREI platziertes Foto bekommt in der
+     *  Vorschau eine dünne gestrichelte Linie zu seinem Streckenpunkt (dort, wo es ausgelöst wird: fester Zeitpunkt oder
+     *  nächste Durchfahrt). Nur Bedienhilfe — im Video nicht (Render-Modus: keine Ebene). */
+    const _FREI_SRC = "anim-sign-frei-src", _FREI_LYR = "anim-sign-frei-lyr";
+    function _animSignsFreiLinien(alle) {
+      if (!map || !rzStyleReady(map)) return;
+      const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
+      const feats = [];
+      if (!window.__rzRenderMode && n >= 2 && _animSignsShow()) {
+        (alle || []).forEach((s) => {
+          if (!s || s.anchorMode !== "free" || !s.imageSrc || s.visible === false) return;
+          const lon = Number(s.lon), lat = Number(s.lat);
+          if (!isFinite(lon) || !isFinite(lat)) return;
+          let idx = -1;
+          try { idx = (typeof s.timeAnchor === "number") ? Math.round(fracAusFortschritt(s.timeAnchor, n)) : _animSignsNearestIdx(lon, lat, s.strecke_m); } catch (_) { idx = -1; }
+          const c = currentCoords[Math.max(0, Math.min(n - 1, idx))];
+          if (idx < 0 || !c) return;
+          feats.push({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [[lon, lat], [c[0], c[1]]] } });
+          feats.push({ type: "Feature", properties: { punkt: 1 }, geometry: { type: "Point", coordinates: [c[0], c[1]] } });
+        });
+      }
+      const fc = { type: "FeatureCollection", features: feats };
+      const q = map.getSource(_FREI_SRC);
+      if (q) { q.setData(fc); return; }
+      if (!feats.length) return;
+      map.addSource(_FREI_SRC, { type: "geojson", data: fc });
+      const vor = map.getLayer(_ANIM_SIGNS_LYR) ? _ANIM_SIGNS_LYR : undefined;
+      map.addLayer({ id: _FREI_LYR, type: "line", source: _FREI_SRC, filter: ["==", ["geometry-type"], "LineString"],
+        paint: { "line-color": "#ffffff", "line-opacity": 0.75, "line-width": 1.5, "line-dasharray": [2, 2] } }, vor);
+      map.addLayer({ id: _FREI_LYR + "-pkt", type: "circle", source: _FREI_SRC, filter: ["==", ["geometry-type"], "Point"],
+        paint: { "circle-radius": 3.5, "circle-color": "#ffffff", "circle-stroke-color": "#1d2321", "circle-stroke-width": 1.2 } }, vor);
     }
     // ── Fotostopp „eigene Gestaltung“ (11.10.2026) ──
     const ANIM_HALT_ID = 1000000;            // Feature-id der Halt-Fassung = ANIM_HALT_ID + Schild-Index
@@ -15731,13 +15764,21 @@ function mountAnimator(body, headerActions, opts) {
         // den Editor. Beim Loslassen übernimmt das Schild die neue Position als FREIE
         // Platzierung, verwirft den Zeit-Anker und wird wieder entschärft. Nur im Editier-
         // Modus (DOM-Marker); im Probelauf sind es GPU-Icons.
-        const _armed = (fi === _animSignMoveArmed);
+        // 29.10.2026 (Marc, Nutzer-Meldung zur Bilderplatzierung) — ein ausgewähltes FOTO (Editor offen) ist direkt ziehbar,
+        // ohne „↔ Verschieben“; nicht ausgewählte bleiben fest. Textschilder brauchen weiter den Knopf (Ziehen und Tippen im
+        // Schild schließen sich aus).
+        const _armed = (fi === _animSignMoveArmed) || (fi === _animSignEditorIdx && !!sn.imageSrc);
         try { wrap.style.cursor = _armed ? "grab" : "pointer"; } catch (_) {}
         try { marker = new MarkerCls({ element: wrap, anchor: _mkAnchor, draggable: _armed }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
         try {
           // 27.10.2026 — beim Ziehen gibt die Übersichtskarte die Maus durch (sonst endete das Ziehen über ihr nie: die
           // Karte bekam das Loslassen nicht mit, das Foto blieb stehen)
           marker.on("dragstart", () => { _animSignDragging = true; document.body.classList.add("rz-schild-zieht"); const m = _animSignMarkers[fi]; if (m && m.marker === marker) m.zieht = true; try { wrap.style.cursor = "grabbing"; } catch (_) {} });
+          // 29.10.2026 — ein Foto „auf der Strecke“ rastet schon beim Ziehen auf dem Track ein (man sieht, wo es landet)
+          marker.on("drag", () => {
+            try { if ((_animSignsList()[fi] || {}).anchorMode === "free") return;
+                  const ll = marker.getLngLat(), q = _animSignSnap(ll.lng, ll.lat); marker.setLngLat([q.lon, q.lat]); } catch (_) {}
+          });
           marker.on("dragend", () => {
             document.body.classList.remove("rz-schild-zieht");
             { const m = _animSignMarkers[fi]; if (m && m.marker === marker) m.zieht = false; }
@@ -15746,8 +15787,12 @@ function mountAnimator(body, headerActions, opts) {
             if (ll) {
               const l2 = _animSignsList().slice();
               if (fi < l2.length) {
-                const _moved = { ...l2[fi], lat: ll.lat, lon: ll.lng, anchorMode: "free" };
-                delete _moved.timeAnchor;
+                // 29.10.2026 (Marc-Entscheidung 28.10.) — das Foto behält seine Art: „auf der Strecke“ rastet ein, „frei“ bleibt
+                // frei; ein fester Zeitpunkt bleibt (vorher wurde jedes gezogene Schild frei und verlor seinen Zeitpunkt)
+                const _frei = l2[fi].anchorMode === "free";
+                const _q = _frei ? { lon: ll.lng, lat: ll.lat } : _animSignSnap(ll.lng, ll.lat);
+                const _moved = { ...l2[fi], lat: _q.lat, lon: _q.lon, anchorMode: _frei ? "free" : "track" };
+                ll = { lng: _q.lon, lat: _q.lat };
                 // 17.10.2026 — die Durchfahrt behalten (an Stellen, die der Weg zweimal passiert, sprang das Schild
                 // sonst immer auf die frühere zurück — „wollte sich nicht verschieben lassen“)
                 const _m = _animSignsStelleNachZiehen(l2[fi], ll.lng, ll.lat);
@@ -17048,6 +17093,12 @@ function mountAnimator(body, headerActions, opts) {
           <button type="button" class="sign-editor-x" id="se-close" title="${t("common.close", "Schließen")}">✕</button>
         </div>
         <div class="sign-editor-body">
+          <div class="se-lage" role="group" aria-label="${t("signs.lage", "Lage")}">
+            <span class="se-lage-titel">${t("signs.lage", "Lage")}</span>
+            <button type="button" class="se-lage-k${c.anchorMode === "free" ? "" : " is-on"}" data-se-lage="track" title="${t("signs.lage_track_tip", "Auf der Strecke: rastet beim Ziehen auf dem Track ein")}">${typeof rzIcon === "function" ? rzIcon("route", { size: 14 }) : ""}<span>${t("signs.lage_track", "Strecke")}</span></button>
+            <button type="button" class="se-lage-k${c.anchorMode === "free" ? " is-on" : ""}" data-se-lage="free" title="${t("signs.lage_free_tip", "Frei: steht, wo du es hinziehst; eine Linie zeigt seinen Streckenpunkt")}">${typeof rzIcon === "function" ? rzIcon("map-pin", { size: 14 }) : ""}<span>${t("signs.lage_free", "Frei")}</span></button>
+          </div>
+          ${c.imageSrc ? `<div class="muted se-lage-hint">${t("signs.lage_ziehen", "Foto direkt auf der Karte ziehen.")}</div>` : ""}
           <textarea id="se-text" rows="2" placeholder="${c.imageSrc ? t("signs.caption_ph", "Bildunterschrift (optional)") : t("signs.modal_ph", "z.B. Gipfel erreicht! (Zeilenumbruch erlaubt)")}">${_animEscapeHtml(c.text)}</textarea>
 
           <div class="se-group-title">${t("signs.grp.image", "Bild")}</div>
@@ -17534,6 +17585,18 @@ function mountAnimator(body, headerActions, opts) {
         _taUpdateStatus();
       };
       $("#se-close").onclick = () => _animSignsCloseEditor();
+      // 29.10.2026 — Lage umschalten: „Strecke“ setzt das Schild auf den nächsten Trackpunkt, „Frei“ lässt es, wo es ist;
+      // ein fester Zeitpunkt bleibt in beiden Fällen
+      panel.querySelectorAll("[data-se-lage]").forEach((b) => b.addEventListener("click", () => {
+        const l2 = _animSignsList().slice(), alt = l2[idx]; if (!alt) return;
+        const frei = b.dataset.seLage === "free";
+        if ((alt.anchorMode === "free") === frei) return;
+        const q = frei ? { lon: Number(alt.lon), lat: Number(alt.lat) } : _animSignSnap(Number(alt.lon), Number(alt.lat));
+        l2[idx] = { ...alt, lat: q.lat, lon: q.lon, anchorMode: frei ? "free" : "track" };
+        panel.querySelectorAll("[data-se-lage]").forEach((x) => x.classList.toggle("is-on", x === b));
+        _animSignsSave(l2, t("signs.lage_undo", "Lage des Schilds"));
+        _animSignsAttachToMap(); _animSignsRenderList();
+      }));
       $("#se-del").onclick = () => { _animSignsCloseEditor(); _animSignsDelete(idx); };
       // v0.9.477 — „↔ Verschieben" schaltet das Schild scharf zum Ziehen (Nutzer-Feedback:
       // Schild soll NUR nach Button-Klick ziehbar sein, nicht ständig). Danach zieht man
@@ -20794,6 +20857,9 @@ function mountAnimator(body, headerActions, opts) {
         symbol: (s.clip && s.clip.pfad) ? "▶" : (s.imageSrc ? "📷" : "🚩"),
         // Highlight-Pille, Logbuch-Schild: ihr Zeichen (Gipfel, Tasse …) in ihrer Farbe
         iconSvg: (!s.imageSrc && s.icon && window.__rzHlIconSvg) ? window.__rzHlIconSvg(s.icon, sn.color && sn.color !== "auto" ? sn.color : null) : "",
+        // 29.10.2026 (Marc: „die Icons müssen am Foto sein, also Track oder frei … auch in der Timeline“) — Lage am Balken
+        lageSvg: (typeof rzIcon === "function") ? rzIcon(s.anchorMode === "free" ? "map-pin" : "route", { size: 11 }) : "",
+        lageTip: s.anchorMode === "free" ? t("signs.lage_free", "Frei") : t("signs.lage_track", "Strecke"),
         segmente: [{ an: _ovLeisteAusZeit(tAn), aus: _ovLeisteAusZeit(tAus),
                      // 06.10.2026 — Fotostopp: Phasen und ziehbare Grenzen (Leisten-Positionen)
                      fs: fsF ? { anflug: _ovLeisteAusZeit(fsF.anflugAb), halt: _ovLeisteAusZeit(fsF.halt[0]),

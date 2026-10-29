@@ -1755,3 +1755,12 @@ body.is-rendering .anim-ansicht-hinweis { display: none; }
 #hl-orte-kasten.hl-orte-ok { border-color: var(--success); background: color-mix(in srgb, var(--success) 16%, transparent); }
 #hl-orte-kasten .hl-orte-text { flex: 1 1 260px; font-weight: 600; }
 #hl-orte-kasten .hl-orte-zaehler { font-variant-numeric: tabular-nums; color: var(--text-dim); }
+
+/* 29.10.2026 — Schild-Editor: Lage des Schilds/Fotos (auf der Strecke oder frei) */
+.sign-editor .se-lage { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
+.sign-editor .se-lage-titel { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-right: 2px; }
+.sign-editor .se-lage-k { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; font: inherit; font-size: 12px;
+  border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; }
+.sign-editor .se-lage-k:hover { color: var(--text); border-color: var(--text-dim); }
+.sign-editor .se-lage-k.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.sign-editor .se-lage-hint { font-size: 10.5px; margin: -2px 0 6px; }
