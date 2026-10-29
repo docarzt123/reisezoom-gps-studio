@@ -14,6 +14,38 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Command line, `highlights-export`**: the highlight signs (highest point, steepest section, top speed, half way, GPX
+  waypoints) one by one for 3D tools — each as a transparent PNG in video size with its anchor point, place, terrain
+  height and, frame by frame, opacity and size (pop-up and perspective, exactly as the map draws it). `--height` for
+  another video height.
+- **Command line, `overlay-export --without-highlights` / `--without-gradient`**: overlay without the highlight signs
+  (the 3D tool places them on its own terrain) or without the dark gradients at the top and bottom.
+- **Command line, `project-render --frames 0,600,1169`**: only these frames of the project video as PNG, map included,
+  exactly the video's frames; `--thumbs N` (`--thumb-width 320`) gives N small frames evenly over the film, e.g. for a
+  timeline. Single frames skip the tile pre-loading for the whole film (Masca: 3 frames in about 20 s instead of 40 s).
+
+### Fixed
+- **Transparent overlay export: the title card stayed for the whole film.** Overlays with a time window (title card,
+  end card) were hidden by their timing, but their content was forced visible again in the transparent export. The
+  normal video was not affected.
+- **Camera export: the height of the map centre and the camera height jumped** from frame to frame with fine terrain
+  detail (up to 140 m in one frame), while the map places its camera on a calmer height. The export now gives exactly the
+  height the map renders with, so a 3D tool's camera matches the video.
+- **Camera export: tours no longer carry the main line's outline** (`kontur_breite` 0) — only the main line has an
+  outline. „Show whole route faded“ is now also exported for stages of a journey, with width and dash pattern.
+- **Command line, `render`** showed „Rendering the project video: {p}“ while creating the project (two texts shared one
+  key since 0.9.845).
+- **Video took a different camera path than the preview** on some projects with „Smooth camera“ in the mountains: a
+  terrain check in the map library could fail for a single support point, the whole smooth camera was dropped and the
+  video silently used the simple camera. The error is now caught, the smooth camera runs in the video exactly as in the
+  preview.
+
+### Tests
+- New nightly check: preview against video at 150 % display scaling and a small window (portrait and landscape) — camera
+  (zoom, centre, tilt, rotation) and a coarse image comparison.
+- Language files are checked for duplicate keys.
+
 ## [0.9.845] – 2026-10-28
 
 ### Added

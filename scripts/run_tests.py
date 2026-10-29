@@ -76,6 +76,7 @@ BEDINGT = {
     "test_projekt_schliessen_etappe.py": ("netz",),
     "test_etappe_bedienung.py": ("netz",),
     "test_geotagger_paare.py": ("netz",),               # 14.10.2026: RAW+JPEG als Paar im Geotagger (Karte lädt Kacheln)             # 14.10.2026: Live-Höhe, Hinweis Übernehmen, Ortssuche parallel/abbrechen, Route bearbeiten     # 14.10.2026: Projekt schließen → Etappe → ✕ → neues Projekt bleibt leer             # 14.10.2026: Etappe nur mit Orten — Takt, ohne Linie, Schilder bleiben
+    "test_wysiwyg_skalierung.py": ("netz", "langsam"),   # 28.10.2026: Vorschau ↔ Video bei 150 % Skalierung und kleinem Fenster (Kamera + grobes Bild)
     "test_wysiwyg_render.py": ("netz", "langsam"),   # 14.10.2026: Bildvergleich Editor ↔ Video (4 Fassungen, Schwelle)   # 14.10.2026: Weltumrundung Bild für Bild über −180° (Hänger, Sprung, Drehung)     # 06.09.2026 abends: Gelände-Matrix über die gemeinsame Szene (Marcs Archiv-Kopie): Wackeltest, Riss-Test, Kurzrender — NUR Release (langsam)
     "test_geotagger_e2e.py": ("fixtures",),
     "test_raw_geotagging.py": ("fixtures",),

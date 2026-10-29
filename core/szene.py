@@ -96,7 +96,10 @@ window.__rzFortsetzenGeprueft = true;   // 29.09.2026: kein „Fortsetzen“ des
     if (__RZ_MODE__.blur > 0) { const st = document.createElement("style"); st.id = "rz-render-blur"; st.textContent = "#anim-viewport .maplibregl-canvas, #anim-viewport .mapboxgl-canvas { filter: blur(" + __RZ_MODE__.blur + "px); }"; document.head.appendChild(st); }
     // 30.09.2026 — transparenter Export (eine Pipeline): Seite und Karten-Hintergrund durchsichtig,
     // die Grundkarte blendet die Seite selbst aus (module.js _alphaRenderEbenen).
-    if (__RZ_MODE__.transparent) { const st = document.createElement("style"); st.id = "rz-render-alpha"; st.textContent = "html, body, body.rz-render-mode, .anim-canvas, #anim-viewport, #anim-viewport .maplibregl-map, #anim-viewport .mapboxgl-map, #anim-viewport .maplibregl-canvas-container { background: transparent !important; background-image: none !important; } #anim-alpha-preview-hint { display: none !important; } body.rz-render-mode * { visibility: hidden; } body.rz-render-mode #anim-viewport, body.rz-render-mode #anim-viewport * { visibility: visible; } #anim-viewport .rz-stars-twinkle, #anim-viewport .maplibregl-ctrl-attrib, #anim-viewport .mapboxgl-ctrl-attrib { display: none !important; }"; document.head.appendChild(st); }
+    // 29.10.2026 — Unterelemente der Vorschau ERBEN die Sichtbarkeit (inherit statt visible): mit „visible“ zeigte
+    // jeder Inhalt einer per Zeitsteuerung ausgeblendeten Box (Titelkarte nur 0–3 s) sich trotzdem — die Karte stand
+    // im transparenten Export den ganzen Film.
+    if (__RZ_MODE__.transparent) { const st = document.createElement("style"); st.id = "rz-render-alpha"; st.textContent = "html, body, body.rz-render-mode, .anim-canvas, #anim-viewport, #anim-viewport .maplibregl-map, #anim-viewport .mapboxgl-map, #anim-viewport .maplibregl-canvas-container { background: transparent !important; background-image: none !important; } #anim-alpha-preview-hint { display: none !important; } body.rz-render-mode * { visibility: hidden; } body.rz-render-mode #anim-viewport { visibility: visible; } body.rz-render-mode #anim-viewport * { visibility: inherit; } #anim-viewport .rz-stars-twinkle, #anim-viewport .maplibregl-ctrl-attrib, #anim-viewport .mapboxgl-ctrl-attrib { display: none !important; }" + (__RZ_MODE__.ohneVerlauf ? " #anim-overlay-preview::before, #anim-overlay-preview::after { display: none !important; }" : ""); document.head.appendChild(st); }
   } catch (_) {} });
   window.dispatchEvent(new Event("pywebviewready"));
 })();
@@ -586,7 +589,9 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
             # 26.10.2026 (für 3D-Werkzeuge) — transparenter Export ohne Spur und Laufpunkt: die zeichnet das 3D-Programm
             "ohneTrack": bool((params or {}).get("overlay_ohne_track")),
             # 27.10.2026 (`overlay-export --with-labels`) — Beschriftung der Karte bleibt im transparenten Export stehen
-            "mitBeschriftung": bool((params or {}).get("overlay_mit_beschriftung"))}
+            "mitBeschriftung": bool((params or {}).get("overlay_mit_beschriftung")),
+            # 29.10.2026 (`overlay-export --without-gradient`) — Verläufe oben/unten der Einblendungen weglassen
+            "ohneVerlauf": bool((params or {}).get("overlay_ohne_verlauf"))}
     _keep = {k: True for k in (os.environ.get("RZ_KEEP") or "").split(",") if k}
     await page.add_init_script(_BRIDGE_JS.replace("__RZ_MODE__", json.dumps(mode)).replace("__RZ_KEEP__", json.dumps(_keep)))
     emit(0.02, _i18n.t_aktiv("szene.app_laden", "Szene: App laden …"))
@@ -888,6 +893,171 @@ async def kamera_export(cfg, *, api, projekt_id: str, ziel: str, params: Optiona
     return ziel
 
 
+#: 29.10.2026 — welche automatischen Schilder als Höhepunkte gelten (module.js HL_ARTEN; „wegpunkte:<name>“ je GPX-Wegpunkt)
+HL_ARTEN = ("hoechster", "steilste", "schnellste", "halbe")
+
+
+def ist_highlight(schild: dict) -> bool:
+    a = str((schild or {}).get("auto") or "")
+    return a in HL_ARTEN or a.startswith("wegpunkte:")
+
+
+_HL_SCHILDER_JS = r"""() => {
+  const sg = window.__rzAnimSigns && window.__rzAnimSigns.spur, m = window.__rzLetzteKarte;
+  if (!sg || !m || !sg.metas) return null;
+  const liste = sg.list() || [], fc = m.__rzSignFC, raus = [];
+  const HL = __HL__;
+  for (const f of (fc && fc.features) || []) {
+    const pr = f.properties || {}, s = liste[pr.signIdx];
+    if (!s || f.id !== pr.signIdx) continue;   // nur das Haupt-Objekt (die Halt-Fassung eines Fotostopps hat eine andere id)
+    const auto = String(s.auto || "");
+    if (!(HL.includes(auto) || auto.startsWith("wegpunkte:"))) continue;
+    let img = null; try { img = m.style.getImage(pr.imgId); } catch (_) {}
+    if (!img || !img.data || !img.data.width) continue;
+    const d = img.data.data; let bin = "";
+    for (let i = 0; i < d.length; i += 0x8000) bin += String.fromCharCode.apply(null, d.subarray(i, i + 0x8000));
+    raus.push({ id: f.id, auto, text: String(s.text || ""), lat: +s.lat, lon: +s.lon, anker: String(pr.iconAnchor || "bottom"),
+                zoomScale: !!pr.zoomScale, w: img.data.width, h: img.data.height, pr: img.pixelRatio || 1, rgba: btoa(bin) });
+  }
+  return { schilder: raus, skala: m.__rzSignSizeScale || 1, cssW: m.getCanvas().clientWidth };
+}"""
+
+# Je Bild: Deckkraft und Größenfaktor jedes Schilds — dieselbe Rechnung wie die Schild-Ebene (sign_draw.js
+# rzSignApplyFrame), aber OHNE die Verdeckung durch unser Gelände (rzSignSicht): die rechnet das 3D-Programm selbst.
+# Größe = Aufpoppen × Perspektive: MapLibre skaliert jedes Symbol im Shader mit perspective_ratio = clamp(0,5 + 0,5 ·
+# Tiefe der Kartenmitte / Tiefe des Schildpunkts, 0, 4) (symbol_icon.vertex, auch bei icon-pitch-alignment viewport) —
+# bei geneigter Kamera ist ein fernes Schild kleiner, ein nahes größer. Tiefe = Abstand entlang der Blickrichtung, aus
+# MapLibres eigener Kamera (transform); Höhe des Schildpunkts = Geländehöhe × Überhöhung (arg.h).
+_HL_BILDER_JS = r"""(arg) => {
+  const sg = window.__rzAnimSigns.spur, P = window.__rzPopScale, D = window.__rzSignDeckkraft, out = [];
+  const m = window.__rzLetzteKarte, MC = window.maplibregl && window.maplibregl.MercatorCoordinate;
+  const anker = MC ? arg.ll.map((ll) => MC.fromLngLat(ll)) : [];
+  const persp = () => {
+    try {
+      const p = m.getPitch() * Math.PI / 180, b = m.getBearing() * Math.PI / 180;
+      if (!MC || p < 1e-4) return arg.ids.map(() => 1);
+      // Kamera wie MapLibre selbst: Abstand cameraToCenterDistance hinter der Kartenmitte, die auf transform.elevation
+      // liegt (rzMlCamRead fragt dafür die Geländekacheln — die sind beim Bündelsprung noch nicht da)
+      const tr = m.transform, c = MC.fromLngLat(m.getCenter()), upm = c.meterInMercatorCoordinateUnits();
+      const ws = 512 * Math.pow(2, m.getZoom()), tiefeMitte = tr.cameraToCenterDistance / (upm * ws);
+      const hMitte = isFinite(+tr.elevation) ? +tr.elevation : 0;
+      const f = [Math.sin(b) * Math.sin(p), -Math.cos(b) * Math.sin(p), -Math.cos(p)];
+      return anker.map((a, i) => {
+        const t = tiefeMitte + ((a.x - c.x) / upm) * f[0] + ((a.y - c.y) / upm) * f[1] + ((arg.h[i] || 0) - hMitte) * f[2];
+        return t > 1e-6 ? Math.max(0, Math.min(4, 0.5 + 0.5 * tiefeMitte / t)) : 1;
+      });
+    } catch (_) { return arg.ids.map(() => 1); }
+  };
+  for (const t of arg.zeiten) {
+    window.__rzPreviewStep.seek(t);
+    const M = sg.anker(), metas = sg.metas() || [], pz = persp();
+    out.push(arg.ids.map((id, i) => {
+      const mk = metas[id] || {}, aS = mk.a_show == null ? -1 : mk.a_show, aH = mk.a_hide == null ? 2 : mk.a_hide;
+      if (!(M >= aS && M <= aH)) return [0, 1];
+      const op = Math.max(0, Math.min(1, D(mk, M)));
+      let ps = 1;
+      if (mk.popOut > 0 && M > aH - mk.popOut && M <= aH) ps = P((aH - M) / mk.popOut);
+      else if (mk.pop > 0 && M >= aS && M < aS + mk.pop) ps = P((M - aS) / mk.pop);
+      return [Math.round(op * 1000) / 1000, Math.round(ps * pz[i] * 1000) / 1000];
+    }));
+  }
+  return out;
+}"""
+
+# Punkt im Schild-Bild, der auf dem Track-Punkt sitzt (wie icon-anchor der Schild-Ebene), als Anteil von Breite/Höhe
+_HL_ANKER = {"bottom": (0.5, 1), "top": (0.5, 0), "left": (0, 0.5), "right": (1, 0.5), "center": (0.5, 0.5),
+             "top-left": (0, 0), "top-right": (1, 0), "bottom-left": (0, 1), "bottom-right": (1, 1)}
+
+
+async def highlights_export(cfg, *, api, projekt_id: str, ordner: str, params: Optional[dict] = None, ausgabe_h: int = 0,
+                            on_progress: Optional[Callable[[float, str], None]] = None,
+                            is_cancelled: Optional[Callable[[], bool]] = None, modul: str = "animator") -> dict:
+    """29.10.2026 (für 3D-Programme, `gpsstudio highlights-export`) — die Höhepunkt-Schilder („Höchster Punkt“, „Steilste
+    Stelle“ …, GPX-Wegpunkte) einzeln: je Schild ein transparentes PNG genau im Stil des Videos und in Videogröße, der
+    Ankerpunkt im PNG, Ort und Höhe, und Bild für Bild Deckkraft und Aufpopp-Faktor. Das 3D-Programm hängt das Schild so
+    an SEIN Gelände — mit unseren MapLibre-Höhen wanderte es dort gegen Boden und Linie. Ein Durchlauf der Szene ohne
+    Bildaufnahme; `ausgabe_h` skaliert PNG und Ankerpunkt auf eine andere Videohöhe."""
+    import base64
+    from io import BytesIO
+    from PIL import Image
+    from playwright.async_api import async_playwright
+
+    def emit(p: float, msg: str) -> None:
+        if on_progress:
+            try: on_progress(p, msg)
+            except Exception: pass
+
+    ziel = Path(ordner)
+    ziel.mkdir(parents=True, exist_ok=True)
+    async with async_playwright() as p:
+        browser, page, _dsf, _ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
+        try:
+            await page.evaluate("() => window.__rzPreviewRun()")
+            await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
+            total_ms = float(await page.evaluate("() => window.__rzPreviewStep.totalMs"))
+            total_frames = max(1, int(round(total_ms / 1000.0 * cfg.fps)))   # wie render_szene: die Vorschau bestimmt die Länge
+            info = await page.evaluate(_HL_SCHILDER_JS.replace("__HL__", json.dumps(list(HL_ARTEN))))
+            if not info:
+                raise RuntimeError("signs not ready in the scene")
+            schilder = info["schilder"]
+            verlauf = {s["id"]: [] for s in schilder}
+            ids = [s["id"] for s in schilder]
+            hoehen = {}
+            try:
+                r = api.dem_hoehen([[s["lon"], s["lat"]] for s in schilder], 13) if schilder else {}
+                if r and r.get("ok") and len(r.get("hoehen") or []) == len(schilder):
+                    hoehen = {s["id"]: h for s, h in zip(schilder, r["hoehen"]) if h is not None}
+            except Exception as e:  # noqa: BLE001
+                _log.warning("Szene: Höhepunkte — Geländehöhen: %s", e)
+            ueber = float(await page.evaluate("() => { const m = window.__rzLetzteKarte; const t = m && m.getTerrain && m.getTerrain(); return t ? (+t.exaggeration || 1) : 0; }") or 0)
+            if ids:
+                PAKET = 100
+                for a in range(0, total_frames, PAKET):
+                    if is_cancelled and is_cancelled():
+                        raise A.RenderCancelled()
+                    nrn = list(range(a, min(total_frames, a + PAKET)))
+                    werte = await page.evaluate(_HL_BILDER_JS, {"ids": ids, "zeiten": [n / cfg.fps for n in nrn],
+                                                                "ll": [[s["lon"], s["lat"]] for s in schilder],
+                                                                "h": [float(hoehen.get(s["id"]) or 0) * ueber for s in schilder]})
+                    for n, zeile in zip(nrn, werte):
+                        for sid, (op, ps) in zip(ids, zeile):
+                            verlauf[sid].append((n, op, ps))
+                    emit(0.1 + 0.85 * nrn[-1] / total_frames, f"Schilder {nrn[-1] + 1} / {total_frames}")
+                # die Karte lädt für den letzten Sprung noch Kacheln — fertig werden lassen, sonst laufen deren Antworten
+                # nach dem Schließen ins Leere („TargetClosedError … never retrieved“ im Protokoll)
+                await page.evaluate(_WARTE_BILD_JS)
+        finally:
+            try: await browser.close()
+            except Exception: pass
+    # Videopixel je Schild-Bildpunkt: Bild (pixelRatio) → CSS-px × Schildgröße → Video (Video/Vorschaubreite) → Ausgabehöhe
+    css_w = float(info.get("cssW") or 0) or float(cfg.width)
+    zu_video = cfg.width / css_w
+    aus = (float(ausgabe_h) / cfg.height) if ausgabe_h else 1.0
+    raus = []
+    for k, s in enumerate(schilder):
+        f = float(info.get("skala") or 1) * zu_video * aus / float(s["pr"] or 1)
+        roh = Image.frombytes("RGBA", (int(s["w"]), int(s["h"])), base64.b64decode(s["rgba"]))
+        bw, bh = max(1, round(s["w"] * f)), max(1, round(s["h"] * f))
+        bild = roh.resize((bw, bh), Image.LANCZOS) if (bw, bh) != roh.size else roh
+        art = "wegpunkt" if s["auto"].startswith("wegpunkte:") else s["auto"]
+        png = ziel / f"highlight_{k + 1:02d}_{art}.png"
+        buf = BytesIO(); bild.save(buf, "PNG"); png.write_bytes(buf.getvalue())
+        ax, ay = _HL_ANKER.get(s["anker"], (0.5, 1))
+        sicht = [(n, op, ps) for n, op, ps in verlauf.get(s["id"], []) if op > 0]
+        kurve = [[n, op, ps] for n, op, ps in sicht]   # Größe ändert sich mit der Perspektive je Bild
+        h = hoehen.get(s["id"])
+        e = {"kind": art, "text": s["text"], "lat": s["lat"], "lon": s["lon"],
+             "ele_m": round(float(h), 1) if h is not None else None,
+             "from_frame": sicht[0][0] if sicht else None, "to_frame": sicht[-1][0] if sicht else None,
+             "png": str(png), "size_px": [bw, bh], "anchor_px": [round(ax * bw, 1), round(ay * bh, 1)], "curve": kurve}
+        # Feldnamen wie in der Bitte der 3D-Seite (deutsch) zusätzlich
+        e.update({"art": e["kind"], "ab_bild": e["from_frame"], "bis_bild": e["to_frame"], "anker_px": e["anchor_px"], "verlauf": kurve})
+        raus.append(e)
+    _log.info("Szene: Höhepunkte %s — %d Schilder, %d Bilder", ziel, len(raus), total_frames)
+    emit(1.0, _i18n.t_aktiv("animator.progress.done", "Fertig."))
+    return {"frames": total_frames, "highlights": raus}
+
+
 #: 26.10.2026 — Pfade der zuletzt mit `params.nur_bilder` geschriebenen PNG (für die Kommandozeile)
 NUR_PNG: list = []
 
@@ -926,6 +1096,10 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
               cfg.width, cfg.height, cfg.codec)
 
     _vl_an = os.environ.get("RZ_VORLAEUFER", "1") != "0" and not getattr(cfg, "transparent_background", False)   # Alpha: keine Kacheln
+    # 29.10.2026 (`project-render --frames/--thumbs`) — einzelne Bilder: kein Vorläufer, kein Vorwärmen (beide laden Kacheln
+    # für den ganzen Film), die Schleife endet nach dem letzten gewünschten Bild
+    _einzeln = bool((params or {}).get("nur_bilder") or (params or {}).get("nur_bilder_anzahl"))
+    _vl_an = _vl_an and not _einzeln
     _kam_ziel = str((params or {}).get("kamera_export") or "")   # 25.10.2026 — Kamera beim Rendern mitschreiben
     _kam_bilder: dict = {}
     _vl = {"bild": 0, "ende": total_frames, "stop": False, "stand": 0, "bereit": False}
@@ -996,7 +1170,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
         _vw_std = max(12, min(200, round(total_frames / max(1, cfg.fps) * 6)))
         # 30.09.2026 — mit Vorläufer entfällt das Vorwärmen vor dem ersten Bild: er lädt ohnehin voraus,
         # die Bildschleife startet sofort (RZ_VORWAERMEN erzwingt es weiterhin).
-        _vorwaermen = int(os.environ.get("RZ_VORWAERMEN", "0" if sitz["vl_task"] is not None else str(_vw_std)) or 0)
+        _vorwaermen = int(os.environ.get("RZ_VORWAERMEN", "0" if (sitz["vl_task"] is not None or _einzeln) else str(_vw_std)) or 0)
         if _vorwaermen > 1:
             _t_vw = time.time()
             emit(0.05, _i18n.t_aktiv("szene.vorwaermen", "Szene: Kacheln vorwärmen ({n}) …").replace("{n}", str(_vorwaermen)))
@@ -1047,6 +1221,11 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
         # Kamera-Export) als PNG `<Ziel ohne Endung>_<nr>.png`, kein Video. Gesprungen wird trotzdem jedes Bild (Trägheit,
         # Schweif entstehen wie im Film), gewartet und aufgenommen nur bei den gewünschten.
         _nur = {int(x) for x in ((params or {}).get("nur_bilder") or []) if 0 <= int(x) < total_frames}
+        # 29.10.2026 (`project-render --thumbs N`) — N Bilder gleichmäßig über den Film (erstes und letztes eingeschlossen)
+        _anz = int((params or {}).get("nur_bilder_anzahl") or 0)
+        if _anz > 0:
+            _nur = {round(i * (total_frames - 1) / max(1, _anz - 1)) for i in range(min(_anz, total_frames))}
+        _nur_max = max(_nur) if _nur else -1
         _nur_basis = str(Path(cfg.output_path).with_suffix(""))
         NUR_PNG.clear()
         _herkunft(cfg, api, projekt_id)
@@ -1068,6 +1247,8 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             _neustarts = 0
             _nach_neustart = -1
             while frame < total_frames:
+                if _nur and frame > _nur_max:
+                    break
                 _geschrieben = False
                 try:
                     if is_cancelled and is_cancelled():
@@ -1083,7 +1264,15 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                                        _meldung("szene.m_springt", "Karte springt zur Stelle … {s} s"), is_cancelled)
                     _z["seek"] += time.perf_counter() - _t; _t = time.perf_counter()
                     if _nur and frame not in _nur:
-                        frame += 1
+                        # 29.10.2026 (`project-render --frames`, Zeitleiste der 3D-Seite) — die Bilder bis zum nächsten
+                        # gewünschten in EINEM Aufruf springen: dazwischen zeichnet die Karte nicht und lädt keine Kacheln
+                        # (vorher je Zwischenbild ein Zeichnen, Masca 1170 Sprünge = 25 s und 733 Kacheln). Trägheit und
+                        # Schweif rechnet step() je Sprung wie im Film.
+                        _bis = min([x for x in _nur if x > frame] or [total_frames])
+                        _zeiten = [(n / cfg.fps if len(_teil) != 3 else _teil[0] + n / _teil[2]) for n in range(frame + 1, _bis)]
+                        if _zeiten:
+                            await page.evaluate("(z) => { for (const t of z) window.__rzPreviewStep.seek(t); }", _zeiten)
+                        frame = _bis
                         continue
                     await _mit_meldung(page.evaluate(_WARTE_BILD_JS),
                                        _meldung("szene.m_karte", "wartet auf die Karte (Kacheln, Gelände) … {s} s"), is_cancelled)
@@ -1286,6 +1475,14 @@ async def render_szene_frame(cfg, *, api, projekt_id: str, t_sek: float, params:
             finally:
                 cfg.frame_format = alt
             Path(cfg.output_path).write_bytes(shot)
+            # 28.10.2026 — Kamera des Einzelbilds ins Protokoll (Vorschau ↔ Video vergleichbar machen)
+            try:
+                _kam = await page.evaluate("() => { const m = window.__rzLetzteKarte; if (!m) return null; const c = m.getCenter(); "
+                                           "return {z: +m.getZoom().toFixed(3), lng: +c.lng.toFixed(5), lat: +c.lat.toFixed(5), "
+                                           "p: +m.getPitch().toFixed(1), b: +m.getBearing().toFixed(1)}; }")
+                _log.info("Szene: Einzelbild t=%.2fs Kamera %s", float(t_sek), json.dumps(_kam))
+            except Exception:  # noqa: BLE001
+                pass
         finally:
             try: await browser.close()
             except Exception: pass

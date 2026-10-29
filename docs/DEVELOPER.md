@@ -4704,6 +4704,16 @@ Der Baustein arbeitet auf `#module-body` (Raster `Seitenleiste | Fläche [| Deta
 
 ## WYSIWYG-Prüfung Editor ↔ Export (06.10.2026)
 
+- **Skalierung (28.10.2026):** `tests/test_wysiwyg_skalierung.py` öffnet ein Gelände-Projekt (ruhige Kamera, Folgen) in
+  WebKit mit 150 % / Fenster 1280×680 (Hoch- und Querformat) und 100 % / 1600×1000, liest an vier Zeitpunkten die
+  Vorschau-Kamera und rendert dasselbe Bild über `szene.render_szene_frame` (Kamera kommt aus dessen Protokollzeile
+  „Einzelbild … Kamera {…}“). Schwellen: Zoom 0,03, Mitte 2 % der Bildbreite, Neigung 1°, Drehung 1,5°, grobes Bild
+  (80 px) 9/70. Ein falscher Ausschnitt fällt nur über die Kamera auf: Gegenprobe mit falscher Vorschaubreite
+  (`RZ_SKAL_FALSCHE_BREITE=900`) → Zoom Δ0,41, Bildvergleich dabei nur 1,1/8.
+- **DEM-Randfall der ruhigen Kamera (28.10.2026):** MapLibre wirft bei `jumpTo` mit Gelände gelegentlich „RangeError: out of
+  range source coordinates for DEM data“ (`_elevateCameraIfInsideTerrain`). In `_faithBuild` setzt `_jumpTrotzDem` die
+  Kamera dann direkt am `map.transform`; vorher brach der Stützstellen-Aufbau im Render ab und das Video nahm still die
+  einfache Kamera. Test: `tests/test_ruhige_kamera_dem_randfall.py`.
 - **Nacht-Test (14.10.2026):** `tests/test_wysiwyg_render.py` ruft `demo_wysiwyg_matrix.py` mit `RZ_WYSIWYG_SATZ=pruefung`
   (vier Fassungen auf ruhigen Looks: Satellit/Häuser rauschen, weil die Vorschau bewusst gröbere Kacheln lädt) und
   `RZ_WYSIWYG_PRUEFEN=1`. Vor jedem Editor-Foto `HILFEN_AUS` (Keyframe-Punkte `preview-kf-pins`, `#anim-uebersicht`,
@@ -8553,6 +8563,42 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   (`ui/js/app.js`) MapTiler: 📷 privat ⚠️, sonst ❌ (CT §7). `kartenquellen.py` nachgeprüft; `render_server: 'ok'` heißt
   Bild für Bild auf dem Nutzerrechner mit seinem Schlüssel (erlaubt) — ein gemeinsamer Render-Server wäre es nicht.
   Abrechnung bei MapLibre: je Kachel ein Request (gemessen ≤ 140 je 20-s-Render). Test `test_maptiler_unveraendert`.
+- **Transparenter Export: Sichtbarkeit erben (29.10.2026).** Das Alpha-CSS in `szene._BRIDGE_JS` blendet alles außer
+  `#anim-viewport` aus. Darin stand `#anim-viewport * { visibility: visible }` — das machte den Inhalt jeder per
+  Zeitsteuerung ausgeblendeten Box (`.ct` inline `visibility:hidden`) wieder sichtbar, die Titelkarte stand im
+  Overlay-Export den ganzen Film. Jetzt `#anim-viewport { visible }` + `#anim-viewport * { inherit }`. Test
+  `test_cli_overlay_export` F (Gegenprobe mit dem alten CSS rot).
+- **`overlay-export --without-highlights` / `--without-gradient` (29.10.2026).** Ohne Höhepunkte: `cli._highlights_entfernen`
+  nimmt die Schilder mit `szene.ist_highlight` (`auto` ∈ hoechster/steilste/schnellste/halbe oder `wegpunkte:*`) aus dem
+  Projekt im Temp-App-Ordner (die Szene rechnet sie im Render-Fenster nicht neu). Ohne Verlauf: `mode.ohneVerlauf` →
+  `#anim-overlay-preview::before/::after { display:none }`. Ergebniszeile `highlights`/`gradient`.
+- **`gpsstudio highlights-export` (29.10.2026).** `cli.highlights_aus_paket` → `szene.highlights_export`: Szene laden,
+  Probelauf, dann ohne Bildaufnahme in Paketen zu 100 Bildern `__rzPreviewStep.seek` in EINEM `evaluate`
+  (`_HL_BILDER_JS`). Je Schild-Objekt (Feature-id = Schild-Index, Halt-Fassungen ausgelassen): Bild aus
+  `map.style.getImage(imgId)` (RGBA, `pixelRatio`) → PNG in Videogröße (Faktor `__rzSignSizeScale · Video/Vorschaubreite
+  / pixelRatio`), Anker aus `iconAnchor`. Je Bild Deckkraft wie `rzSignApplyFrame` (`__rzSignDeckkraft`, Fenster
+  `a_show/a_hide` aus `__rzAnimSigns.spur.metas()`, Anker `spur.anker()`) OHNE `rzSignSicht` (Verdeckung rechnet das
+  3D-Programm), Größe = Aufpoppen (`__rzPopScale`) × Perspektive: MapLibre skaliert Symbole im Shader mit
+  `perspective_ratio = clamp(0,5 + 0,5 · Tiefe(Mitte)/Tiefe(Schild), 0, 4)` — auch bei `icon-pitch-alignment: viewport`.
+  Tiefe aus `transform.cameraToCenterDistance`, `transform.elevation` (Mitte) und Geländehöhe × Überhöhung (Schild;
+  `rzMlCamRead` fragt Kacheln, die beim Bündelsprung fehlen — Masca daneben um 10 %). Gemessen: Masca Bild 193/263
+  berechnet 0,953/1,051, im Overlay 0,952/1,050. Höhe `ele_m` aus `api.dem_hoehen` (z13). Feldnamen englisch, dazu die
+  deutschen der Bitte (`art`, `ab_bild`, `bis_bild`, `anker_px`, `verlauf`).
+- **`project-render --frames` / `--thumbs` (29.10.2026).** `params.nur_bilder` bzw. `nur_bilder_anzahl` (N Bilder
+  gleichmäßig, erstes und letztes dabei). Einzelbild-Modus (`_einzeln`): kein Vorläufer, kein Vorwärmen, Schleife endet
+  nach dem letzten gewünschten Bild, Zwischenbilder in EINEM `evaluate` gesprungen (sonst zeichnet die Karte je Sprung und
+  lädt Kacheln: Masca 3 Bilder 38 s / 733 Kacheln → 21 s / 223; Bilder gegen das echte Video gleich nah). Gilt auch für
+  `overlay-export --frames`. Ergebnis `files`, `frames` (Nummern).
+- **Kamera-Export, Mittenhöhe (29.10.2026, Bitte der 3D-Seite).** `__rzKameraBild` las die Höhe der Bildmitte mit
+  `queryTerrainElevation` (feinste geladene Höhenkachel) und rechnete die Kamera mit `rzMlCamRead` ebenso. MapLibre stellt
+  die Kamera beim Zeichnen aber auf `transform.elevation` (`getCenterElevation`, Kachelstufe des Bilds) — Masca Bild
+  264 → 265 sprang der Export um 208 m (überhöht), das Video blieb ruhig. Jetzt `getCenterElevation()` für
+  `zentrum_hoehe_*` und als `elevOpt` für `rzMlCamRead`; ohne Gelände wie bisher.
+- **Kamera-Export, Touren (29.10.2026).** `_kamStil`: `kontur_breite: 0`, `kontur_farbe: null` (Kontur nur Hauptlinie,
+  `preview-kontur`); `_kamBlass(tour)` wie `_ganzPrevBauen` (Farbe, Deckkraft, Breite 45 % mind. 1,2, Strichmuster) für
+  `laufend` und `etappe`.
+- **i18n ohne Doppelte (29.10.2026).** `test_i18n_eindeutig` (Anlass: `cli.schritt_projekt` doppelt seit 0.9.845, jetzt
+  `cli.schritt_projekt_video`).
 - **`gpsstudio project-render` (27.10.2026).** `cli.projekt_video_aus_paket`: Paket wie `overlay_aus_paket` einspielen,
   dann `szene.render_szene` ohne Transparenz — Größe aus dem Projekt oder `--height`/`--size` (Seitenverhältnis muss
   passen, ±1 %), Codec/CRF/Preset/Bildformat aus `settings.render` wie `_animator_start_render_inner`, `.mov` → ProRes 422,

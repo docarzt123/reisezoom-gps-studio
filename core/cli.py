@@ -9,10 +9,15 @@
     gpsstudio camera-export --rzproj PROJECT.rzproj [--out FILE] [--preview 960x540] [--overwrite]
                                          camera move frame by frame as JSON (rz-kamera/1), no video
     gpsstudio overlay-export --rzproj PROJECT.rzproj [--out FILE.mov] [--without-track] [--with-labels] [--frames 600,1199]
+                             [--without-highlights] [--without-gradient]
                              [--preview WxH]
                                          overlays as transparent ProRes 4444 (or single PNG frames), no map
                                          (--with-labels: keep the map's place/POI/road names as set in the project)
+    gpsstudio highlights-export --rzproj PROJECT.rzproj [--out FOLDER] [--height 1080] [--preview WxH]
+                                         highlight signs one by one (PNG, anchor, place, opacity per frame) for 3D tools;
+                                         overlay-export --without-highlights leaves them out of the overlay
     gpsstudio project-render --rzproj PROJECT.rzproj [--out FILE.mp4] [--height 1080 | --size 1920x1080] [--preview WxH]
+                             [--frames 0,600,1169 | --thumbs N [--thumb-width 320]]
                                          the project's video exactly like the app's video export (map, line, signs,
                                          photos, tours, labels, music), optionally in another size
     (global: --library FOLDER)
@@ -508,8 +513,24 @@ def kamera_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0) 
     return {"ok": True, "file": str(ziel), "datei": str(ziel), "frames": r.get("bilder"), "project": {"id": pid, "name": projekt.get("name")}}
 
 
+def _highlights_entfernen(app, pid: str) -> int:
+    """29.10.2026 (`overlay-export --without-highlights`) — die Höhepunkt-Schilder aus dem Projekt im Temp-App-Ordner
+    nehmen (das Paket selbst bleibt unberührt). Der Render rechnet sie nicht neu (module.js _hlSchilderAbgleichen: im
+    Render-Fenster wird nie geschrieben). → Zahl der entfernten Schilder."""
+    from core import projekte as P
+    from core import szene
+    daten = P.laden(app.DATEN_ORT)
+    pr = (daten.get("projects") or {}).get(pid) or {}
+    alt = list(pr.get("signs") or [])
+    pr["signs"] = [x for x in alt if not szene.ist_highlight(x)]
+    if len(pr["signs"]) != len(alt):
+        P.speichern(app.DATEN_ORT, daten)
+    return len(alt) - len(pr["signs"])
+
+
 def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0, ohne_spur: bool = False,
-                      bilder: list | None = None, mit_beschriftung: bool = False) -> dict:
+                      bilder: list | None = None, mit_beschriftung: bool = False, ohne_highlights: bool = False,
+                      ohne_verlauf: bool = False) -> dict:
     """26.10.2026 (für 3D-Werkzeuge) — Einblendungen des aktiven Projekts transparent rendern: ProRes 4444 mit Alpha in
     Größe, Bildrate und Bildzahl des Videos (Bild k = Bild k des Kamera-Exports), auf Wunsch ohne Spur und Laufpunkt; mit
     `bilder` nur diese Bilder als PNG `<ziel ohne Endung>_<nr>.png`. Dieselbe Szene wie der Video-Render.
@@ -522,6 +543,8 @@ def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0,
     an = projekt.get("animator") or {}
     from core import animator as A
     from core import szene
+    if ohne_highlights:
+        _melden(f"highlights left out: {_highlights_entfernen(app, pid)}")
     cfg = A.AnimatorConfig(gpx_path="", output_path=str(ziel), mapbox_token=app._active_mapbox_token() or "",
                            width=int(an.get("width") or 1920), height=int(an.get("height") or 1080), fps=int(an.get("fps") or 30),
                            duration_s=float(an.get("duration_s") or 12), intro_s=float(an.get("intro_s") or 0),
@@ -529,7 +552,8 @@ def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0,
     cfg.transparent_background = True
     cfg.codec = "prores4444"
     params = {"szene_projekt_id": pid, "szene_vorschau_w": int(w or 0), "szene_vorschau_h": int(h or 0),
-              "overlay_ohne_track": bool(ohne_spur), "overlay_mit_beschriftung": bool(mit_beschriftung)}
+              "overlay_ohne_track": bool(ohne_spur), "overlay_mit_beschriftung": bool(mit_beschriftung),
+              "overlay_ohne_verlauf": bool(ohne_verlauf)}
     if bilder:
         params["nur_bilder"] = list(bilder)
     letzt = [-1]
@@ -541,7 +565,7 @@ def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0,
     asyncio.run(szene.render_szene(cfg, api=api, projekt_id=pid, params=params, on_progress=fortschritt,
                                    on_preview=lambda x: None, is_cancelled=lambda: _ABGEBROCHEN.is_set()))
     info = {"project": {"id": pid, "name": projekt.get("name")}, "width": cfg.width, "height": cfg.height, "fps": cfg.fps,
-            "labels": bool(mit_beschriftung)}
+            "labels": bool(mit_beschriftung), "highlights": not ohne_highlights, "gradient": not ohne_verlauf}
     if bilder:
         dateien = list(szene.NUR_PNG)
         return dict({"ok": bool(dateien), "files": dateien, "dateien": dateien}, **info,
@@ -549,6 +573,36 @@ def overlay_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0,
     if not ziel.is_file():
         return {"ok": False, "error": "render ended without file"}
     return dict({"ok": True, "file": str(ziel), "datei": str(ziel), "frames": _bildzahl(ziel)}, **info)
+
+
+def highlights_aus_paket(app, api, paket: Path, ordner: Path, w: int = 0, h: int = 0, hoehe: int = 0) -> dict:
+    """29.10.2026 (für 3D-Werkzeuge) — die Höhepunkt-Schilder des Projekts einzeln: je Schild PNG in Videogröße,
+    Ankerpunkt, Ort, Höhe und Bild für Bild Deckkraft/Aufpoppen (core/szene.highlights_export). Zusammen mit
+    `overlay-export --without-highlights` setzt das 3D-Programm die Schilder selbst auf sein Gelände."""
+    pp = _paket_projekt(app, api, paket)
+    if isinstance(pp, dict):
+        return pp
+    pid, projekt = pp
+    an = projekt.get("animator") or {}
+    from core import animator as A
+    from core import szene
+    cfg = A.AnimatorConfig(gpx_path="", output_path=str(ordner / "_"), mapbox_token=app._active_mapbox_token() or "",
+                           width=int(an.get("width") or 1920), height=int(an.get("height") or 1080), fps=int(an.get("fps") or 30),
+                           duration_s=float(an.get("duration_s") or 12), intro_s=float(an.get("intro_s") or 0),
+                           hold_s=float(an.get("hold_s") or 0))
+    params = {"szene_projekt_id": pid, "szene_vorschau_w": int(w or 0), "szene_vorschau_h": int(h or 0)}
+    letzt = [-1]
+
+    def fortschritt(p, m):
+        if int(p * 20) != letzt[0]:
+            letzt[0] = int(p * 20)
+            _melden(f"{int(p * 100):3d} % · {m}")
+    r = asyncio.run(szene.highlights_export(cfg, api=api, projekt_id=pid, ordner=str(ordner), params=params, ausgabe_h=int(hoehe or 0),
+                                            on_progress=fortschritt, is_cancelled=lambda: _ABGEBROCHEN.is_set()))
+    hh = int(hoehe or cfg.height)
+    return {"ok": True, "dir": str(ordner), "frames": r["frames"], "fps": cfg.fps,
+            "width": int(round(cfg.width * hh / cfg.height / 2.0)) * 2 if hoehe else cfg.width, "height": hh,
+            "highlights": r["highlights"], "project": {"id": pid, "name": projekt.get("name")}}
 
 
 def _bildzahl(ziel: Path):
@@ -565,7 +619,8 @@ def _bildzahl(ziel: Path):
         return None
 
 
-def projekt_video_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0, breite: int = 0, hoehe: int = 0) -> dict:
+def projekt_video_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: int = 0, breite: int = 0, hoehe: int = 0,
+                            bilder: list | None = None, thumbs: int = 0, thumb_breite: int = 320) -> dict:
     """27.10.2026 (für 3D-Programme: Vergleichsvideos vom selben Projekt) — das Video des Projekts genau wie der
     Video-Export der App: dieselbe Szene, Kamera, Bilder und Bildrate wie `camera-export`, alle Ebenen, Musik/Ton wie im
     Projekt, Qualität aus den Einstellungen („Qualität & Export“). `breite`/`hoehe`: andere Ausgabegröße (z. B. 4K-Projekt
@@ -579,6 +634,8 @@ def projekt_video_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: in
     from core import animator as A
     from core import szene
     pb, ph = int(an.get("width") or 1920), int(an.get("height") or 1080)
+    if thumbs:   # 29.10.2026 — Filmstreifen: kleine Bilder in `thumb_breite`, Höhe aus dem Seitenverhältnis
+        breite, hoehe = int(thumb_breite), int(round(int(thumb_breite) * ph / pb / 2.0)) * 2
     if breite and hoehe:
         if abs(breite / hoehe - pb / ph) > 0.01:
             return {"ok": False, "error": f"--size {breite}x{hoehe} has another aspect ratio than the project ({pb}x{ph})"}
@@ -608,6 +665,11 @@ def projekt_video_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: in
     cfg.jpeg_quality = int(rq.get("jpeg_quality", 92) or 92)
     cfg.farbraum = farbraum if farbraum in ("sdr", "hlg", "pq") else "sdr"
     params = {"szene_projekt_id": pid, "szene_vorschau_w": int(w or 0), "szene_vorschau_h": int(h or 0)}
+    # 29.10.2026 (`--frames` / `--thumbs`) — nur diese bzw. N gleichmäßig verteilte Bilder als PNG `<Ziel ohne Endung>_<nr>.png`
+    if bilder:
+        params["nur_bilder"] = list(bilder)
+    if thumbs:
+        params["nur_bilder_anzahl"] = int(thumbs)
     letzt = [-1]
 
     def fortschritt(p, m):
@@ -616,6 +678,12 @@ def projekt_video_aus_paket(app, api, paket: Path, ziel: Path, w: int = 0, h: in
             _melden(f"{int(p * 100):3d} % · {m}")
     asyncio.run(szene.render_szene(cfg, api=api, projekt_id=pid, params=params, on_progress=fortschritt,
                                    on_preview=lambda x: None, is_cancelled=lambda: _ABGEBROCHEN.is_set()))
+    if bilder or thumbs:
+        dateien = sorted(szene.NUR_PNG, key=lambda f: int(Path(f).stem.rsplit("_", 1)[-1]))
+        return {"ok": bool(dateien), "files": dateien, "dateien": dateien,
+                "frames": [int(Path(f).stem.rsplit("_", 1)[-1]) for f in dateien],
+                "project": {"id": pid, "name": projekt.get("name")}, "width": b, "height": hh, "fps": cfg.fps,
+                "project_size": f"{pb}x{ph}", **({} if dateien else {"error": "no frames written (numbers outside the video?)"})}
     if not ziel.is_file():
         return {"ok": False, "error": "render ended without file"}
     return {"ok": True, "file": str(ziel), "datei": str(ziel), "frames": _bildzahl(ziel),
@@ -722,13 +790,15 @@ def _overlay_export(app, a) -> dict:
     w, h = _vorschau_mass(a.preview)
     bilder = _bilder_liste(a.frames)
     if os.environ.get(_KAMERA_KIND) == "1":
-        return overlay_aus_paket(app, app.Api(), paket, Path(a.out), w, h, a.without_track, bilder, a.with_labels)
+        return overlay_aus_paket(app, app.Api(), paket, Path(a.out), w, h, a.without_track, bilder, a.with_labels,
+                                 a.without_highlights, a.without_gradient)
     stamm = paket.stem + ".overlay"
     ziel = _ziel(app, None, a.out or str(paket.parent / (stamm + ".mov")), stamm, ".mov", a.overwrite)
     if bilder and not a.overwrite and any(Path(f"{ziel.with_suffix('')}_{n}.png").exists() for n in bilder):
         ziel = ziel.with_name(_dt.datetime.now().strftime("%Y%m%d-%H%M%S-") + ziel.name)   # Bilder nie überschreiben
     befehl = ["overlay-export", "--rzproj", str(paket), "--out", str(ziel)] + (["--preview", a.preview] if a.preview else []) \
         + (["--without-track"] if a.without_track else []) + (["--with-labels"] if a.with_labels else []) \
+        + (["--without-highlights"] if a.without_highlights else []) + (["--without-gradient"] if a.without_gradient else []) \
         + (["--frames", ",".join(map(str, bilder))] if bilder else [])
     return _im_temp_app_ordner(app, befehl, [ziel.parent],
                                _t(app, "cli.schritt_overlay", "Einblendungen werden transparent gerendert: {p}").replace("{p}", str(ziel)),
@@ -755,15 +825,53 @@ def _projekt_render(app, a) -> dict:
         if not 64 <= int(a.height) <= 4320:
             raise CliFehler("--height must be between 64 and 4320", code=2)
         hoehe = int(a.height)
+    bilder = _bilder_liste(a.frames)
+    thumbs = int(a.thumbs or 0)
+    if thumbs and bilder:
+        raise CliFehler("use either --frames or --thumbs", code=2)
+    if thumbs and not 1 <= thumbs <= 500:
+        raise CliFehler("--thumbs must be between 1 and 500", code=2)
+    tb = int(a.thumb_width or 320)
+    if thumbs and not 64 <= tb <= 1920:
+        raise CliFehler("--thumb-width must be between 64 and 1920", code=2)
     if os.environ.get(_KAMERA_KIND) == "1":
-        return projekt_video_aus_paket(app, app.Api(), paket, Path(a.out), w, h, breite, hoehe)
+        return projekt_video_aus_paket(app, app.Api(), paket, Path(a.out), w, h, breite, hoehe, bilder, thumbs, tb)
     stamm = paket.stem
+    if (bilder or thumbs) and a.out and not Path(a.out).suffix:
+        Path(a.out).expanduser().mkdir(parents=True, exist_ok=True)   # --out ORDNER: Bilder dort hinein, auch wenn er neu ist
     ziel = _ziel(app, None, a.out or str(paket.parent / (stamm + ".mp4")), stamm, ".mp4", a.overwrite)
+    if (bilder or thumbs) and not a.overwrite and any(ziel.parent.glob(f"{ziel.stem}_*.png")):
+        ziel = ziel.with_name(_dt.datetime.now().strftime("%Y%m%d-%H%M%S-") + ziel.name)   # Bilder nie überschreiben
     befehl = ["project-render", "--rzproj", str(paket), "--out", str(ziel)] + (["--preview", a.preview] if a.preview else []) \
-        + (["--size", f"{breite}x{hoehe}"] if breite else (["--height", str(hoehe)] if hoehe else []))
+        + (["--size", f"{breite}x{hoehe}"] if breite else (["--height", str(hoehe)] if hoehe else [])) \
+        + (["--frames", ",".join(map(str, bilder))] if bilder else []) \
+        + (["--thumbs", str(thumbs), "--thumb-width", str(tb)] if thumbs else [])
     return _im_temp_app_ordner(app, befehl, [ziel.parent],
-                               _t(app, "cli.schritt_projekt", "Projekt-Video wird gerendert: {p}").replace("{p}", str(ziel)),
+                               _t(app, "cli.schritt_projekt_video", "Projekt-Video wird gerendert: {p}").replace("{p}", str(ziel)),
                                "project render")
+
+
+def _highlights_export(app, a) -> dict:
+    paket = _paket_pruefen(a)
+    w, h = _vorschau_mass(a.preview)
+    hoehe = 0
+    if a.height:
+        if not 64 <= int(a.height) <= 4320:
+            raise CliFehler("--height must be between 64 and 4320", code=2)
+        hoehe = int(a.height)
+    if os.environ.get(_KAMERA_KIND) == "1":
+        return highlights_aus_paket(app, app.Api(), paket, Path(a.out), w, h, hoehe)
+    ordner = Path(a.out) if a.out else paket.parent / (paket.stem + ".highlights")
+    if ordner.exists() and not ordner.is_dir():
+        raise CliFehler(f"--out must be a folder: {ordner}", code=2)
+    if ordner.is_dir() and any(ordner.glob("highlight_*.png")) and not a.overwrite:
+        ordner = ordner.with_name(_dt.datetime.now().strftime("%Y%m%d-%H%M%S-") + ordner.name)   # nie überschreiben
+    ordner.mkdir(parents=True, exist_ok=True)
+    befehl = ["highlights-export", "--rzproj", str(paket), "--out", str(ordner)] + (["--preview", a.preview] if a.preview else []) \
+        + (["--height", str(hoehe)] if hoehe else []) + ["--overwrite"]
+    return _im_temp_app_ordner(app, befehl, [ordner],
+                               _t(app, "cli.schritt_highlights", "Höhepunkt-Schilder werden exportiert: {p}").replace("{p}", str(ordner)),
+                               "highlights export")
 
 
 # ── Einstieg ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -802,6 +910,10 @@ def _parser() -> argparse.ArgumentParser:
                    help="leave out route line and running dot (for 3D tools that draw them themselves)")
     o.add_argument("--with-labels", "--mit-beschriftung", dest="with_labels", action="store_true",
                    help="keep the map labels (places, POIs, roads, transit as switched on in the project); the map itself stays transparent")
+    o.add_argument("--without-highlights", "--ohne-hoehepunkte", dest="without_highlights", action="store_true",
+                   help="leave out the highlight signs (highest point, steepest section …, GPX waypoints); get them with highlights-export")
+    o.add_argument("--without-gradient", "--ohne-verlauf", dest="without_gradient", action="store_true",
+                   help="leave out the dark gradients at the top/bottom of the overlays (they are in the video when switched on in the project)")
     o.add_argument("--frames", "--bilder", dest="frames", help="only these frames (0-based, e.g. 600,1199) as PNG with alpha: NAME_<nr>.png")
     o.add_argument("--preview", "--vorschau", dest="preview", help="preview size in CSS px as in the app, e.g. 960x540")
     o.add_argument("--overwrite", action="store_true", help="overwrite existing files (default: add a timestamp)")
@@ -811,7 +923,16 @@ def _parser() -> argparse.ArgumentParser:
     pr.add_argument("--height", "--hoehe", dest="height", type=int, help="output height, width from the project's aspect ratio (e.g. 1080 for a 4K project)")
     pr.add_argument("--size", "--groesse", dest="size", help="output size WxH with the project's aspect ratio, e.g. 1920x1080")
     pr.add_argument("--preview", "--vorschau", dest="preview", help="preview size in CSS px as in the app, e.g. 960x540 (as for camera-export)")
+    pr.add_argument("--frames", "--bilder", dest="frames", help="only these frames (0-based, e.g. 0,600,1169) as PNG with map, exactly the video's frames: NAME_<nr>.png")
+    pr.add_argument("--thumbs", type=int, help="N small frames evenly over the film (first and last included) as PNG, e.g. for a timeline")
+    pr.add_argument("--thumb-width", dest="thumb_width", type=int, default=320, help="width of the --thumbs frames in px (default 320)")
     pr.add_argument("--overwrite", action="store_true", help="overwrite an existing file (default: add a timestamp)")
+    hl = sub.add_parser("highlights-export", help="highlight signs of an exported project (.rzproj) one by one: PNG in video size, anchor point, place, height and opacity/scale per frame")
+    hl.add_argument("--rzproj", required=True, help="project exported from GPS Studio (Project → Export project (.rzproj))")
+    hl.add_argument("--out", "--ziel", dest="out", help="output folder (default: next to the .rzproj, NAME.highlights)")
+    hl.add_argument("--height", "--hoehe", dest="height", type=int, help="video height the PNGs are made for (default: the project's)")
+    hl.add_argument("--preview", "--vorschau", dest="preview", help="preview size in CSS px as in the app, e.g. 960x540 (as for camera-export)")
+    hl.add_argument("--overwrite", action="store_true", help="overwrite PNGs in the folder (default: new folder with a timestamp)")
     s = sub.add_parser("mcp", help="run as MCP server for AI assistants (stdio; started by the AI app, not by hand)")
     s.add_argument("--out-dir", help="folder for videos and map images (default: the app's render folder)")
     return ap
@@ -846,9 +967,9 @@ def main(argv: list, app) -> int:
         import signal
         signal.signal(signal.SIGTERM, _abbrechen)
     try:
-        if a.command in ("camera-export", "overlay-export", "project-render"):   # 26.10.2026 — eigener Temp-App-Ordner, nicht die Bibliothek
+        if a.command in ("camera-export", "overlay-export", "project-render", "highlights-export"):   # 26.10.2026 — eigener Temp-App-Ordner, nicht die Bibliothek
             erg = (_kamera_export(app, a) if a.command == "camera-export" else _overlay_export(app, a) if a.command == "overlay-export"
-                   else _projekt_render(app, a))
+                   else _highlights_export(app, a) if a.command == "highlights-export" else _projekt_render(app, a))
             ausgabe(erg)
             return 0 if erg.get("ok") else 1
         global _API

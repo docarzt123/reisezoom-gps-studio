@@ -4398,7 +4398,8 @@ function mountAnimator(body, headerActions, opts) {
 
   function _fehlerText(e) {
     try {
-      const st = (e && e.stack) ? String(e.stack).split("\n").slice(0, 4).join(" | ") : "";
+      // 28.10.2026: 12 statt 4 Zeilen, Pfade gekürzt — die eigene Stelle stand sonst hinter MapLibres Zeilen (und das Log schneidet ab)
+      const st = (e && e.stack) ? String(e.stack).split("\n").slice(0, 12).map((z) => z.replace(/\(?(?:file|https?):\/\/[^)\s]*\/(ui|modules)\//g, "($1/")).join(" | ") : "";
       return String(e) + (st ? " · " + st : "");
     } catch (_) { return String(e); }
   }
@@ -12455,6 +12456,25 @@ function mountAnimator(body, headerActions, opts) {
     // framing-treu an den KFs. Spiegel von __camPrepFaithful/__camFaithful im Render.
     let _faithCams = null, _useFaithful = false, _faithGew = null;
     let _faithBuild = null;   // 04.09.2026 — Stützstellen-Aufbau der ruhigen Kamera (asynchron)
+    /** 28.10.2026 (Nutzer-Meldung: Video zeigt andere Ausschnitte als die Vorschau, Windows) — MapLibre prüft bei jumpTo, ob
+     *  die Kamera im Gelände steckt (`_elevateCameraIfInsideTerrain` → DEM-Höhe). An manchen Stellen/Zoomstufen liegt die
+     *  Leseposition knapp außerhalb der Höhenkachel → „RangeError: out of range source coordinates for DEM data“. Im
+     *  Render-Browser (andere Auflösung, andere Höhenkacheln) brach daran der GANZE Stützstellen-Aufbau ab, das Video nahm
+     *  still die einfache Kamera — die Vorschau aber die ruhige. Die Kamera ist zu dem Zeitpunkt schon gesetzt; nur die
+     *  Gelände-Prüfung fehlt. Darum: Fehler abfangen, Kamera notfalls direkt setzen, weiter. */
+    let _demFehlerGemeldet = false;
+    const _jumpTrotzDem = (opt) => {
+      try { map.jumpTo(opt); return; } catch (e) {
+        if (!(e instanceof RangeError)) throw e;
+        if (!_demFehlerGemeldet) { _demFehlerGemeldet = true; try { applog("info", "[smooth-cam] DEM-Randfall bei jumpTo abgefangen: " + e.message); } catch (_) {} }
+      }
+      const tr = map.transform;
+      try {
+        if (Math.abs(map.getZoom() - opt.zoom) > 1e-6 || Math.abs(map.getPitch() - opt.pitch) > 1e-6) {
+          tr.zoom = opt.zoom; tr.pitch = opt.pitch; tr.bearing = opt.bearing; tr.center = maplibregl.LngLat.convert(opt.center);
+        }
+      } catch (_) {}
+    };
     // 04.09.2026 (Marc, Masca ohne ruhige Kamera: „von ganz vorne landet der
     // Zoom an der falschen Stelle, aus der Intro-Mitte passt es"): MapLibre
     // führt die Mittelpunkt-Höhe bei jumpTo NICHT nach; der Sitz (rzSeat…) läuft
@@ -12674,7 +12694,7 @@ function mountAnimator(body, headerActions, opts) {
           }
           for (let _k = 0; _k < _plan.length; _k++) {
             const { tz, a, ip, zm, ll, db } = _plan[_k];
-            map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: (ip.bearing || 0) + (db || 0) });
+            _jumpTrotzDem({ center: ll, zoom: zm, pitch: ip.pitch, bearing: (ip.bearing || 0) + (db || 0) });
             let ez = null, eM = null;
             const _hFest = _demH ? _demH[_k] : null;
             if (_hFest != null && isFinite(_hFest)) {
@@ -18644,6 +18664,9 @@ function mountAnimator(body, headerActions, opts) {
         neuAuf: (lng, lat) => _animSignsAddNew(lng, lat, true),   // Prüfstand: wie ein Klick „Frei platzieren“
         editor: () => (_animSignEditorEl ? _animSignEditorIdx : -1),
         loeschen: (i) => { try { _animSignsCloseEditor(); } catch (_) {} _animSignsDelete(i); },   // 10.10.2026 Entfernen-Taste in der Zeitleiste
+        // 29.10.2026 (`gpsstudio highlights-export`) — Zeitfenster je Schild-Objekt (Index = Feature-id der Schild-Ebene) und
+        // der Anker des zuletzt gezeigten Bilds: der Export rechnet Deckkraft und Aufpoppen damit genau wie die Ebene
+        metas: () => _animSignMetas, anker: () => _animSignLastAnchorM,
       },
       updateAtAnchor: _animSignsUpdateAtAnchor,
       applyMarkerAnchor: _animSignsApplyMarkerAnchor,
@@ -25478,11 +25501,19 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzKameraBild = () => {
     if (!map) return null;
     const c = map.getCenter(), ex = (map.getTerrain && map.getTerrain() && +map.getTerrain().exaggeration) || 1;
-    let zEl = null; try { const v = map.queryTerrainElevation ? map.queryTerrainElevation(c) : null; zEl = (typeof v === "number" && isFinite(v)) ? v : null; } catch (_) {}
+    // 29.10.2026 (Bitte der 3D-Seite: Mittenhöhe sprang Bild für Bild um bis zu 140 m, Masca 264 → 265) — die Höhe, auf die
+    // MapLibre die Kamera beim Zeichnen WIRKLICH stellt: transform.elevation (getCenterElevation, auf der Kachelstufe des
+    // Bilds, also ruhig), nicht queryTerrainElevation (feinste geladene Höhenkachel unter der Mitte). Die Kamera daraus.
+    let zEl = null;
+    try {
+      const v = map.getCenterElevation ? map.getCenterElevation() : (map.transform && map.transform.elevation);
+      zEl = (map.getTerrain && map.getTerrain() && typeof v === "number" && isFinite(v)) ? v : null;
+    } catch (_) {}
+    if (zEl == null) { try { const v = map.queryTerrainElevation ? map.queryTerrainElevation(c) : null; zEl = (typeof v === "number" && isFinite(v)) ? v : null; } catch (_) {} }
     let kam = null;
     try {
       const MC = window.maplibregl && window.maplibregl.MercatorCoordinate;
-      const r = window.rzMlCamRead ? window.rzMlCamRead(map) : null;
+      const r = window.rzMlCamRead ? window.rzMlCamRead(map, zEl == null ? undefined : zEl) : null;
       if (MC && r && r.pos) { const mc = new MC(r.pos[0], r.pos[1], r.pos[2]), ll = mc.toLngLat(); kam = [ll.lng, ll.lat, r.pos[2] / mc.meterInMercatorCoordinateUnits()]; }
     } catch (_) {}
     const st = window.__rzStepStand || {}, n = Math.max(1, (st.n || (currentCoords || []).length || 1) - 1);
@@ -25509,16 +25540,27 @@ function mountAnimator(body, headerActions, opts) {
       strich_abstand: Math.max(0.1, +st.spacing || 1), strich_muster: ls === "tube" ? null : (_dashFuerStil(st, w) || null),
       schatten: +st.shadow || 0, gluehen: +st.glow || 0,
       punkt: { zeigen: st.dot_show !== false, stil: st.dot_style === "arrow" ? "arrow" : "dot", groesse: Math.max(0.1, +st.dot_size || 1) },
-      kontur_breite: currentKonturBreite(), kontur_farbe: currentKonturFarbe() }, mehr || {});
+      // 29.10.2026 (Bitte der 3D-Seite) — Touren haben keine Kontur-Ebene (nur die Hauptlinie: preview-kontur); vorher standen
+      // hier die Werte der Hauptlinie und das 3D-Programm zeichnete eine Kontur, die es im Video nicht gibt
+      kontur_breite: 0, kontur_farbe: null }, mehr || {});
+  }
+  /** 29.10.2026 — „Ganze Strecke blass zeigen“ einer Tour wie _ganzPrevBauen sie zeichnet (ganz-prev-blass-*): Farbe,
+   *  Deckkraft, feine Breite (45 % der Linie, mind. 1,2) und das Strichmuster der Tour. null = aus. */
+  function _kamBlass(tour) {
+    const st = tour ? ((tour.tr || tour).stil || {}) : {};
+    if (!tour || !st.blass_show) return null;
+    const bst = _stilVon(tour), w = Math.max(1.2, Math.round(Math.max(0.5, +bst.width || 3.5) * 0.45 * 10) / 10);
+    return { farbe: st.blass_color || tour.line_color || "#35a7ff", deckkraft: _blassDeckkraft(st), breite: w,
+             strich_muster: _dashFuerStil(bst, bst.width) || null };
   }
   function _kamTourenListe() {
     const raus = [];
     const pkt = (c) => [c[0], c[1], (c.length > 2 && isFinite(+c[2])) ? +c[2] : null];
     for (const t of _swPrev) {
       const tour = _tourVon(t.gpx_path) || t.quelle;
-      const roh = (tour && (tour.tr || tour).stil) || {};   // „Ganze Strecke blass zeigen“ (ganz-prev-blass-*): ganze Runde im Hintergrund
+      // „Ganze Strecke blass zeigen“ (ganz-prev-blass-*): ganze Runde im Hintergrund
       raus.push({ art: "laufend", name: _kamTourName(tour, t.gpx_path), gpx: t.gpx_path || null, punkte: t.coords.map(pkt),
-                  stil: _kamStil(t.stil, t.color, { blass: roh.blass_show ? { farbe: roh.blass_color || t.color, deckkraft: _blassDeckkraft(roh) } : null }) });
+                  stil: _kamStil(t.stil, t.color, { blass: _kamBlass(tour) }) });
     }
     for (const e of _ganzPrev) {
       const tour = _tourVon(e.gpx_path);
@@ -25530,8 +25572,10 @@ function mountAnimator(body, headerActions, opts) {
       for (let i = 1; i < _reiseBahn.teile.length; i++) {
         const t = _reiseBahn.teile[i], e = _reiseBahn.etappen[i];
         if (!e || !e.tour) continue;
+        // 29.10.2026 — auch Etappen zeigen „Ganze Strecke blass“ (_ganzPrevBauen zeichnet es für jedes animierte Mitglied)
         raus.push({ art: "etappe", name: _kamTourName(e.tour, e.tour.gpx_path), gpx: e.tour.gpx_path || null,
-                    punkte: _reiseBahn.coords.slice(t.von, t.bis + 1).map(pkt), stil: _kamStil(_stilVon(e.tour), e.tour.line_color), __teil: i });
+                    punkte: _reiseBahn.coords.slice(t.von, t.bis + 1).map(pkt),
+                    stil: _kamStil(_stilVon(e.tour), e.tour.line_color, { blass: _kamBlass(_tourVon(e.tour.gpx_path) || e.tour) }), __teil: i });
       }
     }
     return raus;

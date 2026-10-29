@@ -3865,6 +3865,8 @@ gpsstudio map-image 11660e04ed1c9695 --out karte.png
 gpsstudio camera-export --rzproj tour.rzproj --out tour.kamera.json
 gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay.mov
 gpsstudio project-render --rzproj tour.rzproj --height 1080 --out tour.mp4
+gpsstudio project-render --rzproj tour.rzproj --frames 0,600,1169 --height 540 --out bilder/
+gpsstudio highlights-export --rzproj tour.rzproj --out tour.highlights/
 ```
 
 - **Tour:** eine GPX-/FIT-/…-Datei (irgendwo, muss nicht im Archiv liegen), die **id** aus `gpsstudio tours` oder ein
@@ -3882,13 +3884,21 @@ gpsstudio project-render --rzproj tour.rzproj --height 1080 --out tour.mp4
   Fotos …) als ProRes 4444 mit Durchsicht — Bild für Bild deckungsgleich mit `camera-export`. `--without-track` lässt
   Strecke und Laufpunkt weg (auch weitere Touren), `--with-labels` lässt die Beschriftung der Karte stehen (Orte, POIs,
   Straßen, Verkehr — so, wie die Schalter im Projekt stehen; die Karte selbst bleibt durchsichtig), `--frames 600,1199`
-  schreibt nur diese Bilder als PNG (zum Testen).
+  schreibt nur diese Bilder als PNG (zum Testen). `--without-highlights` lässt die Höhepunkt-Schilder weg (die liefert
+  `highlights-export` einzeln), `--without-gradient` die dunklen Verläufe oben und unten.
+- **Höhepunkt-Schilder einzeln (seit v0.9.846):** `highlights-export` schreibt jedes Höhepunkt-Schild (Höchster Punkt,
+  Steilste Stelle, Höchstes Tempo, Halbe Strecke, GPX-Wegpunkte) als PNG mit Durchsicht, genau im Stil des Videos und in
+  Videogröße. Die JSON-Zeile nennt je Schild Ort, Geländehöhe, den Punkt im PNG, der auf der Strecke sitzt, und Bild für
+  Bild Deckkraft und Größe (Aufpoppen und Perspektive). So kann ein 3D-Programm die Schilder an sein eigenes Gelände
+  hängen. `--height` für eine andere Videohöhe.
 - **Projekt-Video (seit v0.9.845):** `project-render` rendert das Video eines exportierten Projekts **genau wie der
   Video-Export der App** — Keyframes, Schilder, Fotos, Touren, Beschriftung und Musik wie im Projekt, Bild für Bild
   deckungsgleich mit `camera-export`. `--height 1080` macht aus einem 4K-Projekt Full HD (Breite nach dem
   Seitenverhältnis), `--size 1920x1080` ebenso; ein anderes Seitenverhältnis lehnt der Befehl ab. Qualität und Codec
   kommen aus *Einstellungen → Qualität & Export*, `--out …mov` liefert ProRes 422. Auch für KI-Assistenten als
-  Werkzeug `render_project`.
+  Werkzeug `render_project`. `--frames 0,600,1169` schreibt nur diese Bilder als PNG (mit Karte, genau die Bilder des
+  Videos), `--thumbs 12` zwölf kleine Bilder gleichmäßig über den Film (Breite `--thumb-width`, Standard 320) — etwa für
+  eine Zeitleiste.
 - **Mehrere Touren:** `camera-export` liefert auch Etappen, Schwarm-Touren und Touren „Ganz zeigen“ — je Tour die
   Strecke und ihr Aussehen, je Bild, wie weit sie gezeichnet ist und wie deckend.
 

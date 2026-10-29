@@ -1232,6 +1232,7 @@
     window.__rzSignFrame = rzSignApplyFrame;
     window.__rzSignMeta = rzSignMeta;
     window.__rzSignDeckkraft = rzSignDeckkraft;
+    window.__rzPopScale = rzPopScale;   // 29.10.2026 — `gpsstudio highlights-export` (Aufpoppen je Bild)
     window.__rzSignIconSize = rzSignIconSize;
     window.__rzSignRandVersatz = rzSignRandVersatz;   // Prüfstand (F-20)
     window.__rzSignRandPx = rzSignRandPx;             // 18.10.2026 — HTML-Schild im Editor (module.js)
