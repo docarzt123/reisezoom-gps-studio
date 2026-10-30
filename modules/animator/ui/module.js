@@ -7606,17 +7606,27 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzKameraAutoMerken = _kameraAutoMerken;
   let _auswKurve = null, _auswSchluessel = "", _auswLaeuft = null;
   /** Wert der Ausweich-Kurve zur Zeit tz (0…1): { dp: Grad weniger Neigung, dz: Zoomstufen weniger } oder null. */
+  // 30.10.2026 (Suite: Play wartete beim ersten Mal 1–5 s auf die Kurve) — die Vorschau wartet höchstens AUSW_WARTE_MS;
+  // kommt die Kurve erst während des Abspielens, blendet sie über AUSW_EINBLEND_MS ein statt zu springen. Video und
+  // Schrittmodus warten voll (Bild für Bild gleich).
+  const AUSW_WARTE_MS = 1500, AUSW_EINBLEND_MS = 800;
+  let _auswSeit = 0;
   function _auswBei(tz) {
     if (!_auswKurve || !window.rzSichtAusweichen) return null;
     const w = window.rzSichtAusweichen.wert(_auswKurve, tz);
-    return (w && (w.dp > 1e-3 || w.dz > 1e-4)) ? w : null;
+    if (!(w && (w.dp > 1e-3 || w.dz > 1e-4))) return null;
+    const f = (window.__rzRenderMode || window.__rzStepMode) ? 1 : Math.max(0, Math.min(1, (performance.now() - _auswSeit) / AUSW_EINBLEND_MS));
+    return f >= 1 ? w : Object.assign({}, w, { dp: w.dp * f, dz: w.dz * f });
   }
   /** Kurve für die aktuelle Fahrt bereitstellen (gecacht über alles, was die Kamera bestimmt). totalMs = Videolänge. */
+  const AUSW_MIN_ZOOM = 11;
   function _ausweichBereit(totalMs) {
     try {
       const SA = window.rzSichtAusweichen;
       if (!SA || !map || !currentCoords || currentCoords.length < 2 || map.__rzEngine === "mapbox" || !map.getTerrain || !map.getTerrain()
-          || !_kameraIstAuto() || !document.getElementById("anim-pitch")) { _auswKurve = null; _auswSchluessel = ""; return Promise.resolve(false); }
+          || !_kameraIstAuto() || !document.getElementById("anim-pitch")
+          // 30.10.2026 (Suite, Hochflug) — beim Flug in der Luft steht der Punkt nicht am Boden: kein Ausweichen
+          || (_flug && _flug.an) || _flugGewuenscht()) { _auswKurve = null; _auswSchluessel = ""; return Promise.resolve(false); }
       const events = getEffectiveEvents();
       const ti = introFraction(), tf = trackFraction();
       const trim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
@@ -7660,6 +7670,9 @@ function mountAnimator(body, headerActions, opts) {
         let mitte = ip.center ? ip.center.slice(0, 2)
           : (folgen ? _mitVersatz((_folgePunkt(f) || []).slice(0, 2), ip) : (fitMitte ? _mitVersatz(fitMitte, ip) : null));
         if (!mitte || !isFinite(mitte[0]) || !isFinite(mitte[1])) { proben.push({ t: tz }); continue; }
+        // 30.10.2026 (Suite, Hochflug: Neigung blieb in 450 km Höhe bei 64° statt ~70°) — weit draußen (Zoom unter 11)
+        // verdecken Geländefalten nichts, was man sieht: dort nicht ausweichen
+        if (fitBase + (ip.zoom_offset || 0) < AUSW_MIN_ZOOM) { proben.push({ t: tz }); continue; }
         const ziele = [coordBeiFrac(currentCoords, f), zurueck(f, 40), zurueck(f, 80), zurueck(f, 120), zurueck(f, 160)]
           .filter(z => z && isFinite(z[0])).map(z => [z[0], z[1]]);
         proben.push({ t: tz, mitte, zoom: fitBase + (ip.zoom_offset || 0), neigung: +ip.pitch || 0, richtung: +ip.bearing || 0, ziele });
@@ -7680,7 +7693,9 @@ function mountAnimator(body, headerActions, opts) {
         await dem.laden(ray);
         const kurve = SA.plan(proben, { hoehe: dem.hoehe, hoehePx: hPx, fov, dauerS, rampeS: 3 });
         if (_auswLaeuft && _auswLaeuft.schluessel !== schluessel) return false;   // inzwischen überholt
-        _auswKurve = (kurve.geloest > 0) ? kurve : null;
+        const _neu = (kurve.geloest > 0) ? kurve : null;
+        if (_neu && (!_auswKurve || _previewRaf)) _auswSeit = performance.now();   // während des Abspielens: einblenden
+        _auswKurve = _neu;
         _auswSchluessel = schluessel;
         applog("info", `[ausweichen] ${proben.length} Stellen, verdeckt ${kurve.verdeckt}, ausgewichen ${kurve.geloest} — ${Math.round(performance.now() - t0)} ms (Gelände z${dem.z})`);
         return true;
@@ -13460,7 +13475,7 @@ function mountAnimator(body, headerActions, opts) {
         _previewRaf = requestAnimationFrame(step);
       };
       const _faithBuild0 = _faithBuild;   // 29.10.2026 — erst die Ausweich-Kurve (höchstens DEM_WARTE_MS), dann die Stützstellen
-      _faithBuild = () => Promise.race([_ausweichBereit(totalMs), new Promise((ok) => setTimeout(ok, DEM_WARTE_MS))]).then(() => _faithBuild0());   // warte-ok: Sanduhr am Play-Knopf
+      _faithBuild = () => Promise.race([_ausweichBereit(totalMs), new Promise((ok) => setTimeout(ok, AUSW_WARTE_MS))]).then(() => _faithBuild0());   // warte-ok: Sanduhr am Play-Knopf
       _faithBuild().then(_los).catch((e) => {
         try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + _fehlerText(e)); } catch (_) {}
       _ruhigeKameraGescheitert(e);
@@ -13470,7 +13485,7 @@ function mountAnimator(body, headerActions, opts) {
     } else {
       // 29.10.2026 — klassischer Weg: höchstens DEM_WARTE_MS auf die Ausweich-Kurve warten (gecacht meist sofort)
       _previewRaf = -1;
-      Promise.race([_ausweichBereit(totalMs), new Promise((ok) => setTimeout(ok, DEM_WARTE_MS))]).then(() => {   // warte-ok: Sanduhr am Play-Knopf
+      Promise.race([_ausweichBereit(totalMs), new Promise((ok) => setTimeout(ok, AUSW_WARTE_MS))]).then(() => {   // warte-ok: Sanduhr am Play-Knopf
         if (_previewRaf !== -1) return;   // inzwischen gestoppt
         _previewT0 = performance.now() - (_startAnchor * totalMs);
         _previewRaf = requestAnimationFrame(step);
@@ -15960,6 +15975,13 @@ function mountAnimator(body, headerActions, opts) {
                 // sonst immer auf die frühere zurück — „wollte sich nicht verschieben lassen“)
                 const _m = _animSignsStelleNachZiehen(l2[fi], ll.lng, ll.lat);
                 if (_m != null) _moved.strecke_m = _m; else delete _moved.strecke_m;
+                // 30.10.2026 (Suite: Fotostopp-Kamera flog 3,4 km an die alte Stelle) — „auf der Strecke“ mit festem Zeitpunkt:
+                // der Zeitpunkt wandert mit an die neue Stelle (sonst stimmen Pin und Halt nicht überein — genau die
+                // Beta-Meldung vom 17.10.); bei „frei“ bleibt er, die gestrichelte Linie zeigt den Auslösepunkt
+                if (!_frei && typeof _moved.timeAnchor === "number") {
+                  try { const _i = _animSignsNearestIdx(ll.lng, ll.lat, _moved.strecke_m);
+                        if (_i >= 0) _moved.timeAnchor = Math.round(_ankerAusBahn(_i) * 1e5) / 1e5; } catch (_) {}
+                }
                 l2[fi] = _moved;
                 _animSignsSave(l2); _animSignsAttachToMap(); _animSignsRenderList();
                 // WICHTIG: das Editor-Fenster NICHT mitbewegen — es bleibt, wo der Nutzer
@@ -21686,19 +21708,24 @@ function mountAnimator(body, headerActions, opts) {
     const alt = (sg.list() || []).slice();
     // 29.10.2026 (Web-Fund F-53) — ein Look-Wechsel stellte Highlight-Pillen auf den Schildstil des Looks um (Kasten ohne
     // Icon), danach passte ihr Fingerabdruck nicht mehr: der Highlight-Schalter ließ sie stehen. looks.js lässt sie jetzt
-    // aus; schon umgestellte holt das hier EINMAL je Projekt zurück — nur wenn außer dem Stil alles wie angelegt ist.
+    // aus; schon umgestellte holt das hier zurück — nur wenn außer dem Stil alles wie angelegt ist UND mindestens zwei
+    // Highlight-Schilder denselben fremden Stil tragen (so hat es der Look gemacht; ein einzeln von Hand umgestelltes
+    // Schild bleibt). Geschrieben wird nur, wenn wirklich repariert wird: Öffnen allein ändert das Projekt nicht.
     let _hlRepariert = 0;
     const _ms = (window.rzReadModuleSettings && window.rzReadModuleSettings(_MODKEY)) || {};
     if (!_ms.hl_look_repariert) {
-      const st0 = _hlStil().stil;
+      const st0 = _hlStil().stil, kand = new Map();
       alt.forEach((s, i) => {
         if (!s || !s.auto || !s.icon || s.style === st0 || s.auto_sig === _hlSig(s)) return;
         if (!["callout", "plain", "karte", "pille", "sofortbild"].includes(s.style)) return;
         const z = Object.assign({}, s, { style: st0 });
-        if (_hlSig(z) === s.auto_sig) { alt[i] = z; _hlRepariert++; }
+        if (_hlSig(z) === s.auto_sig) { if (!kand.has(s.style)) kand.set(s.style, []); kand.get(s.style).push([i, z]); }
       });
-      if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, { hl_look_repariert: true });
-      if (_hlRepariert) applog("info", `[hl] ${_hlRepariert} vom Look umgestellte Highlight-Schilder zurückgeholt`);
+      for (const liste of kand.values()) if (liste.length >= 2) for (const [i, z] of liste) { alt[i] = z; _hlRepariert++; }
+      if (_hlRepariert) {
+        if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, { hl_look_repariert: true });
+        applog("info", `[hl] ${_hlRepariert} vom Look umgestellte Highlight-Schilder zurückgeholt`);
+      }
     }
     const bleiben = alt.filter(s => !(s && s.auto && s.auto_sig === _hlSig(s)));
     const belegt = new Set(bleiben.filter(s => s && s.auto).map(s => s.auto));
@@ -21852,6 +21879,8 @@ function mountAnimator(body, headerActions, opts) {
       if (lauf !== _hlLadeLauf) return;
       if (window.__rzAnimSigns && _ovSeries && currentCoords && currentCoords.length === (_ovSeries.cumDistM || []).length) {
         try { _hlSchilderAbgleichen(true); } catch (e) { applog("warn", "[hl] beim Laden: " + e); }
+        // 30.10.2026 — Ausweich-Kurve schon im Hintergrund vorbereiten, damit „Play“ nicht darauf warten muss
+        if (!window.__rzRenderMode) setTimeout(() => { try { _ausweichBereit(_gesamtMs()).catch(() => {}); } catch (_) {} }, 2500);
       } else if (++n < 40) setTimeout(versuch, 250);
     };
     setTimeout(versuch, 0);
@@ -29979,12 +30008,40 @@ function mountAnimator(body, headerActions, opts) {
   const WANDER_SPRUCH_MS = 13000, WANDER_WARTE_AB_MS = 2500;
   const WANDER_SPAET = /gleich|fertig|gipfel|oben|almost|nearly|summit|top|casi|cumbre|arriba|listo/i;
   let _wander = null;
+  // 29.10.2026 (Marc: „Ab einer bestimmten Geschwindigkeit kann es ja kaum noch Wandern oder Laufen sein, sondern Fahren.
+  // Dann kommen einfach gefahrene Sachen.“ — in allen GPS-Studio-Ausgaben gleich, Vorlage Web studio.js fortbewegung())
+  // Art der Tour → eigene Sprüche (animator.wander.<gruppe>_<lage>); Wandern = die bisherigen + wartespruch.01–30.
+  const WANDER_GRUPPE = { auto: "fahren", motorrad: "fahren", wohnmobil: "fahren", bus: "fahren", zug: "fahren", rad: "rad",
+    mountainbike: "rad", boot: "wasser", segelboot: "wasser", faehre: "wasser", kajak: "wasser", sup: "wasser",
+    flugzeug: "flug", hubschrauber: "flug", gleitschirm: "flug", heissluftballon: "flug" };
+  function _wanderGruppe() {
+    try {
+      if ((_flug && _flug.an) || _flugGewuenscht() || /\.igc$/i.test(String(currentGpx || ""))) return "flug";
+      // Orte/Etappen mit Verkehrsart: die meistgewählte
+      const et = _hauptEt();
+      const arten = (_isReiseroute ? _routeWps.slice(0, -1).map(w => w && w.art) : (et && et.arten) || []).filter(Boolean);
+      if (arten.length) {
+        const z = {}; arten.forEach(a => { const g = WANDER_GRUPPE[a] || "wandern"; z[g] = (z[g] || 0) + 1; });
+        return Object.entries(z).sort((a, b) => b[1] - a[1])[0][0];
+      }
+      // Track: Schnitt in Bewegung
+      const s = _gpxStats || {}, km = +s.distance_km || 0, h = ((+s.moving_time_s > 0 ? +s.moving_time_s : +s.duration_s) || 0) / 3600;
+      const kmh = h > 0.05 ? km / h : 0;
+      return kmh > 120 ? "flug" : kmh > 32 ? "fahren" : kmh > 11 ? "rad" : "wandern";
+    } catch (_) { return "wandern"; }
+  }
+  window.__rzWanderGruppe = _wanderGruppe;   // Prüfstand
   function _wanderStart() {
     const tour = document.getElementById("anim-tour"), pfad = document.getElementById("anim-pfad"), grau = document.getElementById("anim-pfad-grau");
     const laeufer = document.getElementById("anim-laeufer"), blase = document.getElementById("anim-blase"), txt = document.getElementById("anim-blase-text");
     if (!tour || !pfad || !grau || !blase || !txt) return null;
-    const lage = (k) => String(t("animator.wander." + k, "") || "").split("|").map(x => x.trim()).filter(Boolean);
-    const alle = []; for (let i = 1; i <= 30; i++) { const x = t("wartespruch." + String(i).padStart(2, "0"), ""); if (x) alle.push(x); }
+    const gruppe = _wanderGruppe();
+    const liste = (k) => String(t("animator.wander." + k, "") || "").split("|").map(x => x.trim()).filter(x => x && !x.startsWith("animator."));
+    // eigene Sprüche der Fortbewegung für Start/Halbzeit/Ende/Fertig und die allgemeine Liste; Karte/Gelände/4K gemeinsam
+    const lage = (k) => { const eigen = gruppe !== "wandern" && /^(start|halb|ende|fertig)$/.test(k) ? liste(gruppe + "_" + k) : []; return eigen.length ? eigen : liste(k); };
+    let alle = gruppe !== "wandern" ? liste(gruppe + "_allg") : [];
+    if (!alle.length) for (let i = 1; i <= 30; i++) { const x = t("wartespruch." + String(i).padStart(2, "0"), ""); if (x) alle.push(x); }
+    applog("info", `[wanderung] Sprüche: ${gruppe}`);
     const vor = (k, d) => String(t(k, d)).split("{s}")[0].replace(/[…\s]+$/, "").trim();
     const wKarte = vor("szene.m_karte", "wartet auf die Karte (Kacheln, Gelände) … {s} s"), wGel = vor("szene.m_gelaende", "lädt die Geländehöhen nach … {s} s");
     const w = parseInt(document.getElementById("anim-w")?.value, 10) || 0, h = parseInt(document.getElementById("anim-h")?.value, 10) || 0;

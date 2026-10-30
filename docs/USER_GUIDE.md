@@ -789,6 +789,9 @@ Die App startet automatisch in der **Systemsprache** (Deutsch, Englisch oder Spa
 
 ### ⤓ Video exportieren — der Export-Dialog (seit v0.9.782) ⭐
 
+![Der Export-Dialog: Vorlagen, Auflösung, Bildrate, Qualität und Speicherort.](img/handbuch/export-dialog-de.jpg)
+
+
 Oben rechts im Animator steht der korallfarbene Knopf **⤓ Video exportieren** (in der Tour-Map **⤓ Bild exportieren**).
 Ein Klick öffnet ein Fenster in der Mitte mit allem, was nur die Ausgabedatei betrifft:
 
@@ -806,7 +809,10 @@ Ein Klick öffnet ein Fenster in der Mitte mit allem, was nur die Ausgabedatei b
 Der kleine Pfeil **▾** neben dem Knopf bietet **Aktuelles Bild exportieren** (das Bild, das gerade in der Vorschau
 steht, als PNG) und **Als Tour-Map öffnen**. Die Export-Einstellungen gelten je Projekt; Esc schließt das Fenster.
 
-**Während des Renderns** zeigt GPS Studio den Fortschritt als kleine Wanderung: Der Pfad füllt sich, der Laufpunkt wandert mit, und in der Sprechblase stehen Sprüche zur Lage. Pulsiert der Punkt, lädt die Karte gerade Kacheln nach (seit v0.9.846).
+**Während des Renderns** zeigt GPS Studio den Fortschritt als kleine Wanderung: Der Pfad füllt sich, der Laufpunkt wandert mit, und in der Sprechblase stehen Sprüche zur Lage. Pulsiert der Punkt, lädt die Karte gerade Kacheln nach (seit v0.9.846). Die Sprüche passen zur Tour: Wandern, Rad, Fahren, Fliegen oder auf dem Wasser — erkannt am Flug, an der Verkehrsart der Etappen oder am Schnitt in Bewegung (über 11 km/h Rad, über 32 Fahren, über 120 Fliegen).
+
+![Während des Renderns: die kleine Wanderung mit Sprüchen zur Lage.](img/handbuch/render-wanderung-de.mp4)
+
 
 **Herkunft im Video (seit v0.9.845).** Jedes exportierte Video trägt in seinen Metadaten „GPS Studio by Reisezoom.com“ mit Version, System, Größe und Bildrate, dazu den Titel deiner Tour, falls du einen gesetzt hast. Persönliches steht nicht drin. Schickst du mir ein Video, das irgendwo nicht läuft, sehe ich so sofort, womit es gebaut wurde.
 
@@ -831,6 +837,9 @@ Strecke, Bergauf und Bewegungszeit — dunkler Grund, türkiser Rand. Es ist ein
 Farben und Zeitpunkt änderst du im Editor.
 
 ### Format & Ablauf — die erste Karte der Seitenleiste (seit v0.9.782)
+
+![„Format & Ablauf“: Seitenverhältnis, Länge und Ablauf des Videos.](img/handbuch/animator-format-de.jpg)
+
 
 Ganz oben in der Seitenleiste (unter „Vorlage anwenden“ und **🎬 Schnell-Video**) steht **Format & Ablauf**:
 das **Seitenverhältnis** als Knöpfe (16:9 und 9:16; die kurze Seite bleibt, 4K bleibt 4K) und die **Dauer**.
@@ -863,6 +872,9 @@ Settings-Datei:
 - Linux: `~/.local/share/Reisezoom GPS Studio/settings.json`
 
 ### Projekte — so funktioniert alles ⭐ (Stand v0.9.617)
+
+![Deine Projekte im Archiv.](img/handbuch/archiv-projekte-de.jpg)
+
 
 Ein **Projekt** ist deine Arbeitsmappe für ein Video: die beteiligten Touren
 (keine, eine — oder viele bei Reise/Schwarm), dazu alles, was du baust:
@@ -980,6 +992,9 @@ App-Sprache. Liegt die Tour nicht im Archiv, gilt die Zone der Lage.
 
 ### 🧭 Video-Assistent — Schritt für Schritt zum eigenen Video (seit v0.9.787) ⭐
 
+![Der Video-Assistent fragt Schritt für Schritt — hier die Kamera.](img/handbuch/videoassistent-de.jpg)
+
+
 Oben im Animator, neben **„Schnell-Video …“**, steht **„🧭 Video-Assistent …“** (auch im Archiv: in der Tour-Spalte neben
 **„Schnell-Video“** und auf der Tour-Seite unter **🎬 Video ▾**). Er richtet dein Projekt in **acht Reitern** ein — genau wie
 die Web-Version von GPS Studio. Alles ist vorbelegt, jeder Reiter ist jederzeit anklickbar; er beginnt bei **Kamera**:
@@ -1021,6 +1036,9 @@ alte Fassung, **Rechtsklick** auf die Vorlage löscht sie.
 **Sehen, was du einstellst (seit 11.10.2026, nachts).** Während du im Assistenten bist, zeigt der Animator dahinter die passende Stelle: Bei *Route*, *Fotos* und *Infos* stehen **alle Schilder** auf der Karte, bei *Titel* springt die Zeitleiste zum **Titel**, bei *Video* zur **Schlusskarte**, bei *Kamera*, *Karte* und *Linie* in die Mitte der Fahrt. Im Reiter *Kamera* zeigt jede Karte einen **kurzen Clip**, wie die Kamera fährt. **⤢** an einem Foto öffnet eine **Lupe** (← → blättern, Esc schließt); von dort führt **„Im Foto-Editor öffnen“** in den Editor — schließt du ihn, bist du wieder in der Lupe. Dauert die Suche nach den Fotos (z. B. auf einem NAS), steht dort **„Fotos dieser Tour werden gesucht …“**; ist die Mediathek noch nicht erreichbar, **„Warten auf die Mediathek …“** — die Fotos erscheinen von selbst, sobald sie da sind.
 
 ### 🎬 Schnell-Video — fertiges Tourvideo mit wenigen Entscheidungen (seit v0.9.739) ⭐
+
+![Schnell-Video: Look, Format, Länge und Kamera — mehr braucht es nicht.](img/handbuch/schnellvideo-de.jpg)
+
 
 Du willst einfach ein schönes Video deiner Tour, ohne Keyframes und Einstellungen? Dann nimm das
 **Schnell-Video**: im **Archiv** an der Tour **🎬 Schnell-Video …** (Detailspalte rechts oder Rechtsklick),
@@ -1297,6 +1315,9 @@ Höhen und Zeitstempel werden — soweit im Format vorhanden — übernommen (wi
 
 ## 2c · Modul: Archiv 📚 — alle Touren an einem Ort (seit v0.9.486) ⭐
 
+![Das Archiv: alle Touren mit Karte, Länge, Höhenmetern und Dauer.](img/handbuch/archiv-touren-de.jpg)
+
+
 Wer über Jahre Touren sammelt, hat irgendwann hunderte GPX-Dateien in irgendwelchen Ordnern
 liegen — und findet die richtige nicht wieder. Das **Archiv** ist dafür da: Es liest deine
 Track-Ordner ein und zeigt dir alle Touren mit Bild, Datum und Zahlen.
@@ -1308,6 +1329,9 @@ kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, ste
 leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
 ### 🗺📷 Touren und Medien gehören zusammen — die Tour-Seite (seit v0.9.787) ⭐
+
+![Eine Tour angewählt: rechts ihre Karte, Werte, Track-Check und Beschreibung.](img/handbuch/archiv-tour-gewaehlt-de.jpg)
+
 
 **Doppelklick auf eine Tour** öffnet ihre **Tour-Seite**: in der Mitte die Karte mit dem Track und einem Punkt für jedes
 Foto und jeden Clip, unten der Medienstreifen in Aufnahmereihenfolge, links die Tour (Datum, Ort, Werte, Höhenprofil,
@@ -2551,6 +2575,9 @@ Track nimmst du weiterhin den **Geotagger** (Kapitel 6).
 
 ## 3 · Modul: Animator — GPX als Video rendern
 
+![Der Animator: links die Seitenleiste, in der Mitte die Vorschau, unten die Zeitleiste.](img/handbuch/animator-uebersicht-de.jpg)
+
+
 *(Seit v0.9.782 nicht mehr in der Seitenleiste: der Umschalter ist entfallen, die Schritte kommen später als Video-Assistent wieder — ein eigener Knopf neben „Schnell-Video“. Der folgende Absatz beschreibt die Zwischenversion.)* **Einfach oder Feinarbeit (seit v0.9.782).** Ganz oben in der Seitenleiste schaltest du zwischen **Einfach** und **Feinarbeit** um. *Einfach* zeigt nur fünf Schritte — **Route** (Tour, Länge, Format — 16:9, 9:16, 1:1, 4:5, 4:3 oder 21:9), **Look** (die vier fertigen Looks), **Orte & Fotos** (Höhepunkte, Fotos, Schnell-Video), **Kamera** (Fest · Folgen · Kamerafahrt) und **Export** — mit der großen Vorschau daneben. *Feinarbeit* ist der volle Animator mit allen Abschnitten. Beide Ansichten bearbeiten **dasselbe Projekt**: was du in der einfachen Ansicht wählst, steht in der Feinarbeit genauso da (und umgekehrt), ⌘Z gilt für beide. Die App merkt sich, welche Ansicht du zuletzt benutzt hast. **Beim allerersten Start** fragt die App nach dem Einrichten einmal: *Was möchtest du machen?* — **Video erstellen**, **Track verbessern** oder **Fotos verorten** — und bringt dich direkt ins passende Werkzeug. Neue Nutzer starten den Animator in der einfachen Ansicht.
 
 **Seitenleisten und Detail-Spalte (seit 06.10.2026).** Links steht immer die Seitenleiste des Moduls, rechts öffnet sich bei Bedarf der **Editor des gerade Angeklickten** (Schild, Einblendung) — die Karte rückt dafür zur Seite und wird nie verdeckt. **Esc** oder **✕** schließt ihn; es steht immer nur ein Editor rechts. Beide Seitenleisten ziehst du am Rand mit der Maus **breiter oder schmaler** — in jedem Modul, im Archiv an beiden Rändern; die App merkt sich die Breite je Modul. Doppelklick auf den Rand setzt sie zurück. **Fortschrittskästen** unten rechts („Fotos einlesen · Schritt 3 von 3 …“) klappst du mit **–** auf eine schmale Zeile ein; sie laufen weiter, ein Klick klappt sie wieder auf. Genauso der Fortschritt oben im Kopf der **Medien** (seit v0.9.790): **–** lässt nur Schritt, Prozent und Restzeit mit dem Balken stehen, ein Klick auf die Zeile zeigt wieder alles.
@@ -2603,6 +2630,9 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 > **↩︎ Rückgängig für alles (seit v0.9.322):** Jede Einstellungsänderung lässt sich mit **⌘Z** (Mac) / **Strg+Z** (Windows) rückgängig machen — in **Animator, Tour-Map, Geotagger und Daten-Animator**: Farben, Schrift, Linienbreite, Glow, Overlay-Felder, Keyframes, Trim, Zeit-Offset usw. Auch im **Archiv**: aus Sammlung nehmen, hinzufügen, anlegen, umbenennen, duplizieren, löschen (samt Reihenfolge) und Ausblenden. **Wiederherstellen** mit **⌘⇧Z** / **Strg+Y**. (Ein Slider-Zug = ein Schritt.)
 
+![Abschnitt „Karte“: Looks, Kartenstil und Farben.](img/handbuch/animator-karte-de.jpg)
+
+
 **Karte:**
 - **Stil**: 6 Mapbox-Stile (Satellite 3D, Satellite+Streets, Outdoors, Streets, Hell, Dunkel)
 - **3D-Terrain** aktivieren — bei Alpentouren sieht das spektakulär aus
@@ -2622,7 +2652,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   - **Platzieren:** **„📍 Auf Track"** → Klick auf den Track (rastet ein), oder **„📌 Frei platzieren"** → Klick **irgendwo** auf die Karte (z.B. eine Sehenswürdigkeit abseits der Route). Bei freier Platzierung richtet sich der **Anzeige-Zeitpunkt** weiter nach dem nächstgelegenen Track-Punkt (Anker am Track + freier Koordinaten-Offset).
   - **Bearbeiten:** Klick auf ein Schild (Liste oder Karte) öffnet den **Schild-Editor rechts in der Detail-Spalte** (seit 06.10.2026; vorher ein schwebendes Fenster) — die Karte rückt zur Seite, **Esc**/✕ schließt. Das gerade bearbeitete Schild ist immer sichtbar (egal wo der Abspiel-Punkt steht).
   - **Verschieben (Drag & Drop):** Ein **Foto**, das du im Editor offen hast, ziehst du **direkt auf der Karte** an die gewünschte Stelle (seit v0.9.846). Bei Textschildern klickst du vorher auf **„↔ Verschieben"**, weil du in ihnen tippst. Das Editor-Fenster bleibt dabei, wo du es hingelegt hast.
-  - **Lage: Strecke oder frei (seit v0.9.846):** Oben im Editor wählst du, wie das Schild steht. **Strecke** — es rastet beim Ziehen auf dem Track ein. **Frei** — es bleibt genau dort, wo du es loslässt, zum Beispiel an einem Aussichtspunkt neben dem Weg; in der Vorschau zeigt eine gestrichelte Linie zu seinem Streckenpunkt, wann es erscheint. Ein **fester Auslöse-Zeitpunkt** bleibt beim Ziehen erhalten. In der Zeitleiste trägt jeder Foto-Balken ein kleines Zeichen für seine Lage (Strecke oder Stecknadel).
+  - **Lage: Strecke oder frei (seit v0.9.846):** Oben im Editor wählst du, wie das Schild steht. **Strecke** — es rastet beim Ziehen auf dem Track ein. **Frei** — es bleibt genau dort, wo du es loslässt, zum Beispiel an einem Aussichtspunkt neben dem Weg; in der Vorschau zeigt eine gestrichelte Linie zu seinem Streckenpunkt, wann es erscheint. Ein **fester Auslöse-Zeitpunkt** bleibt bei einem freien Schild beim Ziehen erhalten; ein Schild auf der Strecke nimmt seinen Zeitpunkt an die neue Stelle mit, damit der Fotostopp dort hält, wo das Foto jetzt steht. In der Zeitleiste trägt jeder Foto-Balken ein kleines Zeichen für seine Lage (Strecke oder Stecknadel).
   - **Optik (alles live):** Form (Sprechblase · Zielbanner · Stecknadel · Wegweiser · Schlicht), **Schildfarbe** + Textfarbe (der **„Schildfarbe"-Picker** — bis 25.09.2026 „Hintergrund" genannt ist die **eine** Box-/Blasenfarbe des Schilds — seit v0.9.271 gibt es keine separate „Akzentfarbe" und kein „Auto" mehr), Schriftart (System · Rundlich · Schmal · Serif · Monospace · Plakativ), Größe/Stärke/Kursiv/**Ausrichtung** (Links/Mitte/Rechts — wirkt sichtbar, sobald du unter **„Breite"** eine feste Mindestbreite > 0 einstellst; bei „Auto" schmiegt sich die Box an den Text und die Ausrichtung hat keinen Spielraum, seit v0.9.479), mehrzeiliger Text, Eckenradius, **Deckkraft Hintergrund** (seit v0.9.478 dimmt der Regler **nur die Schildfarbe** — der Text bleibt voll lesbar), **Außenrand** (Breite+Farbe; bis 25.09.2026 „Rahmen"), **Stangen-Länge** (nur bei Zielbanner + Wegweiser — wie lang die Pfosten/Stange unter dem Schild sind) und **Schlagschatten** (Weichheit ab v0.9.478 bis **0** = harte Kante; die **Richtung** kommt aus dem globalen „Schatten-Richtung"-Regler in der Track-Sektion). **Bild hinzufügen** macht aus dem Schild eine **Foto-Karte** (der Text wird dann zur Bildunterschrift); die Bildgröße ist separat einstellbar.
   - **📷 Sofortbild (neu nach v0.9.781):** Fotos erscheinen wie ein hingelegtes Sofortbild — warmweißer Rahmen, unten etwas breiter, leicht schräg, mit Bildunterschrift in Handschrift (der Schildtext). Neue Fotos bekommen das automatisch; bei anderen wählst du im Editor die Form **„Sofortbild“**. Dazu passt die Ausblendung **„Schrumpft zum runden Mini-Bild (bleibt stehen)“**: nach der eingestellten Anzeigedauer dreht sich das Foto gerade, wird rund und bleibt als kleiner Kreis an seinem Ort stehen — im Video genau wie in der Vorschau.
   - **📸 Fotostopp (seit v0.9.764, nur mit Bild):** Häkchen **„Hier anhalten“** — auf der Karte wird das Schild dann zu einem runden **Foto-Pin** (seit v0.9.766), der 2,5 Sekunden vor dem Stopp auftaucht; die Fotokarte siehst du nur noch beim Bearbeiten. Kurz vor dem Foto fährt die Kamera heran (**Heranfahren**, 0–4 Zoomstufen), das Foto wächst aus dem Pin und ist bei der Ankunft schon groß: gut zwei Drittel der Bildhöhe, mit weißem Rahmen. Der Track hält für **Foto zeigen** Sekunden an; währenddessen schwenkt die Kamera leicht hin und her, und das Foto zoomt langsam heran. Danach läuft der Track sofort weiter, während das Foto schrumpft und die Kamera zurückfährt (seit v0.9.768; danach steht der Pin wieder an seiner Stelle). **Anflug** und **Abflug** (Sekunden) regeln das Heran- und Zurückfahren — beides passiert während der Fahrt. **Karte schwenken (°)** (0–10, Standard 2) und **Foto heranzoomen (%)** (0–30, Standard 8) stellen ein, wie viel Bewegung während des Fotos im Bild ist; 0 schaltet das jeweils ab (seit v0.9.770). Unter dem Foto steht deine Bildunterschrift, darunter **Ort und Uhrzeit** der Aufnahme (seit v0.9.778 statt der Gemeinde der markanteste Ort in bis zu 350 m: Gipfel, Pass, Hütte, Aussichtspunkt, Burg … — z. B. „🌋 Teide · 3715 m · 16:16“ — bei Gipfeln und Pässen mit ihrer Höhe aus OpenStreetMap; das Highlight „Höchster Punkt“ trägt den Gipfelnamen, wenn einer daneben liegt) (Ortszeit am Aufnahmeort, auch wenn die Kamera auf Heimatzeit stand; Häkchen, Standard an) und auf Wunsch die **Kameradaten (EXIF)** — Kamera, Brennweite, Blende, Belichtung, ISO. Der Stopp erscheint als gesperrter Halt „Fotostopp“ in der Tempo-Spur und verlängert das Video um die Fotozeit. Vorschau, Scrubben und Video zeigen dasselbe. Bei einer Reise (mehrere Etappen) gibt es noch keine Fotostopps.
@@ -2722,11 +2752,17 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 **⭐ Highlights (seit v0.9.750, als Schilder seit v0.9.751):** Unter den Einblendungen gibt es die Gruppe **Highlights**. Ist sie an, setzt die App besondere Stellen deiner Tour als **Schilder** auf die Karte: **Höchster Punkt**, **Steilste Stelle**, **Höchstes Tempo**, **Halbe Strecke** und **Wegpunkte aus der GPX**. Unter **Aussehen** wählst du einen von fünf Stilen (Pille, Kasten mit Stecknadel, Rund mit Karte, Form mit Rahmen, Pinselstrich), unter **Farben** „je Art eigene“ oder „eine für alle“. Jedes Highlight-Schild zeigt oben klein die Beschriftung und darunter groß den Wert. Kurz bevor es erscheint, kündigt ein kleiner Punkt in seiner Farbe es an, und zwar an der Stelle auf dem Track. Liegt die Stelle noch außerhalb des Bildes, gibt es keinen Punkt (seit v0.9.772; vorher saß er am Bildrand und wanderte mit der mitdrehenden Kamera am Rand entlang). Die Highlight-Schilder stehen in der Schilder-Liste und in der Zeitleiste, du kannst sie wie jedes Schild ändern, verschieben oder löschen (⌘Z geht). Änderst du den Track oder die Auswahl, passt die App die Highlight-Schilder an. Die, die du von Hand geändert hast, bleiben stehen. Die steilste Stelle wird über mindestens 150 m gemessen, damit ein einzelner GPS-Messfehler nicht zählt. Das Schnell-Video setzt die Highlights von selbst, als „Pille“ in einer Farbe. **Seit v0.9.792:** Was du anhakst, erscheint immer — liegen zwei Highlights dicht beieinander (etwa „Halbe Strecke“ und „Steilste Stelle“), teilen sie sich die Zeit: das erste geht, wenn das zweite kommt. Jedes Schild erscheint, wenn der Laufpunkt wirklich an seiner Stelle ist (auch bei ungleich dicht aufgezeichneten Punkten), und im Hochformat schiebt die App Schilder und Sofortbilder, die über den Bildrand ragen würden, ins Bild.
 
+![Abschnitt „Overlays“: Zahlen, Höhenprofil, Titel und Logo als Einblendungen.](img/handbuch/animator-einblendungen-de.jpg)
+
+
 **Größe je Textzeile (seit v0.9.773):** Im Editor einer Einblendung hat jede Textzeile ein Feld **Größe** (20–300 % der Schriftgröße der Einblendung). So stehen Titel und Untertitel in einer Einblendung untereinander, auch wenn der Titel umbricht; das Schnell-Video macht es genauso. Dauert beim Rendern ein Bild länger, zählt die Fortschrittszeile sekundenweise mit (z. B. „wartet auf die Karte … 4 s“).
 
 **Kennzahl-Stile für eigene Schilder (seit v0.9.751):** Die fünf Stile gibt es im Schild-Editor unter **Form** für jedes Schild. Schreib in die erste Zeile die Beschriftung und in die zweite den Wert, z. B. „Gipfelkreuz“ ↵ „2513 m“. Dazu wählst du ein **Symbol** und eine **Farbe**.
 
 **Wann ist ein Schild zu sehen? (seit v0.9.733)** Direkt unter den Overlays steht in der Zeitleiste die Zeile **„▸ Schilder“**. Ein Klick klappt eine Zeile je Schild auf (mit Text oder Bild); jeder **Balken ist die Zeit, in der das Schild im Video zu sehen ist** — genau so, wie der Probelauf es zeigt. **Balken ziehen** verschiebt den Zeitpunkt des Schilds (es bekommt einen festen Zeitpunkt, Vorlauf und „Bleibt sichtbar“ bleiben gleich). Der Balken landet dort, wo du ihn loslässt — auch ein Foto, das bis zum Ende stehen bleibt (sein Anfang wandert, das Ende bleibt am Videoende), und ein Fotostopp, dessen Halt die Zeit dahinter mitverschiebt; das Foto rückt dabei auf der Strecke mit (seit 26.10.2026). Ein ⌘Z/Strg+Z nimmt das Verschieben ganz zurück. Der **linke Rand** ändert den **Vorlauf** (wie früh es vor dem Punkt erscheint), der **rechte Rand** ändert **„Bleibt sichtbar“**; ganz nach rechts gezogen heißt **bis zum Ende**. Die Statuszeile zeigt beim Ziehen die Sekunden. **Doppelklick oder Rechtsklick** öffnet das Schild-Fenster. **„Ganze Zeit“ (seit v0.9.736 ohne Haken):** Ein Schild, das das ganze Video zu sehen ist, hat einfach einen Balken über die volle Breite. Ziehst du einen Rand hinein, wird daraus ein Zeitfenster; ziehst du beide Ränder ganz nach außen, ist es wieder die ganze Zeit. Neue Schilder übernehmen „ganze Zeit“ nicht mehr vom vorigen Schild. Ein ausgeblendetes Schild ist grau. Jede Änderung ist ein ⌘Z-Schritt. **Ein- und Ausblenden (seit v0.9.735):** Wie bei den Overlays sitzen oben am Balken zwei **weiße Punkte** — links die **Einblendung**, rechts die **Ausblendung**. Ziehen ändert die Dauer (der dunkle Keil zeigt sie); aus „Hart“ wird dabei „Einblenden“ bzw. „Ausblenden“, ganz zurückgezogen wieder „Hart“. Im Schild-Fenster stehen dazu **„Dauer Einblendung“**, **„Ausblendung“** (Hart, Ausblenden, Wegpoppen, Aus- + Wegpoppen) und **„Dauer Ausblendung“**. Ausgeblendet wird nur, wenn das Schild vor dem Videoende verschwindet. Ältere Schilder sehen aus wie vorher (Einblenden 0,6 s und genauso lang wieder ausblenden). **Zum Ziehen muss die Zeile „▸ Schilder“ aufgeklappt sein** — im zugeklappten Streifen sind die Balken nur zu sehen.
+
+![Abschnitt „Kamera“: Kameraführung, Höhe über dem Gelände und Neigung.](img/handbuch/animator-kamera-de.jpg)
+
 
 **Kamera:**
 - **🎥 Ruhige Kamera (3D-Terrain)** (Checkbox, ganz oben in der Sektion, **Standard: aus**) — *gegen das Hoch-Runter-Hüpfen der Kamera über bergigem Gelände.* Bei Keyframe-Kameraflügen über 3D-Terrain „reitet" die Kamera normalerweise auf den Bergen mit und hüpft auf jeder Steigung hoch und im Tal runter (vor allem bei starker Neigung). Hak diese Box an, dann fliegt die Kamera **entkoppelt durch den Raum wie eine Drohne** — an deinen Keyframes trifft sie exakt das eingestellte Bild, dazwischen läuft sie ruhig, ohne das Gelände-Hüpfen. **Standard ist aus** (klassisches Verhalten); nur anhaken, wenn dich das Hüpfen über Bergen stört. Gilt sowohl im **Probelauf** als auch im fertigen **Render** (was du siehst, kriegst du). *Tipp:* Falls ein spezielles Projekt mit eingeschalteter ruhiger Kamera mal komisch aussieht (z.B. ein Anflug aus der Welt-Ansicht), einfach wieder aushaken.
@@ -2747,6 +2783,9 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Auflösung**: 4K (3840×2160), 1080p, 4K↕ und 1080↕ (Hochformat für Shorts/Reels), oder eigene
 - **FPS**: 24 (Kino) · 25 (PAL/Europa-TV) · 30 (Standard) · 50 (PAL HFR) · 60
 - **Codec**: H.264 (universell kompatibel) oder H.265 (HEVC, ~30% kleiner)
+
+![Abschnitt „Tracks“: der Stift öffnet den Track-Editor mit Linie und Laufpunkt.](img/handbuch/animator-tracks-de.jpg)
+
 
 **Der Laufpunkt selbst (seit v0.9.509):** Unter *Track* steht **„Laufpunkt
 zeigen"** — dort schaltest du ihn aus, wählst zwischen **Kugel** und einem
@@ -2890,6 +2929,9 @@ es beim Einschalten. Gilt auch fürs gerenderte Video.
 
 **🎵 Musik und Ton (seit v0.9.778).** Im Abschnitt **„🎵 Musik und Ton“** legst du Musik unter das Video: **„Unterwegs“** ist ein eigenes Stück der App (40 s, läuft nahtlos endlos, frei für YouTube & Co.), dazu fünf weitere in anderen Stilen: **Weite** (ruhig, filmisch), **Gipfelsturm** (treibend), **Rast** (Lo-Fi, entspannt), **Grat** (episch), **Wanderlied** (Folk mit Gitarre), über **…** nimmst du eigene Musik (MP3, M4A, WAV, FLAC …; die Rechte daran brauchst du selbst). Dazu **Lautstärke**, **Einblenden** und **Ausblenden** (Sekunden) und **📷 Klick bei jedem Fotostopp** mit eigenem **Klang** (Spiegelreflex, spiegellos, analog mit Filmtransport, Messsucher, Handy, Sofortbild, Pop, Holz, Glöckchen, Wusch + Klick, einfach — oder über **…** ein eigener Klang aus einer Datei, **▶** hört ihn an) und eigener Lautstärke — der Klick kommt, wenn das Foto groß angekommen ist. In der Zeitleiste zeigt die Spur **„Ton“** die Musik (die Schrägen sind Ein- und Ausblenden — ziehen ändert sie), die Klicks und den Ton der Clips; Doppelklick öffnet die Einstellungen. Beim Abspielen hörst du alles schon in der Vorschau, **🔊** neben der Zeit schaltet den Vorschau-Ton aus. Im fertigen Video ist der Ton eine normale Tonspur (AAC).
 
+![Abschnitt „Musik und Ton“.](img/handbuch/animator-ton-de.jpg)
+
+
 **Zeitleiste mit Bildern (seit v0.9.778).** In der Track-Spur liegt klein das **Höhenprofil** der Tour (in Halten bleibt es stehen, wie der Punkt im Video); bei einer Reise trägt jede Tour-Kachel ihr eigenes Profil. In der Schilder-Spur zeigen die Balken **Name und Zeit** und ihr **Foto** — oder ▶ beim Clip, das Zeichen der Pille bei Highlights und Logbuch. Aufgeklappt teilen sich Schilder, die sich zeitlich nicht überschneiden, eine Zeile — so bleibt die Spur kurz; überschneiden sie sich, kommt das nächste in die nächste Zeile. Der Balken eines **Fotostopps** beginnt, wenn sein Foto-Pin auf der Karte erscheint (kurz vor dem Halt), und läuft bis zum Videoende — so lange steht der Pin in der Vorschau. Im Balken siehst du die Phasen: blass = nur der Pin, mittel = Anflug und Abflug, kräftig mit Bildchen = **Foto groß**. An den Grenzen ziehst du Anflug, Fotodauer und Abflug länger oder kürzer (die Zeile unten zeigt den Wert). Ziehst du den **linken Rand**, erscheint der Pin früher oder später (im Schild: „Pin vorher (Sek.)“, Standard 2,5 s vor dem Anflug). **⌘+ / ⌘−** zoomen die Zeitleiste, **⌘0** zeigt wieder alles (Windows: Strg). Den **Griff an der Oberkante** der Zeitleiste ziehst du nach oben oder unten — die Spuren werden höher oder niedriger (Doppelklick: Standard). Mehr als 60 % der Vorschaufläche nimmt die Zeitleiste nie ein — in einem kleinen Fenster bleibt die Karte sichtbar. **Nur, was du brauchst (seit 26.10.2026):** reicht der Platz nicht, klappt die Zeitleiste vorübergehend zu, woran du gerade nicht arbeitest — zuerst die Kamera-Detailspuren (der Cluster zeigt weiter alle Keyframes), dann Ton, Overlays, Schilder. Die Gruppe, die du zuletzt selbst aufgeklappt hast, bleibt offen; ein Klick auf eine zugeklappte Gruppe (oder ▸ am Cluster) holt sie zurück. Gemerkt wird davon nichts — wird das Fenster größer, geht alles von selbst wieder auf. Hat die offene Gruppe selbst mehr Zeilen, als Platz ist (z. B. 50 Schilder), **rollt sie in sich** — Mausrad oder zwei Finger auf dem Touchpad, ihre Kopfzeile bleibt oben stehen. **Entfernen:** einen Balken anklicken (Schild, Foto, Fotostopp, Overlay) und **Entf/⌫** drücken — er ist weg (bei einem Overlay mit mehreren Zeiträumen nur der angeklickte); ⌘Z holt ihn zurück. Ein Klick außerhalb der Zeitleiste hebt die Auswahl auf.
 
 **🗺 Übersichtskarte im Video (seit v0.9.778).** Unter **Einblendungen → ＋ Neue Einblendung → Übersichtskarte** kommt die ganze Strecke klein ins Bild, der gefahrene Teil in Linienfarbe, ein Punkt zeigt, wo du gerade bist. Sie ist eine normale Einblendung: verschieben, Größe (Breite/Höhe in %), Stil, wann sie zu sehen ist. Anders als die Übersicht „nur Ansicht“ unten rechts in der Vorschau ist diese **im Video**.
@@ -2980,6 +3022,9 @@ Wenn du nur einen Teil des Tracks renderst, kannst du wählen ob die **Track-Lin
 Während des Renders siehst du das aktuell entstehende Frame im Vorschau-Fenster. Wenn dir die Kombination aus Stil und Kamera-Winkel nicht passt: **„⨯ Abbrechen"** klicken — dann wird die halb-fertige Datei sofort gelöscht und du kannst neu konfigurieren, ohne 5 Min auf einen Render gewartet zu haben, der dann nichts wird.
 
 ### Vorschau = Video (seit v0.9.658) ⭐
+
+![Die Vorschau spielt das Video so ab, wie es gerendert wird — mit Schildern und Einblendungen.](img/handbuch/vorschau-abspielen-de.mp4)
+
 Das fertige Video ist seit v0.9.658 wörtlich die Vorschau in hoher Auflösung: dieselbe Karte, dieselben Linien, Strichelungen, Schilder, Overlays und derselbe Kamerapfad, nur mit der Pixeldichte des Videos gezeichnet. Was du im Probelauf siehst, bekommst du auch — Linienbreiten und Schildgrößen sind im Video **relativ zur Bildbreite** genauso groß wie in der Vorschau. Tipp: Beurteile die Vorschau bei der Fenstergröße, mit der du auch renderst; ein deutlich breiteres Fenster zeigt (und rendert) die Schilder etwas kleiner im Verhältnis zum Bild.
 
 **Wenn ein Kartendienst ausfällt (seit v0.9.745):** Liefert ein Luftbild-Dienst beim Rendern keine Kacheln (Serverfehler), wartet die App nicht mehr bei jedem Bild darauf: Seit v0.9.747 füllt die App die Stelle mit dem passenden Ausschnitt der nächstgröberen Kachel desselben Luftbilds (etwas weicher, aber gleiche Farben — keine hellen Flecken, kein Blinken); nur wenn auch die fehlt, scheint das Sentinel-Satellitenbild durch. Nach 20 Sekunden wird die Kachel einmal leise neu versucht. Im Fortschritt steht dann z. B. „⚠️ Luftbild Spanien antwortet nicht – 12 Kacheln fehlen, es geht weiter“. So weißt du, warum etwas unschärfer ist, und der Render hängt nicht mehr (vorher: bis zu 5 Sekunden Warten je Bild).
@@ -2995,6 +3040,9 @@ Beim Schwarm mit 3D-Gelände laufen die Linien jetzt auch in der Vorschau knapp 
 Seit v0.9.752 laufen alle Videos, Standbilder und der Alpha-Export (transparenter Hintergrund) über diese Vorschau-Szene — einen zweiten, älteren Render-Weg gibt es nicht mehr. Bricht ein Render ab, hilft **Hilfe → Fehler melden** mit dem Protokoll beim Eingrenzen.
 
 ### 📷 Fotos auf der Karte (seit v0.9.74) ⭐
+
+![Abschnitt „Schilder und Fotos“: Highlights, eigene Schilder und Fotos an der Strecke.](img/handbuch/animator-schilder-de.jpg)
+
 
 Fotos mit GPS-EXIF erscheinen als kleine Thumbnails an ihrer Aufnahme-Position. Perfekt für Reise-Vlogs: Track läuft entlang, die Foto-Punkte sind als Polaroids auf der Karte sichtbar.
 
@@ -3112,6 +3160,9 @@ Das gilt seit 26.09.2026 auch für **mehrere Touren nacheinander** (Reise, „Al
 
 ## 4 · Modul: Reiseroute — Anreise als Video 🛣️ (seit v0.9.205)
 
+![Die Reiseroute: Stationen der Anreise als Video.](img/handbuch/reiseroute-de.jpg)
+
+
 > **Seit 08.10.2026 ausgeblendet:** Die Reiseroute steht nicht mehr in der Modulleiste. Geplante Strecken (Flug, Fähre, Auto,
 > Rundtour) legst du jetzt als **Etappe im Animator** an (Tracks → „＋ Etappe erstellen“). Alte Reiseroute-Projekte öffnen
 > aus dem Archiv weiter wie gewohnt.
@@ -3159,6 +3210,9 @@ Straßen-Routen rechnet die App seit 07.09.2026 über freie OpenStreetMap-Dienst
 
 ## 5 · Modul: Tour-Map — Statische Karten-PNG
 
+![Tour-Map: die Tour als Standbild.](img/handbuch/tourmap-de.jpg)
+
+
 ### Was es macht
 Wie der Animator, aber **ein einziges Bild statt einem Video**. Output: PNG in beliebiger Auflösung. Einsatz: YouTube-Thumbnails, Instagram-Posts, Blog-Cover, Komoot-Galerie-Bilder.
 
@@ -3197,6 +3251,9 @@ Im **Karten-Stil**-Dropdown stehen im Tour-Map-Modul zusätzlich zu den Mapbox-S
 
 ## 5c · Modul: Web Karte 🌐 — interaktive Karte fürs Blog (seit v0.9.422) ⭐
 
+![Web Karte: die Tour als interaktive Karte fürs Blog.](img/handbuch/webkarte-de.jpg)
+
+
 ### Was es macht
 Ein eigener, bewusst **schlanker** Tab für **interaktive Karten fürs Web/Blog** — komplett getrennt von der Tour-Map. Der Track wird automatisch aus dem geladenen GPX gezeichnet, dazu setzt du **Text-Beschriftungen direkt auf die Karte**. Ergebnis ist eine leichte, eigenständige HTML-Datei (~40 KB) mit tokenfreier OpenStreetMap-Karte — zum Zoomen und Verschieben im Browser, wie die eingebetteten Karten in Reisezoom-Blogposts. Die Vorschau in der App ist **exakt** der Export.
 
@@ -3231,6 +3288,9 @@ Im Export-Bereich wählst du, **woher die eingebettete Karte Leaflet lädt**:
 ---
 
 ## 5b · Modul: Daten-Animator — Messwerte als Video 📊
+
+![Daten-Animator: Höhe, Tempo oder Puls als Video.](img/handbuch/datenanimator-de.jpg)
+
 
 > **Neu ab v0.9.437:** Das Modul hieß früher **Höhen-Animator** und konnte nur die Höhe. Jetzt animiert es **jede Messreihe aus deinem Track** — deshalb der neue Name. Deine bestehenden Projekte funktionieren unverändert weiter und starten wie gewohnt mit der Höhe.
 
@@ -3312,6 +3372,9 @@ Kein WordPress-Plugin nötig; kein Mapbox/CDN — die Datei läuft eigenständig
 ---
 
 ## 6 · Modul: Geotagger — Fotos mit GPS taggen
+
+![Der Geotagger: Fotos bekommen ihren Ort aus dem Track.](img/handbuch/geotagger-de.jpg)
+
 
 > **Den Geotagger gibt es in zwei Varianten:**
 > 1. **Im GPS Studio** (dieses Modul) — zusammen mit Animator, Tour-Map & Co.
@@ -3550,6 +3613,9 @@ ExifTool läuft als Daemon im Hintergrund — RAW-Verarbeitung ist ~8× schnelle
 
 ## 7 · Modul: GPX-Inspektor — Track reparieren 🔍 (seit v0.9.233)
 
+![Der GPX-Inspektor: Track prüfen, Ausreißer und Lücken reparieren, Logbuch.](img/handbuch/gpx-inspektor-de.jpg)
+
+
 ### Was es macht
 Zeigt **jeden einzelnen Punkt** deines Tracks auf der Karte (den vollen Roh-Track, nicht das geglättete Vorschau-Downsample) — als kleinen Pfeil in Fahrtrichtung; bei sehr langen Tracks (über 20 000 Punkte) herausgezoomt als Punkte und die Pfeile ab Zoomstufe 14, damit die Karte flüssig bleibt — und lässt dich kaputte Stellen reparieren: GPS-Ausreißer glätten, Lücken füllen, einzelne Punkte verschieben oder löschen. Braucht **keinen** Mapbox-Token (geht auch im OSM-Modus). Seine **Werkzeug-Einstellungen** (Empfindlichkeit, was „Heilen“ repariert, Tempo-Farben, Logbuch-Anzeige, Toleranzen) merkt er sich über einen Neustart; das Routing-Profil schätzt er dagegen für jede Tour neu aus ihrem Tempo. Speichert als neue Datei `<name>_geheilt.gpx` — dein Original bleibt unangetastet. Öffnet **alle importierbaren Formate** (GPX, FIT, KML/KMZ, TCX, GeoJSON, NMEA/`.LOG`) — Fremdformate werden automatisch nach GPX konvertiert (seit v0.9.296).
 
@@ -3765,6 +3831,9 @@ Notiz. **CSV** speichert eine Tabelle für Excel oder Numbers, eine Zeile je Ein
 **Im Archiv:** Unter den Kennzahlen einer Tour steht die **Kurzfassung des Logbuchs** („5 h Fahrt · 1 Fähre · 2 Wanderungen · höchster Punkt 1.240 m“, bei Reisen die Zahl der Tage) — oder ehrlich „noch kein Logbuch“, bis du die Tour einmal im Inspektor geöffnet hast.
 
 **Im Video (seit v0.9.724):** Jeder Abschnitt des Logbuchs kann im Video **gezeigt**, **blass** gezeichnet, **gerafft** (läuft 8× schneller) oder **übersprungen** werden (die Linie fehlt, der Punkt springt in Sekundenbruchteilen darüber) — z. B. die Autofahrt zwischen zwei Wanderungen. Einstellen im Inspektor über ⋯ bzw. Rechtsklick am Eintrag (**„Im Video“**, mit ⌘Z) oder im Animator in der Sektion **„📖 Logbuch im Video“** (Auswahl je Eintrag; oben **„Alle auf einmal“** setzt z. B. alle Fahrten mit einem Griff, bei Reisen über mehrere Tage gliedern Tagesköpfe die Liste). Beides ist dieselbe Einstellung, sie gehört zur Tour und überlebt ein Neu-Erkennen. Die Liste im Inspektor zeigt markierte Einträge mit ◌ / ⏩ / ⤼. Bei mehreren Touren nacheinander führt der Etappen-Zeitplan; dort gilt es noch nicht.
+
+![Abschnitt „Logbuch im Video“: je Abschnitt zeigen, blass, raffen oder überspringen.](img/handbuch/animator-logbuch-de.jpg)
+
 
 > Das Logbuch gibt es für Touren im **Archiv** (es gehört zur Tour, nicht zur Datei). Eine Datei von außerhalb bekommt einen Hinweis.
 

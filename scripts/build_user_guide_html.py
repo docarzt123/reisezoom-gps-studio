@@ -84,6 +84,21 @@ def _img_data_tag(alt_html: str, src: str, max_px: int = 0) -> str:
     return (f'<img class="doc-img" src="{data_src}" alt="{alt_html}" loading="lazy">')
 
 
+def _video_data_tag(alt_html: str, src: str) -> str:
+    """Stummer Clip in Schleife (Handbuch-Videos unter docs/img/handbuch). Lokal eingebettet als data-URI."""
+    src = src.strip()
+    data_src = src
+    if "://" not in src:
+        p = (IMG_BASE / src).resolve()
+        try:
+            mime = "video/webm" if p.suffix.lower() == ".webm" else "video/mp4"
+            data_src = f"data:{mime};base64," + base64.b64encode(p.read_bytes()).decode("ascii")
+        except OSError:
+            sys.stderr.write(f"⚠️  Video fehlt, bleibe bei Pfad: {src}\n")
+    return (f'<video class="doc-img doc-video" src="{data_src}" autoplay loop muted playsinline '
+            f'aria-label="{alt_html}"></video>')
+
+
 # 25.09.2026 (Klicktest AL-06: „Startseite zeigt rohen HTML-Absatz samt img-Tag") —
 # USER_GUIDE*.md beginnt mit `<p align="center"><img …></p>` (für GitHub). Der Parser
 # kannte kein Roh-HTML und machte daraus einen escapten Absatz. Jetzt: eine Zeile,
@@ -297,7 +312,10 @@ def md_to_html(md: str) -> str:
         if img_line:
             close_list()
             alt_raw, src = img_line.group(1), img_line.group(2)
-            tag = _img_data_tag(_html.escape(alt_raw), src)
+            # 29.10.2026 (Marc: „Handbuch mit Screenshots und ggf. kleinen Videos“) — .mp4/.webm als stummer Clip in
+            # Schleife, eingebettet wie die Bilder (die Hilfe-Datei bleibt eigenständig)
+            tag = (_video_data_tag(_html.escape(alt_raw), src) if src.lower().endswith((".mp4", ".webm"))
+                   else _img_data_tag(_html.escape(alt_raw), src))
             cap = (f"<figcaption>{_inline(alt_raw)}</figcaption>"
                    if alt_raw.strip() else "")
             out.append(f"<figure>{tag}{cap}</figure>")

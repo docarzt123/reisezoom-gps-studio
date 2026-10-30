@@ -37,11 +37,15 @@ Bei jeder neuen Version:
 ### Added
 - **Placing photos on the map**: a photo that is open in the editor can be dragged straight on the map, no „Move“ click
   needed. At the top of the editor you choose its position: **route** (snaps to the track while dragging) or **free**
-  (stays where you let go; in the preview a dashed line leads to its point on the route). A fixed trigger time is kept
-  when dragging — before, every dragged sign became free and lost its time. Each photo bar in the timeline shows its
+  (stays where you let go; in the preview a dashed line leads to its point on the route). A free photo keeps its fixed
+  trigger time when dragged; a photo on the route takes its new place along the route with it, so the camera stops
+  where the photo now is — before, every dragged sign became free and lost its time. Each photo bar in the timeline shows its
   position as a small sign.
 
 ### Changed
+- **The manual now has pictures**: screenshots of the library, the Animator and each of its sections, the export
+  dialog, quick video, video assistant and every other module, plus two short silent clips (the preview playing, the
+  render progress) — in German, English and Spanish, also in the help inside the app.
 - **Aerial imagery sources re-checked**: Baden-Württemberg, New South Wales (Australia) and Alaska are left out
   for now — their licences for use in published videos are unclear or contradictory (Alaska's imagery is commercially
   licensed SPOT, not public domain). There „Satellite (free)“ shows Sentinel-2 and the style note names the reason.
@@ -57,6 +61,8 @@ Bei jeder neuen Version:
 - **Render progress as a little hike**: while a video is rendered, a path fills up and a walking dot follows it, with
   sayings in a speech bubble that fit the moment (start, 4K, map or terrain still loading, halfway, summit) and the
   app's waiting sayings in between. The dot pulses while the map is still loading tiles.
+  The sayings follow how the tour was travelled: hiking, cycling, driving, flying or on the water — from a flight
+  (IGC or “flight in the air”), the transport mode chosen for the stages, or the average moving speed.
 - **Video assistant: the ✕ at the top right closes it** and undoes everything it changed, like „Cancel“. Before, the ✕
   only showed a question in the footer, far away from it, and the window seemed impossible to close. „Apply“ keeps
   everything as before.

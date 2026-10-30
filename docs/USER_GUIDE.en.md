@@ -739,6 +739,9 @@ The app starts automatically in the **system language** (German, English or Span
 
 ### ⤓ Export video — the export dialog (since v0.9.782) ⭐
 
+![The export dialog: presets, resolution, frame rate, quality and where to save.](img/handbuch/export-dialog-en.jpg)
+
+
 At the top right of the Animator sits the coral button **⤓ Export video** (in Tour-Map **⤓ Export image**). A click
 opens a window in the middle with everything that only concerns the output file:
 
@@ -756,7 +759,10 @@ opens a window in the middle with everything that only concerns the output file:
 The small arrow **▾** next to the button offers **Export current frame** (the picture currently in the preview, as
 PNG) and **Open as Tour-Map**. Export settings are stored per project; Esc closes the window.
 
-**While rendering**, GPS Studio shows the progress as a little hike: the path fills up, the walking dot follows it, and the speech bubble has a saying for the moment. If the dot pulses, the map is still loading tiles (since v0.9.846).
+**While rendering**, GPS Studio shows the progress as a little hike: the path fills up, the walking dot follows it, and the speech bubble has a saying for the moment. If the dot pulses, the map is still loading tiles (since v0.9.846). The sayings suit the tour: hiking, cycling, driving, flying or on the water — recognised from a flight, the transport mode of the stages or the average moving speed (above 11 km/h cycling, above 32 driving, above 120 flying).
+
+![While rendering: the little hike with sayings for the moment.](img/handbuch/render-wanderung-en.mp4)
+
 
 **Origin in the video (since v0.9.845).** Every exported video carries “GPS Studio by Reisezoom.com” in its metadata, with version, system, size and frame rate, plus your tour's title if you set one. Nothing personal is stored. If you send me a video that won't play somewhere, I can see straight away what it was made with.
 
@@ -780,6 +786,9 @@ distance, ascent and moving time — dark background, teal edge. It is a normal 
 colours and timing in the editor.
 
 ### Format & timing — the first card of the sidebar (since v0.9.782)
+
+![“Format & timing”: aspect ratio, length and timing of the video.](img/handbuch/animator-format-en.jpg)
+
 
 At the very top of the sidebar (below “Apply preset” and **🎬 Quick video**) sits **Format & timing**: the **aspect
 ratio** as buttons (16:9 and 9:16; the short side stays, 4K stays 4K) and the **duration**. **More …** shows all formats
@@ -812,6 +821,9 @@ Settings file:
 - Linux: `~/.local/share/Reisezoom GPS Studio/settings.json`
 
 ### Projects — how it all works ⭐ (as of v0.9.617)
+
+![Your projects in the library.](img/handbuch/archiv-projekte-en.jpg)
+
 
 A **project** is your working folder for one video: the tours involved (none,
 one — or many for trip/swarm), plus everything you build: keyframes, signs,
@@ -923,6 +935,9 @@ longitude), otherwise from the tour's location. The format follows the app langu
 
 ### 🧭 Video assistant — step by step to your own video (since v0.9.787) ⭐
 
+![The video assistant asks step by step — here the camera.](img/handbuch/videoassistent-en.jpg)
+
+
 At the top of the Animator, next to **„Quick video …“**, there is **„🧭 Video assistant …“** (also in the archive: in the tour column next to
 **„Quick video“** and on the tour page under **🎬 Video ▾**). It sets up your project in **eight tabs** — just like the
 web version of GPS Studio. Everything is preset and every tab can be clicked at any time; it starts at **Camera**:
@@ -964,6 +979,9 @@ deletes it.
 **See what you set (since 11.10.2026, night).** While you are in the assistant, the animator behind it shows the matching spot: on *Route*, *Photos* and *Info* **all signs** are on the map, on *Title* the timeline jumps to the **title**, on *Video* to the **end card**, on *Camera*, *Map* and *Line* to the middle of the ride. In the *Camera* tab each card shows a **short clip** of how the camera moves. **⤢** on a photo opens a **viewer** (← → to browse, Esc closes); from there **“Open in photo editor”** leads to the editor — close it and you are back in the viewer. If the photo search takes a while (e.g. on a NAS) it says **“Searching photos of this tour …”**; if the media library can't be reached yet, **“Waiting for the media library …”** — the photos appear by themselves once they are there.
 
 ### 🎬 Quick video — a finished tour video with just a few choices (since v0.9.739) ⭐
+
+![Quick video: look, format, length and camera — that is all it takes.](img/handbuch/schnellvideo-en.jpg)
+
 
 You just want a nice video of your tour, without keyframes and settings? Use the **quick video**: in the
 **archive**, on the tour, **🎬 Quick video …** (detail column on the right or right-click), or in the
@@ -1233,6 +1251,9 @@ Elevations and timestamps are carried over — as far as the format contains the
 
 ## 2c · Module: Library 📚 — every tour in one place (since v0.9.486) ⭐
 
+![The library: every tour with map, distance, elevation gain and duration.](img/handbuch/archiv-touren-en.jpg)
+
+
 Collect tours for a few years and you end up with hundreds of GPX files scattered across
 folders — and you can never find the right one again. That is what the **Library** is for:
 it reads your track folders and shows every tour with a picture, a date and the numbers.
@@ -1244,6 +1265,9 @@ folders as you like. (While there is no folder, the empty area shows a big **“
 button.)
 
 ### 🗺📷 Tours and media belong together — the tour page (since v0.9.787) ⭐
+
+![A tour selected: on the right its map, figures, track check and description.](img/handbuch/archiv-tour-gewaehlt-en.jpg)
+
 
 **Double-click a tour** to open its **tour page**: the map with the track and a point for every photo and clip in the
 middle, the media strip in recording order below, the tour on the left (date, place, values, elevation profile, logbook)
@@ -2364,6 +2388,9 @@ here are stages of their own. To locate photos with a track, keep using the
 
 ## 3 · Module: Animator — render a GPX as a video
 
+![The Animator: the sidebar on the left, the preview in the middle, the timeline below.](img/handbuch/animator-uebersicht-en.jpg)
+
+
 *(Since v0.9.782 no longer in the sidebar: the switch is gone, the steps will come back later as the video assistant — its own button next to “Quick video”. The following paragraph describes the interim version.)* **Simple or fine-tuning (since v0.9.782).** At the very top of the sidebar you switch between **Simple** and **Fine-tuning**. *Simple* shows just five steps — **Route** (tour, length, format — 16:9, 9:16, 1:1, 4:5, 4:3 or 21:9), **Look** (the four ready-made looks), **Places & photos** (highlights, photos, quick video), **Camera** (Fixed · Follow · Camera flight) and **Export** — with the big preview next to it. *Fine-tuning* is the full Animator with all sections. Both views edit **the same project**: what you choose in the simple view is there in fine-tuning too (and vice versa), ⌘Z works for both. The app remembers which view you used last. **On the very first start** the app asks once after setup: *What would you like to do?* — **Create a video**, **Improve a track** or **Geotag photos** — and takes you straight to the right tool. New users start the Animator in the simple view.
 
 **Sidebars and detail column (since 06.10.2026).** The module's sidebar is always on the left; on the right the **editor of whatever you clicked** (sign, overlay) opens when needed — the map moves aside and is never covered. **Esc** or **✕** closes it; there is only ever one editor on the right. Drag the edge of either sidebar to make it **wider or narrower** — in every module, in the Archive on both edges; the app remembers the width per module. Double-click the edge to reset it. **Progress boxes** at the bottom right („Reading photos · step 3 of 3 …“) collapse to a slim line with **–**; they keep running, a click expands them again. The same goes for the progress at the top of **Media** (since v0.9.790): **–** leaves only the step, percentage and time left with the bar; a click on the line shows everything again.
@@ -2416,6 +2443,9 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 > **↩︎ Undo for everything (since v0.9.322):** Every settings change can be undone with **⌘Z** (Mac) / **Ctrl+Z** (Windows) — in **Animator, Tour-Map, Geotagger and Data Animator**: colors, font, line width, glow, overlay fields, keyframes, trim, time offset, etc. Also in the **archive**: removing from / adding to a collection, creating, renaming, duplicating, deleting (including order) and hiding. **Redo** with **⌘⇧Z** / **Ctrl+Y**. (One slider drag = one step.)
 
+![Section “Map”: looks, map style and colours.](img/handbuch/animator-karte-en.jpg)
+
+
 **Map:**
 - **Style**: 6 Mapbox styles (Satellite 3D, Satellite+Streets, Outdoors, Streets, Light, Dark)
 - Enable **3D terrain** — for Alpine tours this looks spectacular
@@ -2432,7 +2462,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
   - **Placing:** **"📍 On track"** → click on the track (snaps into place), or **"📌 Place freely"** → click **anywhere** on the map (e.g. a landmark off the route). With free placement, the **display timing** still follows the nearest track point (anchored to the track + a free coordinate offset).
   - **Editing:** Clicking a sign (in the list or on the map) opens the **sign editor on the right in the detail column** (since 06.10.2026; previously a floating window) — the map moves aside, **Esc**/✕ closes it. The sign currently being edited is always visible (no matter where the playback point sits).
   - **Moving (drag & drop):** a **photo** that is open in the editor can be **dragged straight on the map** to where you want it (since v0.9.846). For text signs click **"↔ Move"** first, because you type in them. The editor window stays where you put it.
-  - **Position: route or free (since v0.9.846):** at the top of the editor you choose how the sign stands. **Route** — it snaps to the track while you drag it. **Free** — it stays exactly where you let go, e.g. at a viewpoint next to the path; in the preview a dashed line to its point on the route shows when it appears. A **fixed trigger time** is kept when you drag. In the timeline every photo bar carries a small sign for its position (route or pin).
+  - **Position: route or free (since v0.9.846):** at the top of the editor you choose how the sign stands. **Route** — it snaps to the track while you drag it. **Free** — it stays exactly where you let go, e.g. at a viewpoint next to the path; in the preview a dashed line to its point on the route shows when it appears. A free sign keeps its **fixed trigger time** when you drag it; a sign on the route takes its time along to the new place, so the photo stop happens where the photo now is. In the timeline every photo bar carries a small sign for its position (route or pin).
   - **Look (all live):** shape (speech bubble · destination banner · pin · signpost · plain), **sign colour** + text color (the **"Sign colour" picker** — called "Background" until 25.09.2026 is the **one** box/bubble color of the sign — since v0.9.271 there is no separate "accent color" and no "Auto" anymore), font (System · Rounded · Narrow · Serif · Monospace · Bold display), size/weight/italic/**alignment** (left/centre/right — visible as soon as you set a fixed minimum width > 0 under **"Width"**; with "Auto" the box hugs the text and alignment has no room to act, since v0.9.479), multi-line text, corner radius, **background opacity** (since v0.9.478 the slider dims **only the sign colour** — the text stays fully readable), **outer border** (width + color; called "Border" until 25.09.2026), **post length** (only for destination banner + signpost — how long the posts/pole under the sign are) and **drop shadow** (softness down to **0** = hard edge since v0.9.478; the **direction** comes from the global "Shadow direction" slider in the track section). **Add image** turns the sign into a **photo card** (the text then becomes the caption); the image size is adjustable separately.
   - **📷 Instant photo (new after v0.9.781):** photos appear like an instant print laid on the map — warm-white frame, slightly wider at the bottom, slightly tilted, with a handwritten caption (the sign text). New photos get it automatically; for others pick the shape **“Instant photo”** in the editor. It goes well with the exit **“Shrinks to a round mini photo (stays)”**: after the display time the photo straightens, turns round and stays as a small circle at its spot — in the video exactly as in the preview.
   - **📸 Photo stop (since v0.9.764, only with an image):** tick **“Stop here”** — on the map the sign then becomes a round **photo pin** (since v0.9.766) that appears 2.5 seconds before the stop; you only see the photo card while editing. Shortly before the photo the camera moves in (**Move in**, 0–4 zoom levels), the photo grows out of the pin and is already large on arrival: about two thirds of the frame height, with a white frame. The track holds for **Show photo** seconds; meanwhile the camera sways gently and the photo slowly zooms in. Then the track carries on straight away while the photo shrinks and the camera moves back (since v0.9.768; afterwards the pin stays in place). **Approach** and **Departure** (seconds) set how long moving in and out takes — both happen while the track moves. **Map sway (°)** (0–10, default 2) and **Photo zoom (%)** (0–30, default 8) set how much motion there is while the photo is shown; 0 turns it off (since v0.9.770). Under the photo is your caption, below it the **place and time** the photo was taken (since v0.9.778 the most striking place within 350 m instead of the municipality: summit, pass, hut, viewpoint, castle … — e.g. “🌋 Teide · 3715 m · 16:16” — summits and passes with their height from OpenStreetMap; the “Highest point” highlight carries the summit name when one is close by) (local time where it was taken, even if the camera was on home time; box, on by default) and, if you like, the **camera data (EXIF)** — camera, focal length, aperture, shutter speed, ISO. The stop shows up as a locked “Photo stop” hold in the tempo track and makes the video longer by the photo time. Preview, scrubbing and video show the same. A trip with several stages has no photo stops yet.
@@ -2525,11 +2555,17 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 **⭐ Highlights (since v0.9.750, as signs since v0.9.751):** The overlays have a group called **Highlights**. When it's on, the app places special spots of your tour as **signs** on the map: **Highest point**, **Steepest section**, **Top speed**, **Halfway** and **Waypoints from the GPX**. Under **Look** you pick one of five styles (Pill, Box with pin, Round with card, Shape with frame, Brush stroke), under **Colours** "one per kind" or "one for all". Each highlight sign shows the label small on top and the value big below. Shortly before it appears, a small dot in its colour announces it, right at the spot on the track. If the spot is still outside the frame there is no dot (since v0.9.772; before, it sat at the edge and slid along it as the camera turned). The highlight signs are in the sign list and in the timeline, and you can change, move or delete them like any sign (⌘Z works). If you change the track or the selection, the app adjusts the highlight signs. The ones you edited by hand stay. The steepest section is measured over at least 150 m so that a single GPS error doesn't count. The quick video sets the highlights by itself, as "Pill" in one colour. **Since v0.9.792:** what you tick always appears — if two highlights are close together (say "Half way" and "Steepest section"), they share the time: the first one goes when the second one comes. Every sign appears when the moving dot really is at its spot (even with unevenly recorded points), and in portrait format the app pushes signs and instant prints that would stick out of the frame back into the picture.
 
+![Section “Overlays”: numbers, elevation profile, title and logo as overlays.](img/handbuch/animator-einblendungen-en.jpg)
+
+
 **Size per text line (since v0.9.773):** in an overlay's editor every text line has a **Size** field (20–300 % of the overlay's font size). This keeps title and subtitle in one overlay one below the other, even if the title wraps; the quick video does the same. If a frame takes longer while rendering, the progress line counts the seconds (e.g. “waiting for the map … 4 s”).
 
 **Key-figure styles for your own signs (since v0.9.751):** The five styles are available for every sign in the sign editor under **Shape**. Put the label on the first line and the value on the second, e.g. "Summit cross" ↵ "2513 m". Then pick a **Symbol** and a **Colour**.
 
 **When is a sign visible? (since v0.9.733)** Right below the overlays the timeline has a **“▸ Signs”** row. A click opens one row per sign (with text or image); each **bar is the time the sign is visible in the video** — exactly as the test run shows it. **Drag the bar** to move the sign's moment (it gets a fixed moment; lead-in and “Stays visible” stay the same). The **left edge** changes the **lead-in** (how early it appears before the point), the **right edge** changes **“Stays visible”**; dragged all the way right means **until the end**. The status line shows the seconds while you drag. **Double-click or right-click** opens the sign window. **“Whole time” (since v0.9.736 without a checkbox):** a sign visible for the whole video simply has a bar across the full width. Drag an edge inward and it becomes a time window; drag both edges all the way out and it is the whole time again. New signs no longer inherit “whole time” from the previous sign. A hidden sign is grey. Every change is one ⌘Z step. **Fade in and out (since v0.9.735):** as with the overlays, the bar has two **white dots** — left the **fade-in**, right the **fade-out**. Dragging changes the duration (the dark wedge shows it); “Cut” becomes “Fade”, dragged all the way back it is “Cut” again. The sign window has **“Fade-in duration”**, **“Fade-out”** (Cut, Fade out, Pop out, Fade + pop out) and **“Fade-out duration”**. It only fades out if the sign disappears before the end of the video. Older signs look as before (0.6 s fade-in and the same fade-out). **To drag, the “▸ Signs” row must be open** — the collapsed strip only shows the bars.
+
+![Section “Camera”: camera mode, height above the terrain and tilt.](img/handbuch/animator-kamera-en.jpg)
+
 
 **Camera:**
 - **🎥 Steady camera (3D terrain)** (checkbox, at the very top of the section, **default: off**) — *against the up-and-down bobbing of the camera over mountainous terrain.* With keyframe camera flights over 3D terrain, the camera normally "rides" the mountains and bobs up on every climb and down in the valley (especially with a steep tilt). Check this box and the camera **flies decoupled through space like a drone** — it hits exactly the framing you set at your keyframes, and moves steadily in between, without the terrain bobbing. **The default is off** (classic behavior); only check it if the bobbing over mountains bothers you. Applies both in the **test run** and in the finished **render** (what you see is what you get). *Tip:* If a specific project with the steady camera enabled ever looks odd (e.g. an approach from the world view), just uncheck it again.
@@ -2550,6 +2586,9 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Resolution**: 4K (3840×2160), 1080p, 4K↕ and 1080↕ (portrait for Shorts/Reels), or custom
 - **FPS**: 24 (cinema) · 25 (PAL/Europe TV) · 30 (standard) · 50 (PAL HFR) · 60
 - **Codec**: H.264 (universally compatible) or H.265 (HEVC, ~30% smaller)
+
+![Section “Tracks”: the pencil opens the track editor with line and moving dot.](img/handbuch/animator-tracks-en.jpg)
+
 
 **The moving dot itself (since v0.9.509):** Under *Track* you find **"Show
 moving dot"** — switch it off, choose between the **dot** and an **arrow
@@ -2688,6 +2727,9 @@ tours). If something is missing, the app tells you when you switch it on. Also a
 
 **🎵 Music and sound (since v0.9.778).** In the section **“🎵 Music and sound”** you put music under the video: **“On the way”** is the app's own piece (40 s, loops seamlessly, free for YouTube and the like), plus five more in other styles: **Expanse** (calm, cinematic), **Summit push** (driving), **Break** (lo-fi, relaxed), **Ridge** (epic), **Hiking song** (folk with guitar); with **…** you use your own music (MP3, M4A, WAV, FLAC …; you need the rights yourself). Plus **volume**, **fade in** and **fade out** (seconds) and **📷 Click at every photo stop** with its own **sound** (DSLR, mirrorless, film camera with winder, rangefinder, phone, instant camera, pop, wood, little bell, whoosh + click, simple — or your own sound from a file via **…**, **▶** plays it) and volume — the click comes when the photo has arrived. In the timeline the **“Sound”** lane shows the music (the slopes are fade in and out — drag them to change), the clicks and the sound of the clips; double-click opens the settings. While playing you already hear everything in the preview; **🔊** next to the time mutes the preview. In the finished video the sound is a normal audio track (AAC).
 
+![Section “Music and sound”.](img/handbuch/animator-ton-en.jpg)
+
+
 **Timeline with pictures (since v0.9.778).** The track lane shows the tour's **elevation profile** small (during holds it stands still, like the dot in the video); in a trip every tour tile has its own profile. In the signs lane the bars show **name and time** and their **photo** — or ▶ for a clip, the pill's icon for highlights and logbook. Opened, signs that do not overlap in time share a row, so the lane stays short; if they overlap, the next one goes to the next row. The bar of a **photo stop** starts when its photo pin appears on the map (shortly before the halt) and runs to the end of the video — that is how long the pin stands in the preview. The bar shows the phases: pale = pin only, medium = approach and departure, strong with thumbnail = **photo large**. Drag the borders to make approach, photo time and departure longer or shorter (the line below shows the value). Drag the **left edge** to make the pin appear earlier or later (in the sign: “Pin before (s)”, default 2.5 s before the approach). **⌘+ / ⌘−** zoom the timeline, **⌘0** shows everything again (Windows: Ctrl). Drag the **grip on the top edge** of the timeline up or down — the lanes get taller or lower (double-click: default). The timeline never takes more than 60 % of the preview area — in a small window the map stays visible. **Only what you need (since 26.10.2026):** if there is not enough room, the timeline temporarily folds away what you are not working on — first the camera detail lanes (the cluster row keeps showing all keyframes), then sound, overlays, signs. The group you opened last stays open; a click on a folded group (or ▸ on the cluster) brings it back. Nothing of this is remembered — with a bigger window everything opens again by itself. If the open group itself has more rows than there is room for (say 50 signs), **it scrolls on its own** — mouse wheel or two fingers on the trackpad; its header row stays on top. **Delete:** click a bar (sign, photo, photo stop, overlay) and press **Delete/⌫** — it is gone (for an overlay with several time ranges only the clicked one); ⌘Z brings it back. A click outside the timeline clears the selection.
 
 **🗺 Overview map in the video (since v0.9.778).** **Overlays → ＋ New overlay → Overview map** puts the whole route small into the picture, the travelled part in the line colour, a dot shows where you are. It is a normal overlay: move it, size (width/height in %), style, when it is visible. Unlike the “view only” overview at the bottom right of the preview, this one is **in the video**.
@@ -2778,6 +2820,9 @@ When you render only part of the track, you can choose whether the **track line 
 During the render you see the frame currently being produced in the preview window. If the combination of style and camera angle doesn't suit you: click **"⨯ Cancel"** — the half-finished file is deleted immediately and you can reconfigure without having waited 5 min for a render that turns out to be nothing.
 
 ### Preview = video (since v0.9.658) ⭐
+
+![The preview plays the video exactly as it will be rendered — with signs and overlays.](img/handbuch/vorschau-abspielen-en.mp4)
+
 Since v0.9.658 the finished video is literally the preview in high resolution: the same map, the same lines, dashes, signs, overlays and the same camera path, just drawn at the video's pixel density. What you see in the test run is what you get — line widths and sign sizes in the video are exactly as large **relative to the frame width** as in the preview. Tip: judge the preview at the window size you render with; a much wider window shows (and renders) the signs a little smaller in relation to the picture.
 
 **When a map service fails (since v0.9.745):** if an aerial imagery service returns no tiles while rendering (server error), the app no longer waits for them on every frame: since v0.9.747 the app fills the spot with the matching part of the next coarser tile of the same aerial imagery (a little softer but the same colours — no pale patches, no flicker); only if that is missing too does the Sentinel satellite image show through. The tile is quietly retried once after 20 seconds. The progress then says e.g. "⚠️ Aerial imagery Spain is not responding – 12 tiles missing, rendering continues". So you know why something looks softer, and the render no longer stalls (before: up to 5 seconds of waiting per frame).
@@ -2793,6 +2838,9 @@ With the swarm on 3D terrain, the lines now run just above the terrain in the pr
 Since v0.9.752 every video, still image and the alpha export (transparent background) runs through this preview scene — there is no second, older render path any more. If a render stops, **Help → Report a problem** with the log helps to narrow it down.
 
 ### 📷 Photos on the map (since v0.9.74) ⭐
+
+![Section “Signs and photos”: highlights, your own signs and photos along the route.](img/handbuch/animator-schilder-en.jpg)
+
 
 Photos with GPS EXIF appear as small thumbnails at their capture position. Perfect for travel vlogs: the track runs along, and the photo points are visible as polaroids on the map.
 
@@ -2905,6 +2953,9 @@ Since 26.09.2026 this also works for **several tours in a row** (trip, "All in t
 
 ## 4 · Module: Travel Route — the journey there as a video 🛣️ (since v0.9.205)
 
+![Travel route: the stops of your journey as a video.](img/handbuch/reiseroute-en.jpg)
+
+
 > **Hidden since 2026-10-08:** the Travel route no longer appears in the module bar. Planned legs (flight, ferry, car,
 > round trip) are now created as a **stage in the Animator** (Tracks → “＋ Create stage”). Old Travel route projects still
 > open from the archive as before.
@@ -2952,6 +3003,9 @@ Since 07.09.2026 road routes are computed with free OpenStreetMap services (see 
 
 ## 5 · Module: Tour-Map — static map PNG
 
+![Tour-Map: the tour as a still image.](img/handbuch/tourmap-en.jpg)
+
+
 ### What it does
 Like the Animator, but **a single image instead of a video**. Output: a PNG in any resolution. Use it for: YouTube thumbnails, Instagram posts, blog covers, Komoot gallery images.
 
@@ -2990,6 +3044,9 @@ In the **map style** dropdown, the Tour-Map module offers, in addition to the Ma
 
 ## 5c · Module: Web Map 🌐 — interactive map for your blog (since v0.9.422) ⭐
 
+![Web Map: the tour as an interactive map for your blog.](img/handbuch/webkarte-en.jpg)
+
+
 ### What it does
 A dedicated, deliberately **lean** tab for **interactive maps for the web/blog** — completely separate from the Tour-Map. The track is drawn automatically from the loaded GPX, and you add **text labels directly onto the map**. The result is a light, standalone HTML file (~40 KB) with a token-free OpenStreetMap map — to zoom and pan in the browser, like the embedded maps in Reisezoom blog posts. The preview in the app is **exactly** the export.
 
@@ -3024,6 +3081,9 @@ In the export area you choose **where the embedded map loads Leaflet from**:
 ---
 
 ## 5b · Module: Data Animator — measurements as a video 📊
+
+![Data Animator: elevation, speed or heart rate as a video.](img/handbuch/datenanimator-en.jpg)
+
 
 > **New in v0.9.437:** This module used to be called the **Elevation Animator** and could only do elevation. It now animates **any data series from your track** — hence the new name. Your existing projects keep working unchanged and still start with elevation.
 
@@ -3104,6 +3164,9 @@ No WordPress plugin needed; no Mapbox/CDN — the file runs on its own.
 ---
 
 ## 6 · Module: Geotagger — tag photos with GPS
+
+![The Geotagger: photos get their location from the track.](img/handbuch/geotagger-en.jpg)
+
 
 > **The Geotagger comes in two variants:**
 > 1. **In GPS Studio** (this module) — together with Animator, Tour-Map & Co.
@@ -3336,6 +3399,9 @@ ExifTool runs as a daemon in the background — RAW processing is ~8× faster th
 
 ## 7 · Module: GPX Inspector — repair a track 🔍 (since v0.9.233)
 
+![The GPX Inspector: check the track, repair outliers and gaps, logbook.](img/handbuch/gpx-inspektor-en.jpg)
+
+
 ### What it does
 Shows **every single point** of your track on the map (the full raw track, not the smoothed preview downsample) — as a small arrow in the direction of travel; on very long tracks (more than 20,000 points) as dots when zoomed out and arrows from zoom 14, so the map stays smooth — and lets you repair broken spots: smooth GPS outliers, fill gaps, move or delete individual points. Needs **no** Mapbox token (works in OSM mode too). It **remembers its tool settings** (sensitivity, what „Heal“ repairs, speed colours, logbook view, tolerances) across a restart; the routing profile, however, is estimated anew for each tour from its speed. Saves as a new file `<name>_geheilt.gpx` — your original stays untouched. Opens **all importable formats** (GPX, FIT, KML/KMZ, TCX, GeoJSON, NMEA/`.LOG`) — foreign formats are converted to GPX automatically (since v0.9.296).
 
@@ -3547,6 +3613,9 @@ When you open a tour from the archive, the logbook appears **below the map**: a 
 **In the archive:** under a tour's key figures you now find the **logbook summary** (“5 h drive · 1 ferry · 2 hikes · highest point 1,240 m”, plus the number of days for trips) — or honestly “no logbook yet” until you have opened the tour in the inspector once.
 
 **In the video (since v0.9.724):** Every logbook section can be **shown**, drawn **faded**, **sped up** (runs 8× faster) or **skipped** in the video (the line is gone, the dot jumps across in a split second) — e.g. the drive between two hikes. Set it in the Inspector via ⋯ or right-click on the entry (**“In the video”**, with ⌘Z) or in the Animator in the **“📖 Log in the video”** section (a choice per entry; **“All at once”** at the top sets e.g. every drive in one go, and on trips over several days day headers structure the list). Both are the same setting; it belongs to the tour and survives re-detection. The Inspector list marks such entries with ◌ / ⏩ / ⤼. With several tours in a row the stage schedule leads; it does not apply there yet.
+
+![Section “Logbook in the video”: show, fade, speed up or skip each section.](img/handbuch/animator-logbuch-en.jpg)
+
 
 > The logbook exists for tours in the **archive** (it belongs to the tour, not to the file). A file from outside gets a note.
 
