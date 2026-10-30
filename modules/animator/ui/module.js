@@ -7710,12 +7710,17 @@ function mountAnimator(body, headerActions, opts) {
     const i = parseNum(document.getElementById("anim-intro")?.value, 0), h = parseNum(document.getElementById("anim-hold")?.value, 0);
     return Math.max(0, i * 1000) + Math.max(500, animSekunden() * 1000) + Math.max(0, h * 1000);
   }
-  let _auswScrubT = null;
+  let _auswScrubT = null, _auswScrubGen = 0;
+  // 30.10.2026 (Suite: Assistent „Infos“ verlor die Gesamtsicht) — das Nachzeigen nach fertiger Kurve entfällt, sobald die
+  // Kamera inzwischen anders bewegt wurde (Gesamtsicht, Ziehen mit der Hand); sonst springt sie an die Scrub-Stelle zurück.
+  function _auswNachScrubAbbrechen() { clearTimeout(_auswScrubT); _auswScrubGen++; }
   function _auswNachScrub(anchor) {
     clearTimeout(_auswScrubT);
+    const gen = ++_auswScrubGen;
+    if (map && !map.__rzAuswHaken) { map.__rzAuswHaken = true; map.on("movestart", (e) => { if (e && e.originalEvent) _auswNachScrubAbbrechen(); }); }
     _auswScrubT = setTimeout(() => {
       const vorher = _auswKurve;
-      _ausweichBereit(_gesamtMs()).then(() => { if (_auswKurve !== vorher && !_previewRaf) { try { scrubPreview(anchor, { skipSelectionSync: true }); } catch (_) {} } });
+      _ausweichBereit(_gesamtMs()).then(() => { if (gen === _auswScrubGen && _auswKurve !== vorher && !_previewRaf) { try { scrubPreview(anchor, { skipSelectionSync: true }); } catch (_) {} } });
     }, 400);
   }
   window.__rzAusweichen = () => ({ kurve: _auswKurve, auto: (() => { try { return _kameraIstAuto(); } catch (_) { return null; } })() });   // Prüfstand
@@ -19315,6 +19320,7 @@ function mountAnimator(body, headerActions, opts) {
       const vpMin = vpEl ? Math.min(vpEl.clientWidth, vpEl.clientHeight) : 600;
       const cam = map.cameraForBounds([[b.min_lon, b.min_lat], [b.max_lon, b.max_lat]], { padding: Math.max(2, Math.round(0.08 * vpMin)), bearing: map.getBearing() });
       if (!cam) return null;
+      _auswNachScrubAbbrechen();
       map.jumpTo({ center: cam.center, zoom: cam.zoom, bearing: map.getBearing(), pitch: Math.min(map.getPitch(), 45) });
       return cam.zoom;
     } catch (e) { applog("warn", "[assistent] Gesamtsicht: " + e); return null; }

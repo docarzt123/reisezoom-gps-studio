@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.846] – 2026-10-30
+
 ### Added
 - **Moving dot behind terrain**: when the tour runs behind a slope or ridge, the moving dot now fades out softly like the
   line instead of being drawn on top of the mountain. Track editor, under the moving dot: “Behind terrain” — Hide
@@ -33,8 +35,6 @@ Bei jeder neuen Version:
   exactly the video's frames; `--thumbs N` (`--thumb-width 320`) gives N small frames evenly over the film, e.g. for a
   timeline. Single frames skip the tile pre-loading for the whole film (Masca: 3 frames in about 20 s instead of 40 s)
   and wait until every map tile of the frame is there, so slow aerial imagery no longer leaves dark patches.
-
-### Added
 - **Placing photos on the map**: a photo that is open in the editor can be dragged straight on the map, no „Move“ click
   needed. At the top of the editor you choose its position: **route** (snaps to the track while dragging) or **free**
   (stays where you let go; in the preview a dashed line leads to its point on the route). A free photo keeps its fixed
