@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.847] – 2026-10-30
+
+### Fixed
+- **Switching to the Animator no longer stalls**: the terrain shader that lets mountains glide between detail levels
+  was unrolled by the shader compiler into about 40 elevation lookups, so every new map took seconds to compile
+  (5–6 s per switch in software WebGL). It now samples in a loop with a single lookup — same surface, 0.15 s.
+- **Zooming straight to 18 with terrain**: an integer overflow in MapLibre's elevation matrix (`8192 << 18` turns
+  negative) threw "out of range source coordinates for DEM data" every frame while only coarse terrain was loaded.
+
 ## [0.9.846] – 2026-10-30
 
 ### Added

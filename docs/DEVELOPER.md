@@ -5821,6 +5821,16 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    Schalter `window.__rzNoMorph = true` = Original. Masca nachher: größte Höhenänderung je Bild an festen Punkten 1,0 m
    (vorher 25 m), Bewegungsanalyse: der Block-Sprung bei 15,97 s (19 Blöcke) ist weg. Tests:
    `tests/test_gelaende_gleiten.py` (Zoomfahrt über eine Stufengrenze, Gegenprobe ohne Gleiten), `test_vendor_patches`.
+   - Shader-Form (30.10.2026): `rz_mh` ruft `rz_el` an EINER Stelle in einer Schleife mit Laufzeit-Grenze auf
+     (3 bzw. 6 Abtastpunkte, Dreiecksgewichte `1−max(fx,fy)`, `|fy−fx|`, `min(fx,fy)`). Die erste, verschachtelte Fassung
+     (2× `rz_gq` × 3 Ecken × 3 DEM-Zweige, dazu `rz_ele` doppelt in `main`) rollte der Compiler zu rund 40 Höhenblöcken
+     je Shader aus — jede neue Karte (jeder Wechsel in den Animator) kompilierte im Software-WebGL 5–6 s, das
+     Deploy-Gate `selftest_deep` lief in Klick-Timeouts. Nachher 0,15 s, gezeichnete Oberfläche unverändert
+     (`test_gelaende_gleiten` E: Hin- und Rückprojektion Median 0,56 px, 95 % 1,77 px — alt wie neu).
+10. `/* rz-patch demmatrix */` (30.10.2026): `getTerrainData` rechnete die DEM-Matrix mit `t.Z<<o`. Liegen 18 Stufen
+   zwischen Kachel und Ersatz-DEM (Zoomsprung auf 18, nur die Weltkachel geladen), ist das 2^31 → negativ, der Index zeigt
+   aus der Kachel: „out of range source coordinates for DEM data“ aus `_elevateCameraIfInsideTerrain` im Bildtakt.
+   Jetzt `t.Z*Math.pow(2,o)`. Fehler steckt im Original; sichtbar wurde er, weil das Gleiten an Gitterecken abtastet.
 Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.
