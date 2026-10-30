@@ -56,6 +56,7 @@ function mountAnimator(body, headerActions, opts) {
   const _isReiseroute = (RZ_MODE === "reiseroute");
   const _isStaticFrame = (RZ_MODE === "staticFrame");  // v0.9.308 — Tour-Map
   const _MODKEY = opts.moduleSlug || "animator";
+  let _routeWpsLesen = () => [];   // Stationen der Reiseroute für Code außerhalb ihres Blocks (Wartesprüche)
 
   // ── 💧 Wasserzeichen: Zustand ─────────────────────────────────────────
   // ⚠️ Muss GANZ oben stehen. Der Mount ruft `_wmBinden()`/`_wmLaden()` sehr
@@ -18325,6 +18326,7 @@ function mountAnimator(body, headerActions, opts) {
     // Index 0 = Start, letzter = Ziel, dazwischen = Zwischenziele.
     function _mkWp() { return { text: "", lon: null, lat: null, label: null, art: "" }; }   // art: Verkehrsart bis zur nächsten Station (05.10.2026)
     let _routeWps = [_mkWp(), _mkWp()];
+    _routeWpsLesen = () => _routeWps;
     let _routePick = null;     // null | Zeilen-Index — aktiver per-Zeile-Karten-Pick
     let _routeChain = false;   // Klick-Modus: jeder Kartenklick hängt eine Station an
     let _routeBusy = false;
@@ -30019,7 +30021,7 @@ function mountAnimator(body, headerActions, opts) {
       if ((_flug && _flug.an) || _flugGewuenscht() || /\.igc$/i.test(String(currentGpx || ""))) return "flug";
       // Orte/Etappen mit Verkehrsart: die meistgewählte
       const et = _hauptEt();
-      const arten = (_isReiseroute ? _routeWps.slice(0, -1).map(w => w && w.art) : (et && et.arten) || []).filter(Boolean);
+      const arten = (_isReiseroute ? _routeWpsLesen().slice(0, -1).map(w => w && w.art) : (et && et.arten) || []).filter(Boolean);
       if (arten.length) {
         const z = {}; arten.forEach(a => { const g = WANDER_GRUPPE[a] || "wandern"; z[g] = (z[g] || 0) + 1; });
         return Object.entries(z).sort((a, b) => b[1] - a[1])[0][0];
