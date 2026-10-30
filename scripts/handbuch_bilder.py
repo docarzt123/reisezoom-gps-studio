@@ -54,8 +54,8 @@ for q in DEMO_TOUREN:
         stamm = _re.sub(r"[^\w\s\-–,.äöüÄÖÜßáéíóúñ]", "", stamm).strip()
         ziel = TOUREN / (stamm + q.suffix)
         txt = q.read_text(encoding="utf-8", errors="replace")
-        txt = _re.sub(r"(<trk>\s*<name>)[^<]*(</name>)", lambda m: m.group(1) + stamm + m.group(2), txt, count=1)
-        txt = _re.sub(r"(<metadata>\s*<name>)[^<]*(</name>)", lambda m: m.group(1) + stamm + m.group(2), txt, count=1)
+        txt = _re.sub(r"(<trk>\s*<name>)[^<]*(</name>)", lambda m, s=stamm: m.group(1) + s + m.group(2), txt, count=1)
+        txt = _re.sub(r"(<metadata>\s*<name>)[^<]*(</name>)", lambda m, s=stamm: m.group(1) + s + m.group(2), txt, count=1)
         ziel.write_text(txt, encoding="utf-8")
 kachel = Path.home() / "GPS-Studio-Test" / "App-Ordner" / "_tilecache"
 if kachel.is_dir():
@@ -361,7 +361,7 @@ async def main():
             ctx = await b.new_context(viewport={"width": BREITE, "height": HOEHE}, device_scale_factor=2)
             page = await ctx.new_page()
             fehler = []
-            page.on("pageerror", lambda e: fehler.append(str(e)[:200]))
+            page.on("pageerror", lambda e, f=fehler: f.append(str(e)[:200]))
             await page.expose_function("rzBridge", bridge)
             await page.add_init_script(BRIDGE_JS)
             await page.goto(f"file://{(REPO / 'ui/index.html').resolve()}", wait_until="domcontentloaded")
