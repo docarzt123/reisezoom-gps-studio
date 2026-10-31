@@ -34,7 +34,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────
   build-macos:
     name: Build macOS DMG
-    runs-on: macos-14   # arm64
+    runs-on: macos-15   # arm64 (macos-14 wird am 02.11.2026 abgeschaltet)
     steps:
       - uses: actions/checkout@v4
 

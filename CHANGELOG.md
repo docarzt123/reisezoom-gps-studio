@@ -14,6 +14,23 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.848] – 2026-10-31
+
+### Fixed
+- **Camera height no longer depends on the window size**: a fixed camera (height above ground, hand-set camera) and
+  zoom keyframes stored a map zoom, and the same zoom shows more ground in a wider preview. With the window or the
+  sidebar a different size, the video and the height display showed a different view (e.g. 103 km instead of
+  81 km). Stored zoom values now refer to a reference width per project (`zoom_ref_w`); preview and video apply
+  zoom + log2(map width / reference), so the view stays the same at any width. Older projects take the width they are
+  next opened in (stored only once a zoom value is written or a video is rendered — opening alone never
+  changes a project). Resizing the window keeps the preview's view.
+- **Fixed camera stays in the preview**: automatic refits (window size changed, fit to all tours while the map style
+  was still loading, e.g. after editing a sign text) no longer switch the preview to the overview; it shows the
+  video's picture at the playhead again.
+
+### Changed
+- **Release build for macOS runs on GitHub's macOS 15 runner**; the macOS 14 runner is retired on 2 November 2026.
+
 ## [0.9.847] – 2026-10-30
 
 ### Fixed

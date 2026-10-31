@@ -2057,6 +2057,27 @@ einen einzelnen Zoom mit `+ log2(renderW/previewW)`.
   `correctedZoom` direkt für seinen einen Zoom — daher hier keine Spiegelung
   nötig.
 
+**Zoom-Bezugsbreite (30.10.2026, 0.9.848):** Gespeicherte Zoomwerte — `static_zoom`, `manual_cam.zoom`,
+Keyframe-`value_absolute` — sind keine Karten-Zooms mehr, sondern gelten für die Kartenbreite `animator.zoom_ref_w`
+(CSS-px, je Projekt; in `core/vorlagen.py` trackgebunden). `_rzZoomShift()` (module.js) liefert
+`log2(Kartenbreite / zoom_ref_w)`; im Render-Modus ist die Kartenbreite `__rzRenderMode.w` (= Szenen-Viewport), damit
+ist der Mindestbreiten-Zuschlag der Szene (`zoomShift`) schon enthalten. Ohne `zoom_ref_w` gilt wie bisher nur
+`__rzRenderMode.zoomShift`.
+- **Lesen:** alle Wege addieren `_rzZoomShift()` (`_zoomEffectiveOffset`, `_runStaticBase`, Regler → `easeTo`).
+- **Schreiben:** `snapshotKeyframe`, Einzel-Eigenschaft-Keyframe, `_manualCamMerken`, Classic-Snapshot beim Export
+  und `buildDefaultEvents` (Fit-Zoom) ziehen ihn ab; der Regler „Höhe über Gelände“ zeigt den gespeicherten Wert.
+- **Klassischer Render:** `zoom_correction` enthält `+ _rzZoomShift()`.
+- **Erster Gebrauch:** `_zoomBezugBreite()` merkt sich die aktuelle Kartenbreite (≥ 60 px, nicht in der Szene) nur im
+  Speicher (`_zoomBezugSitzung`, je Projekt-ID) — Öffnen verändert kein Projekt (`test_gruppen_projekt`,
+  `test_vorlagen_schwebend`). Ins Projekt geschrieben wird sie von `_zoomBezugFesthalten()`: beim Schreiben eines
+  Zoomwerts (`_rzZoomShiftSchreiben()` an Handkamera, Keyframes, klassischem Export; Zoom-Regler) und vor dem Render.
+- **Fenstergröße:** `updateAnimatorViewport` zieht den Karten-Zoom um `log2(neu/alt)` mit; nach dem automatischen
+  Einpassen (`_debouncedRefit`, `_animFitAllTours`) zeigt `_festeKameraZeigen()` bei fester Kamera (static_zoom oder
+  Handkamera, ohne Keyframes/Folgen/Reise) wieder das Bild an der Abspielposition. `_animFitAllTours` setzt dann nur die
+  Basis (cameraForBounds) und fliegt nicht. Prüfstand: `window.__rzFitAlleTouren`, Test `test_zoom_fensterbreite.py`.
+- Vorher fiel `buildDefaultEvents` doppelt um den Zuschlag ab (`static_zoom + shift` in `value_absolute`, dann noch
+  einmal in `_zoomEffectiveOffset`) — unsichtbar, solange der Zuschlag 0 war.
+
 **Track-Linien-Dicke = Preview (v0.9.158):** `line-width` ist CSS-px; der
 Render-CSS-Viewport (`W/dsf`) ist breiter als die schmale Preview → gleiche
 px-Linie wirkt relativ dünner (v.a. 4K). Frontend skaliert den `line_width`-

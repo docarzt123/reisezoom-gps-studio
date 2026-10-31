@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 28 Oct 2026 09:01:13 +0000</lastBuildDate>
+<lastBuildDate>Sat, 31 Oct 2026 00:11:08 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.847</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-847</link>
+<guid isPermaLink="false">gps-studio-v0.9.847</guid>
+<pubDate>Fri, 30 Oct 2026 12:00:00 +0000</pubDate>
+<description>Berge springen nicht mehr — Wechselte das Gelände beim Heranfliegen in die nächste Detailstufe, konnten Grate und Täler von einem Bild aufs nächste bis zu 25 m die Höhe ändern. Jetzt gleitet das Gelände unsichtbar zwischen den Stufen — in Vorschau und Video.
+
+Laufpunkt hinter dem Berg — Läuft die Tour hinter einem Hang, blendet der Laufpunkt jetzt weich aus wie die Linie, statt über dem Berg zu schweben. Im Track-Editor wählbar: ausblenden, durchscheinen lassen oder immer obenauf.
+
+Die Kamera schaut um Geländefalten herum — Schnell-Video, Assistent und die automatischen Kamerafahrten blicken dort steiler hinunter, wo Laufpunkt oder Linie hinter einer Falte verschwinden würden. Deine eigenen Keyframes bleiben unberührt.
+
+Fotos direkt auf der Karte verschieben — Ein geöffnetes Foto ziehst du einfach auf der Karte. Oben wählst du „Strecke“ (rastet auf dem Track ein, die Kamera hält dann an der neuen Stelle) oder „frei“ (bleibt, wo du loslässt).</description>
+</item>
 <item>
 <title>v0.9.845</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-845</link>
@@ -247,19 +260,6 @@ Medien einlesen, ohne zu bremsen — Einlesen und Inhaltssuche laufen auf der Hi
 Vorschaubilder viel schneller — Auch mit eingeschalteter Inhaltssuche kommt das Raster jetzt zuerst, aus dem Bild, das die Kamera schon in die Datei geschrieben hat. Die Suche liest die Fotos danach in Ruhe. Auf einem NAS mit großen Fotos: Stunden statt Tage.
 
 Dokumente zur Tour — Ausschreibung, Routenbeschreibung, Tickets, Notizen (PDF, Text, Word …) an die Tour hängen — die Datei bleibt, wo sie ist, und die Archiv-Suche findet die Tour auch über den Text darin.</description>
-</item>
-<item>
-<title>v0.9.789</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-789</link>
-<guid isPermaLink="false">gps-studio-v0.9.789</guid>
-<pubDate>Mon, 12 Oct 2026 12:00:00 +0000</pubDate>
-<description>Video-Assistent im neuen Look — Schritt für Schritt zum fertigen Video: Das Fenster sitzt links über den Werkzeugen, die Karte rückt beiseite und bleibt ganz sichtbar. Jeder Schritt stellt eine Frage und zeigt die Möglichkeiten als Bilder — kurze Clips für Vorlagen und Kamera, deine Route in allen acht Looks, Zeichnungen aus deiner eigenen Tour. Die besonderen Momente (höchster Punkt, steilstes Stück, Höchsttempo, Halbzeit) stehen jetzt bei den Momenten der Geschichte und lassen sich einzeln abwählen. Musik vorhören, eigene Vorlagen mit ★ speichern. Der Assistent ist nur im Animator zu sehen und wartet beim Zurückkommen auf demselben Schritt.
-
-Linien-Looks, Farblooks und Farbe je Tag — Glut und Neon lassen die Linie von selbst leuchten, ein Schweif zieht hinter dem Kopf her. Dazu Farblooks für das ganze Kartenbild (Cinematic, Goldene Stunde, Noir …) mit Stärkeregler und Vignette. Mehrtägige Touren bekommen auf Wunsch eine Farbe je Tag.
-
-Schärferes 3D-Gelände — Höhendaten von Mapterhorn: amtliche Geländemodelle (Deutschland 1 m, Alpen und Skandinavien bis 0,5 m) statt grober Kacheln — schärferes Relief und richtige Gipfelhöhen.
-
-Logbuch auf der Tour-Seite — Die Tour Tag für Tag neben der Karte: Pausen, Übernachtungen, Notizen. Ein Klick auf einen Eintrag zeigt die Stelle auf der Karte; umbenennen, Notiz, zusammenfassen.</description>
 </item>
 </channel>
 </rss>

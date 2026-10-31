@@ -46,7 +46,7 @@ TRACKGEBUNDEN = {
     "animator": {
         "timeline_events", "keyframes_enabled", "render_start_anchor", "render_end_anchor",
         "timeline_anchor_v", "timeline_schema_v", "timeline_dedupe_v",
-        "manual_cam", "static_zoom", "static_bearing", "static_padding", "static_pins",
+        "manual_cam", "static_zoom", "static_bearing", "static_padding", "static_pins", "zoom_ref_w",
         "trim_start", "trim_end", "extra_tours", "ghosts", "ghost_gpx_path", "ghost_dash_zv",
         "gruppen", "tempo_eintraege", "tours_ablauf", "tours_dezent", "tours_dot_haupt",
         "tours_fokus", "tours_haupt_start_s", "tour_colors", "etappe1_dauer_s", "etappe1_name",
@@ -54,7 +54,7 @@ TRACKGEBUNDEN = {
         "open_sections", "collapsed_sections",
     },
     "tourmap": {
-        "static_zoom", "static_bearing", "static_padding", "static_pins", "manual_cam",
+        "static_zoom", "static_bearing", "static_padding", "static_pins", "manual_cam", "zoom_ref_w",
         "keyframes_enabled", "signs", "photos", "last_save_dir",
         "open_sections", "collapsed_sections",
     },

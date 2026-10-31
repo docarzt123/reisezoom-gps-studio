@@ -2347,9 +2347,9 @@ function mountAnimator(body, headerActions, opts) {
       const z = parseFloat(v);
       if (isNaN(z)) return;
       updateLabel("anim-zoom-v", z.toFixed(1), "");
-      // Map LIVE auf den neuen Zoom setzen
+      // Map LIVE auf den neuen Zoom setzen (30.10.2026: Regler = gespeicherter Zoom → auf die Kartenbreite umrechnen)
       if (map) {
-        try { map.easeTo({ zoom: z, duration: 80 }); } catch (_) {}
+        try { _zoomBezugFesthalten(); map.easeTo({ zoom: z + _rzZoomShift(), duration: 80 }); } catch (_) {}
       }
     },
   });
@@ -3894,10 +3894,28 @@ function mountAnimator(body, headerActions, opts) {
       if (!map || _previewRaf) return;
       if ((getTimelineEvents() || []).length) return;   // 19.10.2026 — wie _manualCamGet: nur wirksame Keyframes
       const c = map.getCenter();
-      _manualCamSpeichern({ center: [c.lng, c.lat], zoom: +map.getZoom().toFixed(4), pitch: +map.getPitch().toFixed(2), bearing: +map.getBearing().toFixed(2) });
+      _manualCamSpeichern({ center: [c.lng, c.lat], zoom: +(map.getZoom() - _rzZoomShiftSchreiben()).toFixed(4), pitch: +map.getPitch().toFixed(2), bearing: +map.getBearing().toFixed(2) });
     } catch (_) {}
   }
   function _manualCamLoeschen() { if (_manualCam || (_manualCamGet())) _manualCamSpeichern(null); }
+  /** 30.10.2026 (Nutzer-Meldung: feste Kamera auf 81 km, nach Fenstergröße oder Schild-Text zeigte die Anzeige 100 km) —
+   *  feste Kamera = Höhe über Gelände (static_zoom) oder Handkamera, ohne Keyframes, ohne Folgen. Das automatische
+   *  Einpassen (Fenstergröße, Touren nachgeladen) stellte die Vorschau auf die Gesamtsicht; Video und Höhenanzeige
+   *  gehören aber zur festen Kamera. Danach zeigt die Vorschau wieder das Bild an der Abspielposition. */
+  function _festeKameraGesetzt() {
+    try {
+      if (_isStaticFrame || (getTimelineEvents() || []).length) return false;
+      if (document.getElementById("anim-camera-follow")?.checked) return false;
+      if (typeof _reiseAktiv === "function" && _reiseAktiv()) return false;
+      if (_manualCamGet()) return true;
+      const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      return !!(p && p[_MODKEY] && typeof p[_MODKEY].static_zoom === "number");
+    } catch (_) { return false; }
+  }
+  function _festeKameraZeigen() {
+    if (!map || _previewRaf || window.__rzStepMode || window.__rzRenderMode || !_festeKameraGesetzt()) return false;
+    try { scrubPreview(_tlBar ? (_tlBar.getScrubber() || 0) : 0, { skipSelectionSync: true }); return true; } catch (_) { return false; }
+  }
   let _extraTours = [];
   // 09.09.2026 — die EINE Wahrheit über die Zeit sind die GRUPPEN
   // (ui/js/spuren.js): jede Tour ist Halt + Inhalt + Halt, alle gleich lang.
@@ -5030,6 +5048,13 @@ function mountAnimator(body, headerActions, opts) {
     try { if (map && window.rzScaleMapLabels) window.rzScaleMapLabels(map, _prevK); } catch (_) {}
     if (map) {
       try { map.resize(); } catch (_) {}
+      // 30.10.2026 (Nutzer-Meldung: Kamerahöhe springt mit der Fenstergröße) — breitere/schmalere Karte: Zoom um
+      // log2(neu/alt) mitziehen, damit derselbe Ausschnitt stehen bleibt (wie die gespeicherten Werte, s. _rzZoomShift).
+      // Sonst zeigte die Handkamera nach dem Einklappen der Seitenleiste mehr Gelände und die Höhe sprang.
+      const _bAlt = parseFloat(_kartenGroesseVorher), _bNeu = Math.round(mapW);
+      if (!_renderVp && _bAlt > 0 && _bNeu > 0 && Math.abs(_bNeu - _bAlt) >= 1 && !_previewRaf) {
+        try { map.jumpTo({ zoom: map.getZoom() + Math.log2(_bNeu / _bAlt) }); } catch (_) {}
+      }
     }
 
     // Overlay-Preview-Layer: in RENDER-Pixel-Größe rendern + transform-scale
@@ -8804,8 +8829,10 @@ function mountAnimator(body, headerActions, opts) {
     const zoomSlider = document.getElementById("anim-zoom");
     const zoomLabel  = document.getElementById("anim-zoom-v");
     if (zoomSlider && !keyframesEnabled()) {
-      zoomSlider.value = String(curZoom);
-      if (zoomLabel) zoomLabel.textContent = curZoom.toFixed(1);
+      // 30.10.2026 — der Regler zeigt den gespeicherten Zoom (Bezugsbreite), nicht den der gerade so breiten Karte
+      const zGesp = curZoom - _rzZoomShift();
+      zoomSlider.value = String(+zGesp.toFixed(3));
+      if (zoomLabel) zoomLabel.textContent = zGesp.toFixed(1);
       // 31.08.2026 (Beta-Tester: „el zoom se va") — NICHT mehr persistieren.
       // Der Kommentar hier nannte den Wert selbst „eher informativ", aber er
       // wurde als static_zoom gespeichert und galt fortan als BEWUSSTE
@@ -9834,8 +9861,11 @@ function mountAnimator(body, headerActions, opts) {
     const _projZ = (typeof getActiveProject === "function")
       ? getActiveProject()?.[_MODKEY]?.static_zoom : null;
     const _fitB = effectiveFitZoomBase();
-    const zoomAbs = (typeof _projZ === "number") ? _projZ + _rzZoomShift()
-      : (_fitB != null ? _fitB
+    // 30.10.2026 — value_absolute ist ein GESPEICHERTER Zoom (Bezugsbreite); _zoomEffectiveOffset rechnet ihn auf die
+    // Karte um. Vorher stand hier static_zoom + Zuschlag, und der Zuschlag kam dort ein zweites Mal dazu.
+    // Der Regler zeigt gespeicherte Werte; der Fit ist ein Karten-Zoom und wird zurückgerechnet.
+    const zoomAbs = (typeof _projZ === "number") ? _projZ
+      : (_fitB != null ? _fitB - _rzZoomShift()
          : parseFloat(document.getElementById("anim-zoom")?.value));
     const rot = parseFloat(document.getElementById("anim-rot")?.value) || 0;
     // center = null bedeutet Track-Punkt-Folgen (gewollt im Classic-Modus
@@ -10369,7 +10399,7 @@ function mountAnimator(body, headerActions, opts) {
     // bin ich viel näher dran, als nach einem Reload").
     events.push({ kind: "pitch",   anchor, value: pitch,             easing: "linear" });
     events.push({ kind: "bearing", anchor, value: bearing,           easing: "linear" });
-    events.push({ kind: "zoom",    anchor, value_offset: zoomOff, value_absolute: curZoom, easing: "linear" });
+    events.push({ kind: "zoom",    anchor, value_offset: zoomOff, value_absolute: +(curZoom - _rzZoomShiftSchreiben()).toFixed(3), easing: "linear" });   // 30.10.2026 Bezugsbreite
     events.push({ kind: "center",  anchor, value: centerArr,         easing: "linear" });
     // v0.9.107/109/117 — Position + Rotation pro KF.
     // Marc-Bug v0.9.116: nach Welt-Button + Track-Drag spinnte alles
@@ -10429,7 +10459,7 @@ function mountAnimator(body, headerActions, opts) {
       const curZoom = +map.getZoom().toFixed(3);
       const base = effectiveFitZoomBase();
       const zoomOff = +(curZoom - base).toFixed(2);
-      newEv = { kind: "zoom", anchor, value_offset: zoomOff, value_absolute: curZoom, easing: "linear" };
+      newEv = { kind: "zoom", anchor, value_offset: zoomOff, value_absolute: +(curZoom - _rzZoomShiftSchreiben()).toFixed(3), easing: "linear" };   // 30.10.2026 Bezugsbreite
     } else if (kind === "center") {
       const c = map.getCenter();
       // v0.9.136 — abgewickelte lng (Welt-Drehung), siehe snapshotKeyframe.
@@ -11894,7 +11924,55 @@ function mountAnimator(body, headerActions, opts) {
   // 06.09.2026 — Render-Modus (gemeinsame Szene): Keyframes, manuelle Kamera und
   // static_zoom sind im Zoom der VORSCHAU gespeichert (kleinerer Viewport). Im Video-
   // Viewport gilt derselbe Versatz wie im klassischen Render: zoom_correction − log2(dsf).
-  function _rzZoomShift() { try { return (window.__rzRenderMode && isFinite(+window.__rzRenderMode.zoomShift)) ? +window.__rzRenderMode.zoomShift : 0; } catch (_) { return 0; } }
+  // 30.10.2026 (Nutzer-Meldung: feste Kamera, Höhe springt von 81 auf 100 km) — ein Zoom zeigt in einer breiteren Karte
+  // mehr Gelände. Die Vorschau ist mal breiter, mal schmaler (Fenster, Seitenleiste, Editor-Spalte), und das Video
+  // übernimmt die Breite beim Start. Gespeicherte Zoomwerte (static_zoom, manual_cam, value_absolute) gelten darum für
+  // die Bezugsbreite des Projekts (zoom_ref_w, CSS-px der Karte); angewendet wird Zoom + log2(Kartenbreite / Bezug),
+  // gespeichert Zoom − dasselbe. Die Bezugsbreite wird beim ersten Gebrauch festgehalten — ältere Werte gelten dann für
+  // die Breite, in der das Projekt zuerst wieder geöffnet wird. Ohne Bezug (Video eines nie wieder geöffneten Projekts)
+  // gilt wie bisher nur der Zuschlag der Szene bei Mindestbreite.
+  function _kartenBreiteCss() {
+    try {
+      if (window.__rzRenderMode && window.__rzRenderMode.w) return +window.__rzRenderMode.w;   // Szene: Karte = Viewport
+      const el = document.getElementById("map-canvas");
+      return (el && el.offsetWidth) || 0;
+    } catch (_) { return 0; }
+  }
+  // 31.10.2026 — beim Öffnen nur im Speicher: Öffnen verändert kein Projekt (test_gruppen_projekt, test_vorlagen_schwebend),
+  // und ein Speichern bei jedem Zoom-Lesen löste Neuzeichnungen aus. Festgehalten wird erst beim Schreiben eines Zoomwerts
+  // und vor Render/Export (_zoomBezugFesthalten).
+  const _zoomBezugSitzung = {};   // Projekt-ID → Kartenbreite beim ersten Gebrauch
+  function _zoomBezugBreite() {
+    try {
+      const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      const r = (p && p[_MODKEY]) ? +p[_MODKEY].zoom_ref_w : 0;
+      if (r > 0) return r;
+      if (!p || window.__rzRenderMode) return 0;   // die Szene liest nur
+      const id = p.id || "";
+      if (_zoomBezugSitzung[id] > 0) return _zoomBezugSitzung[id];
+      const b = _kartenBreiteCss();
+      if (b >= 60) { _zoomBezugSitzung[id] = Math.round(b); return _zoomBezugSitzung[id]; }
+    } catch (_) {}
+    return 0;
+  }
+  function _zoomBezugFesthalten() {
+    try {
+      const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      if (!p || window.__rzRenderMode || (p[_MODKEY] && +p[_MODKEY].zoom_ref_w > 0)) return;
+      if (typeof getActiveSession !== "function" || !getActiveSession()) return;
+      const ref = _zoomBezugBreite();
+      if (ref > 0) saveProjectSettings(_MODKEY, { zoom_ref_w: ref });
+    } catch (_) {}
+  }
+  /** Zuschlag für einen Zoomwert, der gleich gespeichert wird — hält die Bezugsbreite dabei fest. */
+  function _rzZoomShiftSchreiben() { _zoomBezugFesthalten(); return _rzZoomShift(); }
+  function _rzZoomShift() {
+    try {
+      const ref = _zoomBezugBreite(), b = _kartenBreiteCss();
+      if (ref > 0 && b > 0) return Math.log2(b / ref);
+      return (window.__rzRenderMode && isFinite(+window.__rzRenderMode.zoomShift)) ? +window.__rzRenderMode.zoomShift : 0;
+    } catch (_) { return 0; }
+  }
   function _zoomEffectiveOffset(ev, fitBase) {
     if (ev && ev.value_absolute != null && fitBase != null && isFinite(fitBase)) {
       return ev.value_absolute + _rzZoomShift() - fitBase;
@@ -13504,6 +13582,7 @@ function mountAnimator(body, headerActions, opts) {
   // Schrittmodus starten" und den Bild-für-Bild-Zugriff (window.__rzPreviewStep).
   // 07.09.2026 — Griff für Sonden/Tests (wie window.__libMap): die Karte liegt sonst modul-intern.
   try { window.__rzAnimMap = () => map; } catch (_) {}
+  try { window.__rzFitAlleTouren = () => _animFitAllTours(); } catch (_) {}   // 30.10.2026 — Prüfstand (test_zoom_fensterbreite.py)
   // 05.10.2026 — einfache Ansicht (ui/js/einfach.js): Tour-Ausdehnung für die Kamerafahrt, nur im Animator (nicht Tour-Map/Reiseroute)
   try { window.__rzEinfachBbox = () => (typeof mapBboxArray === "function" ? mapBboxArray(currentBbox) : null);
         window.__rzEinfachErlaubt = !_isStaticFrame && !_isReiseroute; } catch (_) {}
@@ -14675,7 +14754,7 @@ function mountAnimator(body, headerActions, opts) {
         // 29.09.2026 — nie während Probelauf/Szene-Render: die Gesamtsicht (fitBounds, Richtung 10°)
         // landete sonst zeitversetzt zwischen zwei Bildern — gemessen bis 160° Ausreißer in EINEM
         // Bild (Schnell-Video), auch in normalen Videos bis 10°.
-        if (currentBbox && !_kameraGehoertNutzer && !_previewRaf && !window.__rzStepMode) fitTrackPreview(false);
+        if (currentBbox && !_kameraGehoertNutzer && !_previewRaf && !window.__rzStepMode) { fitTrackPreview(false); _festeKameraZeigen(); }   // 30.10.2026
       }, 200);
     };
     // ResizeObserver: Section-Größe ändert sich → Viewport neu fitten + Refit
@@ -24196,8 +24275,9 @@ function mountAnimator(body, headerActions, opts) {
               if (!userSet) {
                 const zs = document.getElementById("anim-zoom");
                 const zl = document.getElementById("anim-zoom-v");
-                if (zs) zs.value = _fitZoomBase.toFixed(1);
-                if (zl) zl.textContent = _fitZoomBase.toFixed(1);
+                const zGesp = _fitZoomBase - _rzZoomShift();   // 30.10.2026 Regler = gespeicherter Zoom
+                if (zs) zs.value = zGesp.toFixed(1);
+                if (zl) zl.textContent = zGesp.toFixed(1);
               }
             }
           } catch (_) {}
@@ -27713,6 +27793,8 @@ function mountAnimator(body, headerActions, opts) {
           map.once("moveend", () => { try { window.__rzFitBaseMoveend = map.getZoom(); } catch (_) {} });
         }
       } catch (_) {}
+      // 30.10.2026 — feste Kamera: die Basis steht (cameraForBounds), die Vorschau bleibt beim Bild des Videos
+      if (_sofort && _festeKameraZeigen()) return;
       if (!_sofort) map.once("moveend", () => {
         try {
           _fitZoomBase = map.getZoom();
@@ -29630,7 +29712,8 @@ function mountAnimator(body, headerActions, opts) {
     let zoomCorrection = 0;
     try {
       if (map && window.correctedZoom) {
-        zoomCorrection = window.correctedZoom(map, w, h) - map.getZoom();
+        // 30.10.2026 — gespeicherte Zoomwerte gelten für die Bezugsbreite → deren Abstand zur Vorschau dazu
+        zoomCorrection = window.correctedZoom(map, w, h) - map.getZoom() + _rzZoomShift();
         if (!isFinite(zoomCorrection)) zoomCorrection = 0;
       }
     } catch (_) { zoomCorrection = 0; }
@@ -29669,7 +29752,7 @@ function mountAnimator(body, headerActions, opts) {
         snapshotPitch = mp;
         renderEvents = renderEvents.map(e => {
           if (!e) return e;
-          if (e.kind === "zoom")  return { ...e, value_absolute: mz };
+          if (e.kind === "zoom")  return { ...e, value_absolute: mz - _rzZoomShiftSchreiben() };   // 30.10.2026 Bezugsbreite
           if (e.kind === "pitch") return { ...e, value: mp };
           // Center nur snapshotten wenn die Kamera NICHT dem Track folgt
           // (sonst null lassen = per-Frame Track-Punkt, wie gehabt).
@@ -29685,6 +29768,7 @@ function mountAnimator(body, headerActions, opts) {
     // 28.09.2026 — WYSIWYG: vorher Projekt sichern/festschreiben, sonst rendert eine frisch geöffnete Tour
     // ohne Projekt-Kennung über den klassischen Generator (andere Quellenzeile, andere Strichelung).
     let _szenePid = null;
+    _zoomBezugFesthalten();   // 31.10.2026 — das Video rechnet mit derselben Bezugsbreite wie die Vorschau
     try { _szenePid = (typeof window.projektFuerRenderSichern === "function") ? await window.projektFuerRenderSichern(_MODKEY) : null; }
     catch (e) { applog && applog("warn", "[render] Projekt sichern: " + e); }
     if (!_szenePid) applog && applog("warn", "[render] kein Projekt — Render läuft klassisch (nicht WYSIWYG)");
