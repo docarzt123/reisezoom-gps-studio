@@ -117,9 +117,23 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.848</span>
+    <span class="version-num">v0.9.850</span>
     <span class="version-date">31 de octubre de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>Vista previa fluida en pantallas Retina</strong> &mdash; Cuando la gráfica no llega a cada fotograma, la vista previa dibuja primero con algo menos de densidad de píxeles al reproducir, en lugar de saltarse fotogramas. Las líneas y el texto mantienen su tamaño; la imagen solo queda un poco más suave. En cuanto pausas, vuelve a estar nítida; el vídeo no se ve afectado.</li>
+    <li><strong>El punto y la línea van juntos</strong> &mdash; En un ordenador muy ocupado, la línea ya no seguía al punto en movimiento: el punto daba tirones o se adelantaba sin línea. Ahora la vista previa dibuja al instante el último tramo hasta el punto.</li>
+    <li><strong>Línea en rutas de ida y vuelta</strong> &mdash; Si una ruta vuelve por el mismo camino, el final de la línea a veces se buscaba en la vuelta. Ahora la línea termina siempre en el punto, también tras saltar en la línea de tiempo.</li>
+    <li><strong>La cámara se queda quieta al parar</strong> &mdash; Con la cámara suave, la imagen bajaba o subía un poco justo después de parar, según el terreno. Ahora se queda exactamente como estaba al parar.</li>
+    <li><strong>La línea de comandos no toca la biblioteca</strong> &mdash; <code>gpsstudio render</code> guarda la copia de la ruta, las miniaturas y los archivos intermedios solo en una carpeta temporal. Antes podían quedarse archivos intermedios en la biblioteca y el registro decía que la protección de archivos los rechazaba. La biblioteca también puede estar en un NAS.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.848</span>
+    <span class="version-date">31 de octubre de 2026</span>
   </div>
   <ul>
     <li><strong>Altura de cámara independiente del tamaño de la ventana</strong> &mdash; Una cámara fija mostraba otro encuadre según el ancho de la ventana o de la barra lateral &mdash; por ejemplo 103 en vez de 81&nbsp;km de altura. Ahora la altura indicada, la vista previa y el vídeo son iguales con cualquier ancho de ventana.</li>

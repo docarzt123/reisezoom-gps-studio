@@ -5,8 +5,30 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sat, 31 Oct 2026 00:11:08 +0000</lastBuildDate>
+<lastBuildDate>Sat, 31 Oct 2026 21:25:09 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.850</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-850</link>
+<guid isPermaLink="false">gps-studio-v0.9.850</guid>
+<pubDate>Sat, 31 Oct 2026 12:00:00 +0000</pubDate>
+<description>Flüssige Vorschau am Retina-Bildschirm — Schafft die Grafik nicht jedes Bild, zeichnet die Vorschau beim Abspielen erst mit etwas weniger Pixeldichte, statt Bilder auszulassen. Linien und Schrift bleiben gleich groß, das Bild ist nur etwas weicher. Sobald du anhältst, ist es sofort wieder scharf; das Video ist davon nicht betroffen.
+
+Laufpunkt und Linie bleiben zusammen — Auf einem ausgelasteten Rechner kam die Linie hinter dem Laufpunkt nicht mehr hinterher: Der Punkt ruckelte oder lief ohne Linie voraus. Jetzt zeichnet die Vorschau das letzte Stück bis zum Punkt sofort selbst.
+
+Linie auf Hin-und-zurück-Wegen — Führt eine Tour denselben Weg zurück, wurde das Linienende manchmal auf dem Rückweg gesucht. Jetzt endet die Linie immer am Laufpunkt, auch nach einem Sprung in der Zeitleiste.
+
+Kamera bleibt beim Anhalten stehen — Mit der ruhigen Kamera sackte das Bild kurz nach dem Stoppen ein Stück ab oder hob sich, je nach Gelände. Jetzt bleibt es genau so stehen, wie es beim Anhalten war.</description>
+</item>
+<item>
+<title>v0.9.848</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-848</link>
+<guid isPermaLink="false">gps-studio-v0.9.848</guid>
+<pubDate>Sat, 31 Oct 2026 12:00:00 +0000</pubDate>
+<description>Kamerahöhe unabhängig von der Fenstergröße — Eine feste Kamera zeigte je nach Breite von Fenster oder Seitenleiste einen anderen Ausschnitt — etwa 103 statt 81 km Höhe. Jetzt bleiben Höhenanzeige, Vorschau und Video gleich, egal wie breit das Fenster ist.
+
+Feste Kamera bleibt in der Vorschau — Nach einer Fensteränderung oder einem geänderten Schild sprang die Vorschau nicht mehr auf die Gesamtsicht, sondern zeigt weiter das Bild des Videos.</description>
+</item>
 <item>
 <title>v0.9.847</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-847</link>
@@ -234,32 +256,6 @@ Schilder direkt auf der Karte — Ein neues Schild steht sofort auf der Karte, u
 Gleitschirm nach Höhe eingefärbt — Die Linie in der Luft färbt sich genau wie die Linie am Boden: „Mehrere Track-Farben“ nach Höhe, Tempo, Steigung …, hart oder als Verlauf, auch Farbe je Tag. So sieht man auf einen Blick, wo der Schirm in der Thermik steigt und wo er gleitet.
 
 Flüge gehen von selbst in die Luft — Ein IGC-Track (Gleitschirm, Segelflug, Drachen) schaltet Gelände und „Flug in der Luft“ selbst ein. Der Schalter ist bei Flügen wieder zu sehen: Karte → 3D auf der Karte → Strecke.</description>
-</item>
-<item>
-<title>v0.9.792</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-792</link>
-<guid isPermaLink="false">gps-studio-v0.9.792</guid>
-<pubDate>Thu, 15 Oct 2026 12:00:00 +0000</pubDate>
-<description>Hochflug — Jeder Abschnitt einer Etappe bekommt einen Höhen-Editor: höchster Punkt von 10 m bis 1.000 km und ein Profil mit Ziehpunkten (Bogen, Plateau, Steigflug). Die Linie fliegt in dieser Höhe, die Kamera folgt und zieht mit — von weit oben wird die Karte zur Weltkugel. Unterwegs kreist sie einmal halb herum und zeigt den Bogen von der Seite.
-
-Orte nacheinander — Eine Etappe kann nur ihre Orte zeigen — ohne Linie, ohne Laufpunkt. Jeder Ort erscheint als Schild, wenn er dran ist, im gleichmäßigen Takt. Kamera: alles im Blick oder zu jedem Ort fliegen.
-
-Zehn Kamera-Flugstile — Im Schnell-Video und im Video-Assistenten fliegt die Kamera auf Wunsch anders mit: Begleiter, Tiefflieger, Schwalbe, Kranschwenk, Thermik, Reiseflughöhe, Pusteblume, Falke, Orbit und Karussell — mit kurzen Vorschau-Clips. Dazu beim Fotostopp „Einmal um das Foto kreisen“.
-
-Symbole für 20 Reisearten — Auto, Motorrad, Wohnmobil, Rad, Wanderer, Segelboot, Gleitschirm, Heißluftballon und mehr: als schlichtes Symbol, das flach auf der Karte liegt und sich mit der Route dreht. Zwölf neue Reisearten auch für Etappen.</description>
-</item>
-<item>
-<title>v0.9.791</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-791</link>
-<guid isPermaLink="false">gps-studio-v0.9.791</guid>
-<pubDate>Tue, 13 Oct 2026 12:00:00 +0000</pubDate>
-<description>Video-Export auf neuen Macs — Lag von einer früheren Installation noch ein altes ffmpeg für Intel-Prozessoren auf dem Mac, brach der Export sofort ab („Bad CPU type“). GPS Studio prüft jetzt, ob ein ffmpeg auch startet, und nimmt sonst das mitgelieferte.
-
-Medien einlesen, ohne zu bremsen — Einlesen und Inhaltssuche laufen auf der Hintergrund-Stufe des Systems: Schneidest du nebenher ein Video oder arbeitest im Animator, tritt das Einlesen von selbst zurück.
-
-Vorschaubilder viel schneller — Auch mit eingeschalteter Inhaltssuche kommt das Raster jetzt zuerst, aus dem Bild, das die Kamera schon in die Datei geschrieben hat. Die Suche liest die Fotos danach in Ruhe. Auf einem NAS mit großen Fotos: Stunden statt Tage.
-
-Dokumente zur Tour — Ausschreibung, Routenbeschreibung, Tickets, Notizen (PDF, Text, Word …) an die Tour hängen — die Datei bleibt, wo sie ist, und die Archiv-Suche findet die Tour auch über den Text darin.</description>
 </item>
 </channel>
 </rss>

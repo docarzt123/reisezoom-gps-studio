@@ -162,6 +162,15 @@ def _vorbereiten(app, library: str | None):
     app.LIBRARY_DB = db
     app.BIB_BEREIT = True
     app.DATEN_ORT = tmp
+    # 31.10.2026 (Nutzer-Meldung, Windows + NAS): Diese Pfade stehen seit dem Start auf der eingestellten Bibliothek. Die
+    # Tour-Kopie und das Projekt-Vorschaubild landeten dort — der Dateischutz verweigerte das (die Bibliothek ist hier nicht
+    # angemeldet), die Zwischendateien blieben aber liegen. Geschrieben wird nur in den Temp-Ordner; gelesen (Vorschau-,
+    # Karten-, Titelbilder) aus der gewählten Bibliothek, auch mit --library.
+    app.SESSIONS_GPX_DIR = app.cbib.touren_ordner(tmp)
+    app.PROJEKT_VORSCHAU = tmp / "bilder" / "projekte"
+    app.LIBRARY_THUMBS = bib / "bilder" / "vorschau"
+    app.LIBRARY_MAP_THUMBS = bib / "bilder" / "karten"
+    app.LIBRARY_COVERS = bib / "bilder" / "titel"
     api = app.Api()
     api._lib_conn = app.clib.open_db_lesend(db)
     return api, tmp

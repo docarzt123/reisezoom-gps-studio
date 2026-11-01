@@ -2531,6 +2531,8 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Mac: double-click on .rzproj** works since 2026-09-05 while GPS Studio is already running (previously only at launch).
 - **Starry sky (globe)** (since 2026-09-05, beta-tester request) — on the right in the **map editor** (button **“Map look and stars …”** in the **Map** section, since 2026-10-08; before that directly in the Map section): on/off, density, size and twinkle. Visible once the camera is far enough out (world approach, intro). Preview and video show the same stars. Mapbox styles do not have the group; Mapbox brings its own sky.
 - **Preview quality** (since 2026-09-07) — Settings → Maps, at the very bottom: "full" (like the video), "brisk" (four times fewer tiles per frame, tile density as before 7 Sept) or "fast" (additionally half the image resolution; on Retina Macs this barely adds speed). Helps when the preview stutters. It only affects the window: video and still image always render in full, camera, route and overlays are identical. The app reloads the interface after the change.
+  **Sharpness during playback (since 0.9.849, automatic):** on a Retina screen the graphics are usually the bottleneck. Before the preview drops to every second frame, it first draws with a lower pixel density during playback (2 → 1.5 → 1): lines and text keep their size, the picture just gets a little softer, and it runs at every frame again. As soon as you pause it is sharp again; the video always renders at full resolution. If that doesn't help (the processor is the bottleneck), the preview goes back to sharp and lowers the frame rate as before. In the log: "[takt] Vorschau zeichnet beim Abspielen mit Pixeldichte …".
+  **Moving dot and line stay together (since 0.9.849):** on a busy computer the line reaches the map a little later. The preview then draws the last piece up to the moving dot itself, straight away — the dot no longer waits and never runs ahead without a line.
 - **Source line: full or short** (since 2026-09-07) — in the "Source line" overlay group next to corner and width: "full" shows every source with its licence in the picture (as before). "short (names + link)" shows the short names of the sources in the picture, "modified" and then "Sources: <your link>" — the link must lead straight to the complete details for this video (your page, the video description). The names stay in the picture because many licences require visible credit; the links to licence and dataset sit behind your link. Without a link only the names and "modified" appear. Same in preview and video, not in the Web Map. After every render there is a **"Copy source text"** button: the complete text for the video description or the end credits (provider, dataset, licence with links, "Data modified", your link).
 - **Source register** (since 2026-09-07) — in the settings under **Maps**, expandable in the rights table: for every map service the data licence with a link, whether commercial videos are allowed (✅ checked and allowed · 💰 buy rights · ⚠️ not verified or server rules · ❌ not allowed), the required credit in the picture and the date it was checked. Every service was read up on individually on 7 Sept 2026; since then the credit in the picture comes from this register, with a modification note where the licence requires one. It is re-checked at least every six months; if an entry is overdue, a note says so. The map badges in the style picker follow the register: CyclOSM and Humanitarian are not cleared for videos (the OpenStreetMap France server serves non-commercial sites only), OpenStreetMap and OpenTopoMap carry the note "video: mind server rules" (frame-by-frame rendering only by arrangement or with your own tile server). This is our reading, not legal advice — the links are right next to it.
 - **Sharpness** (since 2026-09-07) — the last slider of the "Imagery look" or "Map look" (below "Hue"), 0–100 % (default 0): an unsharp mask on the map image, the same in preview and video (not in the Web Map exports). It only affects the map image, not the route, signs, labels, figures, elevation profile or source line. Background: the free Sentinel-2 layer (10 m, from 2016) is soft over islands and coasts without official aerial imagery — that is the source data, not the app. 40–60 % makes it readable; above that it gets grainy. Since the same day all raster maps on Retina screens and in the video fetch one or two tile levels deeper, so that one tile pixel lands on roughly one image pixel (before, they were enlarged 2 to 5 times).
@@ -3734,7 +3736,8 @@ code 0 = ok, 1 = error, 2 = wrong usage.
 
 **Safe next to the app:** the command line only reads your archive — it changes nothing and may run while GPS Studio is
 open. The video is made exactly as in the app (quick video with the chosen template, photo stops from your archive,
-music, end card); its project lives only briefly in a temp folder.
+music, end card); its project lives only briefly in a temp folder. The copy of the tour, preview images and
+intermediate files go there too, never into the library (since v0.9.849) — so the library may also live on a NAS.
 
 ### For AI assistants (MCP, since v0.9.792)
 
@@ -3976,6 +3979,14 @@ Yes, in two tiers:
 This was a known issue up to v0.9.286 and is now fixed (tile cross-fading turned off + supersampling + a slight map blur against the texture shimmer). If you still have an old video: just re-render it with the current version.
 
 You control the strength via the **"Smooth map"** slider in the **video settings** (Animator). The default is a subtle value that removes the shimmer without making the map mushy. If the map is too soft for you → slider down (0 = off, sharpest map). If there's still shimmer → slider up. Takes effect only on 4K renders; statistics, numbers and the track line always stay sharp.
+
+### Can I use the command line with a library on a NAS?
+Yes. The command line only reads the library and writes nothing into it: the copy of the tour, the project and
+intermediate files stay in a temp folder on your computer (since v0.9.849). For automated jobs, point `--out` at a local
+disk and pass the tour as a GPX file or by its `id` from `gpsstudio tours`. Older versions logged “[dateischutz]
+VERWEIGERT …” for intermediate files in the library, and those files could stay behind — files with `.tmp` in their
+name under `touren/` and `bilder/karten/` can be deleted. `--library` needs a folder that already is a GPS Studio
+library (with `bibliothek.json`); the command line does not set up an empty folder as a library.
 
 ### The track is positioned wrong on the map
 Probably a time-zone problem: the photo capture time doesn't match the GPX track time. Solution in the Geotagger:

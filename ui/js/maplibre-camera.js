@@ -99,6 +99,14 @@
     // Prüfstand-Griff (08.09.2026): der zuletzt GESETZTE Stand — MapLibre darf ihn danach noch ändern
     // (z. B. Kamera über das Gelände heben); Vergleich mit getZoom()/getPitch() zeigt das.
     try { window.__rzCamSet = { zoom: zoom, pitch: bp[1], bearing: bp[0], elev: elev, alt: altM, lat: cLat, lng: cLng }; } catch (_) {}
+    // 01.11.2026 — Stellung merken, wenn die Mitte mit FESTER Höhe (ruhige Kamera) gesetzt wurde: nur dann darf der
+    // Mittelpunkt-Sitz danach die Kamera festhalten (rzSeatMapLibreCenter). Jede andere Bewegung ändert die Stellung.
+    try { map.__rzFestStellung = fixed ? rzMlStellung(map) : null; } catch (_) {}
+  }
+  /** Kamerastellung als Text (Mitte, Zoom, Neigung, Drehung) — derselbe Schlüssel wie im Mittelpunkt-Sitz. */
+  function rzMlStellung(map) {
+    const c = map.getCenter();
+    return [c.lng.toFixed(6), c.lat.toFixed(6), (+map.getZoom()).toFixed(4), (+map.getPitch()).toFixed(2), (+map.getBearing()).toFixed(2)].join(",");
   }
   /** 02.10.2026 — Bildschirmpunkt einer Stelle mit der Geländehöhe, mit der MapLibre die Karte ZEICHNET.
    *  `map.project` fragt die Höhe auf `tileZoom` ab, gezeichnet wird mit den Kacheln auf tileZoom + deltaZoom.
@@ -116,7 +124,20 @@
       return tr.locationToScreenPoint(L, fest);
     } catch (_) { return map.project(ll); }
   }
+  /** 31.10.2026 — Steht die Kamera frei über dem Gelände (≥ 30 m)? `elevJetzt`: die Mittelpunkt-Höhe, mit der MapLibre
+   *  gerade zeichnet. Dann darf der Mittelpunkt-Sitz die Stellung der ruhigen Kamera unverändert lassen; false = Kamera
+   *  steckt im Gelände oder es ist nicht prüfbar (der Aufrufer hebt dann wie bisher). */
+  function rzMlCamFrei(map, elevJetzt) {
+    if (!map || !map.getTerrain || !map.getTerrain() || elevJetzt == null || !isFinite(elevJetzt)) return false;
+    const r = rzMlCamRead(map, elevJetzt);
+    const camLat = yLat(r.pos[1]), camLng = xLng(r.pos[0]);
+    const altM = r.pos[2] / mercZfromAlt(1, camLat);
+    const boden = terrainAt(map, [camLng, camLat], null);
+    return boden != null && isFinite(altM) && altM >= boden + 30;
+  }
   window.rzProjektGezeichnet = rzProjektGezeichnet;
+  window.rzMlCamFrei = rzMlCamFrei;
+  window.rzMlStellung = rzMlStellung;
   window.rzMlCamRead = rzMlCamRead;
   window.rzMlCamApply = rzMlCamApply;
 })();

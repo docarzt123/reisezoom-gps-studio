@@ -14,6 +14,42 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.850] – 2026-10-31
+
+### Added
+- **Lower pixel density while the preview plays on a slow screen**: before the preview drops to every second frame it
+  first draws with a lower pixel density during playback (3 → 2 → 1.5 → 1; Retina usually 2 → 1.5): lines and text keep
+  their size, the picture is a little softer, and every frame is drawn again. Pausing restores full sharpness at once;
+  the video is unaffected. If a step doesn't make frames ≥ 10 % faster (the bottleneck is the CPU, not the graphics),
+  the preview goes back to sharp and lowers the frame rate as before. Remembered per canvas size; every 4th run checks
+  sharp again. Logged as `[takt] … Pixeldichte …` and in the playback summary.
+
+### Fixed
+- **Moving dot and line stay together on a busy computer**: the preview line reaches the map through MapLibre's worker,
+  and every new version rebuilt all line tiles. On a busy machine the line fell behind; the dot then had to wait (jerky,
+  "the arrow doesn't keep up") or ran ahead without a line. A WebGL layer (`anim-linie-bruecke`, rz-line3d) now draws
+  the piece from the drawn line end to the dot in the same frame; the dot always stays at its own position. The video is
+  unchanged (every frame waits for the finished map).
+- **Line end found on out-and-back routes**: the drawn line end was searched on the route within 400 points before the
+  dot; on a route that comes back the same way it was found on the way back (up to 460 px off). Every sent line tip is
+  now remembered and recognised directly; tile edges are matched closest to the previous end. After scrubbing back the
+  old end no longer counts, and the end is re-measured every frame (tiles dropped by the moving camera).
+- **Line tiles get finished under load**: the next line version is sent only after the previous one is drawn (at most
+  250 ms wait); before, tiles were rebuilt continuously and new ones never arrived — the line vanished in places.
+- **Command line leaves the library untouched**: `gpsstudio render` with a GPX file put a copy of the tour into the
+  library's version store and the hidden page saved map images and the project preview there. The command line opens the
+  library read-only and doesn't register it with the file guard, so the guard refused (`[dateischutz] VERWEIGERT
+  version_ablegen` / `kartenbild_speichern … (ausserhalb)`) — but the intermediate `.tmp` file had already been written
+  and stayed behind, also on a NAS library. Tour copy and project preview now go to the command line's temp folder, map
+  images aren't cached in command-line mode, and storing a tour version or map image checks the guard before writing
+  the intermediate file. Read paths (previews, map images, covers) follow `--library`.
+- **Camera stays put when the preview stops**: with the smooth camera, each support point sets a fixed centre height (as
+  in the video). 300 ms after stopping, the preview set the centre onto the terrain and MapLibre moved the whole camera
+  by the difference — it sank a little or rose, depending on the spot (measured +15 m / −45 m, 1–2 px). A view set by
+  the smooth camera that nothing has moved since now stays exactly as it is: camera, centre and zoom (so keyframe
+  values, undo and "Keyframe here" keep matching). After your own pan, zoom or a jump to a keyframe the centre is
+  seated onto the terrain as before; a camera inside the terrain is still lifted.
+
 ## [0.9.848] – 2026-10-31
 
 ### Fixed

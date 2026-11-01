@@ -1117,7 +1117,9 @@ window.rzGlobeForMapLibre = rzGlobeForMapLibre;
  */
 function rzSeatMapLibreCenter(map) {
   if (!map || map.__rzEngine !== "maplibre" || typeof map.setCenterElevation !== "function") return;
-  const seat = () => {
+  // halten: nach einer Kamerabewegung die Kamera stehen lassen (s. unten); beim ersten Sitz nach dem Einschalten des
+  // Geländes NICHT — da soll der Ausschnitt gleich bleiben, also wie bisher heben
+  const seat = (halten) => {
     try {
       if (map.isMoving && map.isMoving()) return;
       // 08.09.2026 (Marc: "im Render folgt die Kamera dem Gelaende, in der Vorschau nicht"):
@@ -1142,19 +1144,27 @@ function rzSeatMapLibreCenter(map) {
       const have = map.getCenterElevation ? map.getCenterElevation() : 0;
       if (e != null && isFinite(e) && Math.abs(e - (have || 0)) > 1) {
         map.__rzSeatStellung = stellung;
-        map.setCenterElevation(e);
+        // 31.10.2026 (Marc, MacBook: „wenn ich die Vorschau stoppe, sackt die Kamera minimal ab … manchmal auch ein Stück
+        // hoch“) — die ruhige Kamera setzt je Stützstelle eine feste Mittelpunkt-Höhe (wie das Video). Nach dem Stopp zog
+        // dieser Sitz die Mitte aufs Gelände, und setCenterElevation verschiebt bei gleicher Mitte und gleichem Zoom die
+        // ganze Kamera um den Unterschied (gemessen +15 m / −45 m → 1–2 px, je nach Stelle hoch oder runter). Jetzt bleibt
+        // eine Stellung der ruhigen Kamera, die seitdem niemand bewegt hat, wie sie ist — Kamera, Mitte und Zoom. Erst nach
+        // Ziehen, Zoomen oder einem Keyframe-Sprung sitzt die Mitte wieder auf. Steckt die Kamera im Gelände (Seebensee:
+        // Mitte auf 0 m), wird wie bisher gehoben.
+        const fest = halten === true && map.__rzFestStellung === stellung;
+        if (!(fest && window.rzMlCamFrei && window.rzMlCamFrei(map, have))) map.setCenterElevation(e);
         if (map.triggerRepaint) map.triggerRepaint();
       }
     } catch (_) {}
   };
-  map.once("idle", seat);
+  map.once("idle", () => seat(false));
   // Nach Kamerafahrten NICHT bei jedem moveend (der Probelauf feuert eines
   // pro Bild → jeder Sitz ein kleiner Kamerasprung = Ruckeln, Marc 04.09.),
   // sondern erst, wenn die Karte 300 ms still steht.
   if (!map.__rzSeatBound) {
     map.__rzSeatBound = true;
     let timer = null;
-    map.on("moveend", () => { if (timer) clearTimeout(timer); timer = setTimeout(() => { timer = null; seat(); }, 300); });
+    map.on("moveend", () => { if (timer) clearTimeout(timer); timer = setTimeout(() => { timer = null; seat(true); }, 300); });
     map.on("movestart", () => { if (timer) { clearTimeout(timer); timer = null; } });
   }
 }
@@ -4259,15 +4269,43 @@ window.RZ_NORTH_SVG = "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000
 // Frame → die Schlange wächst, die Karte holt sie nach dem Stopp ab. Dieser
 // Wrapper hält pro Quelle höchstens EINEN Auftrag in der Luft und merkt sich nur
 // den jüngsten Stand; der geht raus, sobald der Worker frei ist.
+// 31.10.2026 — jede gesendete Linienspitze mit ihrer Stelle (`__rzBis`) merken: der Animator erkennt daran,
+// welche Fassung eine Kachel gerade zeigt, ohne die Spitze auf der Strecke suchen zu müssen (Hin-und-zurück-Wege).
+// Geht die Stelle zurück (Scrubben), beginnt eine neue Reihe.
+function _rzGesendetMerken(src, d) {
+  src.__rzGesendet = d;
+  try {
+    if (!d || typeof d.__rzBis !== "number") { src.__rzSpitzen = null; return; }
+    const g = d.geometry || {};
+    const c = g.type === "LineString" ? g.coordinates : g.type === "MultiLineString" ? g.coordinates[g.coordinates.length - 1] : null;
+    const tip = c && c.length ? c[c.length - 1] : null;
+    let L = src.__rzSpitzen;
+    if (!L || (L.length && d.__rzBis < L[L.length - 1].bis - 1e-6)) { L = src.__rzSpitzen = []; src.__rzSpitzenAb = d.__rzBis; }
+    const z = L.length ? L[L.length - 1] : null;
+    if (tip && !(z && z.bis === d.__rzBis && z.x === tip[0] && z.y === tip[1])) { L.push({ bis: d.__rzBis, x: tip[0], y: tip[1] }); if (L.length > 240) L.splice(0, L.length - 240); }
+  } catch (_) {}
+}
+window.rzGesendetMerken = _rzGesendetMerken;   // Animator: auch direkte setData-Aufrufe der Linie (Neuaufbau, Stilwechsel)
+// 31.10.2026 — Quellen mit `__rzGanzWarten` (Animator-Linie) bekommen die nächste Fassung erst, wenn die vorige
+// GEZEICHNET ist (alle Kacheln fertig), nicht schon, wenn der Worker die Daten hat. Vorher baute jede Fassung alle Kacheln
+// neu, bevor die vorige fertig war: unter Last waren sie dauernd im Umbau, neue Kacheln (Kamera fährt weiter) kamen nie
+// an — die Linie verschwand stellenweise ganz (Klicktest unter Volllast: in 9 von 10 Proben keine Linienkachel geladen).
+// Höchstens 250 ms warten (eine hängende Kachel darf die Linie nicht anhalten); im Video wartet jedes Bild ohnehin.
+const _rzQuelleFrei = (map, src) => {
+  if (src._pendingLoads > 0) return false;
+  if (!src.__rzGanzWarten || window.__rzRenderMode || window.__rzStepMode) return true;
+  try { if (map.isSourceLoaded(src.id)) return true; } catch (_) { return true; }
+  return performance.now() - (src.__rzGesendetT || 0) > 250;
+};
 window.rzSetDataLatest = function (map, src, data) {
   if (!src) return;
   if (typeof src._pendingLoads !== "number") { src.setData(data); return; }   // Mapbox: kein Zähler → direkt
-  if (src._pendingLoads > 0) {
+  if (!_rzQuelleFrei(map, src)) {
     src.__rzPending = data;
     if (!src.__rzFlushHooked) {
       src.__rzFlushHooked = true;
       const flush = () => {
-        if (src.__rzPending && src._pendingLoads === 0) { const d = src.__rzPending; src.__rzPending = null; try { src.__rzGesendet = d; src.setData(d); } catch (_) {} }
+        if (src.__rzPending && _rzQuelleFrei(map, src)) { const d = src.__rzPending; src.__rzPending = null; try { _rzGesendetMerken(src, d); src.__rzGesendetT = performance.now(); src.setData(d); } catch (_) {} }
       };
       try { map.on("sourcedata", (e) => { if (e && e.sourceId === src.id) flush(); }); } catch (_) {}
       try { map.on("error", (e) => { if (e && e.sourceId === src.id) flush(); }); } catch (_) {}
@@ -4277,7 +4315,8 @@ window.rzSetDataLatest = function (map, src, data) {
     if (src.__rzTickStart) src.__rzTickStart();
     return;
   }
-  src.__rzGesendet = data;   // 25.10.2026 — zuletzt an MapLibre gegeben (Animator: Laufpunkt am gezeichneten Linienende)
+  _rzGesendetMerken(src, data);   // 25.10.2026 — zuletzt an MapLibre gegeben (Animator: Laufpunkt am gezeichneten Linienende)
+  src.__rzGesendetT = performance.now();
   src.setData(data);
 };
 

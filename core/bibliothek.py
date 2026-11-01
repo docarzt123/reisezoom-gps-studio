@@ -703,6 +703,9 @@ def version_ablegen(ort: Path, quelle: Path, version_id: str,
     if ziel.is_file() and ziel.stat().st_size > 0:
         return ziel
     quelle = Path(quelle)
+    # 31.10.2026 — erst prüfen, dann die Zwischendatei schreiben: Verweigerte der Dateischutz das Ersetzen, durfte er
+    # auch das Aufräumen nicht, und die .tmp-Datei blieb für immer im Versionsspeicher liegen.
+    _ds.pruefen(ziel, "version_ablegen")
     ziel.parent.mkdir(parents=True, exist_ok=True)
     # 14.09.2026 — je Aufruf eine eigene Zwischendatei: Zwei gleiche Dateien im Import-Ordner
     # sind dieselbe Version und wurden nebenläufig in DIESELBE .tmp<pid> geschrieben; die

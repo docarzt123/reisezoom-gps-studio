@@ -184,7 +184,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.848"
+APP_VERSION = "0.9.850"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -8195,6 +8195,8 @@ class Api:
 
     def library_kartenbild_speichern(self, geo_hash: str, stil: str, data_url: str) -> dict:
         """Ein in der Oberfläche gezeichnetes Kartenbild (JPEG als data-URL) ablegen — `bilder/karten/<hash>_<stil>.jpg`."""
+        if CLI_MODUS:   # 31.10.2026 — Kommandozeile liest die Bibliothek nur; das Bild ist ein Zwischenspeicher
+            return {"ok": False, "error": "nur_lesend"}
         p = self._kartenbild_pfad(geo_hash, stil)
         if not p or not str(data_url or "").startswith("data:image/jpeg;base64,"):
             return {"ok": False, "error": "ungueltig"}
@@ -8202,6 +8204,7 @@ class Api:
             daten = base64.b64decode(str(data_url).split(",", 1)[1])
             if not daten.startswith(b"\xff\xd8") or len(daten) > 3_000_000:
                 return {"ok": False, "error": "kein_jpeg"}
+            _ds.pruefen(p, "kartenbild_speichern")   # vor der Zwischendatei — verweigert, bliebe sie sonst liegen
             p.parent.mkdir(parents=True, exist_ok=True)
             tmp = p.with_suffix(".tmp")
             tmp.write_bytes(daten)

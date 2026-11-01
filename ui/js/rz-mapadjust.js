@@ -182,7 +182,8 @@
         const depth = gl.isEnabled(gl.DEPTH_TEST), blend = gl.isEnabled(gl.BLEND), stencil = gl.isEnabled(gl.STENCIL_TEST), cull = gl.isEnabled(gl.CULL_FACE);
         gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE);
         gl.useProgram(this._pr);
-        const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+        // 31.10.2026 — Pixeldichte der Karte (beim Abspielen ggf. abgesenkt, s. Animator _pixelStufe), nicht die des Geräts
+        const dpr = Math.max(1, Number((this._map && this._map.getPixelRatio) ? this._map.getPixelRatio() : window.devicePixelRatio) || 1);
         gl.uniform1i(this._uTex, 0); gl.uniform2f(this._uStep, dpr / w, dpr / h); gl.uniform1f(this._uA, this.amount); gl.uniform1f(this._uHaze, this.haze); gl.uniform1f(this._uGrade, this.grade || 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, this._buf); gl.enableVertexAttribArray(this._aPos); gl.vertexAttribPointer(this._aPos, 2, gl.FLOAT, false, 0, 0);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

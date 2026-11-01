@@ -2233,6 +2233,26 @@ function mountAnimator(body, headerActions, opts) {
   // kleinster je gesehener Bildschirmtakt (ms) — unter Dauerlast ist kein Bild schnell, dann zeigen ihn erst die
   // übersprungenen (billigen) Ticks im festen Abstand; die nächste Neuprüfung rechnet damit (120 Hz: 25 statt 33 ms)
   let _bildschirmTakt = 0;
+  // 31.10.2026 (Marc: „das ist eine gute Idee, mit der Pixeldichte“) — Pixeldichte beim Abspielen, s. _pixelStufe:
+  // { flaeche, ratio, laeufe } je Zeichenfläche gemerkt; `nutzlos` = Absenken brachte dort nichts (Engpass ist nicht die GPU)
+  let _pixelGemerkt = null;
+  // Pixeldichte vor dem Absenken (MapLibres eigener Wert, null = Gerät) — undefined = nicht abgesenkt
+  let _pixelVorher;
+  function _pixelSetzen(r) {
+    try {
+      if (!map || typeof map.setPixelRatio !== "function") return false;
+      if (_pixelVorher === undefined) _pixelVorher = (map._overridePixelRatio != null) ? map._overridePixelRatio : null;
+      map.setPixelRatio(r);
+      return true;
+    } catch (_) { return false; }
+  }
+  function _pixelZurueck() {
+    if (_pixelVorher === undefined) return;
+    const v = _pixelVorher; _pixelVorher = undefined;
+    try { if (map && typeof map.setPixelRatio === "function") map.setPixelRatio(v); } catch (_) {}
+  }
+  window.__rzPixeldichte = () => ({ jetzt: map && map.getPixelRatio ? map.getPixelRatio() : null, abgesenkt: _pixelVorher !== undefined, gemerkt: _pixelGemerkt });   // Prüfstand
+  window.__rzPixeldichteVergessen = () => { _pixelGemerkt = null; };   // Prüfstand
   // 29./30.09.2026 — Rohspur (vor Punkte-Regler und Spur glätten), s. _spurAnwenden/_spurNeu. Hier oben deklariert (vor den bindSetting-Aufrufen,
   // deren onLoad schon beim Einhängen _spurNeu ruft):
   // weiter unten stand „var _spurRoh = null“ — die Modul-Funktion läuft asynchron, drawPreview lief davor, die Zuweisung löschte die Rohspur wieder.
@@ -7843,6 +7863,15 @@ function mountAnimator(body, headerActions, opts) {
         type: "Feature", geometry: _reiseGeometrie(currentCoords, 0),
       });
     }
+    // 31.10.2026 — jede Linien-Fassung merken, auch die direkt gesetzten (ganzer Track, Neuaufbau): sonst hielt die
+    // Messung des Linienendes eine alte Spitze für die aktuelle (s. _linieEndeMessen, ui/js/util.js rzGesendetMerken)
+    { const _tr = map.getSource("preview-track");
+      if (_tr && !_tr.__rzSpitzenHaken && typeof window.rzGesendetMerken === "function") {
+        _tr.__rzSpitzenHaken = true;
+        _tr.__rzGanzWarten = true;   // nächste Fassung erst, wenn die vorige gezeichnet ist (ui/js/util.js rzSetDataLatest)
+        const _o = _tr.setData.bind(_tr);
+        _tr.setData = (d) => { try { window.rzGesendetMerken(_tr, d); } catch (_) {} return _o(d); };
+      } }
     // WICHTIG — Layer-Reihenfolge: shadow < glow < line (von unten nach oben).
     // Shadow muss ZUERST added werden (= darunter), damit er nicht den Track
     // überdeckt. Beim Re-mount (style-load) wird rebuildPreviewLayers() neu
@@ -9313,7 +9342,7 @@ function mountAnimator(body, headerActions, opts) {
   // davon. Jetzt geht er nie über das GEZEICHNETE Linienende hinaus: jede Linien-Aktualisierung trägt `__rzBis`, und
   // sobald MapLibre sie fertig hat (sourcedata, isSourceLoaded), gilt sie als gezeichnet. Im Video wartet jedes Bild auf
   // die fertige Karte — dort ändert das nichts.
-  var _linieBis = null, _bodenLetzt = null, _bodenFrac = null, _linieMessGeplant = false;
+  var _linieBis = null, _bodenLetzt = null, _bodenFrac = null, _linieMessGeplant = false, _linieReihe = null;
   const _linieMess = { laeufe: 0, gefunden: 0, ohneBis: 0, fehler: "" };
   window.__rzLinieMess = () => Object.assign({ bis: _linieBis }, _linieMess);   // Prüfstand
   function _linieEndeMessen() {
@@ -9322,31 +9351,56 @@ function mountAnimator(body, headerActions, opts) {
     const _t0 = performance.now();
     try {
       if (!map || !currentCoords || currentCoords.length < 2 || !map.getSource("preview-track")) return;
-      const d = map.getSource("preview-track").__rzGesendet;
-      if (!d || typeof d.__rzBis !== "number") { _linieBis = null; _linieMess.ohneBis++; return; }   // ganzer Track: keine Klemme
-      const C = currentCoords, ziel = d.__rzBis;
-      const lo = Math.max(0, Math.floor(ziel) - 400), hi = Math.min(C.length - 1, Math.ceil(ziel) + 1);
-      let best = -1;
+      const src = map.getSource("preview-track"), d = src.__rzGesendet;
+      if (!d || typeof d.__rzBis !== "number") {   // ganzer Track: keine Klemme, keine Brücke (sonst blieb sie nach dem Ende stehen)
+        _linieBis = null; _linieMess.ohneBis++; _brueckeSetzen(null, null); return;
+      }
+      // 31.10.2026 (Messung test_vorschau_takt: Punkt bis 460 px vor der Linie) — vorher wurde jedes Linienende auf
+      // der Strecke in den 400 Punkten vor der Soll-Stelle gesucht. Auf Hin-und-zurück-Wegen (Vilaflor) lag das echte Ende
+      // (Punkt 108) neben dem Rückweg (Punkt 1006) — gefunden wurde 1006, der Punkt lief der Linie weit davon. Jetzt:
+      //  1. Spitze einer gesendeten Fassung (rzGesendetMerken)? Dann ist ihre Stelle bekannt — genau, ohne Suche.
+      //  2. Sonst ist es ein Kachelrand: Lot auf die Strecke zwischen Reihenbeginn und Soll-Stelle; liegen mehrere Stellen
+      //     dicht genug, gilt die nächste am zuletzt gemessenen Ende (die Linie wächst stetig).
+      // Toleranz = gut eine Kachel-Rasterstufe der jeweiligen Kachel (Kachelgeometrie ist gerundet und vereinfacht).
+      const C = currentCoords, ziel = d.__rzBis, L = src.__rzSpitzen || [];
+      const ab = Math.max(0, Math.min(ziel, typeof src.__rzSpitzenAb === "number" ? src.__rzSpitzenAb : 0));
+      // neue Reihe (zurückgesprungen): das alte Ende gilt nicht mehr — sonst durfte der Punkt, solange alle Linienkacheln
+      // noch luden, bis an das Ende des VORIGEN Laufs (unter Volllast gemessen: Punkt 1006, gezeichnet nichts)
+      if (_linieReihe !== L) { _linieReihe = L; _linieBis = ab; }
+      const ref = (_linieBis != null && _linieBis >= ab && _linieBis <= ziel) ? _linieBis : ab;
+      const k0 = Math.max(0, Math.floor(ab) - 1, Math.floor(ziel) - 6000), k1 = Math.min(C.length - 2, Math.ceil(ziel));
+      const aufStrecke = (e, tol2, von) => {
+        let fr = -1, fd = Infinity;
+        for (let k = von; k <= k1; k++) {
+          const ax = C[k][0], ay = C[k][1], bx = C[k + 1][0] - ax, by = C[k + 1][1] - ay, L2 = bx * bx + by * by;
+          const t = L2 > 0 ? Math.max(0, Math.min(1, ((e[0] - ax) * bx + (e[1] - ay) * by) / L2)) : 0;
+          const qx = ax + bx * t - e[0], qy = ay + by * t - e[1];
+          if (qx * qx + qy * qy > tol2) continue;
+          const f = Math.min(ziel, k + t), dd = Math.abs(f - ref);
+          if (dd < fd) { fd = dd; fr = f; }
+        }
+        return fr;
+      };
+      let best = -1, ohne = [];
       for (const f of map.querySourceFeatures("preview-track")) {
         const g = f.geometry, ls = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : [];
+        const z = (f._vectorTileFeature && typeof f._vectorTileFeature._z === "number") ? f._vectorTileFeature._z : map.getZoom();
+        const tol = 360 / Math.pow(2, z) / 512 * 1.5, tol2 = tol * tol;
         for (const l of ls) {
           if (!l.length) continue;
           const e = l[l.length - 1];
-          let bi = -1, bd = Infinity;
-          for (let k = lo; k <= hi; k++) { const dx = C[k][0] - e[0], dy = C[k][1] - e[1], q = dx * dx + dy * dy; if (q < bd) { bd = q; bi = k; } }
-          if (bi < 0) continue;
-          // Anteil auf dem Abschnitt (die Spitze liegt zwischen zwei Stützstellen): Lot auf die beiden Nachbar-Abschnitte, der nähere gilt
-          let fr = bi, fd = Infinity;
-          for (const a0 of [bi - 1, bi]) {
-            if (a0 < 0 || a0 + 1 >= C.length) continue;
-            const ax = C[a0][0], ay = C[a0][1], bx = C[a0 + 1][0] - ax, by = C[a0 + 1][1] - ay, L2 = bx * bx + by * by;
-            const t = L2 > 0 ? Math.max(0, Math.min(1, ((e[0] - ax) * bx + (e[1] - ay) * by) / L2)) : 0;
-            const qx = ax + bx * t - e[0], qy = ay + by * t - e[1], q = qx * qx + qy * qy;
-            if (q < fd) { fd = q; fr = a0 + t; }
-          }
+          let fr = -1, bd = tol2;
+          for (const sp of L) { const dx = sp.x - e[0], dy = sp.y - e[1], q = dx * dx + dy * dy; if (q <= bd) { bd = q; fr = sp.bis; } }
+          _linieMess.enden = (_linieMess.enden || 0) + 1;
+          if (fr >= 0) _linieMess.spitze = (_linieMess.spitze || 0) + 1;
+          if (fr < 0) fr = aufStrecke(e, tol2, k0);
+          if (fr < 0) { ohne.push([e, tol2]); _linieMess.ohneTreffer = (_linieMess.ohneTreffer || 0) + 1; _linieMess.letzteOhne = { e, ziel, ab, n: L.length, tol: Math.sqrt(tol2) }; }
           if (fr > best) best = fr;
         }
       }
+      // Linie endet VOR dem Reihenbeginn (Kacheln noch im Laden, unter Volllast gemessen: sichtbar bis Punkt 57, Reihe ab
+      // 108) — dann auf der ganzen Strecke suchen, statt das alte Ende stehen zu lassen (Punkt blieb 680 Punkte voraus)
+      if (best < 0 && ohne.length) for (const [e, t2] of ohne) { const fr = aufStrecke(e, t2, Math.max(0, Math.floor(ziel) - 6000)); if (fr > best) best = fr; }
       if (best >= 0) {
         _linieMess.gefunden++;
         _linieBis = Math.min(best, ziel);
@@ -9411,12 +9465,16 @@ function mountAnimator(body, headerActions, opts) {
     const L = _dotLuft;
     if (frac == null) frac = _dotFracZuletzt;
     _bodenLetzt = pos ? { pos, brg, sk, puls, frac } : null;
-    if (!pos || !L || _flug.an || map.__rzNurOrte) { _bodenPkt.setPunkt(null); return; }
+    if (!pos || !L || _flug.an || map.__rzNurOrte) { _bodenPkt.setPunkt(null); _brueckeSetzen(null, null); return; }
     // nie vor das gezeichnete Linienende (s. _linieBis); rückwärts (Scrubben) gilt die eigene Stelle
     _bodenFrac = frac;
     if (_linieBis != null && !window.__rzRenderMode && currentCoords && frac > _linieBis + 1e-3) {
-      try { pos = coordBeiFrac(currentCoords, _linieBis); brg = _kursAn(currentCoords, _linieBis); _bodenFrac = _linieBis; } catch (_) {}
-    }
+      // 31.10.2026 — das fehlende Stück zeichnet die Brücke sofort; der Punkt bleibt an seiner Stelle.
+      // Nur ohne Brücke (Mapbox, kein WebGL2) wartet der Punkt wie bisher am gezeichneten Ende.
+      if (!_brueckeSetzen(_linieBis, frac)) {
+        try { pos = coordBeiFrac(currentCoords, _linieBis); brg = _kursAn(currentCoords, _linieBis); _bodenFrac = _linieBis; } catch (_) {}
+      }
+    } else _brueckeSetzen(null, null);
     let bild = L.bild, key = L.key, px = L.cssPx;
     if (L.leucht) {
       const q = Math.round((+puls || 0) * 10) / 10;
@@ -9426,6 +9484,41 @@ function mountAnimator(body, headerActions, opts) {
     _bodenPkt.setPunkt({ lng: pos[0], lat: pos[1], agl: 0, bild, bildKey: key, cssPx: px * (sk > 0 ? sk : 1),
                          drehung: L.dreht ? (+brg || 0) : 0, karte: L.karte });
   }
+  // 31.10.2026 (Marc am MacBook: „ruckelt“, „Laufpfeil kommt nicht mit“, „Track wird nicht hinter dem Laufpunkt
+  // mitgezeichnet“) — die Linie kommt über MapLibres Karten-Worker: jede neue Fassung baut alle Linienkacheln neu. Ist der
+  // Rechner ausgelastet, hängt sie hinterher — der Punkt musste dann warten (ruckelt, kommt nicht mit) oder lief ohne Linie
+  // voraus. Jetzt zeichnet eine eigene WebGL-Ebene (ui/js/rz-line3d.js, dieselbe wie Schwarm und Flug) im selben Bild das
+  // Stück vom gezeichneten Linienende bis zum Punkt — ohne Worker. Läuft alles flüssig, ist sie höchstens ein Bild lang
+  // und liegt unter dem Punkt; unter Last überbrückt sie die Lücke in Linienfarbe und -breite, bis die Kacheln nachkommen.
+  // Im Video nie (jedes Bild wartet dort auf die fertige Karte).
+  var _bruecke = null;
+  const BRUECKE_EBENE = "anim-linie-bruecke";
+  function _brueckeSetzen(von, bis) {
+    try {
+      if (!map || !window.rzLine3d || map.__rzEngine === "mapbox" || window.__rzRenderMode) return false;
+      const leer = (von == null || bis == null || !currentCoords || bis <= von + 1e-3);
+      if (leer && !(_bruecke && _bruecke.__rzAn)) return true;
+      if (!map.getLayer(BRUECKE_EBENE)) {
+        if (leer) return true;
+        _bruecke = window.rzLine3d.create(BRUECKE_EBENE, { offsetM: 150, offsetPx: 1.5 });
+        map.addLayer(_bruecke, map.getLayer("anim-dot-gl") ? "anim-dot-gl" : undefined);
+      }
+      const lyr = map.getLayer("preview-line");
+      const sichtbar = lyr && map.getLayoutProperty("preview-line", "visibility") !== "none";
+      if (leer || !sichtbar) { if (_bruecke.__rzAn) { _bruecke.setTracks([]); _bruecke.__rzAn = false; } return true; }
+      const C = currentCoords, a = coordBeiFrac(C, von), z = coordBeiFrac(C, bis);
+      const coords = [a];
+      for (let k = Math.floor(von) + 1; k <= Math.floor(bis) && k < C.length; k++) coords.push(C[k]);
+      coords.push(z);
+      const op = map.getPaintProperty("preview-line", "line-opacity");
+      _bruecke.setTracks([{ coords, color: currentLineColor(), width: currentLineWidth() * _lwzFaktor(),
+                            opacity: (typeof op === "number") ? op : 1 }]);
+      _bruecke.__rzAn = true;
+      _bruecke.__rzStand = { von, bis, n: coords.length };   // Prüfstand
+      return true;
+    } catch (e) { try { applog("warn", "[bruecke] " + e); } catch (_) {} return false; }
+  }
+  window.__rzBruecke = () => (_bruecke && _bruecke.__rzAn) ? Object.assign({ ebene: !!(map && map.getLayer(BRUECKE_EBENE)) }, _bruecke.__rzStand) : null;   // Prüfstand
   window.__rzBodenPunkt = () => (_bodenPkt && map && map.getLayer("anim-dot-gl")) ? { punkt: _bodenPkt._punkt, gezeichnet: _bodenPkt._gezeichnet || 0, frac: _bodenFrac, linieBis: _linieBis, sicht: _bodenPkt._sicht, modus: dotVerdeckt() } : null;   // Prüfstand
 
   /** Position + Fahrtrichtung setzen (jeder Frame bzw. bei jedem Scrubben).
@@ -13104,10 +13197,11 @@ function mountAnimator(body, headerActions, opts) {
     };
     const _plBilanz = (grund) => {
       _plUnhook();
+      try { _pixelEnde(); } catch (_) {}
       if (_plN < 5) return;
       const s = (performance.now() - _plStart) / 1000;
       const top = Object.entries(_plFire).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k} ${(v / Math.max(1, _plN)).toFixed(1)}`).join(", ");
-      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · Takt ${!_takt.abstand ? "jedes Bild" : `alle ${_takt.abstand.toFixed(1)} ms${_takt.ab < 0 ? " (gemerkt)" : ` ab Bild ${_takt.ab}`}`}, zu spät ${_plSpaet} · Linienende gemessen ${window.__rzLinieMess ? (() => { const q = window.__rzLinieMess(); return `${q.gefunden}/${q.laeufe}${q.fehler ? " Fehler " + q.fehler.slice(0, 60) : ""}`; })() : "–"} · längste Lücke ${Math.round(_plWorst)} ms · Bilder >33 ms: ${_plSlow33} · >50 ms: ${_plSlow50} · Skript ${(_plJs / Math.max(1, _plN)).toFixed(1)} ms/Bild (max ${Math.round(_plJsMax)}) · MapLibre-Zeichnen ${(_plRender / Math.max(1, _plN)).toFixed(1)} ms/Bild (${_plRenderN} Aufrufe) · Handler ms/Bild: ${top || "–"} · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())} · Zoom-Richtungswechsel ${_plZDir} · Kachelmengen-Wechsel ${JSON.stringify(_plSetChg)} · davon A-B-A ${JSON.stringify(_plSetABA)}`); } catch (_) {}
+      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · Takt ${!_takt.abstand ? "jedes Bild" : `alle ${_takt.abstand.toFixed(1)} ms${_takt.ab < 0 ? " (gemerkt)" : ` ab Bild ${_takt.ab}`}`}${_takt.px ? ` · Pixeldichte ${_takt.px}${_takt.pxAb < 0 ? " (gemerkt)" : ` ab Bild ${_takt.pxAb}`}` : ""}, zu spät ${_plSpaet} · Linienende gemessen ${window.__rzLinieMess ? (() => { const q = window.__rzLinieMess(); return `${q.gefunden}/${q.laeufe}${q.fehler ? " Fehler " + q.fehler.slice(0, 60) : ""}`; })() : "–"} · längste Lücke ${Math.round(_plWorst)} ms · Bilder >33 ms: ${_plSlow33} · >50 ms: ${_plSlow50} · Skript ${(_plJs / Math.max(1, _plN)).toFixed(1)} ms/Bild (max ${Math.round(_plJsMax)}) · MapLibre-Zeichnen ${(_plRender / Math.max(1, _plN)).toFixed(1)} ms/Bild (${_plRenderN} Aufrufe) · Handler ms/Bild: ${top || "–"} · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())} · Zoom-Richtungswechsel ${_plZDir} · Kachelmengen-Wechsel ${JSON.stringify(_plSetChg)} · davon A-B-A ${JSON.stringify(_plSetABA)}`); } catch (_) {}
       for (const d of _plABADiff) { try { applog("info", "[probelauf-aba] " + d.slice(0, 700)); } catch (_) {} }
       _plN = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plZ = []; _plZDir = 0; _plZPrevD = 0; _plSets = {}; _plSetChg = {}; _plSetABA = {}; _plABADiff = [];
     };
@@ -13131,6 +13225,36 @@ function mountAnimator(body, headerActions, opts) {
     const _fl = map && map.getCanvas ? `${map.getCanvas().width}×${map.getCanvas().height}` : "";
     const _takt = { abstand: 0, vs: _bildschirmTakt || 16.67, gez: [], roh: [], rohLetzt: 0, letztGez: 0, letztRender: 0, ab: 0 };
     if (_taktGemerkt && _taktGemerkt.flaeche === _fl && (++_taktGemerkt.laeufe % 4) !== 0) { _takt.abstand = _taktGemerkt.abstand; _takt.vs = _bildschirmTakt || _taktGemerkt.vs; _takt.ab = -1; }
+    // 31.10.2026 — Pixeldichte beim Abspielen (Marc, MacBook Retina: die Grafikkarte ist der Engpass, Gelände ~55 %). Bevor
+    // die Vorschau auf jedes 2. Bild geht, zeichnet sie mit weniger Pixeldichte: 3 → 2 → 1,5 → 1 (je Stufe ~44 % weniger
+    // Pixel, Linien/Schrift bleiben gleich groß, nur weicher). Beim Anhalten sofort wieder scharf; das Video rechnet
+    // ohnehin in eigener Auflösung. Bringt eine Stufe nichts (80-%-Wert nicht ≥ 10 % schneller: Engpass ist nicht die
+    // GPU), wird zurückgestellt und wie bisher der Takt gesenkt. Je Fläche gemerkt, jeder 4. Lauf prüft scharf neu.
+    _takt.px = 0; _takt.pxAb = 0; _takt.pxVorP80 = 0; _takt.pxNutzlos = !!(_pixelGemerkt && _pixelGemerkt.flaeche === _fl && _pixelGemerkt.nutzlos);
+    if (!window.__rzStepMode && !window.__rzRenderMode && _pixelGemerkt && _pixelGemerkt.flaeche === _fl && _pixelGemerkt.ratio
+        && (++_pixelGemerkt.laeufe % 4) !== 0 && _pixelSetzen(_pixelGemerkt.ratio)) { _takt.px = _pixelGemerkt.ratio; _takt.pxAb = -1; }
+    const _pixelStufe = (p80) => {
+      if (window.__rzStepMode || window.__rzRenderMode || _takt.pxNutzlos || !map || typeof map.getPixelRatio !== "function") return false;
+      const jetzt = map.getPixelRatio();
+      // vorige Stufe hat nichts gebracht → zurück auf scharf, ab jetzt der Takt
+      if (_takt.px && _takt.pxVorP80 && p80 > _takt.pxVorP80 * 0.9) {
+        try { applog("info", `[takt] Pixeldichte ${_takt.px} brachte nichts (80 % ${_takt.pxVorP80.toFixed(1)} → ${p80.toFixed(1)} ms) — wieder scharf, Engpass ist nicht die Grafik`); } catch (_) {}
+        _pixelZurueck(); _takt.px = 0; _takt.pxNutzlos = true;
+        _pixelGemerkt = { flaeche: _fl, ratio: 0, laeufe: 0, nutzlos: true };
+        return false;
+      }
+      if (jetzt <= 1.01) return false;
+      const neu = jetzt > 2.01 ? 2 : jetzt > 1.51 ? 1.5 : 1;
+      if (!_pixelSetzen(neu)) return false;
+      try { applog("info", `[takt] Vorschau zeichnet beim Abspielen mit Pixeldichte ${neu} statt ${+jetzt.toFixed(2)} (80 % ${p80.toFixed(1)} ms, Fläche ${_fl})`); } catch (_) {}
+      _takt.px = neu; _takt.pxAb = _plN; _takt.pxVorP80 = p80;
+      return true;
+    };
+    const _pixelEnde = () => {
+      if (_takt.px && !_takt.pxNutzlos) _pixelGemerkt = { flaeche: _fl, ratio: _takt.px, laeufe: (_pixelGemerkt && _pixelGemerkt.flaeche === _fl) ? _pixelGemerkt.laeufe : 0 };
+      else if (!_takt.px && !_takt.pxNutzlos && _pixelGemerkt && _pixelGemerkt.flaeche === _fl && _plN > 240 && !_takt.abstand) _pixelGemerkt = null;   // scharf bestanden
+      _pixelZurueck();
+    };
     // (schneller als der Schirm kommt kein Bild; unter Last liegt der 30-%-Wert über dem Takt, nie darunter)
     const _taktRaster = (g) => { let r = 6.94; for (const x of [8.33, 11.11, 16.67]) { if (x <= g * 1.15) r = x; } return r; };
     const _taktUeberspringen = (now) => {
@@ -13156,6 +13280,8 @@ function mountAnimator(body, headerActions, opts) {
       // Median 28 — ein 25/33-Gemisch, also genau das Holpern, das hier weg soll)
       const haeltNicht = t.abstand && s[45] > soll + 0.3 * t.vs;
       if ((spaet >= 18 || haeltNicht) && t.abstand < 50 && p80 > soll + 0.3 * t.vs) {
+        // erst die Pixeldichte senken (flüssig bleibt flüssig), dann erst den Takt
+        if (!t.abstand && _pixelStufe(p80)) { t.gez = []; return false; }
         const neu = Math.min(50, Math.max(soll + t.vs, Math.round(p80 / t.vs) * t.vs));
         try { applog("info", `[takt] Vorschau zeichnet ab jetzt gleichmäßig alle ${neu.toFixed(1)} ms (~${Math.round(1000 / neu)} fps): ${spaet} von ${t.gez.length} Bildern zu spät (Bildschirmtakt ${t.vs.toFixed(1)} ms, 80 % ${p80.toFixed(1)} ms, Fläche ${_fl})`); } catch (_) {}
         t.abstand = neu; t.ab = _plN; t.gez = [];
@@ -13178,6 +13304,9 @@ function mountAnimator(body, headerActions, opts) {
       else { const g = now - _plLast; if (g > _plWorst) _plWorst = g; if (g > 33) _plSlow33++; if (g > 50) _plSlow50++; if (g > Math.max(_takt.abstand, _takt.vs) + 0.55 * _takt.vs) _plSpaet++; _plLast = now; }
       _plN++;
       try { _plTrack(); } catch (_) {}
+      // 31.10.2026 — Linienende auch je Bild messen, nicht nur bei neuen Liniendaten: fährt die Kamera weiter, fallen
+      // Kacheln weg (ohne sourcedata) — der Punkt behielt ein Ende, das nicht mehr gezeichnet war
+      if (_bodenPkt && !_linieMessGeplant) { try { _linieEndeMessen(); } catch (_) {} }
       try { const _s = map.getSource("preview-track"); if (_s && typeof _s._pendingLoads === "number" && _s._pendingLoads > _plPend) _plPend = _s._pendingLoads; } catch (_) {}
       const elapsed = (now - _previewT0) * _previewSpeed;
       // v0.9.53: Track-Position-Trim, fixe Render-Zeit (anim + hold).

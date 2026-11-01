@@ -2057,6 +2057,28 @@ einen einzelnen Zoom mit `+ log2(renderW/previewW)`.
   `correctedZoom` direkt für seinen einen Zoom — daher hier keine Spiegelung
   nötig.
 
+**Linie und Laufpunkt unter Last (31.10.2026):** Die wachsende Vorschau-Linie (`preview-track`) geht je Bild per
+`rzSetDataLatest` an MapLibres Worker; jede Fassung baut alle Linienkacheln neu (gemessen ~400 Kacheln/s bei 60 fps). Das
+kostet den Hauptthread kaum etwas (5–6 ms Zeichenzeit je Bild mit und ohne) und im Video nichts Messbares (je Bild ~50 ms
+Warten + ~50 ms Greifen, mit und ohne Linien-Aktualisierung gleich) — aber unter Last kommt die Linie zu spät.
+- **Brücke** (`anim-linie-bruecke`, `ui/js/rz-line3d.js`): zeichnet das Stück vom gemessenen Linienende (`_linieBis`) bis
+  zur Punkt-Stelle im selben Bild, Linienfarbe/-breite (× `_lwzFaktor`), 1,5 px über Grund. Der Punkt (`anim-dot-gl`)
+  bleibt an seiner Stelle. Nur ohne rz-line3d/MapLibre (Mapbox) wird der Punkt wie bisher auf `_linieBis` geklemmt.
+  Nie im Render (`__rzRenderMode`). Prüfstand `window.__rzBruecke()`.
+- **Linienende messen** (`_linieEndeMessen`, je Vorschaubild und bei `sourcedata`): `rzGesendetMerken` (util.js) merkt
+  jede gesendete Spitze mit `__rzBis` (Reihe `__rzSpitzen`, neue Reihe beim Zurückspringen). Ein Feature-Ende = Spitze
+  einer Fassung → deren Stelle; sonst Kachelrand → Lot auf die Strecke zwischen Reihenbeginn und Soll, bei mehreren
+  Treffern der nächste am letzten Ende (Hin-und-zurück-Wege). Toleranz 1,5 Kachelpixel der Feature-Zoomstufe.
+- **Warten auf fertige Kacheln:** Quellen mit `__rzGanzWarten` (nur `preview-track`) bekommen die nächste Fassung erst,
+  wenn die vorige gezeichnet ist (`isSourceLoaded`, höchstens 250 ms). Im Render/Schrittmodus wie bisher.
+- Tests: `test_linie_bruecke` (Worker künstlich 400 ms verzögert), `test_vorschau_takt`, `test_laufpfeil_folgt`.
+- **Pixeldichte beim Abspielen** (`_pixelStufe` in `runTimelinePreview`, Zustand `_pixelGemerkt`/`_pixelVorher`): wo
+  `_taktUeberspringen` auf festen Abstand schalten würde, wird zuerst `map.setPixelRatio` eine Stufe gesenkt (3→2→1,5→1).
+  Bringt die Stufe beim nächsten Befund keine ≥ 10 % (80-%-Wert), zurück auf scharf, `nutzlos` gemerkt, dann Takt.
+  `_plBilanz` (Stopp/Ende) stellt immer zurück (`_pixelZurueck`, MapLibres `_overridePixelRatio` von vorher). Nie im
+  Render/Schrittmodus. Eigene Ebenen lesen `map.getPixelRatio()` (rz-punkt3d, rz-line3d, rz-mapadjust). Test
+  `test_vorschau_pixeldichte` (künstliche Uhr, Zeichenzeit ∝ Pixelzahl bzw. fest).
+
 **Zoom-Bezugsbreite (30.10.2026, 0.9.848):** Gespeicherte Zoomwerte — `static_zoom`, `manual_cam.zoom`,
 Keyframe-`value_absolute` — sind keine Karten-Zooms mehr, sondern gelten für die Kartenbreite `animator.zoom_ref_w`
 (CSS-px, je Projekt; in `core/vorlagen.py` trackgebunden). `_rzZoomShift()` (module.js) liefert
@@ -8143,6 +8165,16 @@ Test: `tests/test_linie_ecken.py`.
   `cli.einrichten/status` (`~/.local/bin/gpsstudio` bzw. `%LOCALAPPDATA%\Microsoft\WindowsApps\gpsstudio.cmd`), Brücken
   `cli_status`/`cli_einrichten`, UI Einstellungen → Allgemein → „Für Fortgeschrittene“. Test: `test_cli.py` (Render nur
   mit `RZ_LANGSAM`, das run_tests bei `--langsam` setzt; Einzel-Liste).
+- **Kommandozeile schreibt nicht in die Bibliothek (31.10.2026, Nutzer-Meldung Windows + NAS):** `_vorbereiten` meldet die
+  Bibliothek nicht beim Dateischutz an (nur lesend), aber `SESSIONS_GPX_DIR` und `PROJEKT_VORSCHAU` zeigten seit dem
+  Modul-Import auf die eingestellte Bibliothek: `_save_snapshot` legte die Tour-Kopie dort ab, die unsichtbare Seite das
+  Projekt-Vorschaubild und (Archiv-Modul) Kartenbilder. Dateischutz verweigerte `ersetzen` („ausserhalb“) — und damit
+  auch das Löschen der schon geschriebenen `.tmp`. Jetzt: `SESSIONS_GPX_DIR`/`PROJEKT_VORSCHAU` → Temp-Ordner,
+  `LIBRARY_THUMBS/MAP_THUMBS/COVERS` → gewählte Bibliothek (nur Lesen, auch mit `--library`),
+  `library_kartenbild_speichern` antwortet im CLI-Modus `nur_lesend`. Vorbeugend prüfen `version_ablegen` und
+  `library_kartenbild_speichern` den Dateischutz VOR dem Schreiben der Zwischendatei. Test
+  `test_cli_bibliothek_unberuehrt` (Render einer fremden GPX: keine Verweigerung, keine neue/geänderte Datei in der
+  Bibliothek, verweigertes Ablegen ohne Rest).
 - **MCP-Server `gpsstudio mcp` (`core/mcp_server.py`, 13.10.2026, Stufe 1: lokal, nur lesen + Ausgabeordner):** stdio, eine JSON-RPC-Nachricht je
   Zeile, von Hand (keine Bibliothek): `initialize` (Protokolle 2025-06-18/2025-03-26/2024-11-05, `instructions` für die KI),
   `tools/list`, `tools/call` (je Aufruf eigener Faden, Schreiben unter Lock), `ping`, sonst -32601. Werkzeuge `search_tours`,
@@ -8692,6 +8724,20 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   Klick in die Zeitleiste stellt `scrubPreview` die Kamera über die Keyframe-Interpolation, der Sitz nimmt danach die
   Geländeabfrage — das Video rechnet mit der ruhigen Kamera und deren fester Mittenhöhe; die angehaltene Vorschau kann
   deshalb vom Videobild abweichen.
+- **Sitz lässt die ruhige Kamera stehen (31.10./01.11.2026).** Nach einem Stopp der ruhigen Kamera (feste
+  Stützstellen-Höhe `eM`) feuerte der Sitz einmal und verschob mit `setCenterElevation` bei gleicher Mitte/Zoom die ganze
+  Kamera um `Gelände − eM` (Marc am MacBook: „sackt minimal ab“, am Grat auch hoch; gemessen +15 m / −45 m, 1–2 px).
+  `rzMlCamApply` merkt sich bei fester Höhe die Stellung in `map.__rzFestStellung` (`rzMlStellung`: Mitte, Zoom, Neigung,
+  Drehung — derselbe Schlüssel wie `__rzSeatStellung`), sonst `null`. Der Sitz nach `moveend` (`seat(true)`) lässt eine
+  solche Stellung unverändert, wenn `rzMlCamFrei(map, have)` die Kamera ≥ 30 m über dem Gelände findet — kein
+  `setCenterElevation`, Mitte und Zoom bleiben die gesetzten Zahlen. Erster Versuch (31.10.) setzte stattdessen die Mitte
+  über den Blickstrahl neu (`rzMlCamHalten`): Bild gleich, aber Mitte/Zoom wanderten — nach ⌘Z, Keyframe-Sprung und für
+  die Tour-Map-Mitte stimmten die Zahlen nicht mehr (`test_keyframe_karte_undo`, `test_ansicht_geaendert`,
+  `test_codexlauf3_reise_etappen` rot). Jede andere Bewegung (Ziehen, Zoomen, `jumpTo` ohne feste Höhe) löscht
+  `__rzFestStellung`, dann sitzt die Mitte wie bisher auf; Kamera im Gelände (Mitte auf 0 m) wird weiter gehoben, der erste
+  Sitz nach dem Einschalten des Geländes (`seat(false)`) hebt immer. Test `test_stopp_kamera_bleibt` (Masca, ruhige
+  Kamera, Pixeldichte 2: Kamera, Mitte und Zoom 1,5 s nach dem Stopp unverändert; nach eigener Bewegung Mitte auf dem
+  Gelände; Gegenprobe ohne `rzMlCamFrei` verschiebt ≥ 3 m).
 - **Schilder ohne Randversatz (29.10.2026, Marc: „Das muss einfach nur an der richtigen Stelle stehen“).** Randregel (F-20,
   13./15.10.) und Logo-Schutz (14.10.) entfernt: `rzSignRandSymbol`/`rzSignRandPx` → `[0, 0]`, `rzSignRandVersatz` setzt nur
   alte `rzOff` auf 0 zurück; `rzSchutzFlaechen`, `RAND_ANTEIL` weg. Anlass: „Steilste Stelle“ rutschte bei fahrender Kamera
