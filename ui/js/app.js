@@ -1677,6 +1677,12 @@ async function openAboutModal() {
             <a href="#" class="md-about-link" data-url="https://github.com/googlefonts/caveat">Caveat</a> — SIL OFL 1.1
             (${t("about.credits.schriften", "Schriften der Oberfläche und der Sofortbild-Unterschriften, mitgeliefert")})
           </li>
+          <!-- 01.11.2026 — Berg- und Ortsnamen im Gelände (Editorial) -->
+          <li>
+            <a href="#" class="md-about-link" data-url="https://github.com/CatharsisFonts/Cormorant">Cormorant Garamond</a> — SIL OFL 1.1 ·
+            <a href="#" class="md-about-link" data-url="https://github.com/sharanda/manrope">Manrope</a> — SIL OFL 1.1
+            (${t("about.credits.schriften_bergnamen", "Schriften der Bergnamen im Gelände, mitgeliefert")})
+          </li>
           <!-- 05.10.2026 (Audit F-5) — Herkunft der mitgelieferten Musik und Klicks -->
           <li>${t("about.credits.musik", "Musik und Foto-Klicks: eigene Erzeugung von Reisezoom (aus Zahlen komponiert, keine Samples) — frei für deine Videos")}</li>
           <!-- 05.10.2026 (Audit F-3) — die übrigen gebündelten Python-Pakete aus requirements.txt -->

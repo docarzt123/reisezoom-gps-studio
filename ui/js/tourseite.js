@@ -435,23 +435,9 @@
 
   function _videoMenue(knopf) {
     _menue(knopf, [
-      { text: "⚡ " + T("schnell.knopf", "Schnell-Video …"), tip: T("schnell.knopf_tip", "Fertiges Tourvideo mit wenigen Entscheidungen."),
-        tun: () => { if (window.rzSchnellVideo) window.rzSchnellVideo(Z.tour.path); } },
-      { text: "🧭 " + T("assistent.knopf", "Video-Assistent …"), tip: T("va.knopf_tip", "Schritt für Schritt zum eigenen Video: Titel, Art, Karte, Einblendungen, Fotos, Schilder, Kamera, Schluss — alles landet bearbeitbar im Projekt."),
-        tun: async () => {
-          // Der Animator wird neu aufgebaut — erst die NEUE Fassung des Einstiegs abwarten, dann so lange versuchen, bis
-          // die Tour geladen ist (höchstens ~20 s), sonst den Knopf zeigen lassen
-          window.__rzVideoAssistent = null;
-          await _oeffnenIn("animator");
-          for (let i = 0; i < 100; i++) {
-            await new Promise(r => setTimeout(r, 200));
-            const f = window.__rzVideoAssistent;
-            if (typeof f !== "function") continue;
-            let ok = false; try { ok = await f(true); } catch (_) { ok = false; }
-            if (ok) return;
-          }
-          if (typeof toast === "function") toast(T("va.nicht_bereit", "Die Tour lädt noch — den Video-Assistenten findest du oben im Animator."), "info", 5000);
-        } },
+      // 01.11.2026 — nur noch der Video-Assistent (das Schnell-Video ist in ihm aufgegangen)
+      { text: "🧭 " + T("assistent.knopf", "Video-Assistent …"), tip: T("va.knopf_tip3", "Dein Video ist gleich fertig: in acht Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen."),
+        tun: () => { if (window.rzVideoAssistentStarten) window.rzVideoAssistentStarten(() => _oeffnenIn("animator")); } },
       { text: "🎞 " + T("library.open_animator", "Im Animator öffnen"), tun: () => _oeffnenIn("animator") },
       { text: "📈 " + T("library.open_height", "Daten-Animator"), tun: () => _oeffnenIn("heightanim") },
     ]);

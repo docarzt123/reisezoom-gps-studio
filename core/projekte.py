@@ -922,7 +922,7 @@ def alle_projekte(daten: dict) -> list:
             "id": pid, "name": name,
             "status": p.get("status", "aktiv"),
             "auto": (bool(p.get("auto")) and je_kontext.get(p.get("kontext") or "", 1) < 2)
-                    or p.get("herkunft") == "schnellvideo",   # §71: Schnell-Video-Projekte, bis man sie umbenennt
+                    or p.get("herkunft") in ("schnellvideo", "assistent"),   # §71: Schnell-Video-Projekte, bis man sie umbenennt; 01.11.2026 auch vorläufige des Video-Assistenten
             "created_at": p.get("created_at"), "modified_at": p.get("modified_at"),
             "kontext": p.get("kontext", ""),
             "ablauf": p.get("ablauf", "solo"),

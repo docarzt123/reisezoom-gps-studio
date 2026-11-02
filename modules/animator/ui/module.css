@@ -1297,6 +1297,37 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
   background: linear-gradient(to bottom, rgba(0,0,0,var(--vl-oben, 0.62)), rgba(0,0,0,calc(var(--vl-oben, 0.62) * 0.45)) 55%, rgba(0,0,0,0)); }
 .overlay-preview-layer.vl-unten::after { bottom: 0; height: 34%;
   background: linear-gradient(to top, rgba(0,0,0,var(--vl-unten, 0.72)), rgba(0,0,0,calc(var(--vl-unten, 0.72) * 0.45)) 55%, rgba(0,0,0,0)); }
+/* 01.11.2026 — universelle Einblendungen (Videovorlagen): Schriftstärke je Einblendung/Zeile, Beschriftung hinter
+   bzw. unter dem Wert, Trennlinien, Verteilen, Akzentlinie, Fortschrittsbalken und -ring, Klebestreifen, am Laufpunkt */
+.overlay-preview-layer .ct-text { font-weight: var(--ct-gewicht, 700); }
+.overlay-preview-layer .ct-v { font-weight: var(--ct-gewicht, 650); }
+.overlay-preview-layer .ct-bes-nach .ct-wert { flex-direction: row-reverse; justify-content: flex-end; align-items: baseline; gap: 0.45em; }
+.overlay-preview-layer .ct-bes-unten .ct-wert { flex-direction: column-reverse; align-items: var(--ct-jh, flex-start); gap: 0.1em; }
+.overlay-preview-layer .ct-trenner.ct-neben .ct-inhalt > .ct-z + .ct-z { border-left: max(1px, 0.03em) solid var(--ct-trenner, rgba(255,255,255,0.35)); padding-left: var(--ct-spalte, 1em); }
+.overlay-preview-layer .ct-trenner.ct-unter .ct-inhalt > .ct-z { border-top: max(1px, 0.03em) solid var(--ct-trenner, rgba(255,255,255,0.35)); padding-top: calc(var(--ct-zeile, 0.3em) * 1.2); align-self: stretch; }
+.overlay-preview-layer .ct-verteilen > .ct-inhalt { align-self: stretch; }
+.overlay-preview-layer .ct-verteilen.ct-neben > .ct-inhalt { justify-content: space-between; flex-wrap: nowrap; }
+.overlay-preview-layer .ct-verteilen.ct-unter .ct-wert { justify-content: space-between; align-self: stretch; }
+.overlay-preview-layer .ct-linie { flex: none; }
+.overlay-preview-layer .ct-fort { display: flex; align-items: center; gap: 0.7em; flex: none; }
+.overlay-preview-layer .ct-fort-e { font-size: 0.45em; letter-spacing: 0.15em; font-weight: 600; opacity: 0.85; white-space: nowrap; }
+.overlay-preview-layer .ct-fort-bahn { position: relative; flex: 1; min-width: 1em; }
+.overlay-preview-layer .ct-fort-bahn > i { position: absolute; left: 0; top: 0; bottom: 0; }
+.overlay-preview-layer .ct-fort-bahn > b { position: absolute; top: 50%; width: 0.5em; height: 0.5em; min-width: 5px; min-height: 5px; border-radius: 50%;
+  transform: translate(-50%, -50%); border: max(1px, 0.06em) solid currentColor; box-sizing: border-box; }
+.overlay-preview-layer .ct-ring { position: relative; flex: none; }
+.overlay-preview-layer .ct-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.overlay-preview-layer .ct-ring-t { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; line-height: 1; }
+.overlay-preview-layer .ct-ring-t strong { font-size: 1.15em; font-weight: var(--ct-gewicht, 800); letter-spacing: -0.04em; }
+.overlay-preview-layer .ct-ring-t em { font-size: 0.45em; font-style: normal; margin-left: 0.1em; }
+.overlay-preview-layer .ct-ring-t small { font-size: 0.26em; letter-spacing: 0.1em; margin-top: 0.4em; }
+.overlay-preview-layer .ct.ct-klebe::before { content: ""; position: absolute; left: 32%; right: 32%; top: -0.45em; height: 1.1em; z-index: 1;
+  background: rgba(199, 192, 154, 0.47); transform: rotate(4deg); pointer-events: none; }
+.overlay-preview-layer .ct.ct-am-lp.ct-lp-weg { visibility: hidden !important; }
+.overlay-preview-layer > svg.ct-lp-linien { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.overlay-preview-layer.vl-links { background: linear-gradient(to right, rgba(0,0,0,var(--vl-links, 0.4)), rgba(0,0,0,0) 62%); }
+.overlay-preview-layer .ct-ele-raster-t { position: absolute; inset: 0; pointer-events: none; }
+.overlay-preview-layer .ct-ele-raster-t > span { position: absolute; bottom: 0.1em; margin-left: 0.3em; font-size: 0.85em; font-weight: 700; opacity: 0.9; white-space: nowrap; line-height: 1; }
 /* ── CONTAINER-CSS (Ende) ── */
 /* Bearbeiten in der App (nicht im Video/Export): ziehbar, aktiver Container markiert */
 body:not(.rz-render-mode) #anim-overlay-preview .ct { pointer-events: auto; cursor: move; }
@@ -1304,6 +1335,10 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 /* Seitenleiste: Container-Liste */
 .ct-kopf { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
 .ct-kopf select { max-width: 60%; }
+.ct-vv-reihe { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.ct-vv-reihe select { flex: 1; min-width: 0; }
+.ct-vv-name { flex: 1; min-width: 0; }
+.ct-vv-reihe .ct-knopf svg { display: block; }
 .ct-liste { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
 /* 19.10.2026 (Audit) — in der schmaleren Tour-Map-Leiste wurde die Liste so breit wie ihr Inhalt (490 px bei 289 px Platz):
    „Höhenprofil · HÖHENPROFIL · Min … Max …“ und die Knöpfe ragten rechts heraus. Die Liste nimmt die Breite des Bereichs. */
@@ -1769,3 +1804,33 @@ body.is-rendering .anim-ansicht-hinweis { display: none; }
 .sign-editor .se-lage-k:hover { color: var(--text); border-color: var(--text-dim); }
 .sign-editor .se-lage-k.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .sign-editor .se-lage-hint { font-size: 10.5px; margin: -2px 0 6px; }
+
+/* 01.11.2026 — Bergnamen: Schrift, Größe, Farbe, Schatten unter dem Schalter */
+.anim-bn-mehr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin: 4px 0 8px; }
+.anim-bn-mehr[hidden] { display: none; }
+.anim-bn-feld { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--text-dim); }
+.anim-bn-feld select, .anim-bn-feld input[type="range"] { width: 100%; }
+.anim-bn-feld input[type="color"] { width: 100%; height: 24px; padding: 0; border: none; background: none; }
+
+/* 01.11.2026 — Direkt-Editor: Werkzeugleiste über der gewählten Einblendung, Größen-Ecke, wählbare Zeilen */
+.overlay-preview-layer .ct-werkzeug { position: absolute; z-index: 60; display: flex; gap: 4px; align-items: center; padding: 4px;
+  background: rgba(20,24,30,0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif; color: #e8ecef; white-space: nowrap; pointer-events: auto; }
+.overlay-preview-layer .ct-werkzeug select, .overlay-preview-layer .ct-werkzeug button { font: inherit; color: inherit; background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 3px 6px; cursor: pointer; }
+.overlay-preview-layer .ct-werkzeug button.on { background: rgba(72,214,196,0.25); border-color: #48d6c4; }
+.overlay-preview-layer .ct-werkzeug input[type="color"] { width: 26px; height: 22px; padding: 0; border: none; background: none; cursor: pointer; }
+.overlay-preview-layer .ct-ecke { position: absolute; right: -6px; bottom: -6px; width: 11px; height: 11px; background: #ff3ea5; border: 2px solid #fff;
+  border-radius: 2px; cursor: nwse-resize; pointer-events: auto; z-index: 5; }
+.overlay-preview-layer .ct.ct-aktiv .ct-z { cursor: move; }
+.overlay-preview-layer .ct.ct-aktiv .ct-z:hover { outline: 1px dashed rgba(255,62,165,0.7); outline-offset: 2px; }
+.overlay-preview-layer .ct.ct-aktiv .ct-z.ct-z-aktiv { outline: 1px solid #ff3ea5; outline-offset: 2px; }
+.overlay-preview-layer .ct-text.ct-tippen { outline: 2px solid #ff3ea5; outline-offset: 3px; cursor: text; user-select: text; -webkit-user-select: text; }
+
+/* 01.11.2026 — Ladesperre beim Laden einer Tour (Spinner + Text, sperrt Klicks und Tasten) */
+.anim-ladesperre { position: fixed; inset: 0; z-index: 9000; background: rgba(8, 12, 16, 0.28); cursor: progress;
+  display: flex; align-items: center; justify-content: center; }
+.anim-ladesperre-karte { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-radius: 12px;
+  background: var(--bg-2, #1b2028); color: var(--text, #e8eaed); box-shadow: 0 10px 30px rgba(0,0,0,0.35); font-size: 14px; }
+.anim-ladesperre-dreh { width: 20px; height: 20px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.18);
+  border-top-color: var(--accent, #ff7a1a); animation: rz-warte-dreh 0.9s linear infinite; }

@@ -93,7 +93,7 @@
             `<button type="button" class="btn btn-sm btn-primary" data-rzw-aktion="track">${I("upload", 14)} ${esc(T("willkommen.track_oeffnen", "Track öffnen …"))}</button>
              <button type="button" class="btn btn-sm" data-rzw-aktion="ordner">${I("folder-plus", 14)} ${esc(T("willkommen.ordner", "Ordner einlesen …"))}</button>`)}
           ${schritt(2, T("willkommen.s2", "Tour öffnen"), T("willkommen.s2_text", "Im Archiv doppelklicken: Karte, Fotos, Logbuch und Zeitstrahl der Tour auf einen Blick."))}
-          ${schritt(3, T("willkommen.s3", "Video machen"), T("willkommen.s3_text", "„Video ▾ → Schnell-Video“: Format, Länge und Look wählen — fertig. Den Feinschliff gibt's im Animator."))}
+          ${schritt(3, T("willkommen.s3", "Video machen"), T("willkommen.s3_text", "„Video ▾ → Video-Assistent“: Das Video ist gleich fertig — Format, Länge und Look anpassen, dann erstellen. Den Feinschliff gibt's im Animator."))}
         </ol>
         <div class="rzw-aufgaben"><span class="muted">${esc(T("willkommen.oder", "Oder gleich:"))}</span>
           ${AUFGABEN.map(a => `<button type="button" class="rzw-chip" data-rzw-aufgabe="${a.id}">${I(a.icon, 14)} ${esc(T(a.titel[0], a.titel[1]))}</button>`).join("")}
@@ -158,7 +158,7 @@
     const ziel = { video: "library", track: "gpxinspect", fotos: "geotagger" }[id] || "library";
     if (typeof switchMod === "function") switchMod(ziel);
     if (id === "video" && typeof toast === "function")
-      toast(T("startseite.video_toast", "Wähle links eine Tour — dann „🎬 Schnell-Video …“ oder „Im Animator öffnen“."), "info", 7000);
+      toast(T("startseite.video_toast", "Wähle links eine Tour — dann „🧭 Video-Assistent …“ oder „Im Animator öffnen“."), "info", 7000);
   }
 
   /** Den Überblick zeigen. `opt.erststart` = direkt nach dem Einrichten (Haken „Beim Start zeigen“ dann an). */

@@ -14,6 +14,115 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.851] – 2026-11-02
+
+### Added
+- **Mountain names in the terrain** (first part of the new editorial labels): the names of the peaks
+  in view with their height below, in Cormorant Garamond without a box, soft shadow, fine line to the summit; near peaks
+  larger, at most four at a time (two in portrait), no overlaps, peaks hidden behind terrain left out, soft fade in/out
+  computed from video time (preview = video). Peaks from the OpenFreeMap vector tiles (`mountain_peak`); the map's own
+  peak labels are hidden meanwhile. Settings: font (bundled Cormorant Garamond/Manrope or system fonts), size, colour,
+  shadow. On in new projects, existing projects stay as they were; switch also in the video assistant's Map tab.
+  Fonts credited in About (SIL OFL).
+- **Editorial hint pin** (editorial labels part b): new highlight style "Editorial" — round dark symbol with an accent ring on
+  a fine line, kind small and value large beside it, no box, soft halo; font/size/colours free like any sign. Video
+  assistant uses it for highlights and places along the way in new videos. Sign editor and overlays offer Cormorant
+  Garamond and Manrope; overlays can keep a fixed font (`schrift_fest`) when the map look changes.
+- **Summit title**: when the highest point lies within 50 m of a named summit (OSM via Photon), the assistant shows its
+  name and height large in Cormorant Garamond for about 2.5 s while passing (switch in the Info tab).
+- **Direct editor for overlays** (editorial labels part c): select an overlay in the preview → toolbar above it (font,
+  size, text colour, shadow, style) and a size corner; click a line to select it and drag only that line (per-line
+  offset `dx/dy`); smart guides while dragging like Keynote/Figma (picture centre, edges/centres of other elements, equal
+  spacing; ⌘ = free); double-click a text to type right in the preview (Enter/Esc); opening an overlay that isn't
+  visible jumps the scrubber to it. New overlay style "Editorial"; the video assistant uses it in new videos.
+- **Ten video templates** (Wanderlust, Plain, Margin note, On the road, Field book, Forward, Signpost, Cinema, Travel
+  poster, Light glass): each is a set of ordinary overlays for start, on the way and finish plus gradients and the colours
+  of line and preview route. Apply them in the Animator ("Apply video template …", one undo step) or in the video
+  assistant's new **Style** tab (second tab; Wanderlust preselected, "Classic" keeps the previous look). Logo on in every
+  template. Save your own overlays as a video template (☆) — available in the Animator and the assistant's Style tab.
+- **Overlay editor: everything adjustable** — shape (square, slanted, signpost), accent edge, rotation, gradient fill,
+  blur strength, dividers, spread, letter spacing, italic, tape, font weight; per line: colour, font, weight, spacing,
+  capitals, italic, outline text, vertical text, size, line height, alignment, own fill. New line types: accent line,
+  progress bar, progress ring. Labels "small after" or "below" the value. Values with a substitute field when the track
+  lacks data; new field "share of route"; without elevation the profile shows progress. Overlays can be attached to the
+  moving dot (leader line, ring, hidden behind terrain, switch sides at edges and around other overlays). "Keep position"
+  (no automatic stacking), new transitions (glide up, in from the edge, reveal), dark gradient from the left.
+- **Start and ending flights in the video assistant** (Camera tab, „More“): start — overview, from the globe (the whole
+  Earth, then calmly down; intro at least 6 s), from the side; ending — back to the overview, take off upwards, circle the
+  finish once, stay at the finish. Each with a short clip on hover.
+- **Video assistant: essentials first** — each tab shows the main choices at the top, everything else under „More
+  settings“ (open state remembered per tab).
+- **Overlay editor: „Keep colours“ / „Keep font“** — so every video template can be rebuilt from scratch in the editor
+  (a guard test checks that every setting a template uses is available in the editor).
+- **Style cards show real stills**: each template card in the assistant's Style tab shows the template on the Teide tour.
+- **Readability setting for overlays** ("Readability": off · soft shadow · drop shadow · outline · shadow + outline,
+  strength, colour automatic or chosen; the "S" button in the preview toolbar switches shadow + outline). The video
+  templates use shadow + outline for text directly on the map (stronger on moving-dot signs), none on paper, glass or
+  bands. Checked on dark terrain, a city, bright coast and a light road map: text readable everywhere.
+- **Mountain names** get a fine crisp outline besides the soft halo (readable on light maps too); moving-dot signs also
+  avoid mountain names. Overview maps draw the part still to come in the text colour (was white, invisible on paper).
+- **Every template offers every option**: elevation profile and overview map can be switched on or off in all ten
+  templates (each has its own place for them in its style; what a template shows by default is preselected), and the
+  end card shows the values chosen in the assistant. The fine profile is easier to see (stronger line in the accent
+  colour, clearer rest, light shadow).
+- **Distribution over the track in the video assistant** (Format tab): even or real pace (real pace only for tours with
+  timestamps), same setting as in the Animator.
+- **Units switch in the video assistant** (Format tab): metric, imperial, nautical — sets distance, elevation and speed
+  units of the project.
+- Elevation profile can be drawn as a line without fill.
+- **Distance grid in the elevation profile** (tester request, same as the iPhone app): fine lines with „5 km“ /
+  miles / nautical miles in round steps (at most eight); switch in the overlay editor and in the assistant's Info tab.
+- **Intro and ending "None" and "Custom"** in the assistant's Format tab (0 s: no overview before the ride / no pull-back
+  at the end; custom up to 30 s).
+
+### Fixed
+- **Faster start with a large library:** the weekly database check before the window no longer comes back when the
+  background check has passed in the meantime (with about 470 000 photos it cost 5 s). The app also no longer touches
+  its own package at every start, which on an external drive made macOS ask for permission before the window opened.
+- **Timeline:** with four or more overlays, the small strokes of a collapsed overlay group no longer stick out below their row.
+- **"No official aerial imagery" notice no longer pops up at every assistant step**: it shows once, after 8 s it shrinks
+  to a small sign in the corner (text as tooltip); a style change no longer removes and re-adds it.
+- **Animator locked while a tour loads**: until map, track and fit are ready (and the tiles, at most 4 s after the map
+  style) a lock with spinner and text ("Loading tour …", "Drawing the map …") covers the app; clicks and keys wait.
+  Keyframes can no longer be set from a half-loaded map (a user's project started with a keyframe at zoom 0, i.e. the
+  whole Earth). Not shown for loads under 0.3 s; watchdog 45 s.
+- **No more roller coaster at motorway ramps when flying along**: the camera direction is now averaged as direction
+  vectors along the route, so loops (cloverleaf ramps, roundabouts) cancel out and the camera follows the overall
+  direction. Measured on a 221 km motorbike tour: fastest turn 72°/s → 27°/s, largest turn within 4 s 247° → 85°.
+- **Video assistant keeps your scrubber position**: if you moved the scrubber yourself and then changed something in the
+  assistant, the preview jumped back to the tab's preset spot — sometimes exactly where the moving dot was hidden. A
+  scrubber you moved yourself now stays put; switching tabs still goes to the matching spot.
+
+### Changed
+- **Quick video and video assistant are one tool now — the video assistant**: the video is ready as soon as the
+  assistant opens (camera flight, title, photos, highlights, end card preset); the eight tabs refine it. **"Create
+  video …"** and **"Keep as project"** sit at the bottom of every tab, so you can be done after "Camera". The separate
+  quick video buttons are gone: animator sidebar, archive (detail column and right-click), tour page, import assistant,
+  simple view and the search all lead to the video assistant. The quick video's presets Wide/Diary/Pulse are gone (the web
+  version doesn't have them either); your own ★ templates stay. The command line (`gpsstudio render`) and the web
+  version are unchanged.
+- **Everything from the quick video is in the assistant**: four flight styles under "Fly along" — Companion, Falcon,
+  Orbit, Carousel, the clearly different ones (a comparison of all ten showed six barely distinguishable) — each card with
+  a hover clip and three to four bullet points on what the camera does; the other styles stay available on the command
+  line. Height Close/Medium/High works on top (Close = one zoom step closer; High = Cruising Altitude with Companion,
+  otherwise one step further). Length "As in the Animator" in an existing project, the overview map in the corner (Info
+  tab) and the click with every photo (Video tab). The assistant remembers its last choices (length, camera, flight
+  style, height, photo style, music).
+- **New first tab "Format" instead of "Route"** (which only showed the route the Animator shows anyway): format, total
+  length, and how long the **intro** (overview with the title) and the **ending** (camera pulls back, end card) last —
+  Short · Normal · Long (intro 1.5 / 3 / 6 s, ending 2 / 4 / 7 s); both count towards the total length. The assistant
+  starts there. Your saved ★ styles moved to the "Video" tab ("Apply a saved style", next to "Save as template").
+- **Title on/off**: a switch in the "Title" tab removes the title overlay completely (the intro still shows the overview).
+- **Like the iPhone app**: the "Format" tab also sets **resolution** (1080p · 1440p · 4K) and **frame rate** (25 · 30 · 60
+  fps) and shows the result ("2560 × 1440 · 60 fps"); the export dialog then shows these values. The "Video" tab has the
+  **logo** on/off and left · centre · right (the overview map moves to the left when the logo is on the right). The "Info"
+  tab has **"Places along the way"**: towns, villages and passes the tour goes through, from the same search as the
+  highlights window, as small pin signs — about one per 8 s of video, passes first, at least 6 % of the route apart, not at
+  the start/finish or next to a highlight.
+- **Starting from the archive without a project**: the assistant creates a provisional project (listed under "Created
+  automatically"). "Keep as project" turns it into a normal project named after the tour; "Cancel" deletes it and
+  reloads the tour, nothing is saved; "Create video …" alone leaves it under "Created automatically", as the quick video did.
+
 ## [0.9.850] – 2026-10-31
 
 ### Added

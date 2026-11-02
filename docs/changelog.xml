@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sat, 31 Oct 2026 21:25:09 +0000</lastBuildDate>
+<lastBuildDate>Mon, 02 Nov 2026 09:49:23 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.851</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-851</link>
+<guid isPermaLink="false">gps-studio-v0.9.851</guid>
+<pubDate>Mon, 02 Nov 2026 12:00:00 +0000</pubDate>
+<description>Videoassistent statt Schnellvideo — Schnellvideo und Videoassistent sind jetzt ein Werkzeug. Das Video steht fertig da, sobald der Assistent aufgeht, in den Reitern verfeinerst du es. „Video erstellen …“ und „Als Projekt behalten“ stehen unten in jedem Reiter, du kannst also schon nach „Kamera“ fertig sein. Archiv, Tourseite, Import-Assistent und Suche führen alle dorthin.
+
+Zehn Videovorlagen — Fernweh, Klartext, Randnotiz, Unterwegs, Feldbuch, Vorwärts, Wegweiser, Kino, Reiseplakat und Lichtglas: Jede bringt eigene Schilder für Start, Strecke und Ziel mit, dazu die Farben von Linie und Route. Du wählst sie im neuen Reiter „Stil“ des Videoassistenten oder im Animator, „Klassisch“ behält den bisherigen Look. Eigene Schilder speicherst du mit ☆ als Vorlage.
+
+Bergnamen im Gelände — Die Gipfel im Bild stehen mit Name und Höhe direkt im Gelände, in einer feinen Serifenschrift ohne Kasten, mit dünner Linie zum Gipfel. Höchstens vier gleichzeitig, verdeckte Gipfel bleiben weg, und sie blenden weich ein und aus — in Vorschau und Video gleich. Führt die Tour über einen bekannten Gipfel, zeigt der Assistent dessen Namen kurz groß im Bild.
+
+Schilder direkt in der Vorschau bearbeiten — Klick ein Schild an, und darüber erscheint eine Leiste für Schrift, Größe, Farbe und Schatten. Zeilen verschiebst du einzeln, Hilfslinien helfen beim Ausrichten, und mit einem Doppelklick tippst du direkt in den Text.</description>
+</item>
 <item>
 <title>v0.9.850</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-850</link>
@@ -245,17 +258,6 @@ Logbuch: Auswahl als eigene Tour — Im GPX-Inspektor mehrere Logbuch-Einträge 
 Etappen leichter bearbeiten — Stationen am Griff ziehen oder mit ▲▼ umsortieren, einen Kartenpunkt einfach benennen (ohne Adresssuche), und Umkehren behält die Höhe eines Hochflugs.
 
 Schilder direkt auf der Karte — Ein neues Schild steht sofort auf der Karte, und du tippst seinen Text gleich dort. Doppelklick auf ein Schild öffnet den Schild-Editor.</description>
-</item>
-<item>
-<title>v0.9.793</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-793</link>
-<guid isPermaLink="false">gps-studio-v0.9.793</guid>
-<pubDate>Thu, 15 Oct 2026 12:00:00 +0000</pubDate>
-<description>Import-Assistent — Nach der Tour Track, Fotos und Clips in einen Eingangsordner legen und im Archiv „Import-Assistent …“ starten: Er zeigt, was drin ist, prüft den Track, füllt Titel und Art vor, legt die Fotos nach ihrer Aufnahmezeit auf die Karte (fehlende Zeitzone der Kamera aus dem Track errechnet) und übernimmt alles in einen Ordner „Datum Titel“ — Fotos verortet und vorher gesichert, Tour im Archiv mit Notiz, Sammlung und Logbuch. Liegt nur ein Track im Eingang, kommen die Fotos aus dem Medienarchiv. Zum Schluss: Wie weiter? Schnell-Video, Video-Assistent, Karte, Daten animieren …
-
-Gleitschirm nach Höhe eingefärbt — Die Linie in der Luft färbt sich genau wie die Linie am Boden: „Mehrere Track-Farben“ nach Höhe, Tempo, Steigung …, hart oder als Verlauf, auch Farbe je Tag. So sieht man auf einen Blick, wo der Schirm in der Thermik steigt und wo er gleitet.
-
-Flüge gehen von selbst in die Luft — Ein IGC-Track (Gleitschirm, Segelflug, Drachen) schaltet Gelände und „Flug in der Luft“ selbst ein. Der Schalter ist bei Flügen wieder zu sehen: Karte → 3D auf der Karte → Strecke.</description>
 </item>
 </channel>
 </rss>

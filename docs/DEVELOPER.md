@@ -906,7 +906,7 @@ Feld. Prüfstand-Haken `window.__rzOvEle(frac)`.
 
 ### Schnell-Video (seit 29.09.2026)
 
-- **Dialog + Ablauf:** `ui/js/schnellvideo.js` (`window.rzSchnellVideo(pfad)`), Einstieg Archiv (`[data-schnellvideo]`, Rechtsklick) und Animator (`#anim-schnellvideo`). Holt `schnellvideo_vorschlag`, baut `animatorPatch()` (Backend-Schlüssel wie app.py: width/height/fps/intro_s/duration_s/hold_s/map_style/keyframes_enabled/timeline_events/camera_follow_track/overlay_*/ghost_track_*/schnellkarte), legt per `schnellvideo_anlegen` ein freies Projekt an (Tour gesetzt, `herkunft: "schnellvideo"`), öffnet es wie der Tour-Assistent (Event `rz-projekt-oeffnen`) und startet auf Wunsch den Render, sobald `window.__rzSchnellBereit(pid)` stimmt.
+- **Dialog + Ablauf:** `ui/js/schnellvideo.js` (`window.rzSchnellVideo(pfad)`), Einstieg Archiv (`[data-schnellvideo]`, Rechtsklick) und Animator (`#anim-schnellvideo`) — **seit 01.11.2026 ohne Knopf, siehe „Video-Assistent ersetzt das Schnell-Video“**. Holt `schnellvideo_vorschlag`, baut `animatorPatch()` (Backend-Schlüssel wie app.py: width/height/fps/intro_s/duration_s/hold_s/map_style/keyframes_enabled/timeline_events/camera_follow_track/overlay_*/ghost_track_*/schnellkarte), legt per `schnellvideo_anlegen` ein freies Projekt an (Tour gesetzt, `herkunft: "schnellvideo"`), öffnet es wie der Tour-Assistent (Event `rz-projekt-oeffnen`) und startet auf Wunsch den Render, sobald `window.__rzSchnellBereit(pid)` stimmt.
 - **Kamerafahrt:** `kamerafahrt(bbox, animS)` erzeugt 7 Punkte × 4 Spuren (pitch/bearing/zoom/center). Anker: Intro < 0, Halten > 1 (1/animS je Sekunde). Zoom nur als `value_offset` zur Einpass-Kamera (formatunabhängig); `center` fest im Überblick, `null` im Flug (Track-Punkt mit `camera_follow_track`); gemischte Abschnitte löst `_interpCenter` auf, `_maybeFlyToInterp` macht den Bogen.
 - **Titel- und Schlusskarte:** `animator.schnellkarte = {titel_an, titel, unter, titel_s, schluss_an, felder[]}`, DOM-Ebene `#anim-sk` (Größen in `cqmin`, liegt über `#anim-overlay-preview`), `_skAnwenden(tSec)` aus `_ovTimingAt` (Probelauf/Szene) und `scrubPreview` (Zeit per `_sgZeitAusAnker`). Werte über `_ovFieldValue`. Einstellbereich in Overlays (`#anim-sk-editor`). Die Tour-Map zeigt die Karte nicht (`_isStaticFrame`).
 - **Render ohne Speichern-Dialog:** `window.__rzSchnellRender({ziel, name})` → Render-Knopf mit `_skRenderNext` (kein Rechte-Modal, `savePath = ziel` aus `schnellvideo_ziel` in `_renders`). Fertig-Bereich: `_skFertigKnoepfe` → `datei_speichern_unter` (dateischutz `verschieben`, Ziel aus `pick_save_path`) und `datei_teilen` (macOS `NSSharingServicePicker` über `AppHelper.callAfter`, sonst Ordner öffnen).
@@ -8874,6 +8874,163 @@ Marc: „baue den Assistenten so, wie es im Web ist … auch mit den Erklärvide
 - Tests: `test_videoassistent_ui` (Reiter, „?“, Höhe, Karte, Linie, Fotoart, Doppelstart, Musik aus, übernehmen/⌘Z/Abbrechen),
   `_kamera`, `_geschichte`, `_medien`, `_halte`, `_vorschau`, `_vorlagen` auf die neuen Reiter umgestellt.
 
+## Bergnamen im Gelände (01.11.2026)
+
+- `ui/js/bergnamen.js` → `window.rzBergnamen.erstellen(map, { einstellungen, zeit })`: DOM-Ebene `.rz-bergnamen` im
+  Kartencontainer (Bildschirmfoto-Render nimmt sie mit). Quelle: vorhandene OpenFreeMap-Vektorquelle des Stils
+  (`openmaptiles`) oder eigene `rz-berge` (Attribution „© OpenMapTiles © OpenStreetMap“); die unsichtbare Kreis-Ebene
+  `rz-berge-laden` (source-layer `mountain_peak`, ab z7) lädt die Kacheln. Kandidaten über `querySourceFeatures`
+  (Klasse peak/volcano, `name:<sprache>` vor `name`), neu gelesen nach `sourcedata` bzw. alle 1,5 s.
+- Je Bild (`map.on("render")`): Lage über `rzProjektGezeichnet`, Kamera über `rzMlCamRead` → MercatorCoordinate,
+  hinter der Kamera aus, Verdeckung = Strahl Kamera→Gipfel in 14 Schritten gegen `queryTerrainElevation` (+12 m),
+  Rang = Höhe/1000 + Nähe (40 km) + Bonus für schon Sichtbare (Hysterese), höchstens 4 quer / 2 hoch, Kollisionsboxen mit
+  1,6 % H Luft. Größe 1,9–3,2 % H (hoch 1,9–2,6) nach Entfernung × Regler; Höhe Manrope 1,3/1,45 % H, ohne Tausenderpunkt.
+  Ein 0,35 s / Aus 0,3 s, dt aus der Videozeit (`_bnZeit`, gesetzt in `_ovTimingAt`), sonst echte Zeit.
+- Grundkarten-Ebenen mit `source-layer: mountain_peak` werden ausgeblendet, solange die Bergnamen an sind.
+- Einstellungen (Animator und Tour-Map, dasselbe Modul): `bergnamen_an/_schrift/_groesse/_farbe/_schatten`. Die Vorgaben
+  (DEFAULT_SETTINGS) stehen auf an — weil `settings.json` mit den Vorgaben gemischt wird, liest `_bnAn()` „an“ nur aus dem
+  Projekt: fehlt der Schlüssel in einem gespeicherten Projekt → aus; schwebend (ohne id) → an. Kurz-Nennung nimmt
+  `openfreemap` dazu. Assistent: Schalter `#va-bergnamen` (Reiter Karte) → `vaPatch` `bergnamen_an`.
+- Schriften `ui/fonts/CormorantGaramond-var.ttf`, `Manrope-var.ttf` (OFL), `@font-face` mit `font-display: block`,
+  vorab geladen; Credits im Über-Dialog. Test `test_bergnamen` (Masca, Luftbild + Gelände: 4 Namen, Cormorant, kein
+  Kasten; aus/an; altes Projekt ohne Schlüssel aus).
+- **Baustein b:** `sign_draw.js rzDrawHlEditorial` (Stil `hl_editorial` in `RZ_HL_STILE`, `_istHlStil`, Auswahl
+  `#anim-hl-stil`): Kreis 1,36 u, Ring `o.color`, Symbol `RZ_HL_ICONS[o.icon]`, Linie 1,25 u, Text rechts (Zeile 1 klein mit
+  Laufweite 0,04 u, Rest groß), Halo statt Kasten; Schrift `o.font` (Standard `manrope`), `fontStack` kennt `cormorant`/
+  `manrope`. Assistent: `w.hlStil = "hl_editorial"`, `w.hlFarbe = "#ff896b"` → `highlights_stil/_farbe`; Orte über
+  `__rzOrteSchild(v, {stil: "hl_editorial"})` (Pass = Symbol „hoechster“, Ort = „wegpunkte“). Gipfeltitel: beim Start
+  `ort_am_punkt(höchster Punkt, 50 m, nur_gipfel)` → `w.gipfel` → Einblendung „titel“ mit `schrift: "cormorant",
+  schrift_fest: true`, Zeit `strecke` [bei − 0,3 s, bei + 2,5 s]; `container.js normalisieren` behält `schrift_fest`,
+  `looks.js containerImLook` überschreibt die Schrift dann nicht.
+- **Intro/Schluss 0 s und eigene** (`VA_INTRO/VA_HOLD` mit `keins`/`eigen`, `introS/holdS` 0–30 s): `kamerafahrt` lässt
+  bei Intro 0 die Überblickspunkte weg, bei Schluss 0 die Rückfahrt.
+- **Baustein c — Direkt-Editor** (animator/module.js nach `_ctZiehenBinden`, `ui/js/einrasten.js`): Zeilen haben optional
+  `dx/dy` (% des Bildes, `container.js zeileNorm`), gezeichnet als `transform: translate(dx cqw, dy cqh)` (`_ctMitVersatz`).
+  Gewählte Einblendung (`.ct-aktiv`): `_ctWerkzeugSetzen` (Leiste `.ct-werkzeug` in der Overlay-Ebene, auf 1/k
+  zurückskaliert — k = `_ctEbeneK`, Vorschau-Verkleinerung; Maße daher `offset…/k`) + `.ct-ecke` (`_ctGroesseZiehen` →
+  `schriftgroesse`). Klick auf eine Zeile ohne Ziehen → `_ctZeileAktiv` (`.ct-z-aktiv`); Ziehen an der gewählten Zeile →
+  `_ctZeileZiehen`, sonst ganze Einblendung (wie bisher, jetzt mit Einrasten). `rzEinrasten.rechnen` (Kanten/Mitten,
+  Bildmitte, gleiche Abstände, Schwelle 6 px) und `zeichnen` (`.rz-hilfslinie`, ⌘ = frei); Ziele = sichtbare `.ct`/`.ct-z`
+  ohne das gezogene (`_ctZiele`). Doppelklick auf Textzeile ohne `{platzhalter}` → `_ctTippen` (contenteditable
+  plaintext-only, Enter/Esc/Blur). `_ctEditorOeffnen` → `_ctSichtbarMachen` (Scrubber in das erste Zeitfenster).
+  Stil `editorial` in `container.js STILE` (mit `schrift_fest`), Assistent `w.editorialEinbl` → `einblendungen()`
+  (nicht Logo/Nord/Übersicht/Bild im Bild). Test `test_direkteditor` (WebKit, echte Maus).
+- Später: perspektivisch aufs Gelände, Laufpunkt „Ring“ (d).
+
+## Video-Assistent ersetzt das Schnell-Video (01.11.2026, v0.9.851)
+
+Marc: „Schnellvideo und Videoassistent zusammenlegen, das ist doppeltgemoppelt … das Video ist quasi gleich fertig, man
+kann es verfeinern und dann direkt rendern oder als Projekt übernehmen“ — Vorbild Web-Version, am Desktop mehr Möglichkeiten.
+
+- **Ein Einstieg:** `#anim-schnellvideo`, `[data-schnellvideo]` (Archiv-Detailspalte), der Rechtsklick-Eintrag, „⚡ Schnell-Video“
+  auf der Tour-Seite, `ia.w_schnellvideo` (Import-Assistent) und der Eintrag in `fragen.js` sind weg; alle führen zum
+  Assistenten. Archiv/Tour-Seite/Import-Assistent/Rechtsklick nutzen `window.rzVideoAssistentStarten(oeffnen)`
+  (schnellvideo.js): Animator öffnen, auf die neue Fassung von `__rzVideoAssistent` warten, starten (vorher dreimal kopiert).
+  Einfache Ansicht: Aktion `schnell` klickt `#anim-videoassistent`. Suche: Synonymgruppe `assistent,…,schnellvideo` in `frag.synonyme`.
+- **Der Dialog bleibt im Code:** `rzSchnellVideo(pfad, opts)` ohne `assistent` ist weiter der Weg der Kommandozeile
+  (`core/cli.py`) und der Web-Version (`studio.js`, `webapi.py`); Prüfstand `window.__rzSchnellVideoAusAnimator()` öffnet ihn
+  wie früher der Knopf (Tests). Die Vorlagen Weite/Tagebuch/Puls leben dort intern weiter (Look-Zuordnung), sichtbar nirgends.
+- **Vorläufiges Projekt:** `_schnellStart` (animator/module.js) merkt `vorlaeufig`, wenn die offene Tour noch schwebend war
+  (kein `id`), bevor `rzAktivesProjektSichern` festschreibt; `opts.projekt.vorlaeufig` → `VORL` in schnellvideo.js.
+  Start: `projekt_herkunft_setzen(id, "assistent")` (app.py) → `core/projekte.alle_projekte` zählt es zu „Automatisch
+  angelegt“ (wie `schnellvideo`). „Ins Projekt übernehmen“: `uebernehmen("fertig")` gibt `true` zurück, dann
+  `projekt_herkunft_setzen(id, null)`. „Abbrechen“/✕ (`vaAbbrechen`): KEIN Zurückschreiben (das Zurücksetzen speicherte
+  abgeleitete Farben und schrieb das Projekt sofort wieder fest), sondern `vaVorlaeufigWeg()` = `rzProjektLoslassen(id, 15000)`
+  (util.js: Kennung "", schwebend, offene Patches verworfen, **Festschreib-Sperre** `_festschreibenGesperrt` für Kennung ""
+  in `_projectFlushNow`/`_projectRootFlushNow`) + `projekt_loeschen` + `loadGlobalGpx(pfad)`, 3 s danach
+  `rzFestschreibenFrei()`. `vaEnde` beendet laufendes Live-Schreiben (`imAnimator()`), sonst landete der Highlight-Abgleich
+  in der frisch geladenen Tour. „Video erstellen …“ ohne Übernehmen lässt die Herkunft stehen.
+- **Fußleiste:** `#sv-uebernehmen` („Ins Projekt übernehmen“, `va.ins_projekt`) und `#va-erstellen` auf jedem Reiter
+  sichtbar; `#va-weiter` ist kein Hauptknopf mehr (CTA = „Video erstellen …“).
+- **Kamera-Reiter:** `#va-k-fahrt` (nur bei Mitfliegen) mit vier `[data-va-flug]`-Karten (`VA_FLUGSTILE` = begleiter, falke,
+  orbit, karussell — Marc: „zu viele Kamerapositionen … nur ein Video“; Web-Fund F-28: von zehn sind nur wenige klar
+  verschieden), je Clip `media/kamera/flug_<stil>.mp4` (Klasse `va-clip-hover`, spielt nur unter der Maus) und 3–4 Stichpunkte
+  `.va-flug-punkte` (`VA_FLUG_PUNKTE`, i18n `va.flug.<stil>_<n>`). Ein gemerkter anderer Stil wird im Assistenten Begleiter;
+  die Kommandozeile kennt weiter alle zehn. `kamOptSetzen` setzt `w.flugFahrt` = Reiseflughöhe bei Begleiter + „Hoch“ (wie
+  im Web), sonst `w.flug`; `flugstil()` und `kamerafahrt` nehmen `flugFahrt`. `vaPatch` verschiebt die Fahrt-Zoom-Keyframes
+  um `VA_HOEHE_FAHRT[w.hoehe]` (Nah +1, Hoch −1; nicht bei Begleiter + Hoch). Länge `animator` („Wie im Animator · N s“)
+  nur, wenn `w.animatorS > 0`.
+- **Seite 1 = „Format“ statt „Route“** (Marc: Route „ist eh leer“; „mach doch einen Punkt 1, wo die Videolänge angegeben
+  wird und das Format und auch Intro und Outro oder Hold“): Format- und Längen-Wahl (unverändert `data-sv-gruppe`) aus dem
+  Kamera-Reiter hierher, dazu `[data-va-intro-s]` / `[data-va-hold-s]` (Kurz · Normal · Lang = `VA_INTRO` 1,5/3/6 s,
+  `VA_HOLD` 2/4/7 s; Normal = `null` = wie bisher). `w.introS`/`w.holdS` → `introS(w)`/`holdS(w)` statt der Konstanten
+  `INTRO_S`/`HOLD_S` überall, wo Länge, Titel (`bis` = Intro), Schlusskarte (`video_ende` = Schluss − `RUECK_S`) und
+  `kamerafahrt` (`opt.intro_s`; „kurz stehen“ = min(1,2 s, 0,4 × Intro)) gerechnet werden; gemerkt als `intro_s`/`hold_s`.
+  Start bei Seite 1, Zusammenfassung mit eigener Zeile „Format und Länge“ (8 Zeilen), `VA_BEREICH[1] = "format"`.
+  `#va-eigene-feld` („Gemerkten Stil anwenden“) steht im Reiter Video vor „Als Vorlage merken“; `eigeneZeichnen` blendet
+  es ein, sobald es eigene Vorlagen gibt.
+- **Scrubber bleibt** (Marc: „springt zurück … gerade da sehe ich nicht, was ich einstelle“): `vaVorschauStelle` merkt die
+  angefahrene Zeit in `vaStelle`; `uebernehmen("live")` liest vorher `__rzTpZeit()` — weicht sie um > 0,1 s davon ab (selbst
+  geschoben), geht es danach dorthin zurück statt an die Stelle des Reiters. Test `test_videoassistent_scrubber` (Gegenprobe:
+  alter Weg springt 7,95 → 19,5 s).
+- **Wie die iPhone-App (01.11.2026):** Reiter Format mit `[data-va-aufl-w]` (`w.qualitaet` 1080/1440/4k, `QUALI_FAKTOR`,
+  Kanten gerade gerundet) und `[data-va-fps-w]` (`w.fps` 25/30/60 → `fps` im Patch), Anzeige `#va-ausgabe`; beim Öffnen aus
+  dem Projekt (Kante ≥ 2400 = 1440p) gelesen. Reiter Video: `#va-logo-an` / `[data-va-logo-w]` → `einblendungen()` lässt den
+  Logo-Container weg bzw. setzt `anker` tl/tc/tr (Übersichtskarte dann `tl`). Achtung: ohne Wasserzeichen in den Vorgaben
+  nimmt `_schnell_logo_bild` (app.py) den Logo-Container ohnehin heraus. Reiter Infos: „Wichtige Orte unterwegs“
+  (`#va-orte-an`, `#va-orte-text`): beim Start `highlights_vorschlaege(pfad, [], {orte: true})` (Overpass/Ortsdaten-Kacheln,
+  dauert), `orteGewaehlt()` = max(2, Länge/8) Orte, Pass vor Stadt vor Dorf (`rang`), ≥ 6 % auseinander, nicht < 4 %/> 96 %,
+  nicht ±3 % um ein gewähltes Highlight; `window.__rzOrteSchild(v)` (animator/module.js, neben `_hlOrteRang`) baut das Schild
+  wie `_hlUebernehmen` (Stecknadel, `hl_quelle: "orte"`); `schilderJetzt()` hängt sie an (quelle „schnellvideo“, beim nächsten
+  Schreiben ersetzt). Gemerkt: `fps, logo_an, logo_lage, orte_an`. Test `test_videoassistent_ios` (Orts-Suche im Test vorgegeben).
+- **Infos/Video:** Schalter `#sv-uebersicht` (Übersichtskarte) und `#sv-klick` (Foto-Klick) — die IDs, die `an()`/`werteLesen`
+  schon kannten (vorher nur Rückfallwerte im `stand`).
+- **Gemerkt:** `werteLesen()` schreibt im Assistenten zusätzlich `va: true, kamera, hoehe`; `uebernehmen("fertig")` gibt
+  `letzte` an `schnellvideo_uebernehmen` (vorher `null`). Beim Start übernimmt der Assistent `kamera/hoehe/foto_art` nur aus
+  einem Stand mit `va`; `laenge: "eigen"` bleibt erhalten. Vorläufiges Projekt: Format aus dem gemerkten Stand statt aus dem Projekt.
+- **Tests:** `test_archiv_videoassistent` (C/D/E: vorläufig, Abbrechen löscht, Übernehmen behält), `test_videoassistent_kamera`
+  (zehn Flugstil-Karten), `test_videoassistent_ui` (Fußleiste auf jedem Reiter), `test_export_dialog`, `test_schnellvideo`
+  (kein eigener Knopf); Schnell-Video-Tests öffnen den Dialog über `__rzSchnellVideoAusAnimator`.
+- **Reiter „Stil“ (Seite 9, angezeigt als zweiter Reiter):** die interne Seitennummer bleibt 9, die Reihenfolge steht in
+  `ORDNUNG = [1, 9, 2, 3, 4, 5, 6, 7, 8]` (Reiterleiste, „Weiter“, Zusammenfassung). `VA_STILE` (schnellvideo.js) ist eine
+  reine Datenliste: je Vorlage `vorlage` (Fotoart/Laufpunkt-Grundlage), `einbl` (Container-Stil, Titel-/Textschrift, Farbe,
+  `schrift_fest`), `hl`/`hlFarbe` (Highlight-Stil), `bergnamen`, `zahlen`, `profil`, `profilFein`, `lp` (Laufpunkt) und
+  `animator` (Projekt-Schlüssel wie `linien_look`, `schweif_pct`, Kontur, `line_color`). `vaStilWerte(w, id)` setzt diese
+  Werte in `w` und schaltet immer das Logo an; `vaPatch` legt `w.stilAnimator` vor die eigenen Einzelwerte, damit spätere
+  Änderungen in den anderen Reitern gewinnen. Neue Vorlagen = neuer Eintrag in `VA_STILE` + `va.stil_<id>`/`va.stil_<id>_k`
+  in de/en/es. Gemerkt als `stil_id`. Feines Höhenprofil: Container-Zeile `diagramm` mit `fuellung: false` (nur Linie).
+  Test: `test_videoassistent_ios` Teil E.
+
+## Universelle Einblendungen und zehn Videovorlagen (01.11.2026, v0.9.851)
+
+**Ziel:** Jede Gestaltung aus den Entwürfen soll mit dem Editor nachbaubar sein; die zehn Vorlagen sind deshalb reine
+Daten aus normalen Einblendungen.
+
+- **Modell (`ui/js/container.js`):** Einblendung + `drehung`, `form` (rechteck/schraeg/pfeil), `kante`/`kante_b`/`kante_farbe`,
+  `hg_verlauf`/`hg_farbe2`/`hg_deckkraft2`, `unschaerfe_st`, `trenner`/`trenner_farbe`/`trenner_deckkraft`, `verteilen`,
+  `klebestreifen`, `gewicht`, `sperrung`, `kursiv`, `lage` (bild/laufpunkt), `fuehrung`/`fuehrung_farbe`, `ausweichen`,
+  `lage_fest` (nicht stapeln), `look_fest` (Karten-Look färbt nicht um, `looks.js containerImLook`); Beschriftung + `nach`/`unten`.
+  Zeile: neue Typen `linie` (b/h), `fortschritt` (b/h/punkt/enden/grund), `ring` (d/dicke/text/grund); für alle Typen
+  `farbe`, `schrift`, `gewicht`, `kursiv`, `sperrung`, `versal`, `kontur`, `senkrecht`, `hg_farbe`+`hg_deckkraft`+`form`+`innen`,
+  `gr` (0,05–8), `zh`, `ausr`; Wert-Zeile `ersatz` (Feld, wenn das eigene fehlt). Blenden `hoch`, `links`, `maske`
+  (`overlay_boxen.js mischen` liefert `bewegung`/`weg`, `setzen` schreibt `--rz-ov-hoch/-links/-maske`, `_ctLageCss` übersetzt).
+- **Zeichnen (`modules/animator/ui/module.js`):** `_ctLageCss` (Laufpunkt über `--lp-x/--lp-y/--lp-sx/--lp-sy/--lp-ax/--lp-ay`,
+  Drehung, bewegte Blenden, Masken-`clip-path`), `_ctKarteCss` (Verlauf, Form-`clip-path`, Kante, Schriftschnitt, Trenner),
+  `_ctZeilenStil` (Gestaltung je Zeile, mit dx/dy), `_ctFortschrittAt` + `_ctLaufpunktAt` je Bild aus `_ctDiagrammeAt` und
+  bei `map.on("render")`; Laufpunkt-Position aus `window.__rzDotZuletzt.c`, Projektion `rzProjektGezeichnet`, Sicht `rzSignSicht`,
+  Seite nach Kosten (Bildrand × 50 + Überdeckung anderer Einblendungen < 20 % der Bildfläche); Führungslinie in
+  `svg.ct-lp-linien`. `_ctStapeln` überspringt `lage_fest`/Laufpunkt. Neues Live-Feld `pct_done`. CSS im Abschnitt
+  CONTAINER-CSS (module.css), damit der Web-Export es mitnimmt. Verlauf `links` (`.vl-links`, Hintergrund der Ebene).
+- **Editor:** Gruppe „Form und Akzent“, Lage „Hängt am“, `_ctZeileGestaltungHtml` je Zeile (leer = wie die Einblendung,
+  ↺ `data-za="zurueck:<k>"`), neue Zeilenarten im „Zeile hinzufügen“.
+- **Vorlagen (`ui/js/videovorlagen.js`):** `rzVideoVorlagen.LISTE` (id, Nr., Name, Palette) und `bauen(id, ctx)` →
+  `{ container, verlauf, animator, palette }`; Maße aus der Referenz 1600 × 900 über die kurze Bildseite umgerechnet
+  (`X/Y/F`), drei Phasen als Zeiträume (`video_start` 0…max(Intro, 3 s), danach bis `video_ende` max(2,5, Halten − 1),
+  Abschluss ab dort). Bausteine `kopf`, `titelBlock`, `werte`, `profil`, `mini`, `ort`, `fortschritt`; `vorlage`-Namen
+  (titel, live, schluss, schluss_werte, hoehe, uebersicht, laufpunkt, flaeche, deko, ring, kopf, logo) sind die Schalter
+  des Assistenten. Hochformat: Werte untereinander.
+- **Animator:** `#ct-vv` (Vorlagen + eigene), `_ctVvAnwenden` → `_animBlockAnwenden` = `_animUndoCtrl.applyState` (ein
+  ⌘Z-Schritt, die gebundenen Regler schieben keine eigenen Schritte dazwischen); eigene Vorlagen `#ct-vv-merken` +
+  `#ct-vv-name` → API `videovorlage_eigen_speichern/_loeschen`, `videovorlagen_eigen` (Einstellung `videovorlagen_eigen`,
+  max. 40; `titel_alt` wird beim Anwenden durch den Titel der Tour ersetzt).
+- **Assistent (`schnellvideo.js`):** `VA_STILE` = zehn `VV(...)` + `klassisch` + eigene (`vaEigeneVideovorlagen`,
+  Schlüssel `eigen:<id>`), `vaStilWerte` setzt `w.vv`/`w.vvEigen`/`w.vvVerlauf`/`w.stilAnimator`; `einblendungen` →
+  `vvEinblendungen` (filtert nach Titel/Zahlen/Profil/Schluss) + `zusatzEinblendungen` (Kapitel-, Gipfeltitel, Bild im Bild).
+  `w.kicker` = Ort der Tour. Einheiten `VA_EINHEITEN` (metrisch/imperial/nautisch → `einheit_strecke`, `einheit_hoehe`,
+  `tempo_als`), gemerkt als `einheiten`.
+- **Tests:** `test_videovorlagen` (alle zehn: Anlegen, Farben, drei Phasen, Merkmal je Vorlage, Laufpunkt-Schild,
+  ⌘Z, eigene Vorlage, Editor; `RZ_VV_BILDER=<ordner>` speichert Standbilder), `test_videoassistent_ios` E/F.
+
 ## Klicktest-Funde 26.10.2026: Tooltips im Assistenten, Zeitleiste „nur was man braucht“, Fotostopp-Zuordnung
 
 - **Assistent ohne Fließtext:** `kopf(h, sub)` setzt den Untertitel als `rz-q` (Tooltip über util.js, `data-tip`) an die
@@ -8904,3 +9061,28 @@ Marc: „baue den Assistenten so, wie es im Web ist … auch mit den Erklärvide
 - `_platzSchaffen(vorrang, wiederAuf)`: wieder aufgeklappt wird nur bei Anlass (Fenster/Spurhöhe, Nutzer klappt); `_platzPlanen`
   (nach Spur-Änderungen) klappt nur zu und meldet `rz-timeline-hoehe` nur bei echter Höhenänderung — vorher öffnete/schloss
   jede Spur-Aktualisierung probehalber und meldete die Höhe jedes Mal.
+
+## Ladesperre und Kamerarichtung ohne Schleifen (01.11.2026, v0.9.851)
+
+- **Ladesperre (`modules/animator/ui/module.js`):** `loadGpxByPath` ruft `_ladeSperreAn("Tour")`; nach 300 ms erscheint
+  `#anim-ladesperre` (fixed, fängt Klicks; `keydown` im Capture gesperrt außer ⌘Q/⌘W). Ein 200-ms-Takt prüft
+  `_animKarteBereit()` (Stil, Koordinaten, `_fitZoomBase`, keine wartenden Touren/Übergabe), dann `map.loaded()` oder
+  4 s → `_ladeSperreAus()`. Wachhund 45 s. `snapshotKeyframe`/`createSingleProperty` verweigern während der Sperre
+  (Toast). Prüfstand `window.__rzLadeSperre()`.
+- **Kamerarichtung (`ui/js/util.js kursReihe/kursGlattAn`, Parameter `vektor`):** `_kursKeyframes` mittelt die Fahrtrichtung
+  als Einheitsvektoren (gewichtet mit Gauß × Streckenlänge je Punkt) statt als abgewickelten Winkel; Betrag < 15 % der
+  Gewichte → vorige Richtung halten; danach wieder abgewickelt. Der Pfeil (`_kursAn`) nutzt weiter den Winkel-Mittelwert.
+  Messung Pisa-Motorradtour (221 km, 240 s): max. 72 → 27 °/s, größte Drehung in 4 s 247 → 85°.
+
+## Lesbarkeit der Einblendungen (01.11.2026, v0.9.851)
+
+- Container `textschutz` (`aus|weich|schatten|kontur|beides`, ohne Angabe aus `textschatten` abgeleitet: weich = der
+  bisherige Textschatten), `textschutz_st` (0,2–2), `textschutz_farbe` (leer = automatisch nach Helligkeit der Textfarbe).
+  `_ctTextschutzCss` baut `text-shadow` (Kontur = 8 Richtungen ohne Weichheit, Schatten = versetzt + weich). Kontur-Zeilen
+  (`z.kontur`) bekommen statt Textschatten einen `drop-shadow`-Filter. `looks.js containerImLook` setzt `textschutz`
+  passend (helle Looks: aus). Werkzeugleiste „S“: aus ↔ beides.
+- Videovorlagen: `box()` setzt `textschutz` beides (0,85) für Text auf der Karte, aus bei eigener Fläche
+  (`textschatten:false` oder Deckkraft > 0,5); Laufpunkt-Schilder 1,2.
+- Übersichtskarte: noch nicht gefahrener Teil in der Textfarbe (`ct-ueb-bg`). Bergnamen: zusätzlich feiner Rand (4
+  Richtungen, 0,11 % H). Laufpunkt-Schilder zählen `.rz-bn` als Hindernis.
+- Prüfung: Standbilder aller Vorlagen auf Teide, Potsdam, Pisa-Küste und heller Straßenkarte (Titel + Unterwegs).

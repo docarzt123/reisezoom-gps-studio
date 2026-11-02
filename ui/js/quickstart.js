@@ -25,7 +25,7 @@
       intro: "Macht aus deinem GPX ein cineastisches Video: die Kamera fliegt über die 3D-Karte und zeichnet die Strecke nach.",
       steps: [
         "<b>Track laden:</b> Aus dem Archiv mit „Öffnen in → Animator“ — oder oben links über das Ordner-Symbol eine GPX-, FIT- oder TCX-Datei wählen bzw. sie ins Fenster ziehen.",
-        "<b>Optik einstellen:</b> Links Karte, Tracks, Kamera & Co. aufklappen — die Vorschau zeigt jede Änderung sofort, ▶ unten spielt den Flug ab. Eilig? „Schnell-Video …“ stellt alles in einem Schritt ein.",
+        "<b>Optik einstellen:</b> Links Karte, Tracks, Kamera & Co. aufklappen — die Vorschau zeigt jede Änderung sofort, ▶ unten spielt den Flug ab. Eilig? Der „Video-Assistent …“ macht das Video gleich fertig.",
         "<b>Exportieren:</b> Oben rechts „Video exportieren“ — Format, Auflösung und Bildrate wählen; das Video entsteht im Hintergrund.",
       ],
       tip: "Der Animator startet in der Welt-Ansicht (Globus) als Kino-Intro. „Auf Start“ oder der Probe-Lauf springt zu deinem Track.",

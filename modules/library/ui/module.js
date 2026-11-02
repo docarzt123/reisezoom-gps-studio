@@ -2608,7 +2608,8 @@ function mountLibrary(body, headerActions) {
       for (const [slug, text] of werkzeuge) {
         eintraege.push({ text, tun: () => { select(it); openIn(slug); } });
       }
-      eintraege.push({ text: "🎬 " + T("schnell.knopf", "Schnell-Video …"), tun: () => { select(it); if (window.rzSchnellVideo) window.rzSchnellVideo(it.path); } });   // §71
+      // 01.11.2026 — statt „Schnell-Video …“ (im Assistenten aufgegangen)
+      eintraege.push({ text: "🧭 " + T("assistent.knopf", "Video-Assistent …"), tun: () => { select(it); if (window.rzVideoAssistentStarten) window.rzVideoAssistentStarten(() => openIn("animator")); } });
       eintraege.push("-");
       eintraege.push({ text: "ℹ️ " + T("library.ctx_details", "Details anzeigen"), tun: () => { select(it); } });
     }
@@ -4045,8 +4046,7 @@ function mountLibrary(body, headerActions) {
         : `<div class="ld-module">
         <button class="btn btn-sm" id="ld-tourseite">${SI("map-pinned", 15)} ${T("library.d_tourseite", "Tour-Seite")}</button>
         <button class="btn btn-sm" data-open="animator">${SI("clapperboard", 15)} ${T("library.d_animator", "Animator")}</button>
-        <button class="btn btn-sm" data-schnellvideo="1" title="${esc(T("schnell.knopf_tip", "Fertiges Tourvideo mit wenigen Entscheidungen: Format, Länge, Kartenstil, Titel und Schlusskarte."))}">${SI("zap", 15)} ${T("library.d_schnellvideo", "Schnell-Video")}</button>
-        <button class="btn btn-sm" data-assistent="1" title="${esc(T("va.knopf_tip", "Schritt für Schritt zum eigenen Video: Titel, Art, Karte, Einblendungen, Fotos, Schilder, Kamera, Schluss — alles landet bearbeitbar im Projekt."))}">${SI("compass", 15)} ${T("library.d_assistent", "Video-Assistent")}</button>
+        <button class="btn btn-sm" data-assistent="1" title="${esc(T("va.knopf_tip3", "Dein Video ist gleich fertig: in acht Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen."))}">${SI("compass", 15)} ${T("library.d_assistent", "Video-Assistent")}</button>
         <button class="btn btn-sm" data-open="heightanim">${SI("chart-spline", 15)} ${T("library.open_height", "Daten-Animator")}</button>
         <button class="btn btn-sm" data-open="tourmap">${SI("map", 15)} ${T("library.d_tourmap", "Tour-Map")}</button>
         <button class="btn btn-sm" data-open="gpxinspect">${SI("search", 15)} ${T("library.open_inspect", "Inspektor")}</button>
@@ -4147,21 +4147,9 @@ function mountLibrary(body, headerActions) {
     }; }
     if (!it.kartenbild && it.geo_hash && !it._kbLaeuft && window.rzKartenbild) detailKartenbild(it);
     box.querySelectorAll("[data-open]").forEach(b => { b.onclick = () => openIn(b.dataset.open); });
-    box.querySelectorAll("[data-schnellvideo]").forEach(b => { b.onclick = () => { if (_sel && window.rzSchnellVideo) window.rzSchnellVideo(_sel.path); }; });   // §71
-    // 19.10.2026 (Audit) — der Video-Assistent war nur im Animator zu finden; wie auf der Tour-Seite: Animator öffnen, die
-    // neue Fassung des Einstiegs abwarten und starten, sobald die Tour geladen ist
-    box.querySelectorAll("[data-assistent]").forEach(b => { b.onclick = async () => {
-      if (!_sel) return;
-      window.__rzVideoAssistent = null;
-      await openIn("animator");
-      for (let i = 0; i < 100; i++) {
-        await new Promise(r => setTimeout(r, 200));
-        const f = window.__rzVideoAssistent;
-        if (typeof f !== "function") continue;
-        let ok = false; try { ok = await f(true); } catch (_) { ok = false; }
-        if (ok) return;
-      }
-      toast(T("va.nicht_bereit", "Die Tour lädt noch — den Video-Assistenten findest du oben im Animator."), "info", 5000);
+    // 19.10.2026 (Audit) — der Video-Assistent war nur im Animator zu finden; 01.11.2026 ersetzt er hier das Schnell-Video
+    box.querySelectorAll("[data-assistent]").forEach(b => { b.onclick = () => {
+      if (_sel && window.rzVideoAssistentStarten) window.rzVideoAssistentStarten(() => openIn("animator"));
     }; });
     try { _logbuchKurz(it); } catch (_) {}
     try { _medienKurz(it); } catch (_) {}

@@ -368,7 +368,6 @@
     ["fertig", "check", "ia.w_fertig", "Fertig"],
     ["tourseite", "layout-list", "ia.w_tourseite", "Tour-Seite mit Logbuch"],
     ["medien", "images", "ia.w_medien", "Fotos bearbeiten (Geotagger)"],
-    ["schnellvideo", "zap", "ia.w_schnellvideo", "Schnell-Video"],
     ["assistent", "wand-sparkles", "ia.w_assistent", "Video-Assistent"],
     ["animator", "clapperboard", "ia.w_animator", "Video selbst gestalten (Animator)"],
     ["tourmap", "map", "ia.w_tourmap", "Karte erstellen"],
@@ -388,23 +387,12 @@
     if (ziel === "fertig" || !pfad) return;
     log("info", "weiter: " + ziel);
     if (ziel === "tourseite") { if (window.rzTourSeite) window.rzTourSeite.oeffnen({ path: pfad, geo_hash: r.geo_hash }); return; }
-    if (ziel === "schnellvideo") { if (window.rzSchnellVideo) window.rzSchnellVideo(pfad); return; }
     const modul = { medien: "geotagger", assistent: "animator", animator: "animator", tourmap: "tourmap", heightanim: "heightanim" }[ziel];
     if (!modul) return;
-    if (ziel === "assistent") window.__rzVideoAssistent = null;
-    const ok = await window.loadGlobalGpx(pfad, { stumm: true });
-    if (ok === false) return;
-    switchMod(modul);
-    if (ziel !== "assistent") return;
+    const laden = async () => { const ok = await window.loadGlobalGpx(pfad, { stumm: true }); if (ok === false) return false; switchMod(modul); return true; };
     // wie die Tour-Seite: warten, bis der Animator die Tour geladen hat, dann den Video-Assistenten öffnen
-    for (let i = 0; i < 100; i++) {
-      await new Promise(res => setTimeout(res, 200));
-      const f = window.__rzVideoAssistent;
-      if (typeof f !== "function") continue;
-      let gut = false; try { gut = await f(true); } catch (_) { gut = false; }
-      if (gut) return;
-    }
-    if (typeof toast === "function") toast(T("va.nicht_bereit", "Die Tour lädt noch — den Video-Assistenten findest du oben im Animator."), "info", 5000);
+    if (ziel === "assistent" && window.rzVideoAssistentStarten) { window.rzVideoAssistentStarten(laden); return; }
+    await laden();
   }
 
   // ── Ereignisse ─────────────────────────────────────────────────────────────────────────────────────────────────────

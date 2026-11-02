@@ -19,6 +19,11 @@
   font-weight: 500 700; font-style: normal; font-display: swap; }
 @font-face { font-family: "Caveat"; src: url("../fonts/Caveat-var.ttf") format("truetype");
   font-weight: 400 700; font-style: normal; font-display: swap; }
+/* 01.11.2026 — Berg- und Ortsnamen im Gelände (Editorial-Stil): Cormorant Garamond für Namen, Manrope für Höhen */
+@font-face { font-family: "Cormorant Garamond"; src: url("../fonts/CormorantGaramond-var.ttf") format("truetype");
+  font-weight: 300 700; font-style: normal; font-display: block; }
+@font-face { font-family: "Manrope"; src: url("../fonts/Manrope-var.ttf") format("truetype");
+  font-weight: 200 800; font-style: normal; font-display: block; }
 
 
 :root {
@@ -4016,6 +4021,8 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
 .va-feld-kopf { display: flex; align-items: center; gap: 9px; margin: 20px 0 9px; font-size: 14.5px; font-weight: 600; color: var(--text); }
 .va-feld-kopf .rz-i { color: var(--text-dim); }
 .va-feld-kopf > :last-child:not(span):not(.rz-i) { margin-left: auto; }
+.va-orte-stand { font-size: 12.5px; line-height: 1.4; color: var(--text-dim); margin: -2px 0 6px; }   /* 01.11.2026 — gewählte Orte (Namen), keine Erklärung */
+.va-ausgabe { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--text-dim); font-variant-numeric: tabular-nums; }   /* 01.11.2026 — „2560 × 1440 · 60 fps“ */
 
 /* Bildkarten */
 .va-karten { display: grid; gap: 10px; }
@@ -4092,6 +4099,9 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
 .va-karten-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .va-karten-4 .va-bk > b { font-size: 12.5px; padding: 6px 8px 7px; }
 .va-karten-4 .va-bk-text { display: none; }
+/* 01.11.2026 — Flugstile im Video-Assistenten: Clip + Stichpunkte, was die Kamera macht */
+.va-flug-punkte { margin: 0; padding: 2px 12px 12px 26px; font-size: 12px; line-height: 1.4; color: var(--text-dim); text-align: left; }
+.va-flug-punkte li { margin: 1px 0; }
 .va-farben { display: flex; flex-wrap: wrap; gap: 7px; }
 .va-farbe { position: relative; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid var(--border-strong); cursor: pointer; overflow: hidden; }
 .va-farbe.is-on { box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent); }
@@ -4509,3 +4519,53 @@ body.va-offen .anim-canvas { padding-left: var(--va-platz-l, 0px); padding-right
 .rzlf-bleibt .rzlf-kopf svg { color: #f5b14a; }
 .rzlf-haken { display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer; color: var(--text); font-weight: 600; }
 .rzlf-spaeter { margin-top: 6px !important; font-size: 11px; color: var(--text-muted); }
+
+/* 01.11.2026 — Berg- und Gipfelnamen im Gelände (ui/js/bergnamen.js): Ebene im Kartencontainer, Namen aufrecht über dem Gipfel */
+.rz-bergnamen { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+.rz-bn { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; white-space: nowrap;
+  will-change: transform, opacity; opacity: 0; }
+.rz-bn-name { display: block; letter-spacing: 0; }
+.rz-bn-hoehe { display: block; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.rz-bn-linie { display: block; width: 1px; }
+
+/* 01.11.2026 — Reiter „Stil“: Schriftprobe je Vorlage */
+.va-stil-probe { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 4px;
+  padding: 10px 12px; background: linear-gradient(160deg, #3d4b39 0%, #6b6a52 55%, #2f3a40 100%); aspect-ratio: 16 / 9; }
+.va-stil-probe.hell { background: linear-gradient(160deg, #efe3c4 0%, #e3d2a8 100%); }
+.va-sp-titel { font-size: 22px; font-weight: 600; line-height: 1; text-shadow: 0 1px 6px rgba(16,26,34,0.55); }
+.va-stil-probe.hell .va-sp-titel { text-shadow: none; }
+.va-sp-zahlen { font-size: 15px; font-weight: 600; display: flex; align-items: baseline; gap: 4px; text-shadow: 0 1px 5px rgba(16,26,34,0.6); }
+.va-sp-zahlen small { font-size: 7px; letter-spacing: 0.13em; opacity: 0.85; margin-right: 4px; }
+.va-sp-zahlen i { font-style: normal; font-size: 9px; }
+.va-sp-zahlen.mit-hg { background: rgba(0,0,0,0.5); padding: 3px 7px; border-radius: 5px; text-shadow: none; }
+.va-stil-probe.hell .va-sp-zahlen.mit-hg { background: rgba(255,255,255,0.75); }
+.va-sp-berg { position: absolute; right: 12px; top: 26%; font-size: 13px; color: #f4f1e9; text-align: center; display: flex; flex-direction: column;
+  align-items: center; text-shadow: 0 1px 5px rgba(16,26,34,0.7); }
+.va-sp-berg small { font: 400 8px Manrope, system-ui, sans-serif; }
+/* 01.11.2026 — Karten der zehn Videovorlagen: Spur in der Linienfarbe, Titel in der Schrift, kleine Merkmale je Vorlage */
+.va-stil-probe { color: #f4f1e9; overflow: hidden; z-index: 0; }
+.va-stil-probe > * { position: relative; z-index: 2; }
+.va-stil-probe .va-sp-spur { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.95; }
+.va-stil-probe .va-sp-zahlen small { color: var(--vs-akzent, #e8b04a); opacity: 1; }
+.va-sp-nr { font-size: 10px; opacity: 0.6; font-weight: 600; letter-spacing: 0.06em; }
+.va-karten-2 .va-bk-bild.va-stil-bild { aspect-ratio: 16 / 9; }
+.va-stil-bild > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.va-stil-probe.mit-papier::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 34%; background: #f4f1e9; z-index: 1; }
+.va-stil-probe.mit-papier .va-sp-titel { text-shadow: none; font-size: 17px; }
+.va-stil-probe.mit-papier .va-sp-zahlen { color: #15242b; text-shadow: none; font-size: 11px; }
+.va-stil-probe.mit-notiz .va-sp-titel { background: #f3ecd9; padding: 5px 8px; transform: rotate(-1.5deg); box-shadow: 0 4px 10px rgba(0,0,0,0.3); text-shadow: none; }
+.va-stil-probe.mit-binde .va-sp-titel { background: rgba(20,37,43,0.94); border-left: 4px solid var(--vs-akzent, #e8b04a); padding: 5px 8px; text-shadow: none; font-size: 18px; }
+.va-stil-probe.mit-block .va-sp-titel { border-left: 4px solid var(--vs-akzent, #e8b04a); padding-left: 6px; font-size: 18px; }
+.va-stil-probe.mit-block .va-sp-zahlen { background: var(--vs-akzent, #e8b04a); color: #162a30; padding: 3px 12px 3px 7px; clip-path: polygon(0 0, 88% 0, 100% 100%, 0 100%); text-shadow: none; font-weight: 800; }
+.va-stil-probe.mit-block .va-sp-zahlen small { color: #283a3c; }
+.va-stil-probe.mit-schild .va-sp-zahlen { background: var(--vs-akzent, #e8b04a); color: #143335; padding: 3px 14px 3px 7px; clip-path: polygon(0 0, 86% 0, 100% 50%, 86% 100%, 0 100%); text-shadow: none; font-weight: 800; }
+.va-stil-probe.mit-schild .va-sp-zahlen small { color: #2d635d; }
+.va-stil-probe.mit-baendern::before, .va-stil-probe.mit-baendern::after { content: ""; position: absolute; left: 0; right: 0; height: 13%; background: #080d12; z-index: 1; }
+.va-stil-probe.mit-baendern::before { top: 0; } .va-stil-probe.mit-baendern::after { bottom: 0; }
+.va-stil-probe.titel-mitte { align-items: center; justify-content: center; }
+.va-stil-probe.titel-mitte .va-sp-zahlen { position: absolute; bottom: 2px; font-size: 9px; }
+.va-stil-probe .va-sp-titel i { display: block; width: 26px; height: 3px; background: var(--vs-akzent, #e8b04a); margin-top: 4px; }
+.va-stil-probe.mit-glas .va-sp-zahlen { background: linear-gradient(120deg, rgba(211,238,234,0.18), rgba(18,41,46,0.68)); border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 8px; padding: 3px 10px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.va-stil-probe.mit-kasten .va-sp-zahlen { background: rgba(0,0,0,0.5); padding: 3px 7px; border-radius: 5px; text-shadow: none; }
+.va-stil-probe.mit-kasten .va-sp-zahlen small { color: #f4f1e9; }

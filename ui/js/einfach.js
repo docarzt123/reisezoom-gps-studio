@@ -258,7 +258,7 @@
       return `<p class="muted rz-ef-hinweis">${esc(T("einfach.fotos_hint", "Höhepunkte der Strecke und deine Fotos als Schilder an der Route."))}</p>
         <label class="chk"><input type="checkbox" data-ef-hl${hl ? " checked" : ""}><span>⭐ ${esc(T("einfach.highlights", "Höhepunkte zeigen (höchster Punkt, steilste Stelle, Orte …)"))}</span></label>
         <button type="button" class="btn btn-small" data-ef-tat="fotos">📸 ${esc(T("einfach.fotos_hinzu", "Fotos dieser Tour hinzufügen …"))}</button>
-        <button type="button" class="btn btn-small" data-ef-tat="schnell">🎬 ${esc(T("einfach.schnell", "Fotos, Musik und Ablauf automatisch (Schnell-Video) …"))}</button>`;
+        <button type="button" class="btn btn-small" data-ef-tat="schnell">🧭 ${esc(T("einfach.assistent", "Fotos, Musik und Ablauf automatisch (Video-Assistent) …"))}</button>`;
     }
     if (s === "kamera") {
       return `<p class="muted rz-ef-hinweis">${esc(T("einfach.kamera_hint", "Wie die Kamera der Tour folgt. Keyframes setzt du später in der Feinarbeit."))}</p>
@@ -333,7 +333,7 @@
       const a = tat.dataset.efTat;
       if (a === "archiv" && typeof switchMod === "function") switchMod("library");
       if (a === "rendern") { if (!klick("#anim-hauptaktion")) klick("#anim-render"); }   // E11: derselbe Export-Dialog
-      if (a === "schnell") klick("#anim-schnellvideo");
+      if (a === "schnell") klick("#anim-videoassistent");   // 01.11.2026 — das Schnell-Video ist im Assistenten aufgegangen
       if (a === "fotos") klick("#anim-signs-add-photos");
     });
     anwenden();

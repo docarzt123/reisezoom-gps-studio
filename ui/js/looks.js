@@ -66,13 +66,15 @@
   /** Container im Look einfärben: mit Hintergrund → Look-Hintergrund + Text; ohne Hintergrund (frei/ohne) liegt
    *  die Schrift direkt auf der Karte → auf hellen Karten dunkel und ohne Schatten. Bilder (Logo) bleiben. */
   function containerImLook(c, L) {
+    if (c && c.look_fest) return c;   // 01.11.2026 — Videovorlagen behalten ihre Farben und Schriften
     const o = Object.assign({}, c);
     const mitHg = (+o.hg_deckkraft || 0) > 0;
-    o.schrift = o.vorlage === "titel" ? L.titel : L.schrift;
+    // 01.11.2026 — `schrift_fest`: eine bewusst gewählte Schrift (z. B. Gipfeltitel in Cormorant) bleibt
+    if (!o.schrift_fest) o.schrift = o.vorlage === "titel" ? L.titel : L.schrift;
     o.textfarbe = L.text;
     o.akzent = L.akzent;
     if (mitHg) { o.hg_farbe = L.hg; o.hg_deckkraft = L.hg_deckkraft; }
-    else o.textschatten = !L.hell;
+    else { o.textschatten = !L.hell; o.textschutz = L.hell ? "aus" : ((o.textschutz && o.textschutz !== "aus") ? o.textschutz : "weich"); }   // 01.11.2026 Lesbarkeit
     // Stilname bleibt: Stile sind Vorlagen beim Auswählen, die Werte gehören ohnehin dem Container
     // (so bleibt ein Schnell-Video von Hand nachbaubar, tests/test_schnellvideo_nachbau.py)
     o.zeilen = (o.zeilen || []).map((z) => {

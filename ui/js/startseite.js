@@ -40,7 +40,7 @@
       if (a.id === "ohne_gps") { try { m.close(); } catch (_) {} if (typeof window.rzKartenanimationOhneGps === "function") window.rzKartenanimationOhneGps(""); return; }
       gehe(a.modul);
       if (a.id === "video" && typeof toast === "function")
-        toast(T("startseite.video_toast", "Wähle links eine Tour — dann „🎬 Schnell-Video …“ oder „Im Animator öffnen“."), "info", 7000);
+        toast(T("startseite.video_toast", "Wähle links eine Tour — dann „🧭 Video-Assistent …“ oder „Im Animator öffnen“."), "info", 7000);
     });
     const sp = document.getElementById("rz-start-spaeter");
     if (sp) sp.onclick = () => gehe("library");

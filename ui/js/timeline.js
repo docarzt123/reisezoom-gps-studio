@@ -1187,14 +1187,16 @@ function mountTimelineBar(opts) {
         const n = Math.max(1, liste.length);
         // 26.10.2026 (Klicktest: 52 Schilder, zugeklappt) — mindestens 2 px je Eintrag ließen die Striche über 100 px aus der
         // Zeile über Medien, Ton und Cluster laufen. Jetzt in die Zeilenhöhe gestaucht (bei vielen Einträgen überlappen sie).
-        const schritt = n > 1 ? Math.min(4, 12 / (n - 1)) : 0;
+        // 02.11.2026 — Spielraum aus der echten Zeilenhöhe (15 px): fest 12 px ließen ab vier Einträgen den letzten Strich unten raus
+        const platz = Math.max(0, (mini.clientHeight || 15) - 2 - 2 - 1);
+        const schritt = n > 1 ? Math.min(4, platz / (n - 1)) : 0;
         liste.forEach((o, i) => {
           for (const sg of o.segmente) {
             const st = document.createElement("div");
             st.className = "ov-strich" + (o.enabled ? "" : " ist-aus");
             st.style.left = pct(sg.an) + "%";
             st.style.width = Math.max(0.3, pct(sg.aus) - pct(sg.an)) + "%";
-            st.style.top = (3 + i * schritt).toFixed(1) + "px";
+            st.style.top = (2 + i * schritt).toFixed(1) + "px";
             if (o.farbe) st.style.background = o.farbe;
             mini.appendChild(st);
           }

@@ -414,8 +414,7 @@
       finde: abschnittKopf("#anim-lb-section") },
     { id: "musik", modul: "animator", label: ["animator.section.ton", "Musik und Ton"], ort: [], tip: ["frag.z.musik_tip", "Musik unter das Video legen, Lautstärke, Klick bei Fotostopps."],
       finde: abschnittKopf("#anim-ton-section") },
-    { id: "schnellvideo", modul: "animator", label: ["schnell.knopf", "Schnell-Video …"], ort: [], tip: ["schnell.knopf_tip", ""], finde: () => $("#anim-schnellvideo") },
-    { id: "videoassistent", modul: "animator", label: ["assistent.knopf", "Video-Assistent …"], ort: [], tip: ["va.knopf_tip", ""], finde: () => $("#anim-videoassistent") },
+    { id: "videoassistent", modul: "animator", label: ["assistent.knopf", "Video-Assistent …"], ort: [], tip: ["va.knopf_tip3", ""], finde: () => $("#anim-videoassistent") },   // 01.11.2026 — auch „Schnell-Video“ (Synonym)
     { id: "importassistent", modul: "library", label: ["ia.knopf", "Import-Assistent …"], ort: [["pm.seg_archive", "Touren-Archiv"]],
       tip: ["frag.z.importassistent_tip", "Tour, Fotos und Clips aus einem Ordner Schritt für Schritt übernehmen."],
       vorher: segment("lib-seg-touren"), finde: () => $("#lib-import-assistent") },

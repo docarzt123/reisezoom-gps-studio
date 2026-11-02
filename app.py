@@ -74,11 +74,14 @@ if _pw_bundled:
     # PyInstaller-`datas` bewahrt das Exec-Bit nicht garantiert → für den
     # gebündelten chrome-headless-shell (mac/linux) nachziehen. Windows .exe
     # braucht kein Exec-Bit.
+    # 02.11.2026 — nur wenn es fehlt: chmod schreibt ins signierte Paket, und liegt die App auf einer
+    # externen Platte, hielt macOS den Start dafür an („Zugriff auf Dateien auf einem Wechselmedium").
     if sys.platform != "win32":
         try:
             for _shell in _pw_path.glob("chromium_headless_shell-*/chrome-headless-shell-*/chrome-headless-shell"):
                 _st = os.stat(_shell)
-                os.chmod(_shell, _st.st_mode | 0o111)
+                if _st.st_mode & 0o111 != 0o111:
+                    os.chmod(_shell, _st.st_mode | 0o111)
         except Exception:
             pass
 else:
@@ -184,7 +187,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.850"
+APP_VERSION = "0.9.851"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -709,6 +712,13 @@ DEFAULT_SETTINGS = {
         "spin_dps": 0.0,
         # v0.9.84 — Toggle für van-Wijk-Cinematic-Flug bei großen Zoom-Sprüngen.
         "cinematic_flyto": True,
+        # 01.11.2026 — Bergnamen im Gelände: in NEUEN Projekten an. Bestehende Projekte ohne den Schlüssel bleiben aus
+        # (die Oberfläche liest „an“ nur aus dem Projekt, nicht aus diesen Vorgaben — siehe animator/module.js _bnAn).
+        "bergnamen_an": True,
+        "bergnamen_schrift": "cormorant",
+        "bergnamen_groesse": 100,
+        "bergnamen_farbe": "#f4f1e9",
+        "bergnamen_schatten": 65,
         "exaggeration": 1.5,
         "ortho_sat": 25.0, "ortho_con": 8.0, "ortho_bri": 0.0, "ortho_hue": 0.0,
         "map_sat": 0.0, "map_con": 0.0, "map_bri": 0.0, "map_hue": 0.0,
@@ -814,6 +824,12 @@ DEFAULT_SETTINGS = {
         "folder_recursive": False,          # Unterordner-Checkbox-State
     },
     "tourmap": {
+        # 01.11.2026 — Bergnamen wie im Animator (gleiches Modul): neue Projekte an, alte ohne Schlüssel aus
+        "bergnamen_an": True,
+        "bergnamen_schrift": "cormorant",
+        "bergnamen_groesse": 100,
+        "bergnamen_farbe": "#f4f1e9",
+        "bergnamen_schatten": 65,
         "map_style": "free_satellite",   # 03.09.2026: kostenlos + Video erlaubt
         "width": 1920,
         "height": 1080,
@@ -4289,11 +4305,16 @@ class Api:
             cbib.stempel_setzen(ort, "db_geprueft_am", time.time())
             log.info("Bibliothek: Datenbank geprüft (%.0f ms)", (time.time() - _t0) * 1000)
         else:
-            def _db_pruefen_hinten(ort=ort, db=_db):
+            def _db_pruefen_hinten(ort=ort, db=_db, zuletzt=_zuletzt):
                 time.sleep(BIB_SICHERUNG_WARTEN_S)   # 07.10.2026 — liest die ganze Datei; nicht gleichzeitig mit dem Start
                 t0 = time.time()
                 if cbib.db_heil(db):
                     log.info("Bibliothek: Datenbank im Hintergrund geprüft (%.0f ms)", (time.time() - t0) * 1000)
+                    # 02.11.2026 — auch die bestandene Hintergrund-Prüfung zählt: sonst prüfte jeder siebte Tag
+                    # blockierend, obwohl täglich geprüft wurde (bei 470 000 Fotos 5 s vor dem Fenster).
+                    # Höchstens einmal am Tag schreiben, die Kenndatei soll nicht bei jedem Start angefasst werden.
+                    if time.time() - zuletzt > 86400:
+                        cbib.stempel_setzen(ort, "db_geprueft_am", time.time())
                 else:
                     cbib.stempel_setzen(ort, "db_geprueft_am", 0)
                     log.error("Bibliothek: Datenbank-Prüfung im Hintergrund GESCHEITERT — nächster Start prüft vor dem Öffnen: %s", db)
@@ -16391,6 +16412,35 @@ class Api:
         self.settings_set({"videostil_vorlagen": liste[-30:]})
         return {"ok": True, "vorlage": eintrag, "liste": liste[-30:]}
 
+    def videovorlagen_eigen(self) -> dict:
+        """01.11.2026 — eigene Videovorlagen (Einblendungen + Verläufe + Linienfarben, im Animator gemerkt)."""
+        return {"ok": True, "liste": [x for x in (_load_settings().get("videovorlagen_eigen") or []) if isinstance(x, dict)]}
+
+    def videovorlage_eigen_speichern(self, name: str, daten: dict) -> dict:
+        """01.11.2026 (Marc: „dass man sich das alles so in der Art bauen kann“) — die Einblendungen des Projekts als
+        eigene Videovorlage merken. Gleicher Name ersetzt. Gespeichert werden nur Einblendungen, Verläufe und Linie."""
+        name = str(name or "").strip()[:60]
+        if not name or not isinstance(daten, dict) or not isinstance(daten.get("container"), list):
+            return {"ok": False, "error": _ui_t()("error.vorlage_name", "Bitte einen Namen angeben")}
+        erlaubt_anim = {"line_color", "line_width", "kontur_breite", "kontur_farbe", "ghost_track_enabled", "ghost_track_color",
+                        "ghost_track_opacity_pct", "linien_look", "schweif_pct", "highlights_farbe", "highlights_stil",
+                        "marker_dot_style", "bergnamen_an"}
+        anim = {k: v for k, v in (daten.get("animator") or {}).items() if k in erlaubt_anim}
+        eintrag_daten = {"container": daten["container"][:60], "verlauf": daten.get("verlauf") if isinstance(daten.get("verlauf"), dict) else None,
+                         "animator": anim, "titel_alt": str(daten.get("titel_alt") or "")[:200]}
+        liste = [x for x in (_load_settings().get("videovorlagen_eigen") or []) if isinstance(x, dict)]
+        vorhanden = next((x for x in liste if str(x.get("name", "")).strip().lower() == name.lower()), None)
+        import uuid
+        eintrag = {"id": (vorhanden or {}).get("id") or "vv_" + uuid.uuid4().hex[:10], "name": name, "daten": eintrag_daten}
+        liste = [x for x in liste if x is not vorhanden] + [eintrag]
+        self.settings_set({"videovorlagen_eigen": liste[-40:]})
+        return {"ok": True, "vorlage": eintrag, "liste": liste[-40:]}
+
+    def videovorlage_eigen_loeschen(self, vid: str) -> dict:
+        liste = [x for x in (_load_settings().get("videovorlagen_eigen") or []) if isinstance(x, dict) and x.get("id") != vid]
+        self.settings_set({"videovorlagen_eigen": liste})
+        return {"ok": True, "liste": liste}
+
     def videostil_vorlage_loeschen(self, vid: str) -> dict:
         liste = [x for x in (_load_settings().get("videostil_vorlagen") or []) if isinstance(x, dict) and x.get("id") != vid]
         self.settings_set({"videostil_vorlagen": liste})
@@ -16477,7 +16527,8 @@ class Api:
                     "distance_km": round((st.distance_m or 0) / 1000, 2),
                     "letzte": (_load_settings().get("schnellvideo_letzte") or {}),
                     # 11.10.2026 (Video-Assistent Schritt 8) — eigene Videostil-Vorlagen, gemeinsam mit dem Schnell-Video
-                    "eigene_vorlagen": (_load_settings().get("videostil_vorlagen") or [])}
+                    "eigene_vorlagen": (_load_settings().get("videostil_vorlagen") or []),
+                    "videovorlagen_eigen": (_load_settings().get("videovorlagen_eigen") or [])}
         except Exception as e:
             log.error("schnellvideo_vorschlag: %s", e)
             return {"ok": False, "error": str(e)}
@@ -17009,6 +17060,29 @@ class Api:
                     z["pfad"] = str(wm["path"])
         else:
             cont.remove(logo)
+
+    def projekt_herkunft_setzen(self, project_id: str, herkunft=None) -> dict:
+        """01.11.2026 — Video-Assistent aus dem Archiv: das Projekt, das er für eine frische Tour anlegt, ist vorläufig
+        (`herkunft = "assistent"` → „Automatisch angelegt“). „Ins Projekt übernehmen“ nimmt die Herkunft wieder weg
+        (`herkunft = None`), dann ist es ein ganz normales Projekt."""
+        if herkunft not in (None, "assistent"):
+            return {"ok": False, "error": "herkunft"}
+        try:
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                p = (daten.get("projects") or {}).get(str(project_id or ""))
+                if not p:
+                    return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+                if herkunft:
+                    p["herkunft"] = herkunft
+                else:
+                    p.pop("herkunft", None)
+                _projekte.speichern(DATEN_ORT, daten)
+            log.info("Projekt %s: Herkunft %s", project_id, herkunft or "—")
+            return {"ok": True}
+        except Exception as e:
+            log.error("projekt_herkunft_setzen: %s", e)
+            return {"ok": False, "error": str(e)}
 
     def schnellvideo_uebernehmen(self, project_id: str, animator: dict, letzte: dict = None, schilder: list = None) -> dict:
         """01.10.2026 (Marc) — Schnell-Video in das OFFENE Projekt übernehmen statt ein neues

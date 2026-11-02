@@ -19,9 +19,9 @@
   // video_start (s ab Start), strecke (Streckenanteil 0..1), video_ende (s vor Ende).
   const AUSLOESER = ["s", "pct", "etappe_start", "etappe_ende", "start", "ende",
                      "video_start", "strecke", "video_ende"];
-  const BLENDEN = ["none", "fade", "pop", "both"];
+  const BLENDEN = ["none", "fade", "pop", "both", "hoch", "links", "maske"];   // 01.11.2026 + hochgleiten, von links, Maske
   const POSITIONEN = ["tl", "tr", "bl", "br", "tc", "bc", "cc", "ml", "mr", "tcw", "bcw"];
-  const SCHRIFTEN = ["system", "nunito", "quicksand", "fredoka", "oswald", "bebas", "plex", "plexmono", "caveat"];   // 05.10.2026: + mitgelieferte Schriften (ui/fonts)
+  const SCHRIFTEN = ["system", "nunito", "quicksand", "fredoka", "oswald", "bebas", "plex", "plexmono", "caveat", "cormorant", "manrope"];   // 05.10.2026: + mitgelieferte Schriften (ui/fonts); 01.11.2026 + Editorial
   const DEFAULT_LIVE_FIELDS = ["dist_done", "time_elapsed", "ele_now"];
   const DEFAULT_TOTAL_FIELDS = ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"];
   const STIL_KEYS = ["bg_color", "bg_opacity", "text_color", "font", "radius", "border_w", "border_color", "shadow"];
@@ -343,14 +343,21 @@
     const v = bl ? (istNix(bl[k]) ? bl.dauer_s : bl[k]) : 0.5;
     return Math.max(0, num(v, 0.5));
   }
+  // 01.11.2026 — Bewegte Blenden (Videovorlagen): „hoch“ = gleitet ~2 % nach oben und blendet ein, „links“ = fährt
+  // vom linken Bildrand herein, „maske“ = wird von links nach rechts aufgedeckt. `weg` = 1 … 0 (wie weit noch weg).
+  const sanft = (p) => 1 - Math.pow(1 - clamp(p, 0, 1), 3);
   function mischen(bl, pIn, pOut) {
     const ein = (bl && bl.ein) || "none", aus = (bl && bl.aus) || "none";
     let op = 1, pop = 1;
-    if (ein === "fade" || ein === "both") op *= pIn;
-    if (aus === "fade" || aus === "both") op *= pOut;
+    if (ein === "fade" || ein === "both" || ein === "hoch") op *= pIn;
+    if (aus === "fade" || aus === "both" || aus === "hoch") op *= pOut;
     if (ein === "pop" || ein === "both") pop *= eb(pIn);
     if (aus === "pop" || aus === "both") pop *= eb(pOut);
-    return { sichtbar: true, deckkraft: rund(op), pop: rund(pop) };
+    const z = { sichtbar: true, deckkraft: rund(op), pop: rund(pop) };
+    const bewegt = (a) => a === "hoch" || a === "links" || a === "maske";
+    if (bewegt(ein) && pIn < 1) { z.bewegung = ein; z.weg = rund(1 - sanft(pIn)); }
+    else if (bewegt(aus) && pOut < 1) { z.bewegung = aus; z.weg = rund(-(1 - sanft(pOut))); }   // negativ = geht weg
+    return z;
   }
 
   /** Die Kanten einer Zeit in Videosekunden: {an, aus} oder null, wenn eine
@@ -455,7 +462,14 @@
   // Box = [data-ovbox="<id>"], Zeile = [data-f="<fid>"] darin. `speicher` behält je
   // Box/Zeile den Zustand der Strecken-Auslöser über die Bilder hinweg.
   // t < 0 = Ruhezustand (keine Zeitsteuerung, alles sichtbar, Bezug-Werte bleiben).
+  function bewegungSetzen(el, z) {
+    const art = z && z.sichtbar && z.bewegung, w = art ? +z.weg || 0 : 0;
+    el.style.setProperty("--rz-ov-hoch", art === "hoch" ? String(w) : "0");
+    el.style.setProperty("--rz-ov-links", art === "links" ? String(Math.abs(w)) : "0");
+    el.style.setProperty("--rz-ov-maske", art === "maske" ? String(Math.abs(w)) : "0");
+  }
   function setzen(el, z, istZeile) {
+    if (!istZeile) bewegungSetzen(el, z);
     if (!z) {
       el.style.visibility = ""; el.style.opacity = "";
       if (istZeile) el.style.transform = ""; else el.style.setProperty("--rz-ov-pop", "1");

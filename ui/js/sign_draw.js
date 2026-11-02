@@ -50,6 +50,9 @@
       case "mono":      return "ui-monospace, Menlo, 'SF Mono', Consolas, monospace";
       case "condensed": return "'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', system-ui, sans-serif";
       case "impact":    return "Impact, Haettenschweiler, 'Arial Black', system-ui, sans-serif";
+      // 01.11.2026 — mitgelieferte Schriften der Editorial-Stil
+      case "cormorant": return "'Cormorant Garamond', Georgia, serif";
+      case "manrope":   return "Manrope, 'IBM Plex Sans', system-ui, sans-serif";
       default:          return "-apple-system, system-ui, 'Segoe UI', Roboto, sans-serif";
     }
   }
@@ -82,7 +85,7 @@
   // Geometrie in einem Ortssystem mit dem Geo-Punkt bei (0,0); das Bild wird um die
   // senkrechte Achse symmetrisch angelegt, damit icon-anchor „bottom" (= Mitte unten)
   // genau auf der Stelle sitzt — auch wenn die Karte rechts vom Pin steht.
-  var RZ_HL_STILE = { pille: 1, hl_pin: 1, hl_rund: 1, hl_form: 1, hl_pinsel: 1 };
+  var RZ_HL_STILE = { pille: 1, hl_pin: 1, hl_rund: 1, hl_form: 1, hl_pinsel: 1, hl_editorial: 1 };   // 01.11.2026 + Editorial
   var RZ_HL_FARBEN = { hoechster: "#ffc21a", steilste: "#f2553d", schnellste: "#2fa8f0", halbe: "#4cc66a", wegpunkte: "#9b6bf2",
                        pause: "#e0a96d", uebernachtung: "#8fa8ff", notiz: "#f2d36b" };   // 02.10.2026 Logbuch im Schnell-Video
   var RZ_HL_ICONS = {
@@ -118,7 +121,60 @@
     for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
     return function () { h = Math.imul(h ^ (h >>> 15), 2246822507); h ^= h >>> 13; return ((h >>> 0) % 10000) / 10000; };
   }
+  /** 01.11.2026 — Hinweis-Pin: rundes Symbol (dunkel, Ring in der Akzentfarbe, feines
+   *  weißes Symbol) an einer feinen Linie über der Stelle, rechts daneben die Art klein und der Name/Wert groß — OHNE Kasten,
+   *  mit weichem Halo. Frei wie jedes Schild: Schrift (o.font, Standard Manrope), Größe (o.size), Akzent (o.color),
+   *  Textfarbe (o.textColor). */
+  function rzDrawHlEditorial(o, dpr) {
+    var u = Math.max(8, Number(o.size) || 26) * dpr, d = dpr;
+    var akz = o.color || "#ff896b";
+    var art = RZ_HL_ICONS[o.icon] ? o.icon : "";
+    var zl = String(o.text == null ? "" : o.text).split("\n");
+    var label = zl.length > 1 ? zl[0] : "", wert = zl.length > 1 ? zl.slice(1).join(" ") : (zl[0] || "");
+    var ff = (o.font && o.font !== "system") ? fontStack(o.font) : fontStack("manrope");
+    var tf = (o.textColor && o.textColor !== "auto") ? o.textColor : "#f4f1e9";
+    var fL = "600 " + (0.5 * u) + "px " + ff, fW = "600 " + (0.86 * u) + "px " + ff;
+    var mc = document.createElement("canvas").getContext("2d");
+    mc.font = fL; var wL = label ? mc.measureText(label).width + label.length * 0.04 * u : 0;   // + Laufweite (letterSpacing unten)
+    mc.font = fW; var wW = mc.measureText(wert).width;
+    var r = 0.68 * u, linieH = 1.25 * u, cy = -linieH - r, x0 = r + 0.42 * u;
+    var rand = 14 * d, L = r + rand, Rr = x0 + Math.max(wL, wW) + rand;
+    var halb = Math.max(L, Rr), oben = -(cy - r - 0.9 * u) + rand;
+    var W = Math.ceil(halb * 2), H = Math.ceil(oben + rand);
+    var c = document.createElement("canvas"); c.width = Math.max(2, W); c.height = Math.max(2, H);
+    var ctx = c.getContext("2d");
+    ctx.translate(W / 2, H - rand * 0.5);
+    ctx.globalAlpha = (o.opacity != null ? Math.max(0, Math.min(1, Number(o.opacity))) : 1);
+    var halo = function (an) { ctx.shadowColor = an ? "rgba(16,26,34,0.65)" : "rgba(0,0,0,0)"; ctx.shadowBlur = an ? 0.42 * u : 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = an ? 0.06 * u : 0; };
+    // feine Linie und Punkt an der Stelle
+    halo(true);
+    ctx.beginPath(); ctx.moveTo(0, -0.12 * u); ctx.lineTo(0, cy + r); ctx.lineWidth = Math.max(1, 0.06 * u); ctx.strokeStyle = "rgba(244,241,233,0.8)"; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -0.12 * u, 0.13 * u, 0, Math.PI * 2); ctx.fillStyle = "#f4f1e9"; ctx.fill();
+    // Kreis mit Ring in der Akzentfarbe und weißem Symbol
+    ctx.beginPath(); ctx.arc(0, cy, r, 0, Math.PI * 2); ctx.fillStyle = "rgba(16,26,34,0.78)"; ctx.fill();
+    halo(false);
+    ctx.lineWidth = 0.09 * u; ctx.strokeStyle = akz; ctx.stroke();
+    if (art) rzHlIcon(ctx, art, 0, cy, r * 1.05, "#ffffff");
+    else { ctx.beginPath(); ctx.arc(0, cy, 0.18 * u, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill(); }
+    // Text rechts daneben, ohne Kasten
+    halo(true);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = tf;
+    if (label) {
+      ctx.font = fL; ctx.globalAlpha *= 0.86;
+      try { ctx.letterSpacing = (0.04 * u).toFixed(1) + "px"; } catch (_) {}
+      ctx.fillText(label, x0, cy - 0.1 * u);
+      try { ctx.letterSpacing = "0px"; } catch (_) {}
+      ctx.globalAlpha /= 0.86;
+      ctx.font = fW; ctx.fillText(wert, x0, cy + 0.8 * u);
+    } else {
+      ctx.font = fW; ctx.fillText(wert, x0, cy + 0.3 * u);
+    }
+    halo(false);
+    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: "bottom" };
+  }
+
   function rzDrawHighlight(o, dpr) {
+    if (o.style === "hl_editorial") return rzDrawHlEditorial(o, dpr);
     var st = o.style, u = Math.max(8, Number(o.size) || 26) * dpr, d = dpr;
     var akz = o.color || "#ffc21a";
     var art = RZ_HL_ICONS[o.icon] ? o.icon : "";

@@ -18,8 +18,14 @@
 (function (root) {
   "use strict";
   const ANKER = ["tl", "tc", "tr", "ml", "cc", "mr", "bl", "bc", "br"];
-  const ZEILEN_TYPEN = ["wert", "text", "diagramm", "bild", "nord", "massstab"];
-  const SCHRIFTEN = ["system", "nunito", "quicksand", "fredoka", "oswald", "bebas", "plex", "plexmono", "caveat"];   // 05.10.2026: + mitgelieferte Schriften (ui/fonts)
+  // 01.11.2026 (Marc: „unser Editor muss so sein, dass wir damit all die Vorlagen bauen können … alles universell
+  // einstellbar“) — + Akzentlinie, Fortschrittsbalken, Fortschrittsring
+  const ZEILEN_TYPEN = ["wert", "text", "diagramm", "bild", "nord", "massstab", "linie", "fortschritt", "ring"];
+  const FORMEN = ["rechteck", "schraeg", "pfeil"];
+  const KANTEN = ["keine", "links", "oben", "unten", "rechts"];
+  const BLENDEN_ARTEN = ["none", "fade", "both", "hoch", "links", "maske"];
+  const TEXTSCHUTZ = ["aus", "weich", "schatten", "kontur", "beides"];
+  const SCHRIFTEN = ["system", "nunito", "quicksand", "fredoka", "oswald", "bebas", "plex", "plexmono", "caveat", "cormorant", "manrope"];   // 05.10.2026: + mitgelieferte Schriften (ui/fonts); 01.11.2026 + Editorial
   const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
   const istNix = (v) => v === null || v === undefined;
   const istDict = (x) => !!x && typeof x === "object" && !Array.isArray(x);
@@ -65,6 +71,14 @@
       rahmen_b: 0, rahmen_farbe: "#ffffff", schatten: false, textschatten: false,
       beschriftung: "links", anordnung: "neben", beschr_faktor: 0.5, einheit_faktor: 0.6, gross: true,
     },
+    // 01.11.2026 — ohne Kasten, warmweiß, große Zahlen mit kleiner Überschrift, weicher Schatten
+    editorial: {
+      schriftgroesse: 3.0, textfarbe: "#f4f1e9", akzent: "#48d6c4", schrift: "manrope", schrift_fest: true,
+      hg_farbe: "#101a22", hg_deckkraft: 0, unschaerfe: false,
+      innen: 0, zeilenabstand: 0.12, spaltenabstand: 1.5, ecken: 0,
+      rahmen_b: 0, rahmen_farbe: "#ffffff", schatten: false, textschatten: true,
+      beschriftung: "oben", anordnung: "neben", beschr_faktor: 0.35, einheit_faktor: 0.48, gross: true,
+    },
     ohne: {
       schriftgroesse: 2.04, textfarbe: "#ffffff", akzent: "#ffc21a",
       hg_farbe: "#000000", hg_deckkraft: 0, unschaerfe: false,
@@ -95,12 +109,14 @@
       out.text = String(istNix(z.text) ? "" : z.text).slice(0, 400);
       // 02.10.2026 — Größe dieser Zeile relativ zur Schriftgröße des Containers (Titel + Untertitel in EINER
       // Einblendung, Marc: „Titel und Untertitel liegen übereinander")
-      out.gr = rund(clamp(num(z.gr, 1), 0.2, 3), 3);
+      out.gr = rund(clamp(num(z.gr, 1), 0.05, 8), 3);
     } else if (typ === "diagramm") {
       out.art = z.art === "daten" ? "daten" : z.art === "karte" ? "karte" : "hoehe";   // 02.10.2026 „karte" = Übersichtskarte
       out.b = rund(clamp(num(z.b, 40), 3, 100), 2);
       out.h = rund(clamp(num(z.h, 12), 2, 100), 2);
       out.bereich = z.bereich === "etappe" ? "etappe" : "reise";
+      if (z.fuellung === false) out.fuellung = false;
+      if (z.raster) out.raster = true;   // 01.11.2026 — Streckenraster im Höhenprofil (km/mi/sm), wie die iOS-App   // 01.11.2026 — feines Profil: nur die Linie (Editorial-Stil)
       out.linienfarbe = farbe(z.linienfarbe, null);
       if (out.art === "daten") {
         const c = istDict(z.chart) ? z.chart : {};
@@ -116,7 +132,45 @@
     } else if (typ === "bild") {
       out.pfad = String(z.pfad || "");
       out.b = rund(clamp(num(z.b, 15), 1, 100), 2);
+    } else if (typ === "linie") {   // Akzentbalken (Breite/Höhe in % des Bildes)
+      out.b = rund(clamp(num(z.b, 6), 0.1, 100), 3);
+      out.h = rund(clamp(num(z.h, 0.8), 0.05, 100), 3);
+    } else if (typ === "fortschritt") {   // Strecke als Balken: gefahrener Teil in der Farbe, Rest blass
+      out.b = rund(clamp(num(z.b, 30), 2, 100), 2);
+      out.h = rund(clamp(num(z.h, 0.3), 0.05, 10), 3);
+      out.punkt = z.punkt !== false;
+      out.enden = !!z.enden;   // „START“ / „ZIEL“ an den Enden
+    } else if (typ === "ring") {   // Strecke als Kreis, in der Mitte der Anteil
+      out.d = rund(clamp(num(z.d, 16), 2, 80), 2);   // Durchmesser in % der kurzen Bildseite
+      out.dicke = rund(clamp(num(z.dicke, 4), 0.5, 20), 2);   // Strichstärke in % des Durchmessers
+      out.text = z.text !== false;
     }
+    if (typ === "wert") out.ersatz = istNix(z.ersatz) || z.ersatz === "" ? null : String(z.ersatz).slice(0, 40);   // Feld, wenn das eigene fehlt (z. B. keine Höhen)
+    if (["linie", "fortschritt", "ring"].indexOf(typ) >= 0) out.grund = farbe(z.grund, null);   // Farbe des Rests (leer = Textfarbe blass)
+    // 01.11.2026 — Gestaltung JEDER Zeile für sich (leer = wie die Einblendung): Farbe, Schrift, Stärke, kursiv,
+    // Sperrung, Großbuchstaben, Kontur-Schrift, senkrecht, eigene Fläche (Farbe, Deckkraft, Form, Innenabstand)
+    const zf = farbe(z.farbe, null); if (zf) out.farbe = zf;
+    if (z.schrift && SCHRIFTEN.indexOf(String(z.schrift).toLowerCase()) >= 0) out.schrift = String(z.schrift).toLowerCase();
+    if (!istNix(z.gewicht) && z.gewicht !== "") out.gewicht = Math.round(clamp(num(z.gewicht, 600), 100, 950) / 50) * 50;
+    if (z.kursiv) out.kursiv = true;
+    if (!istNix(z.sperrung) && z.sperrung !== "") out.sperrung = rund(clamp(num(z.sperrung, 0), -0.2, 1), 3);
+    if (z.versal === true || z.versal === false) out.versal = z.versal;
+    if (z.kontur) out.kontur = true;
+    if (z.senkrecht) out.senkrecht = true;
+    const zhg = farbe(z.hg_farbe, null);
+    if (zhg) {
+      out.hg_farbe = zhg;
+      out.hg_deckkraft = rund(clamp(num(z.hg_deckkraft, 1), 0, 1), 3);
+      out.form = wahl(z.form, FORMEN, "rechteck");
+      out.innen = rund(clamp(num(z.innen, 0.4), 0, 5), 3);
+    }
+    if (typ !== "text" && !istNix(z.gr) && num(z.gr, 1) !== 1) out.gr = rund(clamp(num(z.gr, 1), 0.05, 8), 3);   // Größe je Zeile (Text hat sie schon)
+    if (!istNix(z.zh) && z.zh !== "") out.zh = rund(clamp(num(z.zh, 1.1), 0.6, 3), 3);   // Zeilenhöhe
+    if (z.ausr && ["l", "c", "r"].indexOf(z.ausr) >= 0) out.ausr = z.ausr;
+    // 01.11.2026 — Versatz dieser Zeile in % des Bildes (Breite/Höhe): jede Zeile einzeln verschiebbar
+    const dx = rund(clamp(num(z.dx, 0), -100, 100), 2), dy = rund(clamp(num(z.dy, 0), -100, 100), 2);
+    if (dx) out.dx = dx;
+    if (dy) out.dy = dy;
     return out;
   }
   function normalisieren(c) {
@@ -138,7 +192,7 @@
       inhalt_h: wahl(c.inhalt_h, ["l", "c", "r"], "l"),
       inhalt_v: wahl(c.inhalt_v, ["t", "m", "b"], "t"),
       anordnung: g("anordnung") === "neben" ? "neben" : "unter",
-      beschriftung: wahl(g("beschriftung"), ["oben", "links", "aus"], "links"),
+      beschriftung: wahl(g("beschriftung"), ["oben", "links", "nach", "unten", "aus"], "links"),   // 01.11.2026 + „nach“ (klein hinter dem Wert), „unten“
       schrift: wahl(String(c.schrift || "system").toLowerCase(), SCHRIFTEN, "system"),
       schriftgroesse: rund(clamp(num(g("schriftgroesse"), 2), 0.3, 40), 3),
       textfarbe: farbe(g("textfarbe"), "#ffffff"),
@@ -163,9 +217,42 @@
       deckkraft: rund(clamp(num(c.deckkraft, 1), 0, 1), 3),
       zeilen: (Array.isArray(c.zeilen) ? c.zeilen : []).map(zeileNorm),
     };
+    // 01.11.2026 — universelle Gestaltung (die zehn Videovorlagen sind daraus gebaut, jede auch von Hand)
+    out.drehung = rund(clamp(num(c.drehung, 0), -30, 30), 2);
+    out.form = wahl(c.form, FORMEN, "rechteck");
+    out.kante = wahl(c.kante, KANTEN, "keine");
+    out.kante_b = rund(clamp(num(c.kante_b, 0.12), 0.01, 3), 3);
+    out.kante_farbe = farbe(c.kante_farbe, null);   // leer = Akzentfarbe
+    out.hg_verlauf = !!c.hg_verlauf;
+    out.hg_farbe2 = farbe(c.hg_farbe2, "#000000");
+    out.hg_deckkraft2 = rund(clamp(num(c.hg_deckkraft2, 0.6), 0, 1), 3);
+    out.unschaerfe_st = rund(clamp(num(c.unschaerfe_st, 0.36), 0, 3), 3);
+    out.trenner = c.trenner === "linie" ? "linie" : "keine";
+    out.trenner_farbe = farbe(c.trenner_farbe, null);
+    out.trenner_deckkraft = rund(clamp(num(c.trenner_deckkraft, 0.35), 0, 1), 3);
+    out.verteilen = !!c.verteilen;
+    out.klebestreifen = !!c.klebestreifen;
+    if (!istNix(c.gewicht) && c.gewicht !== "") out.gewicht = Math.round(clamp(num(c.gewicht, 600), 100, 950) / 50) * 50;
+    if (!istNix(c.sperrung) && c.sperrung !== "") out.sperrung = rund(clamp(num(c.sperrung, 0), -0.2, 1), 3);
+    if (c.kursiv) out.kursiv = true;
+    // Am Laufpunkt: x/y = Abstand vom Laufpunkt (in % des Bildes), Anker = welche Ecke dort sitzt; Führungslinie
+    out.lage = c.lage === "laufpunkt" ? "laufpunkt" : "bild";
+    out.fuehrung = c.fuehrung !== false;
+    out.fuehrung_farbe = farbe(c.fuehrung_farbe, null);   // leer = Textfarbe
+    out.ausweichen = c.ausweichen !== false;
+    if (c.lage_fest) out.lage_fest = true;
+    if (c.look_fest) out.look_fest = true;
+    // 01.11.2026 (Marc: „bei Randnotiz kann man den Text teilweise nicht lesen … vielleicht eine Kontur um den Text …
+    // oder ein Schlagschatten“) — Lesbarkeit: aus · weich (der bisherige Textschatten) · schatten (Schlagschatten) ·
+    // kontur (feiner Rand rundum) · beides; Stärke 0,2–2; Farbe leer = automatisch (dunkel bei heller Schrift, sonst hell)
+    out.textschutz = TEXTSCHUTZ.indexOf(c.textschutz) >= 0 ? c.textschutz : (out.textschatten ? "weich" : "aus");
+    out.textschutz_st = rund(clamp(num(c.textschutz_st, 1), 0.2, 2), 2);
+    out.textschutz_farbe = farbe(c.textschutz_farbe, null);
+    out.textschatten = out.textschutz !== "aus";   // abgeleitet: alte Leser kennen nur textschatten
     if (!istNix(c.zeit)) out.zeit = c.zeit;
     if (istDict(c.blende)) out.blende = Object.assign({}, c.blende);
     if (c.vorlage) out.vorlage = String(c.vorlage);
+    if (c.schrift_fest) out.schrift_fest = true;   // 01.11.2026 — eigene Schrift bleibt, auch wenn der Karten-Look wechselt
     return out;
   }
   function liste(roh) {
@@ -279,11 +366,8 @@
     return (cs || []).filter((c) => c && c.an).map((c) => {
       const zeiten = (R && R.zeitListe(c.zeit)) || null;
       const bl = istDict(c.blende) ? c.blende : {};
-      const blende = {
-        ein: ["none", "fade", "both"].indexOf(bl.ein === "pop" ? "both" : bl.ein) >= 0 ? (bl.ein === "pop" ? "both" : bl.ein) : "none",
-        aus: ["none", "fade", "both"].indexOf(bl.aus === "pop" ? "both" : bl.aus) >= 0 ? (bl.aus === "pop" ? "both" : bl.aus) : "none",
-        dauer_s: 0.5,
-      };
+      const art = (v) => { v = v === "pop" ? "both" : v; return BLENDEN_ARTEN.indexOf(v) >= 0 ? v : "none"; };
+      const blende = { ein: art(bl.ein), aus: art(bl.aus), dauer_s: 0.5 };
       blende.ein_s = Math.max(0, num(bl.ein_s, num(bl.dauer_s, 0.5)));
       blende.aus_s = Math.max(0, num(bl.aus_s, num(bl.dauer_s, 0.5)));
       const zeilen = {};
@@ -472,7 +556,7 @@
     return { container: aus, verlauf, hinweise };
   }
 
-  const api = { STILE, STIL_NAMEN, VORLAGEN, ANKER, ZEILEN_TYPEN, SCHRIFTEN,
+  const api = { STILE, STIL_NAMEN, VORLAGEN, ANKER, ZEILEN_TYPEN, SCHRIFTEN, FORMEN, KANTEN, BLENDEN_ARTEN, TEXTSCHUTZ,
                 normalisieren, zeileNorm, liste, stilAnwenden, neu, zeile, wert, migrieren, timingBoxen, neueId };
   if (root) root.rzContainer = api;
 })(typeof window !== "undefined" ? window : null);

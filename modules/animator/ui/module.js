@@ -202,9 +202,10 @@ function mountAnimator(body, headerActions, opts) {
       ${typeof window.rzVorlagenLeiste === "function" ? window.rzVorlagenLeiste(_MODKEY === "animator" ? "anim" : "tmap") : ""}
       <!-- 06.10.2026 (Marc: „Schnellvideo sollte auch ganz nach oben, also Vorlage anwenden, Schnellvideo, und dann …
            ein Videoassistent") — die Abkürzungen stehen oben beisammen, vor allen Einstellungen. -->
-      ${!_isStaticFrame && !_isReiseroute ? `<div class="anim-schnellstart"><button class="btn btn-secondary btn-block" id="anim-schnellvideo" title="${t("schnell.knopf_tip", "Fertiges Tourvideo mit wenigen Entscheidungen: Format, Länge, Kartenstil, Titel und Schlusskarte.")}">🎬 ${t("schnell.knopf", "Schnell-Video …")}</button>
-        <!-- 08.10.2026 — Video-Assistent: derselbe Dialog als Quiz, schreibt bearbeitbar ins Projekt -->
-        <button class="btn btn-secondary btn-block" id="anim-videoassistent" title="${t("va.knopf_tip", "Schritt für Schritt zum eigenen Video: Titel, Art, Karte, Einblendungen, Fotos, Schilder, Kamera, Schluss — alles landet bearbeitbar im Projekt.")}">🧭 ${t("assistent.knopf", "Video-Assistent …")}</button></div>` : ""}
+      ${!_isStaticFrame && !_isReiseroute ? `<div class="anim-schnellstart">
+        <!-- 01.11.2026 (Marc: „Schnellvideo und Videoassistent zusammenlegen, das ist doppeltgemoppelt“) — nur noch der
+             Video-Assistent: das Video ist gleich fertig, die Reiter verfeinern, dann erstellen oder ins Projekt übernehmen -->
+        <button class="btn btn-secondary btn-block" id="anim-videoassistent" title="${t("va.knopf_tip3", "Dein Video ist gleich fertig: in acht Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen.")}">🧭 ${t("assistent.knopf", "Video-Assistent …")}</button></div>` : ""}
 
       <!-- 06.10.2026 (Marc: „absolut grundlegende Einstellungen“ → ganz nach oben) —
            „Format & Ablauf“: Seitenverhältnis und Dauer sofort, unter „Mehr“ Intro, Halten, Dauer als Faktor,
@@ -517,6 +518,19 @@ function mountAnimator(body, headerActions, opts) {
               <label class="chip-toggle" title="${t("map_config.gebaeude_tip", "Gebäude aus OpenStreetMap als 3D-Klötze in echter Grundfläche und Höhe (ab Stadtteil-Zoom). Höhe aus Stockwerken oder Metern, sonst Standardhöhe. Quelle: OpenFreeMap, © OpenStreetMap.")}"><input type="checkbox" id="anim-mc-gebaeude"><span>${t("map_config.chip.gebaeude", "🏠 3D-Häuser")}</span></label>
                             <label class="chip-toggle" title="${t("map_config.gebaeude_wachsen_tip", "Die Häuser wachsen beim Heranfliegen aus dem Boden (zwischen Zoom 14 und 15,8), statt von Anfang an voll dazustehen.")}"><input type="checkbox" id="anim-mc-gebaeude-wachsen"><span>${t("map_config.chip.gebaeude_wachsen", "↥ wachsen")}</span></label>
             </div></div>
+            <!-- 01.11.2026 — Berg- und Gipfelnamen im Gelände (ui/js/bergnamen.js): aus den
+                 Vektorkacheln der Karte, Name + Höhe, ohne Kasten, weicher Schatten; in neuen Projekten an -->
+            <div class="anim-3d-reihe"><span class="anim-3d-was">${t("map_config.bergnamen", "Bergnamen")}</span><div class="chip-row">
+              <label class="chip-toggle" title="${t("map_config.bergnamen_tip", "Namen und Höhen der Gipfel im Bild, aus OpenStreetMap (OpenFreeMap). Höchstens vier gleichzeitig, verdeckte Gipfel bleiben weg.")}"><input type="checkbox" id="anim-bn-an"><span>${t("map_config.chip.bergnamen", "⛰ Namen")}</span></label>
+            </div></div>
+            <div class="anim-bn-mehr" id="anim-bn-mehr">
+              <label class="anim-bn-feld"><span>${t("map_config.bn_schrift", "Schrift")}</span><select id="anim-bn-schrift" class="lib-select">
+                ${[["cormorant", "Cormorant Garamond"], ["georgia", "Georgia"], ["manrope", "Manrope"], ["plex", "IBM Plex Sans"], ["system", t("map_config.bn_system", "Systemschrift")], ["caveat", "Caveat"]]
+                  .map(([k, n]) => `<option value="${k}">${n}</option>`).join("")}</select></label>
+              <label class="anim-bn-feld"><span>${t("map_config.bn_groesse", "Größe")}</span><input type="range" id="anim-bn-groesse" min="50" max="200" step="5" value="100"></label>
+              <label class="anim-bn-feld"><span>${t("map_config.bn_farbe", "Farbe")}</span><input type="color" id="anim-bn-farbe" value="#f4f1e9"></label>
+              <label class="anim-bn-feld"><span>${t("map_config.bn_schatten", "Schatten")}</span><input type="range" id="anim-bn-schatten" min="0" max="100" step="5" value="65"></label>
+            </div>
             <!-- 06.10.2026 (Marc: „das mit dem Flug hab ich nicht kapiert — da geht es nicht um die Häuser?") — eigene Zeile:
                  betrifft die Strecke (Linie in echter Flughöhe), nicht die Häuser -->
             <!-- 06.10.2026 (Marc: „verstecke den Button bis dahin, das verwirrt, das müssen wir anders machen") — verborgen,
@@ -1360,6 +1374,16 @@ function mountAnimator(body, headerActions, opts) {
                   <option value="leer">${t("container.v.leer", "Einblendung")}</option>
                 </select>
               </div>
+              <!-- 01.11.2026 (Marc: zehn Videovorlagen; „dass man sich das alles so in der Art bauen kann“) — eine ganze
+                   Videovorlage anwenden (ersetzt die Einblendungen, ⌘Z holt sie zurück) oder die eigenen als Vorlage merken -->
+              ${_isStaticFrame ? "" : `<div class="ct-vv-reihe">
+                <select id="ct-vv" class="pos-select" title="${t("vv.anwenden_tip", "Ersetzt die Einblendungen, Verläufe und Linienfarben durch eine Vorlage. ⌘Z holt den vorigen Stand zurück.")}">
+                  <option value="">${t("vv.anwenden", "Videovorlage anwenden …")}</option>
+                </select>
+                <input type="text" id="ct-vv-name" class="ct-vv-name" hidden maxlength="60" placeholder="${t("vv.merken_frage", "Name der Videovorlage")}">
+                <button type="button" class="ct-knopf" id="ct-vv-merken" title="${t("vv.merken_tip", "Diese Einblendungen als eigene Videovorlage merken")}">${typeof rzIcon === "function" ? rzIcon("star", { size: 13 }) : "★"}</button>
+                <button type="button" class="ct-knopf" id="ct-vv-weg" hidden title="${t("vv.eigen_loeschen", "Eigene Vorlage löschen")}">${typeof rzIcon === "function" ? rzIcon("trash-2", { size: 13 }) : "✕"}</button>
+              </div>`}
               <div id="ct-liste" class="ct-liste"></div>
               <div class="muted field-help-content" data-help-content="ct_hilfe" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("container.hinweis", "In der Vorschau ziehen zum Verschieben, anklicken zum Gestalten. Wann eine Einblendung zu sehen ist, stellst du in der Zeitleiste ein.")}</div>
             </div>
@@ -1372,6 +1396,10 @@ function mountAnimator(body, headerActions, opts) {
               <div class="ov-style-row">
                 <label class="checkbox-row inline"><input type="checkbox" id="ct-vl-unten-an"><span>${t("container.verlauf_unten", "unten")}</span></label>
                 <input type="range" id="ct-vl-unten-st" min="0" max="100" step="1" value="72">
+              </div>
+              <div class="ov-style-row">
+                <label class="checkbox-row inline"><input type="checkbox" id="ct-vl-links-an"><span>${t("container.verlauf_links", "links")}</span></label>
+                <input type="range" id="ct-vl-links-st" min="0" max="100" step="1" value="40">
               </div>
             </div>
             <!-- v0.9.41 — Stats-Quelle bei aktivem Trim:
@@ -1407,6 +1435,7 @@ function mountAnimator(body, headerActions, opts) {
                   <option value="hl_rund">${t("signs.style.hl_rund", "Rund mit Karte")}</option>
                   <option value="hl_form">${t("signs.style.hl_form", "Form mit Rahmen")}</option>
                   <option value="hl_pinsel">${t("signs.style.hl_pinsel", "Pinselstrich")}</option>
+                  <option value="hl_editorial">${t("signs.style.hl_editorial", "Editorial (Symbol und Text, ohne Kasten)")}</option>
                 </select>
               </div>
               <div class="ov-style-row">
@@ -1895,6 +1924,33 @@ function mountAnimator(body, headerActions, opts) {
     { type: "bool", onChange: () => applyHideLabels() });
   const _gebSchalter = () => { const w = document.getElementById("anim-mc-gebaeude-wachsen"); if (w) w.disabled = !document.getElementById("anim-mc-gebaeude")?.checked; };
   bindSetting("anim-mc-gebaeude", _MODKEY, "gebaeude_3d", { type: "bool", onLoad: _gebSchalter, onChange: () => { _gebSchalter(); try { _gebaeudeAnwenden(); } catch (e) { applog("warn", "[gebaeude] " + e); } try { _applyAttribText(); } catch (_) {} } });
+  // 01.11.2026 — Bergnamen: „an“ nur aus dem Projekt (fehlt der Schlüssel in einem gespeicherten Projekt → aus;
+  // die globalen Vorgaben haben ihn auf an, das gilt nur für neue Projekte)
+  const _bnAn = () => {
+    const p = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+    if (p && "bergnamen_an" in p) return !!p.bergnamen_an;
+    return !(_activeProject && _activeProject.id);   // schwebend (frische Tour) = wie ein neues Projekt
+  };
+  function _bnEinst() {
+    const v = (id) => document.getElementById(id);
+    return { an: !!v("anim-bn-an")?.checked, schrift: v("anim-bn-schrift")?.value || "cormorant", groesse: +(v("anim-bn-groesse")?.value || 100),
+             farbe: v("anim-bn-farbe")?.value || "#f4f1e9", schatten: +(v("anim-bn-schatten")?.value ?? 65) };
+  }
+  const _bnNeu = () => {
+    const m_ = document.getElementById("anim-bn-mehr"); if (m_) m_.hidden = !document.getElementById("anim-bn-an")?.checked;
+    try { if (_bn) _bn.aktualisieren(); if (map && map.triggerRepaint) map.triggerRepaint(); } catch (_) {}
+    try { _applyAttribText(); } catch (_) {}
+  };
+  bindSetting("anim-bn-an", _MODKEY, "bergnamen_an", { type: "bool",
+    onLoad: () => { const el = document.getElementById("anim-bn-an"); if (el) el.checked = _bnAn(); _bnNeu(); }, onChange: _bnNeu });
+  bindSetting("anim-bn-schrift", _MODKEY, "bergnamen_schrift", { onChange: _bnNeu });
+  bindSetting("anim-bn-groesse", _MODKEY, "bergnamen_groesse", { type: "number", onChange: _bnNeu });
+  document.getElementById("anim-bn-groesse")?.addEventListener("input", _bnNeu);
+  bindSetting("anim-bn-farbe", _MODKEY, "bergnamen_farbe", { onChange: _bnNeu });
+  document.getElementById("anim-bn-farbe")?.addEventListener("input", _bnNeu);
+  bindSetting("anim-bn-schatten", _MODKEY, "bergnamen_schatten", { type: "number", onChange: _bnNeu });
+  document.getElementById("anim-bn-schatten")?.addEventListener("input", _bnNeu);
+  window.__rzBergnamen = () => _bn;   // Prüfstand
   bindSetting("anim-mc-flug3d", _MODKEY, "flug_3d", { type: "bool", onLoad: () => _flugZeile(),
     onChange: () => { _flugZeile(); try { _flugAnwenden(true); } catch (e) { applog("warn", "[flug3d] " + e); } } });
   // Flug in der Luft folgt Gelände (an/aus, Überhöhung), Linienfarbe, -breite und -deckkraft — kurz verzögert,
@@ -2049,12 +2105,16 @@ function mountAnimator(body, headerActions, opts) {
         // 01.10.2026 (Marc) — aus dem Animator mit offenem Projekt: zusätzlich „In dieses Projekt übernehmen";
         // „Meinen Look behalten" ist vorbelegt, sobald das Projekt Einblendungen hat (Vorlage/eigener Look).
         // frische Tour = schwebendes Projekt: festschreiben, damit „In dieses Projekt übernehmen" geht
+        // 01.11.2026 — Tour noch ohne Projekt (aus dem Archiv, frisch geöffnet): das Projekt, das hier entsteht, ist vorläufig —
+        // „Ins Projekt übernehmen“ behält es, „Abbrechen“ löscht es wieder
+        const vorher_ = (typeof getActiveProject === "function") ? getActiveProject() : null;
+        const vorlaeufig = !!assistent && !!vorher_ && !vorher_.id;
         const proj = window.rzAktivesProjektSichern ? await window.rzAktivesProjektSichern()
           : ((typeof getActiveProject === "function") ? getActiveProject() : null);
         let projekt = null;
         if (proj && proj.id) {
           const kf = (getRawTimelineEvents() || []).filter(e => e && e.kind).length;
-          projekt = { id: proj.id, keyframes: kf, hatLook: _ctListe().length > 0 };
+          projekt = { id: proj.id, keyframes: kf, hatLook: _ctListe().length > 0, vorlaeufig };
         }
         // 01.10.2026 (Marc) — die Länge im Animator als Wahl anbieten (Intro + Animation + Halten)
         // Bei einer Reise kommen die Übergänge zur eingestellten Dauer dazu (animSekunden > Dauer-Feld):
@@ -2071,10 +2131,11 @@ function mountAnimator(body, headerActions, opts) {
         window.rzSchnellVideo(currentGpx, { projekt, animatorS, assistent: !!assistent });
         return true;
       };
-      document.getElementById("anim-schnellvideo")?.addEventListener("click", () => _schnellStart(false));
       document.getElementById("anim-videoassistent")?.addEventListener("click", () => _schnellStart(true));
       // Tour-Seite, Prüfstand: `leise` = ohne Hinweis, falls die Tour noch lädt (die Tour-Seite versucht es dann erneut)
       window.__rzVideoAssistent = (leise) => _schnellStart(true, leise);
+      // 01.11.2026 — der Schnell-Video-Dialog hat keinen Knopf mehr (Kommandozeile und Web nutzen seine Logik weiter); Prüfstand
+      window.__rzSchnellVideoAusAnimator = () => _schnellStart(false);
       // Videolänge geändert → Sekunden im offenen Editor neu (Anker bleiben, ihre Zeit wandert)
       ["anim-intro", "anim-dur", "anim-hold"].forEach(k => document.getElementById(k)?.addEventListener("change", () => {
         try { if (_ctEditId) _ctEditorZeichnen(); } catch (e) { applog && applog("warn", "[container] Editor nach Längenänderung: " + e); }
@@ -3568,7 +3629,7 @@ function mountAnimator(body, headerActions, opts) {
     try { const r = map && map.__rzSpec && map.__rzSpec.rights; ids = r ? Object.keys(r.quellen || {}) : []; } catch (_) { ids = []; }
     // Audit F-4 (05.10.2026): 3D-Häuser kommen aus OpenFreeMap/OpenStreetMap (ODbL) — im Kurzmodus stand das nicht im
     // Bild, wenn die Basiskarte etwas anderes war (Luftbild, Mapbox). Gilt für Vorschau und Szene-Render (dieselbe Seite).
-    try { if (document.getElementById("anim-mc-gebaeude")?.checked && !ids.includes("openfreemap")) ids.push("openfreemap"); } catch (_) {}
+    try { if ((document.getElementById("anim-mc-gebaeude")?.checked || document.getElementById("anim-bn-an")?.checked) && !ids.includes("openfreemap")) ids.push("openfreemap"); } catch (_) {}   // 01.11.2026 — auch Bergnamen
     return ids;
   }
   function _attribKurzText() {
@@ -3845,6 +3906,8 @@ function mountAnimator(body, headerActions, opts) {
   // Map vorbereiten
   let map = null;
   let currentGpx = null;
+  // 01.11.2026 — Bergnamen im Gelände (ui/js/bergnamen.js); _bnZeit = Videozeit des letzten Bildes (_ovTimingAt)
+  let _bn = null, _bnZeit = null;
 
   // v0.9.458 — Style-Lade-Guard: Regler wirken auf die Karte, während ein
   // Kartenstil noch lädt (z. B. direkt nach dem Stil-Wechsel). Mapbox wirft
@@ -10446,6 +10509,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   function snapshotKeyframe(anchor, options) {
     if (!map) return;
+    if (_ladeSperre || !_animKarteBereit()) { toast(t("animator.kf.map_not_ready", "Karte noch nicht stabil — KF bitte gleich nochmal setzen"), "warn", 3000); return; }   // 01.11.2026
     _ansichtHinweisWeg();
     options = options || {};
     _animPushUndo(t("undo.keyframe_gesetzt", "Keyframe gesetzt"), { force: true });
@@ -10527,6 +10591,7 @@ function mountAnimator(body, headerActions, opts) {
   // (alle 4 Properties).
   function createSingleProperty(kind, anchor) {
     if (!map) return;
+    if (_ladeSperre || !_animKarteBereit()) { toast(t("animator.kf.map_not_ready", "Karte noch nicht stabil — KF bitte gleich nochmal setzen"), "warn", 3000); return; }   // 01.11.2026
     _animPushUndo(t("undo.property_keyframe_gesetzt", "Property-Keyframe gesetzt"), { force: true });
     if (kind === "__cluster") {
       snapshotKeyframe(anchor);
@@ -13715,6 +13780,60 @@ function mountAnimator(body, headerActions, opts) {
   // 05.10.2026 — einfache Ansicht (ui/js/einfach.js): Tour-Ausdehnung für die Kamerafahrt, nur im Animator (nicht Tour-Map/Reiseroute)
   try { window.__rzEinfachBbox = () => (typeof mapBboxArray === "function" ? mapBboxArray(currentBbox) : null);
         window.__rzEinfachErlaubt = !_isStaticFrame && !_isReiseroute; } catch (_) {}
+  // ── 01.11.2026 (Marc: „sperre eben alles so lang, bis alles geladen ist, ich dachte das ist schon so“) — Ladesperre:
+  // Beim Laden einer Tour stand bisher nur die Warteanzeige der Brücke da; danach baute sich die Karte noch auf
+  // (Stil, Einpassen, Kamera), und man konnte schon klicken. Ein Nutzer setzte so einen Keyframe mit Zoom 0 (ganze Erde).
+  // Jetzt liegt eine Sperre mit Spinner und Text über der App, bis Karte, Track und Einpassen stehen und die Kacheln
+  // da sind (höchstens 4 s nach dem Stil). Unter 300 ms erscheint sie nicht (kein Aufblitzen). Wachhund 45 s.
+  var _ladeSperre = null;
+  function _animKarteBereit() {
+    try {
+      // ui-falle-ok: reine Abfrage für die Ladesperre (wird alle 200 ms wiederholt), kein Aussteigen aus einer Aktion
+      return !!(map && (map.__rzStyleReady || (map.isStyleLoaded && map.isStyleLoaded())) && (currentCoords || []).length > 1
+        && _fitZoomBase != null && !(window.__rzPendingTours && window.__rzPendingTours.length) && !window.__rzUebergabeLaeuft);
+    } catch (_) { return false; }
+  }
+  function _ladeSperreTasten(e) {
+    if (!_ladeSperre || !_ladeSperre.el) return;
+    if (e.metaKey && (e.key === "q" || e.key === "w")) return;   // Beenden/Fenster schließen bleibt
+    e.preventDefault(); e.stopPropagation();
+  }
+  function _ladeSperreAn(grund) {
+    if (_ladeSperre) { _ladeSperre.seit = Date.now(); _ladeSperre.bereitSeit = 0; return; }
+    _ladeSperre = { seit: Date.now(), bereitSeit: 0, el: null, grund: grund || "" };
+    const S = _ladeSperre;
+    S.zeigen = setTimeout(() => {
+      if (_ladeSperre !== S) return;
+      const el = document.createElement("div");
+      el.id = "anim-ladesperre"; el.className = "anim-ladesperre"; el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite");
+      el.innerHTML = `<div class="anim-ladesperre-karte"><span class="anim-ladesperre-dreh"></span><span class="anim-ladesperre-text">${esc(t("animator.ladesperre.tour", "Tour wird geladen …"))}</span></div>`;
+      document.body.appendChild(el);
+      S.el = el;
+      window.addEventListener("keydown", _ladeSperreTasten, true);
+      applog("info", "[ladesperre] an (" + (S.grund || "Laden") + ")");
+    }, 300);
+    S.takt = setInterval(() => {
+      if (_ladeSperre !== S) { clearInterval(S.takt); return; }
+      const jetzt = Date.now();
+      if (jetzt - S.seit > 45000) { applog("warn", "[ladesperre] Wachhund: 45 s nicht fertig — Sperre aufgehoben"); _ladeSperreAus(); return; }
+      if (!_animKarteBereit()) { S.bereitSeit = 0; return; }
+      if (!S.bereitSeit) {
+        S.bereitSeit = jetzt;
+        const tx = S.el && S.el.querySelector(".anim-ladesperre-text");
+        if (tx) tx.textContent = t("animator.ladesperre.karte", "Karte wird gezeichnet …");
+      }
+      let fertig = false;
+      try { fertig = !!(map.loaded && map.loaded()); } catch (_) {}
+      if (fertig || jetzt - S.bereitSeit > 4000) _ladeSperreAus();
+    }, 200);
+  }
+  function _ladeSperreAus() {
+    const S = _ladeSperre; if (!S) return;
+    _ladeSperre = null;
+    clearTimeout(S.zeigen); clearInterval(S.takt);
+    if (S.el) { S.el.remove(); window.removeEventListener("keydown", _ladeSperreTasten, true); applog("info", "[ladesperre] aus nach " + ((Date.now() - S.seit) / 1000).toFixed(1) + " s"); }
+  }
+  window.__rzLadeSperre = () => !!_ladeSperre;   // Prüfstand
   window.__rzAnimBereit = () => {
     let styleOk = false, tilesOk = false, terrainOk = true;
     try { styleOk = !!(map && (map.__rzStyleReady || (map.isStyleLoaded && map.isStyleLoaded()))); } catch (_) {}
@@ -14568,6 +14687,10 @@ function mountAnimator(body, headerActions, opts) {
       common: Object.assign({ center: [10, 51], zoom: 4, pitch: currentPitch() }, _vorschauMsaa() ? { antialias: true, canvasContextAttributes: { antialias: true } } : {}),
     });
     map = made.map;
+    try { if (_bn) _bn.weg(); } catch (_) {}
+    try { _bn = window.rzBergnamen ? window.rzBergnamen.erstellen(map, { einstellungen: _bnEinst, zeit: () => _bnZeit }) : null; } catch (e) { applog("warn", "[bergnamen] " + e); }
+    // 01.11.2026 — Einblendungen am Laufpunkt folgen jeder Kamerabewegung (nach Kamera + Punkt dieses Bildes)
+    try { map.on("render", () => { if (document.querySelector("#anim-overlay-preview > .ct.ct-am-lp")) _ctLaufpunktAt(); }); } catch (_) {}
     try { map.on("moveend", _gelaendeNachFahrt); map.on("idle", _gelaendeNachFahrt); } catch (_) {}   // 09.09.2026 Gelände-Kacheln prüfen
     try { _vwAbbau(); _vw.fertig = ""; _vwWache(); } catch (_) {}   // 06.10.2026 — Kacheln im Leerlauf vorab laden
     try { map.on("move", () => { try { _ovUpdateNorthScale(); } catch (_) {} }); } catch (_) {}   // 04.09.2026 Nordpfeil/Maßstab
@@ -16981,6 +17104,19 @@ function mountAnimator(body, headerActions, opts) {
       return { opacity: stil.opacity ?? 0.92, size: stil.size ?? (art === "dorf" ? 17 : 20) };
     }
     function _hlOrteRang(v) { return v.art === "pass" ? 0 : (Number.isFinite(+v.rang) ? +v.rang : 3); }
+    // 01.11.2026 — Video-Assistent „Wichtige Orte unterwegs“ (wie die iPhone-App): ein Orts-/Pass-Schild genau wie
+    // _hlUebernehmen es baut (kleine Stecknadel, kurz sichtbar, Pass mit gelber Nadel) — der Assistent wählt die Orte aus
+    window.__rzOrteSchild = (v, opt) => {
+      if (!v || !isFinite(+v.lat) || !isFinite(+v.lon) || !v.text) return null;
+      const s_ = { ...(_SIGN_DEFAULTS), style: _animSignLast.style, color: _animSignLast.color, size: _animSignLast.size, font: _animSignLast.font,
+        weight: _animSignLast.weight, before: 1, after: 4, entry: "fade", lat: +v.lat, lon: +v.lon, text: String(v.text), anchorMode: "track",
+        visible: true, ...(v.strecke_m != null && isFinite(+v.strecke_m) ? { strecke_m: +v.strecke_m } : {}),
+        ...HL_ORTE_SCHILD, ..._hlOrteSoll(v.art, _hlOrteStil()), accent: v.art === "pass" ? "#ffc21a" : "auto", hl_quelle: "orte", hl_art: v.art };
+      // 01.11.2026 — als Editorial-Hinweis-Pin: rundes Symbol (Pass = Gipfelzeichen, Ort = Stecknadel), Text ohne Kasten
+      if (opt && opt.stil === "hl_editorial") Object.assign(s_, { style: "hl_editorial", icon: v.art === "pass" ? "hoechster" : "wegpunkte",
+        color: v.art === "pass" ? "#ff896b" : "#48d6c4", size: 20, font: "manrope" });
+      return s_;
+    };
     function _hlOrteAusduennen(vs) {
       const dur = _animSignsDuration();
       if (!(dur > 0) || !Array.isArray(currentCoords) || currentCoords.length < 2) return 0;
@@ -17645,6 +17781,8 @@ function mountAnimator(body, headerActions, opts) {
               <option value="serif"${sel("serif", c.font)}>${t("signs.font.serif", "Serif")}</option>
               <option value="mono"${sel("mono", c.font)}>${t("signs.font.mono", "Monospace")}</option>
               <option value="impact"${sel("impact", c.font)}>${t("signs.font.impact", "Plakativ")}</option>
+              <option value="cormorant"${sel("cormorant", c.font)}>Cormorant Garamond</option>
+              <option value="manrope"${sel("manrope", c.font)}>Manrope</option>
               ${c.font && String(c.font).indexOf("sys:") === 0
                 ? `<option value="${_animEscapeHtml(c.font)}" selected>${_animEscapeHtml(String(c.font).slice(4))}</option>` : ""}
             </select>
@@ -20270,6 +20408,7 @@ function mountAnimator(body, headerActions, opts) {
   const OVERLAY_FIELD_CATALOG = {
     live: [
       { id: "dist_done", req: "none" }, { id: "dist_left", req: "none" },
+      { id: "pct_done", req: "none" },   // 01.11.2026 — Anteil der Strecke in % (Videovorlagen ohne Höhen)
       { id: "speed", req: "time" }, { id: "pace", req: "time" }, { id: "time_elapsed", req: "time" }, { id: "time_left", req: "time" },
       { id: "ele_now", req: "ele" }, { id: "grade", req: "ele" },
       // 11.09.2026 (Marc) — Datum & Uhrzeit am aktuellen Punkt.
@@ -20410,6 +20549,8 @@ function mountAnimator(body, headerActions, opts) {
     // 05.10.2026 — mitgeliefert (ui/fonts, app.css @font-face): kein Nachladen aus dem Netz nötig
     plex: "'IBM Plex Sans', -apple-system, 'Segoe UI', sans-serif", plexmono: "'IBM Plex Mono', ui-monospace, Menlo, monospace",
     caveat: "'Caveat', 'Bradley Hand', 'Segoe Print', cursive",
+    // 01.11.2026 — Editorial-Stil: Serifentitel und Grotesk für Zahlen (ui/fonts)
+    cormorant: "'Cormorant Garamond', Georgia, serif", manrope: "Manrope, 'IBM Plex Sans', system-ui, sans-serif",
   };
   function _ovHexRgba(hex, a) {
     let h = String(hex || "#000000").replace("#", "");
@@ -20480,6 +20621,7 @@ function mountAnimator(body, headerActions, opts) {
       case "time_now": return fmtTimeJS(_sr.end_epoch, _off);
       case "dist_done": case "dist_total": return _ovFmtKm(km);
       case "dist_left": return _ovFmtKm(0);
+      case "pct_done": return "100 %";
       case "speed": case "avg_speed": return _ovTempo(avgMov);
       case "avg_speed_total": return _ovTempo(avgTotal);
       case "max_speed": return maxKmh > 0 ? _ovTempo(maxKmh) : "—";
@@ -20612,6 +20754,7 @@ function mountAnimator(body, headerActions, opts) {
         switch (id) {
           case "dist_done": v = _ovFmtKm((_sw ? _sw.done : sr.cumDistM[i]) / 1000); break;
           case "dist_left": v = _ovFmtKm(Math.max(0, ((_sw ? _sw.gesamt : totD) - (_sw ? _sw.done : sr.cumDistM[i])) / 1000)); break;
+          case "pct_done": v = Math.round(Math.max(0, Math.min(1, (_sw ? _sw.done / Math.max(1, _sw.gesamt) : (sr.cumDistM[i] || 0) / Math.max(1, totD)))) * 100) + " %"; break;
           case "speed": if (sr.has_time) v = _ovTempoAlsPace() ? _ovPace(_ovPaceTempo(sr, i)) : _ovTempo(sr.speedKmh[i], 0); break;
           case "pace": if (sr.has_time) v = _ovPace(_ovPaceTempo(sr, i)); break;
           case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i] + (_sw ? _sw.tzeit : 0)); break;
@@ -20959,7 +21102,7 @@ function mountAnimator(body, headerActions, opts) {
     const roh = [];
     for (let k = 0; k < N; k++) {
       const an = k / (N - 1);
-      roh.push(kursGlattAn(co, trackFracAusAnker(an), fenster, 3));   // Glättung 1: langes Stück + Gauß entlang der Strecke
+      roh.push(kursGlattAn(co, trackFracAusAnker(an), fenster, 3, undefined, true));   // Glättung 1: langes Stück + Gauß entlang der Strecke; als Pfeile gemittelt (Schleifen drehen nicht mit)
     }
     const u = [roh[0]];
     for (let k = 1; k < N; k++) { let d = (roh[k] - roh[k - 1]) % 360; if (d > 180) d -= 360; if (d < -180) d += 360; u.push(u[k - 1] + d); }
@@ -21797,7 +21940,7 @@ function mountAnimator(body, headerActions, opts) {
   // Mond, Stift aus sign_draw.js) fehlten. Schlimmer: das Feld zeigte bei einer Pause „keins“ und schrieb beim nächsten
   // Ändern „keins“ zurück. Jetzt stehen alle Zeichen zur Wahl, die sign_draw.js zeichnen kann.
   const SCHILD_SYMBOLE = HL_ARTEN.concat(["pause", "uebernachtung", "notiz"]);
-  function _istHlStil(st) { return ["pille", "hl_pin", "hl_rund", "hl_form", "hl_pinsel"].includes(st); }
+  function _istHlStil(st) { return ["pille", "hl_pin", "hl_rund", "hl_form", "hl_pinsel", "hl_editorial"].includes(st); }   // 01.11.2026 + Editorial
   function _hlEin() {
     return !_isStaticFrame && !!document.getElementById("anim-hl-on")?.checked;
   }
@@ -22108,6 +22251,7 @@ function mountAnimator(body, headerActions, opts) {
   };
   window.__rzHighlightsAbgleichen = (leise, opt) => _hlSchilderAbgleichen(leise, opt);
   function _ovTimingAt(tSec, frac) {
+    _bnZeit = tSec;
     const root = document.getElementById("anim-viewport") || document;
     const R = window.rzOverlayBoxen;
     if (!R) return;
@@ -22232,7 +22376,7 @@ function mountAnimator(body, headerActions, opts) {
     const a = p || (_settingsCache && _settingsCache[_MODKEY]) || {};
     const v = (a && typeof a.verlauf === "object" && a.verlauf) || {};
     const teil = (x, d) => ({ an: !!(x && x.an), staerke: Math.max(0, Math.min(1, x && isFinite(+x.staerke) ? +x.staerke : d)) });
-    return { oben: teil(v.oben, 0.62), unten: teil(v.unten, 0.72) };
+    return { oben: teil(v.oben, 0.62), unten: teil(v.unten, 0.72), links: teil(v.links, 0.4) };
   }
   function _ctFormat() {
     return { W: parseInt(document.getElementById("anim-w")?.value, 10) || 1920,
@@ -22302,13 +22446,48 @@ function mountAnimator(body, headerActions, opts) {
     const x = c.x, y = c.y, a = c.anker;
     const h = a[1], v = a[0];
     let s = "", tr = "", org = "";
-    if (h === "l") { s += `left:${x}%;`; org = "left"; }
-    else if (h === "r") { s += `right:${x}%;`; org = "right"; }
-    else { s += `left:calc(50% + ${x}%);`; tr += "translateX(-50%) "; org = "center"; }
-    if (v === "t") { s += `top:${y}%;`; org = "top " + org; }
-    else if (v === "b") { s += `bottom:${y}%;`; org = "bottom " + org; }
-    else { s += `top:calc(50% + ${y}%);`; tr += "translateY(-50%) "; org = "center " + org; }
+    if (c.lage === "laufpunkt") {
+      // 01.11.2026 — am Laufpunkt: --lp-x/--lp-y (px, je Bild aus _ctLaufpunktAt), x/y = Abstand in % des Bildes,
+      // der Anker sagt, welche Ecke dort sitzt; --lp-sx/--lp-sy = -1, wenn am Bildrand auf die andere Seite gewechselt
+      s += `left:calc(var(--lp-x, 50cqw) + var(--lp-sx, 1) * ${x}cqw);top:calc(var(--lp-y, 50cqh) + var(--lp-sy, 1) * ${y}cqh);`;
+      tr += `translate(calc(var(--lp-ax, ${h === "l" ? 0 : h === "r" ? -100 : -50}) * 1%), calc(var(--lp-ay, ${v === "t" ? 0 : v === "b" ? -100 : -50}) * 1%)) `;
+      org = (v === "t" ? "top " : v === "b" ? "bottom " : "center ") + (h === "l" ? "left" : h === "r" ? "right" : "center");
+    } else {
+      if (h === "l") { s += `left:${x}%;`; org = "left"; }
+      else if (h === "r") { s += `right:${x}%;`; org = "right"; }
+      else { s += `left:calc(50% + ${x}%);`; tr += "translateX(-50%) "; org = "center"; }
+      if (v === "t") { s += `top:${y}%;`; org = "top " + org; }
+      else if (v === "b") { s += `bottom:${y}%;`; org = "bottom " + org; }
+      else { s += `top:calc(50% + ${y}%);`; tr += "translateY(-50%) "; org = "center " + org; }
+    }
+    // 01.11.2026 — bewegte Blenden (overlay_boxen.js: --rz-ov-hoch / --rz-ov-links / --rz-ov-maske, 0 = in Ruhe)
+    const weit = (h === "l" && c.lage !== "laufpunkt") ? x + 2 : 2;
+    tr += `translate(calc(var(--rz-ov-links, 0) * (-100% - ${weit}cqw)), calc(var(--rz-ov-hoch, 0) * 2.2cqh)) `;
+    if (+c.drehung) tr += `rotate(${+c.drehung}deg) `;
+    const bl = c.blende || {};
+    if (bl.ein === "maske" || bl.aus === "maske") s += "clip-path:inset(-40% calc(var(--rz-ov-maske, 0) * 180% - 40%) -40% -40%);";
     return s + `transform:${tr}scale(var(--rz-ov-pop, 1));transform-origin:${org};`;
+  }
+  /** 01.11.2026 — Lesbarkeit (Textschutz): Schlagschatten und/oder Kontur in einer zur Schrift passenden Farbe. */
+  function _ctTextschutzCss(c) {
+    const art = c.textschutz || (c.textschatten ? "weich" : "aus");
+    if (art === "aus") return "";
+    if (art === "weich") return "text-shadow:0 0.03em 0.18em rgba(0,0,0,0.6), 0 0 0.05em rgba(0,0,0,0.4)";
+    const st = Math.max(0.2, Math.min(2, +c.textschutz_st || 1));
+    let rgb = c.textschutz_farbe;
+    if (!rgb) {
+      const h = String(c.textfarbe || "#ffffff").replace("#", ""), x = h.length === 3 ? h.split("").map(z => z + z).join("") : h;
+      const l = (0.2126 * parseInt(x.slice(0, 2), 16) + 0.7152 * parseInt(x.slice(2, 4), 16) + 0.0722 * parseInt(x.slice(4, 6), 16)) / 255;
+      rgb = l > 0.5 ? "#0a1216" : "#ffffff";
+    }
+    const f = (a) => _ovHexRgba(rgb, Math.max(0, Math.min(1, a)));
+    const teile = [];
+    if (art === "kontur" || art === "beides") {
+      const d = (0.028 * st).toFixed(3), d2 = (0.02 * st).toFixed(3);
+      for (const [x, y] of [[d, 0], [`-${d}`, 0], [0, d], [0, `-${d}`], [d2, d2], [`-${d2}`, d2], [d2, `-${d2}`], [`-${d2}`, `-${d2}`]]) teile.push(`${x}em ${y}em 0 ${f(0.55 + 0.2 * Math.min(1, st))}`);
+    }
+    if (art === "schatten" || art === "beides") teile.push(`0 ${(0.06 * st).toFixed(3)}em ${(0.16 * st).toFixed(3)}em ${f(0.7)}`, `0 0 ${(0.45 * st).toFixed(3)}em ${f(0.35 * Math.min(1, st))}`);
+    return teile.length ? "text-shadow:" + teile.join(", ") : "";
   }
   function _ctKarteCss(c) {
     const S = [];
@@ -22319,17 +22498,38 @@ function mountAnimator(body, headerActions, opts) {
     S.push(`--ct-einh:${c.einheit_faktor}em`);
     S.push(`--ct-zeile:${c.zeilenabstand}em`);
     S.push(`--ct-spalte:${c.spaltenabstand}em`);
-    if (c.hg_deckkraft > 0) S.push(`background:${_ovHexRgba(c.hg_farbe, c.hg_deckkraft)}`);
-    if (c.unschaerfe && c.hg_deckkraft > 0) S.push("-webkit-backdrop-filter:blur(0.36em);backdrop-filter:blur(0.36em)");
-    S.push(`padding:${c.innen}em`);
-    S.push(`border-radius:${c.ecken}em`);
+    const hatHg = c.hg_deckkraft > 0 || (c.hg_verlauf && c.hg_deckkraft2 > 0);
+    if (c.hg_verlauf && hatHg) S.push(`background:linear-gradient(120deg, ${_ovHexRgba(c.hg_farbe, c.hg_deckkraft)}, ${_ovHexRgba(c.hg_farbe2 || "#000000", c.hg_deckkraft2)})`);
+    else if (c.hg_deckkraft > 0) S.push(`background:${_ovHexRgba(c.hg_farbe, c.hg_deckkraft)}`);
+    const us = c.unschaerfe_st == null ? 0.36 : +c.unschaerfe_st;
+    if (c.unschaerfe && hatHg && us > 0) S.push(`-webkit-backdrop-filter:blur(${us}em);backdrop-filter:blur(${us}em)`);
+    // 01.11.2026 — Form: schräg (rechts abgeschnitten) / Pfeil (Wegweiser); Platz für die Spitze rechts
+    const spitze = c.form === "pfeil" ? 1.4 : c.form === "schraeg" ? 0.9 : 0;
+    S.push(spitze ? `padding:${c.innen}em calc(${c.innen}em + ${spitze}em) ${c.innen}em ${c.innen}em` : `padding:${c.innen}em`);
+    if (c.form === "schraeg") S.push(`clip-path:polygon(0 0, calc(100% - ${spitze}em) 0, 100% 100%, 0 100%)`);
+    else if (c.form === "pfeil") S.push(`clip-path:polygon(0 0, calc(100% - ${spitze}em) 0, 100% 50%, calc(100% - ${spitze}em) 100%, 0 100%)`);
+    S.push(`border-radius:${c.form === "rechteck" || !c.form ? c.ecken : 0}em`);
     if (c.rahmen_b > 0) S.push(`border:${c.rahmen_b}em solid ${c.rahmen_farbe}`);
-    if (c.schatten) {
+    // Akzentkante an einer Seite (Bauchbinde, Sport-Titel, Kopfstrich über den Zahlen)
+    if (c.kante && c.kante !== "keine") {
+      const kp = { links: "left", oben: "top", unten: "bottom", rechts: "right" }[c.kante];
+      S.push(`border-${kp}:${c.kante_b}em solid ${c.kante_farbe || c.akzent}`);
+      // ohne Fläche: etwas Luft zwischen Kante und Text
+      if (!hatHg && !(c.innen > 0)) S.push(`padding-${kp}:${({ left: 0.55, right: 0.55, top: 0.45, bottom: 0.45 })[kp]}em`);
+    }
+    if (c.gewicht) S.push(`--ct-gewicht:${c.gewicht}`);
+    if (c.sperrung) S.push(`letter-spacing:${c.sperrung}em`);
+    if (c.kursiv) S.push("font-style:italic");
+    if (c.trenner === "linie") S.push(`--ct-trenner:${_ovHexRgba(c.trenner_farbe || c.textfarbe || "#ffffff", c.trenner_deckkraft == null ? 0.35 : c.trenner_deckkraft)}`);
+    if (c.schatten && c.form && c.form !== "rechteck") {
+      // clip-path schneidet box-shadow ab → Schatten der Form als Filter auf dem äußeren Element (_ctHtml)
+    } else if (c.schatten) {
       let r = 45; try { r = currentShadowDir(); } catch (_) {}
       const rad = r * Math.PI / 180;
       S.push(`box-shadow:${(0.41 * Math.cos(rad)).toFixed(3)}em ${(0.41 * Math.sin(rad)).toFixed(3)}em 1em rgba(0,0,0,0.45)`);
     }
-    if (c.textschatten) S.push("text-shadow:0 0.03em 0.18em rgba(0,0,0,0.6), 0 0 0.05em rgba(0,0,0,0.4)");
+    const ts = _ctTextschutzCss(c);
+    if (ts) S.push(ts);
     if (c.deckkraft < 1) S.push(`opacity:${c.deckkraft}`);
     if (c.groesse === "fest") S.push(`width:${c.b}cqw;height:${c.h}cqh`);
     const jh = { l: "flex-start", c: "center", r: "flex-end" }[c.inhalt_h];
@@ -22359,7 +22559,12 @@ function mountAnimator(body, headerActions, opts) {
     const escA = _ctEsc;
     if (z.typ === "wert") {
       const live = z.bezug === "live";
-      const f = _ovCat(live ? "live" : "totals").find(x => x.id === z.feld);
+      let f = _ovCat(live ? "live" : "totals").find(x => x.id === z.feld);
+      // 01.11.2026 — Ersatzfeld, wenn das eigene fehlt (z. B. Höhe → Anteil der Strecke bei Tracks ohne Höhen)
+      if ((!f || !_ovAvail(f.req)) && z.ersatz) {
+        const f2 = _ovCat(live ? "live" : "totals").find(x => x.id === z.ersatz);
+        if (f2 && _ovAvail(f2.req)) { f = f2; z = Object.assign({}, z, { feld: z.ersatz, label: null }); }
+      }
       if (!f || !_ovAvail(f.req)) return "";
       let wert = _ovFieldValue(z.feld), sv = "";
       if (!live) {
@@ -22381,6 +22586,30 @@ function mountAnimator(body, headerActions, opts) {
       const gr = (+z.gr > 0 && +z.gr !== 1) ? ` style="font-size:${+z.gr}em"` : "";   // 02.10.2026 Größe je Zeile
       return `<div class="ct-z ct-text" data-f="${escA(z.id)}"${gr}>${txt || "&nbsp;"}</div>`;
     }
+    if (z.typ === "linie") {
+      return `<div class="ct-z ct-linie" data-f="${escA(z.id)}" style="width:${z.b}cqw;height:${z.h}cqh;background:${z.farbe || c.akzent}"></div>`;
+    }
+    if (z.typ === "fortschritt" || (z.typ === "diagramm" && z.art === "hoehe" && !_ovHasEle())) {
+      // 01.11.2026 — Strecke als Balken; auch Ersatz für das Höhenprofil, wenn der Track keine Höhen hat
+      // (lieber ehrlicher Fortschritt als ein erfundenes Profil)
+      const fz = z.typ === "fortschritt" ? z : { b: z.b, h: 0.3, punkt: true, enden: true, farbe: z.linienfarbe };
+      const fa = fz.farbe || c.akzent, gr = fz.grund || _ovHexRgba(c.textfarbe || "#ffffff", 0.3);
+      const p = Math.round(_chartFracToDist(_ctLetztFrac) * 1000) / 10;
+      return `<div class="ct-z ct-fort${fz.enden ? " mit-enden" : ""}" data-f="${escA(z.id)}" style="width:${fz.b}cqw">`
+        + (fz.enden ? `<span class="ct-fort-e">${_ctEsc(t("container.fort.start", "START"))}</span>` : "")
+        + `<div class="ct-fort-bahn" style="height:${Math.max(0.05, fz.h)}cqh;background:${gr}"><i style="width:${p}%;background:${fa}"></i>`
+        + (fz.punkt ? `<b style="left:${p}%;background:${fa}"></b>` : "") + `</div>`
+        + (fz.enden ? `<span class="ct-fort-e">${_ctEsc(t("container.fort.ziel", "ZIEL"))}</span>` : "") + `</div>`;
+    }
+    if (z.typ === "ring") {
+      const fa = z.farbe || c.akzent, gr = z.grund || c.textfarbe || "#ffffff";
+      const p = Math.round(_chartFracToDist(_ctLetztFrac) * 100), U = 326.73, sw = Math.max(0.5, z.dicke) * 1.2;
+      return `<div class="ct-z ct-ring" data-f="${escA(z.id)}" style="width:${z.d}cqmin;height:${z.d}cqmin">`
+        + `<svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="${gr}" stroke-opacity="0.22" stroke-width="${(sw * 0.6).toFixed(2)}"/>`
+        + `<circle class="ct-ring-i" cx="60" cy="60" r="52" fill="none" stroke="${fa}" stroke-width="${sw.toFixed(2)}" stroke-dasharray="${(p / 100 * U).toFixed(1)} ${U}" transform="rotate(-90 60 60)"/></svg>`
+        + (z.text ? `<div class="ct-ring-t"><strong><span class="ct-ring-p">${p}</span><em>%</em></strong><small>${_ctEsc(t("container.ring.text", "DER STRECKE"))}</small></div>` : "")
+        + `</div>`;
+    }
     if (z.typ === "diagramm") {
       const box = `width:${z.b}cqw;height:${z.h}cqh;`;
       if (z.art === "daten") {
@@ -22392,23 +22621,28 @@ function mountAnimator(body, headerActions, opts) {
           + `<svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" class="ct-ueb-svg">`
           // Strichstärken in Kästchen-Einheiten (1000 = Kantenlänge) → wachsen mit der Größe der Karte
           + `<path class="ct-ueb-bg ct-ueb-schatten" d="" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>`
-          + `<path class="ct-ueb-bg" d="" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>`
+          + `<path class="ct-ueb-bg" d="" fill="none" stroke="${_ovHexRgba(c.textfarbe || "#ffffff", 0.9)}" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>`
           + `<path class="ct-ueb-line" d="" fill="none" stroke="${lc}" stroke-width="19" stroke-linejoin="round" stroke-linecap="round"/>`
           + `<circle class="ct-ueb-dot" cx="0" cy="0" r="30" fill="#ffffff" stroke="${lc}" stroke-width="14"/></svg></div>`;
       }
       const lc = z.linienfarbe || currentLineColor();
       const gid = "ctg_" + String(z.id).replace(/[^A-Za-z0-9_]/g, "");
       // 05.10.2026 (Gesamt-Looks) — Hintergrundkurve + Etappenmarken in der Textfarbe (vorher festes Weiß: auf hellen Looks unsichtbar)
-      return `<div class="ct-z ct-dia ct-hoehe" data-f="${escA(z.id)}" data-bereich="${z.bereich}" data-farbe="${escA(c.textfarbe || "#ffffff")}" style="${box}">`
+      // 01.11.2026 (Marc: Höhenprofil in jedem Stil, lesbar) — feines Profil ohne Fläche: Rest deutlicher, Linie kräftiger,
+      // mit Lesbarkeit (Schatten/Kontur) ein leichter Schatten, damit es sich vom Gelände abhebt
+      const fein = z.fuellung === false, schutz = c.textschutz && c.textschutz !== "aus" && c.textschutz !== "weich";
+      return `<div class="ct-z ct-dia ct-hoehe" data-f="${escA(z.id)}" data-bereich="${z.bereich}" data-farbe="${escA(c.textfarbe || "#ffffff")}" style="${box}${schutz ? "filter:drop-shadow(0 0 1.5px rgba(10,18,22,0.85)) drop-shadow(0 1px 3px rgba(10,18,22,0.5));" : ""}">`
         + `<svg viewBox="0 0 1000 120" preserveAspectRatio="none" class="ct-ele-svg"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`
         + `<stop offset="0%" stop-color="${lc}" stop-opacity="0.55"/><stop offset="100%" stop-color="${lc}" stop-opacity="0.02"/></linearGradient></defs>`
-        + `<polyline class="ct-ele-bg" points="" fill="none" stroke="${escA(c.textfarbe || "#ffffff")}" stroke-opacity="0.3" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`
+        + `<polyline class="ct-ele-bg" points="" fill="none" stroke="${escA(c.textfarbe || "#ffffff")}" stroke-opacity="${fein ? 0.6 : 0.3}" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>`
         + `<g class="ct-ele-marken"></g>`
-        + `<polygon class="ct-ele-fill" points="" fill="url(#${gid})"/>`
-        + `<polyline class="ct-ele-line" points="" fill="none" stroke="${lc}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`
+        + (z.raster ? `<g class="ct-ele-raster"></g>` : "")
+        + (z.fuellung === false ? "" : `<polygon class="ct-ele-fill" points="" fill="url(#${gid})"/>`)   // 01.11.2026 — feines Profil ohne Fläche
+        + `<polyline class="ct-ele-line" points="" fill="none" stroke="${lc}" stroke-width="${fein ? 2.4 : 2.2}"${fein ? ' vector-effect="non-scaling-stroke"' : ""} stroke-linejoin="round" stroke-linecap="round"/>`
         // 29.10.2026 (Marc: „ein Ei statt eines runden Punkts“) — das Profil ist mit preserveAspectRatio="none" gestreckt; der
         // Punkt ist deshalb eine Ellipse, deren Breite _ctHoeheAt aus der Kastengröße ausgleicht, Rand ohne Streckung
-        + `<ellipse class="ct-ele-dot" cx="0" cy="0" rx="4.5" ry="4.5" fill="#ffffff" stroke="${lc}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></div>`;
+        + `<ellipse class="ct-ele-dot" cx="0" cy="0" rx="4.5" ry="4.5" fill="#ffffff" stroke="${lc}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`
+        + (z.raster ? `<div class="ct-ele-raster-t"></div>` : "") + `</div>`;
     }
     if (z.typ === "bild") {
       return `<div class="ct-z ct-bildz" data-f="${escA(z.id)}"><img class="ct-bild" data-bild="${escA(z.pfad)}" alt="" draggable="false" style="width:${z.b}cqw"></div>`;
@@ -22417,11 +22651,50 @@ function mountAnimator(body, headerActions, opts) {
     if (z.typ === "massstab") return `<div class="ct-z ct-mass ov-scale" data-f="${escA(z.id)}"><div class="ov-scale-txt"></div><div class="ov-scale-bar"></div></div>`;
     return "";
   }
+  // 01.11.2026 — Versatz je Zeile (dx/dy in % des Bildes, cqw/cqh der Overlay-Ebene) und Gestaltung je Zeile
+  // (Farbe, Schrift, Stärke, kursiv, Sperrung, Großbuchstaben, Kontur, senkrecht, eigene Fläche) — leer = wie die Einblendung
+  function _ctZeilenStil(c, z) {
+    const S = [];
+    if (z.farbe && z.typ !== "linie" && z.typ !== "fortschritt" && z.typ !== "ring") S.push(`color:${z.farbe}`);
+    if (z.schrift) S.push(`font-family:${OVERLAY_FONT_STACK[z.schrift] || OVERLAY_FONT_STACK.system}`);
+    if (z.gewicht) S.push(`--ct-gewicht:${z.gewicht};font-weight:${z.gewicht}`);
+    if (z.kursiv) S.push("font-style:italic");
+    if (z.sperrung != null) S.push(`letter-spacing:${z.sperrung}em`);
+    if (z.versal === true) S.push("text-transform:uppercase");
+    else if (z.versal === false) S.push("text-transform:none");
+    if (z.kontur) S.push(`color:transparent;-webkit-text-stroke:max(1px, 0.012em) ${z.farbe || c.textfarbe || "#ffffff"};text-shadow:none`
+      + ((c.textschutz && c.textschutz !== "aus") ? ";filter:drop-shadow(0 0 0.012em rgba(10,18,22,0.85)) drop-shadow(0 0.02em 0.05em rgba(10,18,22,0.5))" : ""));
+    if (z.senkrecht) S.push("writing-mode:vertical-rl");
+    if (z.typ !== "text" && z.gr && +z.gr !== 1) S.push(`font-size:${+z.gr}em`);
+    if (z.zh) S.push(`line-height:${z.zh}`);
+    if (z.ausr) S.push(`align-self:${{ l: "flex-start", c: "center", r: "flex-end" }[z.ausr]};text-align:${{ l: "left", c: "center", r: "right" }[z.ausr]}`);
+    if (z.hg_farbe) {
+      S.push(`background:${_ovHexRgba(z.hg_farbe, z.hg_deckkraft == null ? 1 : z.hg_deckkraft)}`);
+      const sp = z.form === "schraeg" ? 0.9 : 0, inn = z.innen == null ? 0.4 : z.innen;
+      S.push(sp ? `padding:${inn}em calc(${inn}em + ${sp}em) ${inn}em ${inn}em` : `padding:${inn}em`);
+      if (sp) S.push(`clip-path:polygon(0 0, calc(100% - ${sp}em) 0, 100% 100%, 0 100%)`);
+    }
+    const tr = [];
+    if (+z.dx || +z.dy) tr.push(`translate(${+z.dx || 0}cqw,${+z.dy || 0}cqh)`);
+    if (z.senkrecht) tr.push("rotate(180deg)");
+    if (tr.length) S.push(`transform:${tr.join(" ")}`);
+    return S.length ? S.join(";") + ";" : "";
+  }
+  function _ctMitVersatz(html, z, c) {
+    const st = _ctZeilenStil(c || {}, z);
+    if (!html || !st) return html;
+    return /^<div class="ct-z[^>]*\sstyle="/.test(html) ? html.replace(/^(<div class="ct-z[^>]*\sstyle=")/, "$1" + st)
+      : html.replace(/^<div class="ct-z/, `<div style="${st}" class="ct-z`);
+  }
   function _ctHtml(c, letzte) {
-    const zeilen = c.zeilen.map(z => _ctZeileHtml(c, z, letzte)).join("");
+    const zeilen = c.zeilen.map(z => _ctMitVersatz(_ctZeileHtml(c, z, letzte), z, c)).join("");
     const hg = c.hg_bild ? `<div class="ct-hgbild" data-bild="${_ctEsc(c.hg_bild)}" style="background-size:${c.hg_bild_modus === "einpassen" ? "contain" : "cover"};opacity:${c.hg_bild_deckkraft}"></div>` : "";
-    const kl = `ct-karte ct-${c.anordnung} ct-bes-${c.beschriftung}${c.gross ? " ct-gross" : ""}${c.groesse === "fest" ? " ct-fest" : ""}${c.vorlage === "info" ? " ct-vl-info" : ""}`;
-    return `<div class="ct" data-ovbox="${_ctEsc(c.id)}" data-ctid="${_ctEsc(c.id)}" style="${_ctLageCss(c)}font-size:${c.schriftgroesse}cqmin;">`
+    const kl = `ct-karte ct-${c.anordnung} ct-bes-${c.beschriftung}${c.gross ? " ct-gross" : ""}${c.groesse === "fest" ? " ct-fest" : ""}${c.vorlage === "info" ? " ct-vl-info" : ""}`
+      + `${c.trenner === "linie" ? " ct-trenner" : ""}${c.verteilen ? " ct-verteilen" : ""}`;
+    // Schatten einer Form (schräg/Pfeil) als Filter außen — clip-path schneidet box-shadow ab
+    const formSchatten = c.schatten && c.form && c.form !== "rechteck" ? "filter:drop-shadow(0 0.35em 0.7em rgba(0,0,0,0.35));" : "";
+    const lp = c.lage === "laufpunkt";
+    return `<div class="ct${lp ? " ct-am-lp" : ""}${c.klebestreifen ? " ct-klebe" : ""}" data-ovbox="${_ctEsc(c.id)}" data-ctid="${_ctEsc(c.id)}" style="${_ctLageCss(c)}font-size:${c.schriftgroesse}cqmin;${formSchatten}">`
       + `<div class="${kl}" style="${_ctKarteCss(c)}">${hg}<div class="ct-inhalt">${zeilen}</div></div></div>`;
   }
   function _ctRendern() {
@@ -22431,6 +22704,8 @@ function mountAnimator(body, headerActions, opts) {
     const v = _ctVerlauf();
     layer.classList.toggle("vl-oben", v.oben.an);
     layer.classList.toggle("vl-unten", v.unten.an);
+    layer.classList.toggle("vl-links", !!(v.links && v.links.an));   // 01.11.2026 — Verlauf von links (Videovorlagen)
+    layer.style.setProperty("--vl-links", String((v.links && v.links.staerke) || 0.4));
     layer.style.setProperty("--vl-oben", String(v.oben.staerke));
     layer.style.setProperty("--vl-unten", String(v.unten.staerke));
     const master = document.getElementById("anim-overlays")?.checked ?? true;
@@ -22477,6 +22752,7 @@ function mountAnimator(body, headerActions, opts) {
       if (!c || !Array.isArray(c.anker) && typeof c.anker !== "string") continue;
       const v = c.anker[0], hz = c.anker[1];
       if (v !== "t" && v !== "b") continue;
+      if (c.lage === "laufpunkt" || c.lage_fest) continue;   // 01.11.2026 — am Laufpunkt bzw. „Lage festhalten“: nie verschieben
       el.style[v === "t" ? "top" : "bottom"] = (+c.y || 0) + "%";   // eingestellte Lage zuerst
       delete el.dataset.gestapelt;
       const w = el.offsetWidth, h = el.offsetHeight;
@@ -22570,6 +22846,8 @@ function mountAnimator(body, headerActions, opts) {
     _ctLetztFrac = Math.max(0, Math.min(1, frac || 0));
     _ctHoeheAt(_ctLetztFrac, false);
     try { _ctKarteAt(_ctLetztFrac, false); } catch (_) {}
+    try { _ctFortschrittAt(_ctLetztFrac); } catch (_) {}
+    try { _ctLaufpunktAt(); } catch (_) {}
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
     const reg = window.__rzInlineCharts || {};
@@ -22579,7 +22857,136 @@ function mountAnimator(body, headerActions, opts) {
       if (typeof fn === "function") { try { fn(df); } catch (_) {} }
     });
   }
+  /** 01.11.2026 — Fortschrittsbalken und -ringe auf den Anteil der Strecke (nach Distanz, nicht nach Punkten). */
+  function _ctFortschrittAt(frac) {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return;
+    const els = layer.querySelectorAll(".ct-fort, .ct-ring");
+    if (!els.length) return;
+    const p = Math.max(0, Math.min(1, _chartFracToDist(frac)));
+    els.forEach(el => {
+      if (el.classList.contains("ct-ring")) {
+        const i = el.querySelector(".ct-ring-i"); if (i) i.setAttribute("stroke-dasharray", `${(p * 326.73).toFixed(1)} 326.73`);
+        const tx = el.querySelector(".ct-ring-p"); if (tx) tx.textContent = String(Math.round(p * 100));
+      } else {
+        const i = el.querySelector(".ct-fort-bahn > i"), b = el.querySelector(".ct-fort-bahn > b");
+        if (i) i.style.width = (p * 100).toFixed(2) + "%";
+        if (b) b.style.left = (p * 100).toFixed(2) + "%";
+      }
+    });
+  }
+  /** 01.11.2026 — Einblendungen „am Laufpunkt“ (Wegweiser, Ortsschild): je Bild an die gezeichnete Stelle des Laufpunkts
+   *  (rzProjektGezeichnet, Gelände wie gezeichnet). Der Anker bleibt am echten Punkt — passt das Schild nicht ins Bild,
+   *  wechselt es die Seite (nie den Anker verschieben). Hinter einem Hang oder außerhalb des Bilds: ausgeblendet.
+   *  Führungslinie und Ring am Punkt liegen in einer eigenen SVG-Ebene. */
+  function _ctLaufpunktAt() {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return;
+    const els = layer.querySelectorAll(":scope > .ct.ct-am-lp");
+    let svg = layer.querySelector(":scope > svg.ct-lp-linien");
+    if (!els.length || !map) { if (svg) svg.innerHTML = ""; return; }
+    const dz = window.__rzDotZuletzt, ll = dz && dz.c;
+    const LW = layer.offsetWidth, LH = layer.offsetHeight;
+    let x = NaN, y = NaN, sicht = 1;
+    if (ll) {
+      try {
+        const q = window.rzProjektGezeichnet ? window.rzProjektGezeichnet(map, ll) : map.project(ll);
+        const k = LW / (map.getContainer().clientWidth || 1);
+        x = q.x * k; y = q.y * k;
+        sicht = window.rzSignSicht ? window.rzSignSicht(map, +ll[0], +ll[1]) : 1;
+      } catch (_) {}
+    }
+    const da = isFinite(x) && isFinite(y) && x >= 0 && x <= LW && y >= 0 && y <= LH && sicht > 0.01;
+    if (!svg) {
+      svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "ct-lp-linien");
+      layer.insertBefore(svg, layer.firstChild);
+    }
+    svg.setAttribute("viewBox", `0 0 ${LW} ${LH}`);
+    let linien = "";
+    const liste = _ctStapelListe || [];
+    let hinder = null;
+    els.forEach(el => {
+      el.classList.toggle("ct-lp-weg", !da);
+      if (!da) return;
+      const c = liste.find(v => v.id === el.getAttribute("data-ctid")) || {};
+      el.style.setProperty("--lp-x", x.toFixed(1) + "px");
+      el.style.setProperty("--lp-y", y.toFixed(1) + "px");
+      // Seite wechseln, wenn das Schild über den Rand ginge (Breite/Höhe ohne Drehung)
+      const w = el.offsetWidth, h = el.offsetHeight, rand = 0.02 * LW;
+      const ox = (+c.x || 0) / 100 * LW, oy = (+c.y || 0) / 100 * LH, an = c.anker || "tl";
+      const ax = an[1] === "l" ? 0 : an[1] === "r" ? -1 : -0.5, ay = an[0] === "t" ? 0 : an[0] === "b" ? -1 : -0.5;
+      let sx = 1, sy = 1;
+      if (c.ausweichen !== false) {
+        // Seite wählen: so wenig wie möglich über den Bildrand und über andere Einblendungen (Titel, Zahlen, Karte …);
+        // große Flächen (Bänder, Papier, Glas) zählen nicht — auf denen darf ein Schild liegen
+        if (!hinder) {
+          const Lr = layer.getBoundingClientRect(), kk = Lr.width / Math.max(1, LW);
+          hinder = [...layer.querySelectorAll(":scope > .ct:not(.ct-am-lp)"), ...document.querySelectorAll("#anim-viewport .rz-bn")].filter(e => e.style.visibility !== "hidden" && parseFloat(e.style.opacity || "1") > 0.05 && e.offsetWidth > 0)
+            .map(e => { const r = e.getBoundingClientRect(); return { l: (r.left - Lr.left) / kk, t: (r.top - Lr.top) / kk, r: (r.right - Lr.left) / kk, b: (r.bottom - Lr.top) / kk }; })
+            .filter(q => (q.r - q.l) * (q.b - q.t) < 0.2 * LW * LH);
+        }
+        const kosten = (sx_, sy_) => {
+          const l = x + sx_ * ox + (sx_ < 0 ? -1 - ax : ax) * w, tp = y + sy_ * oy + (sy_ < 0 ? -1 - ay : ay) * h;
+          let k = 0;
+          k += Math.max(0, rand - l) + Math.max(0, l + w - (LW - rand)) + Math.max(0, rand - tp) + Math.max(0, tp + h - (LH - rand));
+          k *= 50;
+          for (const q of hinder) k += Math.max(0, Math.min(l + w, q.r) - Math.max(l, q.l)) * Math.max(0, Math.min(tp + h, q.b) - Math.max(tp, q.t)) / Math.max(1, w);
+          return k + (sx_ < 0 ? 0.5 : 0) + (sy_ < 0 ? 0.5 : 0);   // bei Gleichstand die eingestellte Seite
+        };
+        let best = Infinity;
+        for (const [a1, a2] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { const k = kosten(a1, a2); if (k < best) { best = k; sx = a1; sy = a2; } }
+      }
+      el.style.setProperty("--lp-sx", String(sx)); el.style.setProperty("--lp-sy", String(sy));
+      el.style.setProperty("--lp-ax", String((sx < 0 ? -1 - ax : ax) * 100));
+      el.style.setProperty("--lp-ay", String((sy < 0 ? -1 - ay : ay) * 100));
+      if (c.fuehrung === false || el.style.visibility === "hidden") return;
+      const op = parseFloat(el.style.opacity || "1");
+      // Führungslinie: vom Punkt schräg zur nächsten Kante des Schilds, das letzte Stück waagerecht
+      const L = x + sx * ox + (sx < 0 ? -1 - ax : ax) * w, T = y + sy * oy + (sy < 0 ? -1 - ay : ay) * h;
+      const kx = (L + w / 2) < x ? L + w : L;   // Schild links vom Punkt → rechte Kante
+      const ky = Math.max(T + 0.15 * h, Math.min(T + h - 0.15 * h, y));
+      const knick = kx + (kx > x ? -1 : 1) * Math.min(0.012 * LW, Math.abs(kx - x) * 0.3);
+      const fa = c.fuehrung_farbe || c.textfarbe || "#ffffff", r = 0.01 * LH, sw = Math.max(1, 0.0014 * LH);
+      linien += `<g opacity="${(0.75 * (isFinite(op) ? op : 1) * Math.min(1, sicht)).toFixed(3)}" stroke="${fa}" fill="none" stroke-width="${sw.toFixed(2)}">`
+        + `<path d="M${x.toFixed(1)},${y.toFixed(1)} L${knick.toFixed(1)},${ky.toFixed(1)} H${kx.toFixed(1)}"/>`
+        + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"/></g>`;
+    });
+    svg.innerHTML = linien;
+  }
+  window.__rzLaufpunktEinblendungen = () => { try { _ctLaufpunktAt(); } catch (_) {} };
   /** Ausschnitt der Höhenreihe (ganze Strecke | laufende Etappe) — wie bisher _ovEleAusschnitt. */
+  /** 01.11.2026 (Wunsch eines iPhone-Testers, Motorrad; wie die iOS-App `Einblendungen.kmRaster`) — Streckenraster im
+   *  Höhenprofil: feine senkrechte Linien in runden Schritten (0,5 · 1 · 2 · 5 · 10 · 20 · 25 · 50 · 100 · 200 · 500 der
+   *  Strecken-Einheit, kleinster Schritt mit höchstens 8 Linien), keine am Start und keine näher als 0,3 Schritte am Ende,
+   *  unter 0,6 Einheiten keine. Die x-Achse läuft über die Punkte → jede Linie über die kumulierte Strecke nachschlagen. */
+  function _ctRasterZeichnen(el, a, xOf, W, H) {
+    const g = el.querySelector(".ct-ele-raster"), tx = el.querySelector(".ct-ele-raster-t");
+    if (!g && !tx) return;
+    if (g) g.innerHTML = ""; if (tx) tx.innerHTML = "";
+    const sr = _ovSeries, n = (_gpxElevations || []).length;
+    if (!sr || !sr.cumDistM || sr.cumDistM.length < 2 || n < 2) return;
+    const m = sr.cumDistM.length;
+    const dist = (i) => sr.cumDistM[m === n ? i : Math.round(i / (n - 1) * (m - 1))] || 0;   // Meter am Profilpunkt i
+    const e = _ovStrecke(), proEinheit = _OV_STRECKE[e] * 1000;
+    const d0 = dist(a.von), gesamt = (dist(a.bis) - d0) / proEinheit;
+    if (!(gesamt >= 0.6)) return;
+    const schritt = [0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 500].find(x => Math.floor(gesamt / x - 1e-9) <= 8) || 500;
+    const farbe = el.getAttribute("data-farbe") || "#ffffff";
+    let linien = "", texte = "", i = a.von;
+    for (let k = 1; k * schritt < gesamt - 0.3 * schritt + 1e-9; k++) {
+      const ziel = d0 + k * schritt * proEinheit;
+      while (i < a.bis && dist(i + 1) < ziel) i++;
+      const da = dist(i), db = dist(Math.min(a.bis, i + 1));
+      const f = db > da ? (ziel - da) / (db - da) : 0;
+      const x = xOf(i) + (xOf(Math.min(a.bis, i + 1)) - xOf(i)) * Math.max(0, Math.min(1, f));
+      linien += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${H}" y2="${(0.08 * H).toFixed(1)}" stroke="${farbe}" stroke-opacity="0.25" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+      const zahl = (k * schritt) % 1 ? String(k * schritt).replace(".", ",") : String(k * schritt);
+      texte += `<span style="left:${(x / W * 100).toFixed(2)}%">${_ctEsc(zahl + " " + _ovStreckeKurz(e))}</span>`;
+    }
+    if (g) g.innerHTML = linien;
+    if (tx) tx.innerHTML = texte;
+  }
   function _ctEleAusschnitt(idx, bereich) {
     const n = (_gpxElevations || []).length;
     const alles = { von: 0, bis: Math.max(0, n - 1), name: "", marken: [] };
@@ -22660,6 +23067,7 @@ function mountAnimator(body, headerActions, opts) {
         el.__ctKey = key;
         const bg = el.querySelector(".ct-ele-bg");
         if (bg) bg.setAttribute("points", teil.map((e, i) => `${xOf(a.von + i).toFixed(1)},${yOf(e).toFixed(1)}`).join(" "));
+        try { _ctRasterZeichnen(el, a, xOf, W, H); } catch (e) { applog("warn", "[profil] Streckenraster: " + e); }
         const mk = el.querySelector(".ct-ele-marken");
         if (mk) mk.innerHTML = a.marken.map(i => `<line x1="${xOf(i).toFixed(1)}" x2="${xOf(i).toFixed(1)}" y1="0" y2="${H}" stroke="${el.getAttribute("data-farbe") || "#ffffff"}" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="3 3"/>`).join("");
       }
@@ -22716,9 +23124,117 @@ function mountAnimator(body, headerActions, opts) {
         + `<button type="button" class="ct-knopf ct-weg" title="${_ctEsc(t("container.loeschen", "Löschen"))}">✕</button></div>`).join("")
       : `<div class="muted-note">${t("container.leer", "Noch keine Einblendung — oben eine Vorlage wählen.")}</div>`;
   }
+  // ── 01.11.2026 — Videovorlagen (ui/js/videovorlagen.js) und eigene Vorlagen im Animator ──
+  var _ctVvEigene;   // var + ohne Wert: _ctListeBinden läuft beim Aufbau, bevor diese Zeile erreicht ist
+  function _ctVvOptionenZeichnen() {
+    const sel = document.getElementById("ct-vv"); if (!sel) return;
+    const VV = window.rzVideoVorlagen ? window.rzVideoVorlagen.LISTE : [];
+    sel.innerHTML = `<option value="">${_ctEsc(t("vv.anwenden", "Videovorlage anwenden …"))}</option>`
+      + `<optgroup label="${_ctEsc(t("vv.gruppe_fertig", "Vorlagen"))}">${VV.map(v => `<option value="${v.id}">${_ctEsc(v.nr + " · " + t("vv.name." + v.id, v.name))}</option>`).join("")}</optgroup>`
+      + ((_ctVvEigene || []).length ? `<optgroup label="${_ctEsc(t("vv.gruppe_eigen", "Eigene"))}">${_ctVvEigene.map(v => `<option value="eigen:${_ctEsc(v.id)}">★ ${_ctEsc(v.name)}</option>`).join("")}</optgroup>` : "");
+  }
+  async function _ctVvEigeneLaden() {
+    try { const r = await api().videovorlagen_eigen(); _ctVvEigene = (r && r.liste) || []; } catch (e) { _ctVvEigene = []; applog("warn", "[videovorlage] eigene laden: " + e); }   // warte-ok: Einstellungen, sofort
+    _ctVvOptionenZeichnen();
+  }
+  /** Titel des Projekts: Text der ersten Titel-Einblendung, sonst der Name der Tour. */
+  function _ctProjektTitel() {
+    const ti = _ctListe().find(c => c.vorlage === "titel" && c.zeilen.some(z => z.typ === "text" && z.text));
+    const z = ti && ti.zeilen.find(x => x.typ === "text" && x.text && x.text.length > 1 && x.text === x.text.trim() && !/^[A-ZÄÖÜ ·]+$/.test(x.text));
+    return (z && z.text) || (_gpxStats && _gpxStats.name) || t("container.v.titel_text", "Meine Tour");
+  }
+  function _ctFormatSchluessel() {
+    const { W, H } = _ctFormat(), r = W / Math.max(1, H);
+    const k = [["16:9", 16 / 9], ["9:16", 9 / 16], ["1:1", 1], ["4:5", 0.8], ["4:3", 4 / 3], ["21:9", 21 / 9]];
+    return k.reduce((b, x) => Math.abs(x[1] - r) < Math.abs(b[1] - r) ? x : b)[0];
+  }
+  /** Einen ganzen Einstellungs-Block anwenden: EIN ⌘Z-Schritt über applyState des Undo-Controllers — dasselbe
+   *  Nachziehen wie bei Undo/Redo, und die gebundenen Regler schieben dabei keine eigenen Schritte dazwischen. */
+  function _animBlockAnwenden(patch, label) {
+    const vorher = _animUndoCtrl ? null : JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {}));
+    const snap = (() => { try { return JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {})); } catch (_) { return {}; } })();
+    try { if (_activeProject) snap.__signs = JSON.parse(JSON.stringify((Array.isArray(_activeProject[_SIGNS_KEY]) ? _activeProject[_SIGNS_KEY] : []).map(x => { const o = { ...x }; delete o._imgEl; delete o.thumb; return o; }))); } catch (_) {}
+    const neu = Object.assign(JSON.parse(JSON.stringify(snap)), patch);
+    if (_animUndoCtrl && _animUndoCtrl.applyState) { _animUndoCtrl.applyState(neu, label); window.__rzLastUndoEl = null; }
+    else { try { window.rzWriteModuleSettings(_MODKEY, Object.assign(vorher, patch)); renderOverlayPreview(); } catch (_) {} }
+    try { _ovTimingBoxen = null; _ctListeZeichnen(); } catch (e) { applog("warn", "[videovorlage] Liste: " + e); }
+    try { if (window.__rzCtVerlaufSync) window.__rzCtVerlaufSync(); } catch (_) {}
+  }
+  function _ctVvAnwenden(wert) {
+    const C = window.rzContainer;
+    if (!C || !wert) return;
+    const a = (_activeProject && _activeProject[_MODKEY]) || {};
+    const behalten = _ctListe().filter(c => c.vorlage === "foto");   // Bild-im-Bild-Fotos bleiben
+    let patch = null, name = "";
+    if (wert.startsWith("eigen:")) {
+      const E = (_ctVvEigene || []).find(v => v.id === wert.slice(6));
+      if (!E || !E.daten) return;
+      name = E.name;
+      const titel = _ctProjektTitel(), alt = String(E.daten.titel_alt || "");
+      const liste = (E.daten.container || []).map(c => {
+        const k = JSON.parse(JSON.stringify(c));
+        k.id = C.neueId("c");
+        k.zeilen = (k.zeilen || []).map(z => Object.assign(z, { id: C.neueId("z") }, z.typ === "text" && alt && z.text === alt ? { text: titel } : {}));
+        return C.normalisieren(k);
+      });
+      patch = Object.assign({}, E.daten.animator || {}, { container: liste.concat(behalten), container_v: 1 });
+      if (E.daten.verlauf) patch.verlauf = E.daten.verlauf;
+    } else {
+      const R = window.rzVideoVorlagen && window.rzVideoVorlagen.bauen(wert, {
+        titel: _ctProjektTitel(), unter: "", kicker: "", format: _ctFormatSchluessel(), t,
+        intro_s: +a.intro_s || 0, hold_s: +a.hold_s || 0, logo: { an: true, anker: "tc" },
+      });
+      if (!R) return;
+      name = t("vv.name." + wert, (window.rzVideoVorlagen.LISTE.find(v => v.id === wert) || {}).name || wert);
+      patch = Object.assign({}, R.animator, { container: R.container.concat(behalten), container_v: 1, verlauf: R.verlauf, videovorlage: wert });
+    }
+    _ctEditorZu();
+    _animBlockAnwenden(patch, t("vv.angewendet_undo", "Videovorlage"));
+    applog("info", `[videovorlage] ${wert} angewendet (${patch.container.length} Einblendungen)`);
+    toast(t("vv.angewendet", "Videovorlage „{name}“ angewendet — ⌘Z holt den vorigen Stand zurück.", { name }), "success", 3500);
+  }
+  async function _ctVvMerken() {
+    // erster Klick: Namensfeld zeigen; zweiter Klick (oder Enter): merken
+    const ein = document.getElementById("ct-vv-name");
+    if (ein && ein.hidden) { ein.hidden = false; ein.focus(); return; }
+    const name = ((ein && ein.value) || "").trim();
+    if (!name) { if (ein) ein.focus(); toast(t("va.v_name_fehlt", "Bitte einen Namen für die Vorlage eingeben."), "info", 3000); return; }
+    if (ein) { ein.value = ""; ein.hidden = true; }
+    const a = (_activeProject && _activeProject[_MODKEY]) || {};
+    const anim = {};
+    ["line_color", "line_width", "kontur_breite", "kontur_farbe", "ghost_track_enabled", "ghost_track_color", "ghost_track_opacity_pct",
+     "linien_look", "schweif_pct", "highlights_farbe", "highlights_stil", "marker_dot_style", "bergnamen_an"].forEach(k => { if (a[k] !== undefined) anim[k] = a[k]; });
+    try {
+      const r = await api().videovorlage_eigen_speichern(String(name), {   // warte-ok: Einstellungen, sofort
+        container: _ctListe().filter(c => c.vorlage !== "foto"), verlauf: _ctVerlauf(), animator: anim, titel_alt: _ctProjektTitel() });
+      if (r && r.ok) { _ctVvEigene = r.liste || []; _ctVvOptionenZeichnen(); toast(t("vv.gemerkt", "Als Videovorlage gemerkt — auch im Video-Assistenten unter „Stil“."), "success", 3200); }
+      else toast((r && r.error) || t("vv.merken_fehler", "Konnte die Vorlage nicht speichern."), "error", 4000);
+    } catch (e) { toast(String(e), "error", 4000); }
+  }
   function _ctListeBinden() {
     const box = document.getElementById("ct-liste");
     const neuSel = document.getElementById("ct-neu");
+    const vvSel = document.getElementById("ct-vv");
+    if (vvSel) {
+      _ctVvOptionenZeichnen();
+      _ctVvEigeneLaden();
+      vvSel.addEventListener("change", () => {
+        const v = vvSel.value; vvSel.value = "";
+        const weg = document.getElementById("ct-vv-weg");
+        if (weg) { weg.hidden = !v.startsWith("eigen:"); weg.dataset.vv = v.slice(6); }
+        _ctVvAnwenden(v);
+      });
+      document.getElementById("ct-vv-merken")?.addEventListener("click", () => { _ctVvMerken(); });
+      document.getElementById("ct-vv-name")?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); _ctVvMerken(); }
+        else if (e.key === "Escape") { e.target.value = ""; e.target.hidden = true; }
+      });
+      document.getElementById("ct-vv-weg")?.addEventListener("click", async (e) => {
+        const id = e.currentTarget.dataset.vv; if (!id) return;
+        try { const r = await api().videovorlage_eigen_loeschen(id); _ctVvEigene = (r && r.liste) || []; } catch (e) { applog("warn", "[videovorlage] löschen: " + e); }   // warte-ok: Einstellungen, sofort
+        e.currentTarget.hidden = true; _ctVvOptionenZeichnen();
+      });
+    }
     if (neuSel) neuSel.addEventListener("change", () => {
       const v = neuSel.value; neuSel.value = "";
       if (!v || !window.rzContainer) return;
@@ -22764,14 +23280,14 @@ function mountAnimator(body, headerActions, opts) {
     const vl = (teil, feld) => document.getElementById(`ct-vl-${teil}-${feld}`);
     const vlSync = () => {
       const v = _ctVerlauf();
-      for (const teil of ["oben", "unten"]) {
+      for (const teil of ["oben", "unten", "links"]) {
         const an = vl(teil, "an"), st = vl(teil, "st");
         if (an) an.checked = v[teil].an;
         if (st) { st.value = String(Math.round(v[teil].staerke * 100)); st.disabled = !v[teil].an; }
       }
     };
     vlSync();
-    for (const teil of ["oben", "unten"]) {
+    for (const teil of ["oben", "unten", "links"]) {
       const schreib = (label) => {
         const v = _ctVerlauf();
         v[teil] = { an: !!vl(teil, "an")?.checked, staerke: (parseInt(vl(teil, "st")?.value, 10) || 0) / 100 };
@@ -22802,31 +23318,53 @@ function mountAnimator(body, headerActions, opts) {
         _ctAusschalten(x.closest(".ct")?.getAttribute("data-ctid"));
         return;
       }
+      if (e.target.closest(".ct-werkzeug") || e.target.closest('[contenteditable="true"], [contenteditable="plaintext-only"]')) return;
       const el = e.target.closest(".ct");
       if (!el) return;
       const id = el.getAttribute("data-ctid");
       const c = _ctListe().find(x => x.id === id);
       if (!c) return;
+      // 01.11.2026 — gewählte Einblendung: Ecke = Größe ziehen, eine Zeile anfassen = nur sie ziehen
+      if (el.classList.contains("ct-aktiv") && e.target.closest(".ct-ecke")) { _ctGroesseZiehen(e, layer, el, c); return; }
+      const zEl = e.target.closest(".ct-z");
+      // erst Zeile anklicken (pinker Rahmen), dann zieht man nur sie; sonst wie in Keynote die ganze Einblendung
+      if (el.classList.contains("ct-aktiv") && zEl && zEl.classList.contains("ct-z-aktiv") && c.zeilen.length > 1) { _ctZeileZiehen(e, layer, el, c, zEl); return; }
+      const warAktiv = el.classList.contains("ct-aktiv");
       e.preventDefault(); e.stopPropagation();
       const r = layer.getBoundingClientRect();
       const x0 = e.clientX, y0 = e.clientY, cx0 = c.x, cy0 = c.y;
-      const sx = c.anker[1] === "r" ? -1 : 1, sy = c.anker[0] === "b" ? -1 : 1;
+      const rb = el.getBoundingClientRect(), box0 = { l: rb.left - r.left, t: rb.top - r.top, r: rb.right - r.left, b: rb.bottom - r.top };
+      const ziele = _ctZiele(layer, el);
+      // am Laufpunkt zählen x/y immer nach rechts/unten (s. _ctLageCss); gespiegelt (--lp-sx) andersherum
+      const lpS = (k) => parseFloat(el.style.getPropertyValue(k)) || 1;
+      const sx = c.lage === "laufpunkt" ? lpS("--lp-sx") : c.anker[1] === "r" ? -1 : 1, sy = c.lage === "laufpunkt" ? lpS("--lp-sy") : c.anker[0] === "b" ? -1 : 1;
       let bewegt = false, nx = cx0, ny = cy0;
       const undoKey = "ct-zieh:" + id + ":" + Date.now();
+      const lpVars = ["--lp-x", "--lp-y", "--lp-sx", "--lp-sy", "--lp-ax", "--lp-ay"].map(k => [k, el.style.getPropertyValue(k)]);
       const move = (ev) => {
-        const dx = (ev.clientX - x0) / Math.max(1, r.width) * 100, dy = (ev.clientY - y0) / Math.max(1, r.height) * 100;
         if (!bewegt && Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) < 3) return;
         bewegt = true;
-        const rast = (v) => { const q = Math.round(v); return Math.abs(v - q) < 0.35 ? q : Math.round(v * 10) / 10; };
-        nx = rast(cx0 + sx * dx); ny = rast(cy0 + sy * dy);
-        if (c.anker[1] === "c" && Math.abs(nx) < 0.8) nx = 0;
-        if ((c.anker[0] === "m" || c.anker === "cc") && Math.abs(ny) < 0.8) ny = 0;
+        let mx = ev.clientX - x0, my = ev.clientY - y0;
+        // 01.11.2026 (Marc: „spezieller Einraster … gleiche Höhe wie andere … richtig die Mitte“) — Hilfslinien, ⌘ = frei
+        if (window.rzEinrasten && !ev.metaKey) {
+          const rr = window.rzEinrasten.rechnen({ box: { l: box0.l + mx, r: box0.r + mx, t: box0.t + my, b: box0.b + my }, ziele, rahmen: { w: r.width, h: r.height }, schwelle: 6 });
+          mx += rr.dx; my += rr.dy; window.rzEinrasten.zeichnen(layer, Object.assign(rr, { k: _ctEbeneK(layer) }));
+        } else if (window.rzEinrasten) window.rzEinrasten.weg(layer);
+        const dx = mx / Math.max(1, r.width) * 100, dy = my / Math.max(1, r.height) * 100;
+        nx = Math.round((cx0 + sx * dx) * 100) / 100; ny = Math.round((cy0 + sy * dy) * 100) / 100;
         const probe = Object.assign({}, c, { x: nx, y: ny });
         el.style.cssText = _ctLageCss(probe) + `font-size:${c.schriftgroesse}cqmin;`;
+        lpVars.forEach(([k, v]) => { if (v) el.style.setProperty(k, v); });   // am Laufpunkt: Lage des Punkts behalten
       };
       const up = () => {
         window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up);
+        if (window.rzEinrasten) window.rzEinrasten.weg(layer);
         if (bewegt) _ctAendern(id, (x) => { x.x = nx; x.y = ny; }, t("container.verschieben", "Einblendung verschieben"), undoKey);
+        else if (warAktiv && zEl && c.zeilen.length > 1) {   // 01.11.2026 — Klick auf eine Zeile der gewählten Einblendung: Zeile wählen
+          _ctZeileAktiv = zEl.getAttribute("data-f");
+          el.querySelectorAll(".ct-z-aktiv").forEach(x => x.classList.remove("ct-z-aktiv")); zEl.classList.add("ct-z-aktiv");
+          _ctWerkzeugSetzen();
+        }
         else _ctEditorOeffnen(id);
       };
       window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
@@ -22838,8 +23376,169 @@ function mountAnimator(body, headerActions, opts) {
       const el = e.target.closest(".ct");
       if (!el) return;
       e.preventDefault(); e.stopPropagation();
-      _ctTextBearbeiten(el.getAttribute("data-ctid"), e.target.closest(".ct-text")?.getAttribute("data-f") || "");
+      // 01.11.2026 — Textzeile ohne Platzhalter: gleich hier tippen; mit {werten}: wie bisher im Editor
+      const tEl = e.target.closest(".ct-text"), id = el.getAttribute("data-ctid");
+      const c = _ctListe().find(x => x.id === id), z = c && tEl ? c.zeilen.find(q => q.id === tEl.getAttribute("data-f")) : null;
+      if (z && z.typ === "text" && !/\{[a-z_:0-9]+\}/.test(z.text || "")) { _ctTippen(c, z, tEl); return; }
+      _ctTextBearbeiten(id, tEl?.getAttribute("data-f") || "");
     }, true);
+  }
+  // ── 01.11.2026 Direkt-Editor: Ziehen einzelner Zeilen, Größe an der Ecke, Werkzeugleiste, Tippen in der Vorschau ──
+  let _ctZeileAktiv = null;   // gewählte Zeile der gewählten Einblendung (Größe −/+ wirkt dann auf sie)
+  /** Vergrößerung der Vorschau (die Ebene ist auf die Videogröße skaliert): Bildschirm-px je Ebenen-px */
+  function _ctEbeneK(layer) { return (layer.getBoundingClientRect().width / Math.max(1, layer.offsetWidth)) || 1; }
+  /** Rechtecke der übrigen sichtbaren Einblendungen und Zeilen (Bildschirm-px relativ zur Ebene) — Ziele fürs Einrasten */
+  function _ctZiele(layer, bewegt) {
+    const L = layer.getBoundingClientRect(), out = [];
+    layer.querySelectorAll(".ct, .ct .ct-z").forEach(x => {
+      if (x === bewegt || x.contains(bewegt) || bewegt.contains(x)) return;
+      const ct = x.closest(".ct");
+      if (!ct || +getComputedStyle(ct).opacity < 0.05) return;
+      const r = x.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) return;
+      out.push({ l: r.left - L.left, t: r.top - L.top, r: r.right - L.left, b: r.bottom - L.top });
+    });
+    return out;
+  }
+  function _ctZeileZiehen(e, layer, el, c, zEl) {
+    const zid = zEl.getAttribute("data-f"), z = c.zeilen.find(x => x.id === zid);
+    if (!z) return;
+    e.preventDefault(); e.stopPropagation();
+    const L = layer.getBoundingClientRect(), r0 = zEl.getBoundingClientRect();
+    const box0 = { l: r0.left - L.left, t: r0.top - L.top, r: r0.right - L.left, b: r0.bottom - L.top };
+    const dx0 = +z.dx || 0, dy0 = +z.dy || 0, x0 = e.clientX, y0 = e.clientY;
+    const ziele = _ctZiele(layer, zEl);
+    let bewegt = false, ndx = dx0, ndy = dy0;
+    _ctZeileAktiv = zid;
+    el.querySelectorAll(".ct-z-aktiv").forEach(x => x.classList.remove("ct-z-aktiv")); zEl.classList.add("ct-z-aktiv");
+    const move = (ev) => {
+      let mx = ev.clientX - x0, my = ev.clientY - y0;
+      if (!bewegt && Math.abs(mx) + Math.abs(my) < 3) return;
+      bewegt = true;
+      if (window.rzEinrasten && !ev.metaKey) {
+        const rr = window.rzEinrasten.rechnen({ box: { l: box0.l + mx, r: box0.r + mx, t: box0.t + my, b: box0.b + my }, ziele, rahmen: { w: L.width, h: L.height }, schwelle: 6 });
+        mx += rr.dx; my += rr.dy; window.rzEinrasten.zeichnen(layer, Object.assign(rr, { k: _ctEbeneK(layer) }));
+      } else if (window.rzEinrasten) window.rzEinrasten.weg(layer);
+      ndx = Math.round((dx0 + mx / Math.max(1, L.width) * 100) * 100) / 100;
+      ndy = Math.round((dy0 + my / Math.max(1, L.height) * 100) * 100) / 100;
+      zEl.style.transform = `translate(${ndx}cqw,${ndy}cqh)`;
+    };
+    const up = () => {
+      window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up);
+      if (window.rzEinrasten) window.rzEinrasten.weg(layer);
+      if (bewegt) _ctAendern(c.id, (x) => { const zz = x.zeilen.find(q => q.id === zid); if (zz) { zz.dx = ndx; zz.dy = ndy; } },
+        t("container.zeile_verschieben", "Zeile verschieben"), "ct-zeile:" + zid + ":" + Date.now(), true);
+      _ctWerkzeugSetzen();
+    };
+    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+  }
+  function _ctGroesseZiehen(e, layer, el, c) {
+    e.preventDefault(); e.stopPropagation();
+    const rb = el.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+    const d0 = Math.max(10, Math.hypot(x0 - rb.left, y0 - rb.top)), s0 = +c.schriftgroesse || 2;
+    let s = s0, bewegt = false;
+    const move = (ev) => {
+      bewegt = true;
+      s = Math.round(Math.max(0.5, Math.min(30, s0 * Math.hypot(ev.clientX - rb.left, ev.clientY - rb.top) / d0)) * 100) / 100;
+      el.style.fontSize = s + "cqmin";
+    };
+    const up = () => {
+      window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up);
+      if (bewegt) _ctAendern(c.id, (x) => { x.schriftgroesse = s; }, t("container.groesse_ziehen", "Größe ändern"), "ct-gr:" + c.id + ":" + Date.now(), true);
+    };
+    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+  }
+  /** Doppelklick auf eine Textzeile: direkt in der Vorschau tippen. Enter = fertig (⇧Enter = neue Zeile), Esc = verwerfen. */
+  function _ctTippen(c, z, tEl) {
+    const alt = z.text || "";
+    tEl.textContent = alt;
+    try { tEl.contentEditable = "plaintext-only"; } catch (_) {}
+    if (tEl.contentEditable !== "plaintext-only") tEl.contentEditable = "true";
+    tEl.classList.add("ct-tippen");
+    tEl.focus();
+    try { const sel = window.getSelection(), rg = document.createRange(); rg.selectNodeContents(tEl); sel.removeAllRanges(); sel.addRange(rg); } catch (_) {}
+    let fertig = false;
+    const ende = (behalten) => {
+      if (fertig) return; fertig = true;
+      tEl.removeEventListener("keydown", taste); tEl.removeEventListener("blur", weg);
+      tEl.contentEditable = "false"; tEl.classList.remove("ct-tippen");
+      const neu = String(tEl.innerText || "").replace(/\u00a0/g, " ").replace(/\n+$/, "").slice(0, 400);
+      if (behalten && neu !== alt) _ctAendern(c.id, (x) => { const zz = x.zeilen.find(q => q.id === z.id); if (zz) zz.text = neu; }, t("container.text_tippen", "Text ändern"));
+      else _ctRendern();
+    };
+    const taste = (ev) => {
+      ev.stopPropagation();
+      if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); ende(true); }
+      else if (ev.key === "Escape") { ev.preventDefault(); ende(false); }
+    };
+    const weg = () => ende(true);
+    tEl.addEventListener("keydown", taste); tEl.addEventListener("blur", weg);
+  }
+  /** Werkzeugleiste über der gewählten Einblendung + Größen-Ecke; nach jedem Neuzeichnen (_ctXSetzen) */
+  function _ctWerkzeugSetzen() {
+    const layer = document.getElementById("anim-overlay-preview"); if (!layer) return;
+    layer.querySelectorAll(".ct-werkzeug, .ct-ecke").forEach(x => x.remove());
+    if (!_ctEditId || window.__rzRenderMode) return;
+    const el = layer.querySelector(`.ct[data-ctid="${CSS.escape(_ctEditId)}"]`);
+    const c = _ctListe().find(x => x.id === _ctEditId);
+    if (!el || !c) return;
+    const ecke = document.createElement("span"); ecke.className = "ct-ecke"; ecke.title = t("container.groesse_ziehen", "Größe ändern");
+    el.appendChild(ecke);
+    if (_ctZeileAktiv) el.querySelector(`.ct-z[data-f="${CSS.escape(_ctZeileAktiv)}"]`)?.classList.add("ct-z-aktiv");
+    const zAkt = _ctZeileAktiv ? c.zeilen.find(z => z.id === _ctZeileAktiv) : null;
+    const SCHR = [["system", t("animator.overlay.font_system", "System (Standard)")], ["cormorant", "Cormorant Garamond"], ["manrope", "Manrope"], ["plex", "IBM Plex Sans"],
+                  ["nunito", "Nunito"], ["quicksand", "Quicksand"], ["fredoka", "Fredoka"], ["oswald", "Oswald"], ["bebas", "Bebas Neue"], ["plexmono", "IBM Plex Mono"], ["caveat", "Caveat"]];
+    const STI = [["kasten", t("container.stil.kasten", "Kasten")], ["frei", t("container.stil.frei", "Frei")], ["plakette", t("container.stil.plakette", "Plakette")],
+                 ["ohne", t("container.stil.ohne", "ohne")], ["editorial", t("container.stil.editorial", "Editorial")]];
+    const w = document.createElement("div");
+    w.className = "ct-werkzeug";
+    w.innerHTML = `<select data-wz="schrift" title="${_ctEsc(t("ct_wz.schrift", "Schrift"))}">${SCHR.map(([k, n]) => _ctOpt(k, c.schrift, n)).join("")}</select>`
+      + `<button type="button" data-wz="kleiner" title="${_ctEsc(zAkt ? t("ct_wz.zeile_kleiner", "Diese Zeile kleiner") : t("ct_wz.kleiner", "Kleiner"))}">A−</button>`
+      + `<button type="button" data-wz="groesser" title="${_ctEsc(zAkt ? t("ct_wz.zeile_groesser", "Diese Zeile größer") : t("ct_wz.groesser", "Größer"))}">A+</button>`
+      + `<input type="color" data-wz="farbe" value="${_ctEsc(c.textfarbe || "#ffffff")}" title="${_ctEsc(t("ct_wz.farbe", "Textfarbe"))}">`
+      + `<button type="button" data-wz="schatten" class="${(c.textschutz || "aus") !== "aus" ? "on" : ""}" title="${_ctEsc(t("ct_wz.schatten", "Textschatten"))}">S</button>`
+      + `<select data-wz="stil" title="${_ctEsc(t("ct_wz.stil", "Stil"))}">${STI.map(([k, n]) => _ctOpt(k, c.stil, n)).join("")}</select>`
+      + (zAkt && (+zAkt.dx || +zAkt.dy) ? `<button type="button" data-wz="zurueck" title="${_ctEsc(t("ct_wz.zeile_zurueck", "Zeile wieder an ihren Platz"))}">↺</button>` : "");
+    layer.appendChild(w);
+    // über die Einblendung setzen (Ebenen-px; die Ebene ist ggf. skaliert)
+    const k = _ctEbeneK(layer), L = layer.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const top = (r.top - L.top) / k, links = (r.left - L.left) / k;
+    // die Leiste ist auf Bildschirmgröße zurückskaliert (1/k): ihre Maße in Ebenen-px sind offset… / k
+    const wB = w.offsetWidth / k, wH = w.offsetHeight / k, luft = 6 / k;
+    w.style.left = Math.max(2, Math.min(layer.offsetWidth - wB - 2, links)) + "px";
+    w.style.top = (top - wH - luft >= 0 ? top - wH - luft : (r.bottom - L.top) / k + luft) + "px";
+    w.style.transform = `scale(${(1 / k).toFixed(4)})`; w.style.transformOrigin = "0 0";
+    const aendern = (fn, label) => _ctAendern(c.id, fn, label, "ct-wz:" + c.id + ":" + label, true);
+    w.addEventListener("mousedown", (e) => e.stopPropagation(), true);
+    w.addEventListener("change", (e) => {
+      const f = e.target.getAttribute("data-wz");
+      if (f === "schrift") aendern((x) => { x.schrift = e.target.value; x.schrift_fest = true; }, t("ct_wz.schrift", "Schrift"));
+      else if (f === "farbe") aendern((x) => { x.textfarbe = e.target.value; }, t("ct_wz.farbe", "Textfarbe"));
+      else if (f === "stil") {
+        const liste = JSON.parse(JSON.stringify(_ctListe())); const i = liste.findIndex(x => x.id === c.id); if (i < 0) return;
+        liste[i] = window.rzContainer.stilAnwenden(liste[i], e.target.value);
+        _ctSpeichern(liste, t("container.gr.stil", "Stil"));
+      }
+    });
+    w.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-wz]"); if (!b) return;
+      const f = b.getAttribute("data-wz");
+      const faktor = f === "groesser" ? 1.1 : f === "kleiner" ? 1 / 1.1 : 1;
+      if (faktor !== 1 && zAkt && zAkt.typ === "text") aendern((x) => { const zz = x.zeilen.find(q => q.id === zAkt.id); if (zz) zz.gr = Math.round(Math.max(0.2, Math.min(3, (+zz.gr || 1) * faktor)) * 1000) / 1000; }, t("ct_wz.groesse", "Größe"));
+      else if (faktor !== 1) aendern((x) => { x.schriftgroesse = Math.round(Math.max(0.5, Math.min(30, (+x.schriftgroesse || 2) * faktor)) * 100) / 100; }, t("ct_wz.groesse", "Größe"));
+      else if (f === "schatten") aendern((x) => { const an = (x.textschutz || (x.textschatten ? "weich" : "aus")) !== "aus"; x.textschutz = an ? "aus" : "beides"; x.textschatten = !an; }, t("ct_wz.schatten", "Textschatten"));
+      else if (f === "zurueck" && zAkt) aendern((x) => { const zz = x.zeilen.find(q => q.id === zAkt.id); if (zz) { delete zz.dx; delete zz.dy; } }, t("ct_wz.zeile_zurueck", "Zeile wieder an ihren Platz"));
+    });
+  }
+  /** Editor geöffnet, die Einblendung ist gerade nicht zu sehen (Titel nur am Anfang, Schlusskarte am Ende): Scrubber dorthin */
+  function _ctSichtbarMachen(id) {
+    const c = _ctListe().find(x => x.id === id); if (!c || !window.__rzGeheZuZeit) return;
+    const el = document.querySelector(`#anim-overlay-preview .ct[data-ctid="${CSS.escape(id)}"]`);
+    if (el && +getComputedStyle(el).opacity > 0.3) return;
+    let zs = []; try { zs = _ctZeiten(c); } catch (_) {}
+    if (!zs.length) return;
+    const z = zs[0], t_ = z.an + Math.min(1.0, Math.max(0, (z.aus - z.an) / 2));
+    window.__rzGeheZuZeit(Math.max(0, Math.min(z.aus - 0.05, t_)));
   }
   /** Editor der Einblendung öffnen und das Textfeld der Zeile `zid` (sonst der ersten Textzeile) fokussieren. */
   function _ctTextBearbeiten(id, zid) {
@@ -22870,6 +23569,7 @@ function mountAnimator(body, headerActions, opts) {
   // abschalten kann.“) — ✕ an der gewählten Einblendung; schaltet sie aus wie das Häkchen in der Liste (mit ⌘Z)
   function _ctXSetzen() {
     document.querySelectorAll("#anim-overlay-preview .ct-x").forEach(x => x.remove());
+    try { _ctWerkzeugSetzen(); } catch (e) { applog("warn", "[container] Werkzeugleiste: " + e); }   // 01.11.2026 Direkt-Editor
     if (!_ctEditId || window.__rzRenderMode) return;
     const el = document.querySelector(`#anim-overlay-preview .ct[data-ctid="${CSS.escape(_ctEditId)}"]`);
     if (!el) return;
@@ -22887,14 +23587,17 @@ function mountAnimator(body, headerActions, opts) {
     try { _ctListeZeichnen(); } catch (e) { applog("warn", "[container] Liste nach ✕: " + e); }
   }
   function _ctEditorZu() {
-    _ctEditId = null;
+    _ctEditId = null; _ctZeileAktiv = null;
+    document.querySelectorAll("#anim-overlay-preview .ct-werkzeug, #anim-overlay-preview .ct-ecke").forEach(x => x.remove());
     document.getElementById("ct-editor")?.remove();
     document.querySelectorAll("#anim-overlay-preview .ct-aktiv").forEach(e => e.classList.remove("ct-aktiv"));
     document.querySelectorAll("#anim-overlay-preview .ct-x").forEach(x => x.remove());
     _ctListeZeichnen();
   }
   function _ctEditorOeffnen(id) {
+    if (_ctEditId !== id) _ctZeileAktiv = null;
     _ctEditId = id;
+    try { _ctSichtbarMachen(id); } catch (_) {}   // 01.11.2026 — Titel/Schlusskarte: Scrubber an die Stelle, wo sie stehen
     let p = document.getElementById("ct-editor");
     if (!p) {
       p = document.createElement("div");
@@ -22946,10 +23649,13 @@ function mountAnimator(body, headerActions, opts) {
         + (_OV_STRECKEN_FELDER.has(z.feld) ? `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.strecke_in", "Strecke in"))} <select class="ct-einheit" data-einheit="einheit_strecke">${[["km", t("container.einheit_km", "Kilometer (km)")], ["mi", t("container.einheit_mi", "Meilen (mi)")], ["sm", t("container.einheit_sm", "Seemeilen (sm)")]].map(([v, x]) => _ctOpt(v, _ovStrecke(), x)).join("")}</select></label></div>` : "")
         + (_OV_HOEHEN_FELDER.has(z.feld) ? `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.hoehe_in", "Höhe in"))} <select class="ct-einheit" data-einheit="einheit_hoehe">${[["m", t("container.einheit_m", "Meter (m)")], ["ft", t("container.einheit_ft", "Fuß (ft)")]].map(([v, x]) => _ctOpt(v, _ovHoeheFt() ? "ft" : "m", x)).join("")}</select></label></div>` : "")
         + `<div class="ct-ez-reihe"><input type="text" data-zk="label" placeholder="${_ctEsc(_ovFieldLabel(z.feld))}" value="${_ctEsc(z.label || "")}">`
-        + `<label title="${_ctEsc(t("container.label_aus", "Beschriftung ausblenden"))}"><input type="checkbox" data-zk="label_aus"${z.label_aus ? " checked" : ""}> ${_ctEsc(t("container.aus", "aus"))}</label></div>`;
+        + `<label title="${_ctEsc(t("container.label_aus", "Beschriftung ausblenden"))}"><input type="checkbox" data-zk="label_aus"${z.label_aus ? " checked" : ""}> ${_ctEsc(t("container.aus", "aus"))}</label></div>`
+        // 01.11.2026 — Ersatzfeld, wenn der Track das Feld nicht hat (z. B. keine Höhen → Anteil der Strecke)
+        + `<label title="${_ctEsc(t("container.ersatz_tip", "Wird gezeigt, wenn der Track den Wert nicht hat (z. B. keine Höhen)."))}">${_ctEsc(t("container.ersatz", "Sonst"))} <select data-zk="ersatz">${_ctOpt("", z.ersatz || "", "—")}`
+        + _ovCat(z.bezug === "live" ? "live" : "totals").filter(f => f.id !== z.feld).map(f => _ctOpt(f.id, z.ersatz || "", _ovFieldLabel(f.id))).join("") + `</select></label>`;
     } else if (z.typ === "text") {
       b += `<textarea data-zk="text" rows="2" placeholder="${_ctEsc(t("container.text_ph", "Text — {dist_total} setzt einen Wert ein"))}">${_ctEsc(z.text)}</textarea>`;
-      b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.zeile_groesse", "Größe"))} <input type="number" data-zk="gr_pct" min="20" max="300" step="5" value="${Math.round((+z.gr || 1) * 100)}"> %</label></div>`;
+      b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.zeile_groesse", "Größe"))} <input type="number" data-zk="gr_pct" min="5" max="800" step="5" value="${Math.round((+z.gr || 1) * 100)}"> %</label></div>`;
     } else if (z.typ === "diagramm") {
       const reihen = [["hoehe", t("container.dia.hoehe", "Höhenprofil")], ["karte", t("container.dia.karte", "Übersichtskarte")]]
         .concat((_chartSeries || []).map(s => ["daten:" + s.id, s.label + (s.unit ? " (" + s.unit + ")" : "")]));
@@ -22959,20 +23665,69 @@ function mountAnimator(body, headerActions, opts) {
         + `<label>${_ctEsc(t("container.hoehe", "Höhe"))} <input type="number" data-zk="h" min="2" max="100" step="1" value="${z.h}"> %</label></div>`;
       if (z.art === "hoehe" || z.art === "karte") {
         b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.linie", "Linie"))} <input type="color" data-zk="linienfarbe" value="${_ctEsc(z.linienfarbe || currentLineColor())}"></label>`
+          + (z.art === "hoehe" ? `<label class="chk"><input type="checkbox" data-zk="fuellung"${z.fuellung === false ? "" : " checked"}> ${_ctEsc(t("container.fuellung", "Fläche"))}</label>`
+            + `<label class="chk" title="${_ctEsc(t("container.raster_tip", "Feine Linien mit km- bzw. Meilen-Angabe, damit man sieht, wo der Anstieg liegt."))}"><input type="checkbox" data-zk="raster"${z.raster ? " checked" : ""}> ${_ctEsc(t("container.raster", "Streckenraster"))}</label>` : "")
           + `<button type="button" class="ct-knopf" data-za="linie-weg" title="${_ctEsc(t("container.linie_wie_track", "wie der Track"))}">↺</button>`
           + (_reiseAktiv() ? `<select data-zk="bereich">${_ctOpt("reise", z.bereich, t("animator.overlay.ele_scope_reise", "Ganze Strecke"))}${_ctOpt("etappe", z.bereich, t("animator.overlay.ele_scope_etappe", "Laufende Etappe"))}</select>` : "")
           + `</div>`;
       } else {
         b += `<label><input type="checkbox" data-zk="show_axes"${z.chart.show_axes ? " checked" : ""}> ${_ctEsc(t("animator.charts.axes", "Achsen"))}</label>`;
       }
+    } else if (z.typ === "linie") {
+      b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.breite", "Breite"))} <input type="number" data-zk="b" min="0.1" max="100" step="0.1" value="${z.b}"> %</label>`
+        + `<label>${_ctEsc(t("container.hoehe", "Höhe"))} <input type="number" data-zk="h" min="0.05" max="100" step="0.05" value="${z.h}"> %</label></div>`;
+    } else if (z.typ === "fortschritt") {
+      b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.breite", "Breite"))} <input type="number" data-zk="b" min="2" max="100" step="1" value="${z.b}"> %</label>`
+        + `<label>${_ctEsc(t("container.dicke", "Dicke"))} <input type="number" data-zk="h" min="0.05" max="10" step="0.05" value="${z.h}"> %</label></div>`
+        + `<div class="ct-ez-reihe"><label class="chk"><input type="checkbox" data-zk="punkt"${z.punkt ? " checked" : ""}> ${_ctEsc(t("container.fort.punkt", "Punkt"))}</label>`
+        + `<label class="chk"><input type="checkbox" data-zk="enden"${z.enden ? " checked" : ""}> ${_ctEsc(t("container.fort.enden", "Start und Ziel"))}</label></div>`;
+    } else if (z.typ === "ring") {
+      b += `<div class="ct-ez-reihe"><label>${_ctEsc(t("container.durchmesser", "Durchmesser"))} <input type="number" data-zk="d" min="2" max="80" step="0.5" value="${z.d}"> %</label>`
+        + `<label>${_ctEsc(t("container.dicke", "Dicke"))} <input type="number" data-zk="dicke" min="0.5" max="20" step="0.5" value="${z.dicke}"></label></div>`
+        + `<label class="chk"><input type="checkbox" data-zk="text"${z.text ? " checked" : ""}> ${_ctEsc(t("container.ring.mit_text", "Anteil in der Mitte"))}</label>`;
     } else if (z.typ === "bild") {
       const name = z.pfad === "@lockup-white" ? t("container.logo_gpsstudio", "GPS-Studio-Logo") : z.pfad === "@lockup-dark" ? t("container.logo_gpsstudio", "GPS-Studio-Logo") + " ●" : String(z.pfad || "").split(/[\\/]/).pop();   // Audit D-9: auch Windows-Pfade
       b += `<div class="ct-ez-reihe"><span class="ct-ez-datei">${_ctEsc(name || "—")}</span><button type="button" class="ct-knopf" data-za="bild">🖼</button>`
         + `<button type="button" class="ct-knopf" data-za="logo" title="${_ctEsc(t("container.logo_gpsstudio", "GPS-Studio-Logo"))}">↺</button></div>`
         + `<label>${_ctEsc(t("container.breite", "Breite"))} <input type="number" data-zk="b" min="1" max="100" step="0.5" value="${z.b}"> %</label>`;
     }
-    return kopf + b + `</div></div>`;
+    return kopf + b + _ctZeileGestaltungHtml(z) + `</div></div>`;
   }
+  /** 01.11.2026 (Marc: „alles universell einstellbar“) — Gestaltung einer einzelnen Zeile; leer = wie die Einblendung. */
+  function _ctZeileGestaltungHtml(z) {
+    const offen = !!(z.farbe || z.schrift || z.gewicht || z.kursiv || z.sperrung != null || z.versal != null || z.kontur || z.senkrecht || z.hg_farbe
+      || (z.typ !== "text" && z.gr && +z.gr !== 1) || z.zh || z.ausr);
+    const ohneText = z.typ === "linie" || z.typ === "fortschritt" || z.typ === "ring" || z.typ === "diagramm" || z.typ === "bild";
+    const farbeZ = (k, wert, def) => `<span class="ct-ez-reihe"><input type="color" data-zk="${k}" value="${_ctEsc(wert || def)}"${wert ? "" : ' class="ct-leer"'}>`
+      + (wert ? `<button type="button" class="ct-knopf" data-za="zurueck:${k}" title="${_ctEsc(t("container.wie_einblendung", "wie die Einblendung"))}">↺</button>` : "") + `</span>`;
+    let h = `<details class="ct-mehr ct-zg"${offen ? " open" : ""}><summary>${_ctEsc(t("container.zeile_gestaltung", "Gestaltung dieser Zeile"))}</summary><div class="se-grid">`;
+    h += `<label>${_ctEsc(t(z.typ === "linie" || z.typ === "fortschritt" || z.typ === "ring" ? "container.farbe" : "container.textfarbe", z.typ === "linie" ? "Farbe" : "Textfarbe"))}</label>${farbeZ("farbe", z.farbe, "#ffffff")}`;
+    if (z.typ === "fortschritt" || z.typ === "ring") h += `<label>${_ctEsc(t("container.grund", "Rest"))}</label>${farbeZ("grund", z.grund, "#ffffff")}`;
+    if (!ohneText || z.typ === "ring") {
+      h += `<label>${_ctEsc(t("animator.overlay.font", "Schrift"))}</label><select data-zk="schrift">${_ctOpt("", z.schrift || "", t("container.wie_einblendung", "wie die Einblendung"))}`
+        + _CT_SCHRIFTEN().map(([v, x]) => _ctOpt(v, z.schrift || "", x)).join("") + `</select>`;
+      h += `<label>${_ctEsc(t("container.gewicht", "Stärke"))}</label><select data-zk="gewicht">${_ctOpt("", z.gewicht || "", t("container.wie_einblendung", "wie die Einblendung"))}`
+        + _CT_GEWICHTE().map(([v, x]) => _ctOpt(v, z.gewicht || "", x)).join("") + `</select>`;
+      h += `<label>${_ctEsc(t("container.sperrung", "Sperrung"))}</label><span class="ct-ez-zahl"><input type="number" data-zk="sperrung" min="-0.2" max="1" step="0.01" value="${z.sperrung == null ? "" : z.sperrung}" placeholder="—"><small>em</small></span>`;
+      h += `<label>${_ctEsc(t("container.gross", "Großbuchstaben"))}</label><select data-zk="versal">${_ctOpt("", z.versal == null ? "" : String(z.versal), t("container.wie_einblendung", "wie die Einblendung"))}`
+        + _ctOpt("true", z.versal == null ? "" : String(z.versal), t("container.an", "an")) + _ctOpt("false", z.versal == null ? "" : String(z.versal), t("container.aus", "aus")) + `</select>`;
+      h += `<label></label><span class="ct-ez-reihe"><label class="chk"><input type="checkbox" data-zk="kursiv"${z.kursiv ? " checked" : ""}> ${_ctEsc(t("container.kursiv", "kursiv"))}</label>`
+        + `<label class="chk" title="${_ctEsc(t("container.kontur_tip", "Nur der Umriss der Buchstaben"))}"><input type="checkbox" data-zk="kontur"${z.kontur ? " checked" : ""}> ${_ctEsc(t("container.kontur", "Kontur"))}</label>`
+        + `<label class="chk"><input type="checkbox" data-zk="senkrecht"${z.senkrecht ? " checked" : ""}> ${_ctEsc(t("container.senkrecht", "senkrecht"))}</label></span>`;
+      if (z.typ !== "text") h += `<label>${_ctEsc(t("container.zeile_groesse", "Größe"))}</label><span class="ct-ez-zahl"><input type="number" data-zk="gr_pct" min="5" max="800" step="5" value="${Math.round((+z.gr || 1) * 100)}"><small>%</small></span>`;
+      h += `<label>${_ctEsc(t("container.zeilenhoehe", "Zeilenhöhe"))}</label><span class="ct-ez-zahl"><input type="number" data-zk="zh" min="0.6" max="3" step="0.05" value="${z.zh == null ? "" : z.zh}" placeholder="—"></span>`;
+    }
+    h += `<label>${_ctEsc(t("container.ausrichtung", "Ausrichtung"))}</label><select data-zk="ausr">${_ctOpt("", z.ausr || "", t("container.wie_einblendung", "wie die Einblendung"))}`
+      + _ctOpt("l", z.ausr || "", "⇤") + _ctOpt("c", z.ausr || "", "↔") + _ctOpt("r", z.ausr || "", "⇥") + `</select>`;
+    h += `<label>${_ctEsc(t("container.flaeche", "Fläche"))}</label><span class="ct-ez-reihe">${farbeZ("hg_farbe", z.hg_farbe, "#000000")}`
+      + (z.hg_farbe ? `<input type="range" data-zk="hg_deckkraft" min="0" max="1" step="0.05" value="${z.hg_deckkraft == null ? 1 : z.hg_deckkraft}" title="${_ctEsc(t("container.deckkraft", "Deckkraft"))}">`
+        + `<select data-zk="form">${_ctOpt("rechteck", z.form || "rechteck", t("container.form.rechteck", "eckig"))}${_ctOpt("schraeg", z.form || "rechteck", t("container.form.schraeg", "schräg"))}</select>`
+        + `<span class="ct-ez-zahl"><input type="number" data-zk="innen" min="0" max="5" step="0.05" value="${z.innen == null ? 0.4 : z.innen}"><small>em</small></span>` : "")
+      + `</span>`;
+    return h + `</div></details>`;
+  }
+  const _CT_SCHRIFTEN = () => [["system", t("animator.overlay.font_system", "System (Standard)")], ["nunito", "Nunito"], ["quicksand", "Quicksand"], ["fredoka", "Fredoka"], ["oswald", "Oswald"], ["bebas", "Bebas Neue"], ["plex", "IBM Plex Sans"], ["plexmono", "IBM Plex Mono"], ["caveat", "Caveat (Handschrift)"], ["cormorant", "Cormorant Garamond"], ["manrope", "Manrope"]];
+  const _CT_GEWICHTE = () => [["300", t("container.gewicht.300", "leicht")], ["400", t("container.gewicht.400", "normal")], ["500", t("container.gewicht.500", "mittel")], ["600", t("container.gewicht.600", "halbfett")], ["700", t("container.gewicht.700", "fett")], ["800", t("container.gewicht.800", "extrafett")], ["900", t("container.gewicht.900", "schwarz")]];
   function _ctEditorZeichnen() {
     const p = document.getElementById("ct-editor");
     const c = _ctListe().find(x => x.id === _ctEditId);
@@ -22983,7 +23738,7 @@ function mountAnimator(body, headerActions, opts) {
     const sel = (k, opts) => `<select data-k="${k}">${opts.map(([v, txt]) => _ctOpt(v, c[k], txt)).join("")}</select>`;
     const zahl = (k, min, max, step, einh) => `<span class="ct-ez-zahl"><input type="number" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${c[k]}"><small>${einh}</small></span>`;
     const farb = (k) => `<input type="color" data-k="${k}" value="${_ctEsc(c[k])}">`;
-    const stile = [["kasten", t("container.stil.kasten", "Kasten")], ["frei", t("container.stil.frei", "Frei")], ["plakette", t("container.stil.plakette", "Plakette")], ["ohne", t("container.stil.ohne", "ohne")]];
+    const stile = [["kasten", t("container.stil.kasten", "Kasten")], ["frei", t("container.stil.frei", "Frei")], ["plakette", t("container.stil.plakette", "Plakette")], ["ohne", t("container.stil.ohne", "ohne")], ["editorial", t("container.stil.editorial", "Editorial")]];
     p.innerHTML = `<div class="sign-editor-head" id="ct-editor-kopf"><span>${_ctEsc(t("container.editor", "Einblendung"))}</span>`
       + `<button type="button" class="sign-editor-x" id="ct-editor-x" title="${_ctEsc(t("common.close", "Schließen"))}">✕</button></div>`
       + `<div class="sign-editor-body">`
@@ -22993,15 +23748,16 @@ function mountAnimator(body, headerActions, opts) {
       + `<div class="se-group-title">${_ctEsc(t("container.gr.zeilen", "Zeilen"))}</div>`
       + `<div class="ct-ez-liste">${c.zeilen.map((z, i, a) => _ctZeileEditorHtml(z, i, a.length)).join("")}</div>`
       + `<select id="ct-zeile-neu">${_ctOpt("", "", "＋ " + t("container.zeile_neu", "Zeile hinzufügen"))}`
-      + ["wert", "text", "diagramm", "bild", "nord", "massstab"].map(ty => _ctOpt(ty, "", t("container.z." + ty, ty))).join("") + `</select>`
+      + ["wert", "text", "diagramm", "bild", "nord", "massstab", "linie", "fortschritt", "ring"].map(ty => _ctOpt(ty, "", t("container.z." + ty, ty))).join("") + `</select>`
       + `<div class="se-group-title">${_ctEsc(t("container.name_liste", "Name in der Liste"))}</div>`
       + `<input type="text" data-k="name" value="${_ctEsc(c.name)}" placeholder="${_ctEsc(_ctName(c))}" title="${_ctEsc(t("container.name_liste_tip", "Nur für die Liste der Einblendungen — der Text im Video steht oben unter „Zeilen“."))}">`
       + `<div class="se-group-title">${_ctEsc(t("container.gr.stil", "Stil"))}</div>`
       + `<div class="ct-stile">${stile.map(([v, txt]) => `<button type="button" class="ct-stil${c.stil === v ? " on" : ""}" data-stil="${v}">${_ctEsc(txt)}</button>`).join("")}</div>`
       + `<div class="se-grid">`
       + `<label>${_ctEsc(t("container.anordnung", "Anordnung"))}</label>${sel("anordnung", [["unter", t("container.anordnung.unter", "untereinander")], ["neben", t("container.anordnung.neben", "nebeneinander")]])}`
-      + `<label>${_ctEsc(t("container.beschriftung", "Beschriftung"))}</label>${sel("beschriftung", [["oben", t("container.beschriftung.oben", "über dem Wert")], ["links", t("container.beschriftung.links", "links daneben")], ["aus", t("container.beschriftung.aus", "aus")]])}`
-      + `<label>${_ctEsc(t("animator.overlay.font", "Schrift"))}</label>${sel("schrift", [["system", t("animator.overlay.font_system", "System (Standard)")], ["nunito", "Nunito"], ["quicksand", "Quicksand"], ["fredoka", "Fredoka"], ["oswald", "Oswald"], ["bebas", "Bebas Neue"], ["plex", "IBM Plex Sans"], ["plexmono", "IBM Plex Mono"], ["caveat", "Caveat (Handschrift)"]])}`
+      + `<label>${_ctEsc(t("container.beschriftung", "Beschriftung"))}</label>${sel("beschriftung", [["oben", t("container.beschriftung.oben", "über dem Wert")], ["links", t("container.beschriftung.links", "links daneben")], ["nach", t("container.beschriftung.nach", "klein dahinter")], ["unten", t("container.beschriftung.unten", "unter dem Wert")], ["aus", t("container.beschriftung.aus", "aus")]])}`
+      + `<label>${_ctEsc(t("animator.overlay.font", "Schrift"))}</label>${sel("schrift", _CT_SCHRIFTEN())}`
+      + `<label>${_ctEsc(t("container.gewicht", "Stärke"))}</label><select data-k="gewicht">${_ctOpt("", c.gewicht || "", t("container.gewicht.auto", "automatisch"))}${_CT_GEWICHTE().map(([v, x]) => _ctOpt(v, c.gewicht || "", x)).join("")}</select>`
       + `<label>${_ctEsc(t("container.schriftgroesse", "Schriftgröße"))}</label>${zahl("schriftgroesse", 0.3, 40, 0.1, "%")}`
       + `<label>${_ctEsc(t("container.textfarbe", "Textfarbe"))}</label>${farb("textfarbe")}`
       + `<label>${_ctEsc(t("container.hintergrund", "Hintergrund"))}</label><span class="ct-ez-reihe">${farb("hg_farbe")}<input type="range" data-k="hg_deckkraft" min="0" max="1" step="0.05" value="${c.hg_deckkraft}"></span>`
@@ -23012,7 +23768,28 @@ function mountAnimator(body, headerActions, opts) {
       + `<label>${_ctEsc(t("container.zeilenabstand", "Zeilenabstand"))}</label>${zahl("zeilenabstand", 0, 10, 0.05, "em")}`
       + `<label>${_ctEsc(t("container.spaltenabstand", "Spaltenabstand"))}</label>${zahl("spaltenabstand", 0, 20, 0.05, "em")}`
       + `</div>`
+      + `<div class="se-group-title">${_ctEsc(t("container.gr.form", "Form und Akzent"))}</div><div class="se-grid">`
+      + `<label>${_ctEsc(t("container.form", "Form"))}</label>${sel("form", [["rechteck", t("container.form.rechteck", "eckig")], ["schraeg", t("container.form.schraeg", "schräg")], ["pfeil", t("container.form.pfeil", "Wegweiser")]])}`
+      + `<label>${_ctEsc(t("container.kante", "Akzentkante"))}</label><span class="ct-ez-reihe">${sel("kante", [["keine", t("container.kante.keine", "keine")], ["links", t("container.kante.links", "links")], ["oben", t("container.kante.oben", "oben")], ["unten", t("container.kante.unten", "unten")], ["rechts", t("container.kante.rechts", "rechts")]])}`
+      + (c.kante && c.kante !== "keine" ? `${zahl("kante_b", 0.01, 3, 0.01, "em")}<input type="color" data-k="kante_farbe" value="${_ctEsc(c.kante_farbe || c.akzent)}">` : "") + `</span>`
+      + `<label>${_ctEsc(t("container.drehung", "Drehung"))}</label>${zahl("drehung", -30, 30, 0.5, "°")}`
+      + `<label>${_ctEsc(t("container.hg_verlauf", "Farbverlauf"))}</label><span class="ct-ez-reihe"><input type="checkbox" data-k="hg_verlauf"${c.hg_verlauf ? " checked" : ""}>`
+      + (c.hg_verlauf ? `${farb("hg_farbe2")}<input type="range" data-k="hg_deckkraft2" min="0" max="1" step="0.05" value="${c.hg_deckkraft2}" title="${_ctEsc(t("container.deckkraft", "Deckkraft"))}">` : "") + `</span>`
+      + `<label>${_ctEsc(t("container.unschaerfe", "Weichzeichner"))}</label><span class="ct-ez-reihe"><input type="checkbox" data-k="unschaerfe"${c.unschaerfe ? " checked" : ""}>`
+      + (c.unschaerfe ? zahl("unschaerfe_st", 0, 3, 0.05, "em") : "") + `</span>`
+      + `<label>${_ctEsc(t("container.trenner", "Trennlinien"))}</label><span class="ct-ez-reihe"><input type="checkbox" data-k="trenner_an"${c.trenner === "linie" ? " checked" : ""}>`
+      + (c.trenner === "linie" ? `<input type="color" data-k="trenner_farbe" value="${_ctEsc(c.trenner_farbe || c.textfarbe)}"><input type="range" data-k="trenner_deckkraft" min="0.05" max="1" step="0.05" value="${c.trenner_deckkraft}">` : "") + `</span>`
+      + `<label>${_ctEsc(t("container.verteilen", "Verteilen"))}</label><input type="checkbox" data-k="verteilen"${c.verteilen ? " checked" : ""} title="${_ctEsc(t("container.verteilen_tip", "Werte über die ganze Breite verteilen (mit fester Größe)"))}">`
+      + `<label>${_ctEsc(t("container.sperrung", "Sperrung"))}</label>${zahl("sperrung", -0.2, 1, 0.01, "em")}`
+      + `<label>${_ctEsc(t("container.kursiv", "kursiv"))}</label><input type="checkbox" data-k="kursiv"${c.kursiv ? " checked" : ""}>`
+      + `<label>${_ctEsc(t("container.klebestreifen", "Klebestreifen"))}</label><input type="checkbox" data-k="klebestreifen"${c.klebestreifen ? " checked" : ""}>`
+      + `</div>`
       + `<div class="se-group-title">${_ctEsc(t("container.gr.lage", "Lage und Größe"))}</div>`
+      + `<div class="se-grid"><label>${_ctEsc(t("container.lage_bezug", "Hängt am"))}</label>${sel("lage", [["bild", t("container.lage.bild", "Bild")], ["laufpunkt", t("container.lage.laufpunkt", "Laufpunkt")]])}`
+      + (c.lage === "laufpunkt" ? `<label>${_ctEsc(t("container.fuehrung", "Führungslinie"))}</label><span class="ct-ez-reihe"><input type="checkbox" data-k="fuehrung"${c.fuehrung !== false ? " checked" : ""}><input type="color" data-k="fuehrung_farbe" value="${_ctEsc(c.fuehrung_farbe || c.textfarbe)}"></span>`
+          + `<label>${_ctEsc(t("container.ausweichen", "Am Rand Seite wechseln"))}</label><input type="checkbox" data-k="ausweichen"${c.ausweichen !== false ? " checked" : ""}>` : "")
+      + `<label>${_ctEsc(t("container.lage_fest", "Lage festhalten"))}</label><input type="checkbox" data-k="lage_fest"${c.lage_fest ? " checked" : ""} title="${_ctEsc(t("container.lage_fest_tip", "Nie automatisch verschieben, auch wenn sich Einblendungen im Hochformat überschneiden"))}">`
+      + `</div>`
       + `<div class="ct-anker">${window.rzContainer.ANKER.map(a => `<button type="button" class="ct-ank${c.anker === a ? " on" : ""}" data-anker="${a}" title="${_ctEsc(t("animator.pos." + a, a))}"></button>`).join("")}</div>`
       + `<div class="se-grid">`
       + `<label>${_ctEsc(t("container.abstand", "Abstand"))}</label><span class="ct-ez-reihe">${zahl("x", -100, 100, 0.5, "% ↔")}${zahl("y", -100, 100, 0.5, "% ↕")}</span>`
@@ -23026,8 +23803,12 @@ function mountAnimator(body, headerActions, opts) {
       + `<label>${_ctEsc(t("container.ecken", "Ecken"))}</label>${zahl("ecken", 0, 99, 0.05, "em")}`
       + `<label>${_ctEsc(t("container.rahmen", "Rahmen"))}</label><span class="ct-ez-reihe">${zahl("rahmen_b", 0, 2, 0.02, "em")}${farb("rahmen_farbe")}</span>`
       + `<label>${_ctEsc(t("container.schatten", "Schatten"))}</label><input type="checkbox" data-k="schatten"${c.schatten ? " checked" : ""}>`
-      + `<label>${_ctEsc(t("container.textschatten", "Textschatten"))}</label><input type="checkbox" data-k="textschatten"${c.textschatten ? " checked" : ""}>`
-      + `<label>${_ctEsc(t("container.unschaerfe", "Weichzeichner"))}</label><input type="checkbox" data-k="unschaerfe"${c.unschaerfe ? " checked" : ""}>`
+      + `<label>${_ctEsc(t("container.textschutz", "Lesbarkeit"))}</label><span class="ct-ez-reihe">${sel("textschutz", [["aus", t("container.textschutz.aus", "aus")], ["weich", t("container.textschutz.weich", "weicher Schatten")], ["schatten", t("container.textschutz.schatten", "Schlagschatten")], ["kontur", t("container.textschutz.kontur", "Kontur")], ["beides", t("container.textschutz.beides", "Schatten + Kontur")]])}`
+      + ((c.textschutz === "schatten" || c.textschutz === "kontur" || c.textschutz === "beides") ? `<input type="range" data-k="textschutz_st" min="0.2" max="2" step="0.1" value="${c.textschutz_st}" title="${_ctEsc(t("container.staerke", "Stärke"))}"><input type="color" data-k="textschutz_farbe" value="${_ctEsc(c.textschutz_farbe || "#0a1216")}" title="${_ctEsc(t("container.textschutz_farbe", "Farbe (sonst automatisch)"))}">` : "") + `</span>`
+      // 01.11.2026 (Marc: „könnte man sich all die Vorlagen auch from scratch direkt mit GPS Studio bauen?“) — was die
+      // Vorlagen intern setzen, ist hier auch schaltbar: Farben bzw. Schrift beim Wechsel des Karten-Looks behalten
+      + `<label>${_ctEsc(t("container.look_fest", "Farben behalten"))}</label><input type="checkbox" data-k="look_fest"${c.look_fest ? " checked" : ""} title="${_ctEsc(t("container.look_fest_tip", "Ein anderer Karten-Look färbt diese Einblendung nicht um"))}">`
+      + `<label>${_ctEsc(t("container.schrift_fest", "Schrift behalten"))}</label><input type="checkbox" data-k="schrift_fest"${c.schrift_fest ? " checked" : ""} title="${_ctEsc(t("container.schrift_fest_tip", "Ein anderer Karten-Look ändert die Schrift dieser Einblendung nicht"))}">`
       + `<label>${_ctEsc(t("container.gross", "Großbuchstaben"))}</label><input type="checkbox" data-k="gross"${c.gross ? " checked" : ""}>`
       + `<label>${_ctEsc(t("container.beschr_faktor", "Beschriftung"))}</label>${zahl("beschr_faktor", 0.15, 2, 0.05, "em")}`
       + `<label>${_ctEsc(t("container.einheit_faktor", "Einheit"))}</label>${zahl("einheit_faktor", 0.2, 1, 0.05, "em")}`
@@ -23052,8 +23833,10 @@ function mountAnimator(body, headerActions, opts) {
     const bl = c.blende || {};
     const art = (v) => (v === "pop" ? "both" : (v || "none"));
     const zahl1 = (x) => (Math.round(x * 10) / 10);
-    const ein = `<select data-b="ein">${_ctOpt("none", art(bl.ein), t("signs.entry.none", "Hart (sofort)"))}${_ctOpt("fade", art(bl.ein), t("signs.entry.fade", "Einblenden"))}${_ctOpt("both", art(bl.ein), t("animator.ovbox.aufpoppen", "Aufpoppen"))}</select>`;
-    const aus = `<select data-b="aus">${_ctOpt("none", art(bl.aus), t("animator.ovbox.exit_none", "Hart (sofort)"))}${_ctOpt("fade", art(bl.aus), t("animator.ovbox.exit_fade", "Ausblenden"))}${_ctOpt("both", art(bl.aus), t("animator.ovbox.wegpoppen", "Wegpoppen"))}</select>`;
+    // 01.11.2026 — + hochgleiten, vom Rand herein, Maske (Videovorlagen)
+    const bewegt = (v) => _ctOpt("hoch", v, t("container.blende.hoch", "Hochgleiten")) + _ctOpt("links", v, t("container.blende.links", "Vom Rand herein")) + _ctOpt("maske", v, t("container.blende.maske", "Aufdecken"));
+    const ein = `<select data-b="ein">${_ctOpt("none", art(bl.ein), t("signs.entry.none", "Hart (sofort)"))}${_ctOpt("fade", art(bl.ein), t("signs.entry.fade", "Einblenden"))}${_ctOpt("both", art(bl.ein), t("animator.ovbox.aufpoppen", "Aufpoppen"))}${bewegt(art(bl.ein))}</select>`;
+    const aus = `<select data-b="aus">${_ctOpt("none", art(bl.aus), t("animator.ovbox.exit_none", "Hart (sofort)"))}${_ctOpt("fade", art(bl.aus), t("animator.ovbox.exit_fade", "Ausblenden"))}${_ctOpt("both", art(bl.aus), t("animator.ovbox.wegpoppen", "Wegpoppen"))}${bewegt(art(bl.aus))}</select>`;
     const dauer = (k, v) => `<span class="ct-ez-zahl"><input type="number" data-b="${k}" min="0" max="30" step="0.1" value="${zahl1(isFinite(+v) ? +v : 0.5)}"><small>s</small></span>`;
     const zeiten = _ctZeiten(c);
     const G = _ovGesamtSek();
@@ -23093,8 +23876,13 @@ function mountAnimator(body, headerActions, opts) {
       const k = el.getAttribute("data-k");
       if (!k) return false;
       let v = wertVon(el);
-      if ((el.type === "number" || el.type === "range") && !isFinite(v)) return true;
+      const leerErlaubt = k === "gewicht" || k === "sperrung";   // 01.11.2026 — leer = automatisch
+      if ((el.type === "number" || el.type === "range") && !isFinite(v) && !leerErlaubt) return true;
       _ctAendern(id(), (c) => {
+        if (k === "trenner_an") { c.trenner = v ? "linie" : "keine"; return; }
+        if (k === "lage") { c.lage = v; if (v === "laufpunkt") Object.assign(c, { anker: "bl", x: 3, y: -4 }); else Object.assign(c, { x: c.anker[1] === "c" ? 0 : 3, y: 3 }); return; }
+        if (leerErlaubt && (v === "" || (typeof v === "number" && !isFinite(v)))) { delete c[k]; return; }
+        if (k === "gewicht") v = parseInt(v, 10);
         c[k] = v;
         if (k === "anordnung" || k === "beschriftung" || k === "schriftgroesse" || k === "textfarbe" || k === "hg_farbe" || k === "hg_deckkraft") c.stil = c.stil;   // Werte gehören dem Container (Q28)
       }, t("container.editor", "Einblendung"), live ? "ct-ed:" + id() + ":" + k : null, live && nurTippen(el));
@@ -23116,7 +23904,13 @@ function mountAnimator(body, headerActions, opts) {
           if (!_ovCat(live ? "live" : "totals").some(f => f.id === z.feld)) z.feld = (live ? OVERLAY_DEFAULT_FIELDS.live : OVERLAY_DEFAULT_FIELDS.totals)[0];
         } else if (k === "label") { z.label = String(v).trim() === "" ? null : String(v); }
         else if (k === "b" || k === "h") { if (isFinite(v)) z[k] = v; }
-        else if (k === "gr_pct") { if (isFinite(v)) z.gr = Math.max(0.2, Math.min(3, v / 100)); }
+        else if (k === "gr_pct") { if (isFinite(v)) z.gr = Math.max(0.05, Math.min(8, v / 100)); }
+        // 01.11.2026 — Gestaltung je Zeile: leer = wie die Einblendung
+        else if (["schrift", "gewicht", "sperrung", "versal", "zh", "ausr", "ersatz"].includes(k) && (v === "" || (typeof v === "number" && !isFinite(v)))) { delete z[k]; }
+        else if (k === "versal") { z.versal = v === "true"; }
+        else if (k === "gewicht") { z.gewicht = parseInt(v, 10); }
+        else if (k === "hg_farbe" && !z.hg_farbe) { z.hg_farbe = v; z.hg_deckkraft = 1; }
+        else if (["d", "dicke", "innen", "hg_deckkraft"].includes(k)) { if (isFinite(v)) z[k] = v; }
         else z[k] = v;
       }, t("container.zeile", "Zeile"), live ? "ct-ez:" + zid + ":" + k : null, live && nurTippen(el));
       return true;
@@ -23154,7 +23948,8 @@ function mountAnimator(body, headerActions, opts) {
           const z = ty === "wert" ? R.wert(c.zeilen.some(x => x.typ === "wert" && x.bezug === "live") ? "time_elapsed" : "dist_total", c.zeilen.some(x => x.typ === "wert" && x.bezug === "live") ? "live" : "gesamt")
             : ty === "bild" ? R.zeile("bild", { pfad: "@lockup-white", b: 15 })
             : ty === "diagramm" ? R.zeile("diagramm", { art: "hoehe", b: 25, h: 11 })
-            : ty === "text" ? R.zeile("text", { text: t("container.v.leer_text", "Text") }) : R.zeile(ty);
+            : ty === "text" ? R.zeile("text", { text: t("container.v.leer_text", "Text") })
+            : ty === "fortschritt" ? R.zeile("fortschritt", { b: 30, h: 0.3 }) : R.zeile(ty);
           c.zeilen.push(z);
         }, t("container.zeile_neu", "Zeile hinzufügen"));
         return;
@@ -23208,6 +24003,11 @@ function mountAnimator(body, headerActions, opts) {
         const was = za.getAttribute("data-za");
         if (was === "weg") { _ctAendern(id(), (c) => { c.zeilen = c.zeilen.filter(z => z.id !== zid); }, t("container.loeschen", "Löschen")); return; }
         if (was === "linie-weg") { _ctAendern(id(), (c) => { const z = c.zeilen.find(x => x.id === zid); if (z) z.linienfarbe = null; }, t("container.linie", "Linie")); return; }
+        if (was.startsWith("zurueck:")) {   // 01.11.2026 — Farbe/Fläche einer Zeile wieder wie die Einblendung
+          const k = was.slice(8);
+          _ctAendern(id(), (c) => { const z = c.zeilen.find(x => x.id === zid); if (!z) return; delete z[k]; if (k === "hg_farbe") { delete z.hg_deckkraft; delete z.form; delete z.innen; } }, t("container.zeile_gestaltung", "Gestaltung dieser Zeile"));
+          return;
+        }
         if (was === "logo") { _ctAendern(id(), (c) => { const z = c.zeilen.find(x => x.id === zid); if (z) z.pfad = "@lockup-white"; }, t("container.z.bild", "Bild")); return; }
         if (was === "bild") {
           const pfad = await _ctBildWaehlen();
@@ -23350,8 +24150,9 @@ function mountAnimator(body, headerActions, opts) {
 
 
   async function loadGpxByPath(path) {
+    _ladeSperreAn("Tour");
     const res = await rzWarten("animator_load_gpx", () => api().animator_load_gpx(path));
-    if (!res.ok) { toast((window.rzLesefehler ? window.rzLesefehler(res.error, path) : res.error) || t("animator.toast.gpx_error", "GPX-Fehler"), "error", 7000); return; }
+    if (!res.ok) { _ladeSperreAus(); toast((window.rzLesefehler ? window.rzLesefehler(res.error, path) : res.error) || t("animator.toast.gpx_error", "GPX-Fehler"), "error", 7000); return; }
     currentGpx = path;
     _gpxStats = res.stats;
     _hauptFlach = Array.isArray(res.flach) ? res.flach : null;   // 07.10.2026 Etappe als Haupt-Track
