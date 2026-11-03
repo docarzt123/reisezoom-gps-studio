@@ -8249,6 +8249,24 @@ Test: `tests/test_linie_ecken.py`.
   `library_kartenbild_speichern` den Dateischutz VOR dem Schreiben der Zwischendatei. Test
   `test_cli_bibliothek_unberuehrt` (Render einer fremden GPX: keine Verweigerung, keine neue/geänderte Datei in der
   Bibliothek, verweigertes Ablegen ohne Rest).
+- **Kommandozeile ohne erreichbare Bibliothek, alle Videovorlagen (03.11.2026, Nutzer-Meldung Windows + NAS + SSH):**
+  - *Bibliothek:* Eine SSH-Sitzung mit Schlüssel-Anmeldung hat unter Windows keine Netz-Anmeldedaten; `Path.is_file()` auf
+    `bibliothek.json` warf dort WinError 1326 (unter Python 3.14/macOS sagt `is_file` bei jedem OSError still `False`).
+    `cli._bibliothek_lesbar` macht `os.stat` selbst und trennt „gibt es nicht“ (FileNotFound/NotADirectory) von „nicht
+    lesbar“ (übrige OSError → Meldung `cli.bibliothek_nicht_erreichbar` mit Ausweg). `_vorbereiten(…, ohne_bibliothek,
+    datei_reicht)`: bei `--no-library` oder nicht lesbarer *Standard*-Bibliothek + GPX-Datei für render/map-image →
+    `cbib.anlegen(<tmp>/bibliothek)` + `clib.open_db` (leere Tabellen), Hinweis auf stderr und als `warning` im JSON.
+    Eine ausdrücklich genannte `--library` bleibt Pflicht (Tippfehler sollen auffallen).
+  - *Vorlagen:* `cli.STILE` (englischer Name → id in `VA_STILE`), `vorlage_finden(api, name)` (englischer Name, id,
+    Name in de/en/es, ★ des Assistenten aus `videovorlagen_eigen`, alte ★ aus `videostil_vorlagen`), auch vom MCP-Server
+    benutzt; `templates` liefert je Vorlage `name`, `kind`, `id`, `names`/`format`/`legacy`. `--template-file x.rzstyle`
+    → `crzstyle.als_eigene_vorlage` in der App-Sprache, nur für diesen Aufruf. Der Schnell-Video-Dialog (Weg der
+    Kommandozeile, ohne `assistent`) nimmt `opts.videovorlage` (Schlüssel in `VA_STILE`, eigene als `eigen:<id>`) und
+    `opts.videovorlageEigen` (Eintrag wie in `videovorlagen_eigen`) → `vaStilWerte`; `vorlagePatch` in `los` setzt
+    Linie, Verläufe, Bergnamen und Laufpunkt der Vorlage (Teilmenge von `vaPatch`, ohne Kamera/Beschriftung/Gelände).
+    Protokollzeile `[schnell] Projekt … · Videovorlage <id>`.
+  - *Einrichten-Status:* `status()` verglich die mit `\r\n` geschriebene `.cmd` mit `read_text` (macht `\n`) → unter
+    Windows immer „zeigt auf eine andere Kopie“. Jetzt mit angeglichenen Zeilenenden. Test `test_cli` (E, G, F).
 - **MCP-Server `gpsstudio mcp` (`core/mcp_server.py`, 13.10.2026, Stufe 1: lokal, nur lesen + Ausgabeordner):** stdio, eine JSON-RPC-Nachricht je
   Zeile, von Hand (keine Bibliothek): `initialize` (Protokolle 2025-06-18/2025-03-26/2024-11-05, `instructions` für die KI),
   `tools/list`, `tools/call` (je Aufruf eigener Faden, Schreiben unter Lock), `ping`, sonst -32601. Werkzeuge `search_tours`,

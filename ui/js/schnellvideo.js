@@ -1232,7 +1232,8 @@
     try { v = await rzWarten("schnellvideo_vorschlag", () => api().schnellvideo_vorschlag(pfad)); }
     catch (e) { v = { ok: false, error: String(e) }; }
     if (!v || !v.ok) { _svStartet = false; toast((v && v.error) || T("common.error", "Fehler"), "error", 6000); return; }
-    vaEigeneVideovorlagen(v.videovorlagen_eigen);
+    // 03.11.2026 — Kommandozeile `--template-file x.rzstyle`: die gelesene Vorlage kommt als weitere eigene dazu (nicht gespeichert)
+    vaEigeneVideovorlagen((Array.isArray(v.videovorlagen_eigen) ? v.videovorlagen_eigen : []).concat(opts && opts.videovorlageEigen ? [opts.videovorlageEigen] : []));
     const L = v.letzte || {};
     const w = {
       format: FORMATE[L.format] ? L.format : "9:16",
@@ -1309,6 +1310,9 @@
     // 07.10.2026 (Web-Fund F-5) — offizielle Parameter beim Aufruf (Web, Skripte): Fotoart, Größe des Sofortbilds,
     // Fotopause ohne Heranfahren. Der Dialog bleibt schlank (F-14: die Fotoart kommt sonst aus der Vorlage).
     if (ASS) vaStilWerte(w, w.stilId);
+    // 03.11.2026 (Nutzer-Meldung: die Kommandozeile kannte nur die alten Schnell-Video-Vorlagen) — Videovorlage von außen
+    // (Kommandozeile `--template wanderlust`, eigene ★ des Assistenten, .rzstyle): Einblendungen, Schilder, Linie wie im Assistenten
+    if (!ASS && opts && opts.videovorlage && VA_STILE[opts.videovorlage]) vaStilWerte(w, opts.videovorlage);
     if (opts && FOTO_ARTEN.includes(opts.fotoArt)) w.fotoArt = opts.fotoArt;
     if (opts && FLUGSTILE[opts.flug]) w.flug = opts.flug;   // 14.10.2026 — Flugstil von außen (Kommandozeile, Web)
     if (opts && typeof opts.fotoKreisen === "boolean") w.fotoKreisen = opts.fotoKreisen;
@@ -3066,6 +3070,17 @@ ${mehrAuf(1)}
       box.addEventListener("change", (e) => { if (inStufe(e.target)) vaLive(); });
       box.addEventListener("click", (e) => { const b = e.target.closest("button, label, [data-sv-foto], [data-va-look]"); if (b && inStufe(b)) vaLive(); });
     }
+    // 03.11.2026 — Videovorlage ohne Assistent (Kommandozeile): Linie, Verläufe, Bergnamen und Laufpunkt der Vorlage wie in
+    // vaPatch; Kamera, Beschriftung und Gelände bleiben beim Schnell-Video (vaPatch setzt die nach den Reitern des Assistenten)
+    const vorlagePatch = (o) => {
+      if (ASS || !w.stilId) return o;
+      if (w.stilAnimator) Object.assign(o, w.stilAnimator);
+      if ((w.vv || w.vvEigen) && w.vvVerlauf) o.verlauf = JSON.parse(JSON.stringify(w.vvVerlauf));
+      if (typeof w.bergnamen === "boolean") o.bergnamen_an = w.bergnamen;
+      if (w.lp === "aus") o.marker_dot_show = false;
+      else if (w.lp) { o.marker_dot_show = true; o.marker_dot_style = w.lp === "fahrzeug" ? (w.lpFz || "wanderer") : w.lp; }
+      return o;
+    };
     const los = async (rendern) => {
       if (laeuft) return; laeuft = true;
       _svStartet = true;   // Dialog geht gleich zu — bis das Projekt angelegt ist, keinen zweiten Start
@@ -3080,8 +3095,8 @@ ${mehrAuf(1)}
       let r;
       try {
         const schilder = schilderJetzt();
-        r = rendern ? await api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte, schilder)   // warte-ok: eigener Bildschirm zeigt den Schritt
-          : await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, animatorPatch(w, v), letzte, schilder));
+        r = rendern ? await api().schnellvideo_anlegen(pfad, name, vorlagePatch(animatorPatch(w, v)), letzte, schilder)   // warte-ok: eigener Bildschirm zeigt den Schritt
+          : await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, vorlagePatch(animatorPatch(w, v)), letzte, schilder));
       } catch (e) { r = { ok: false, error: String(e) }; }
       _svStartet = false;
       if (!r || !r.ok) {
@@ -3090,7 +3105,7 @@ ${mehrAuf(1)}
         else toast((r && r.error) || T("common.error", "Fehler"), "error", 6000);
         return;
       }
-      try { applog("info", `[schnell] Projekt ${r.project_id} · ${w.format} · ${w.laenge} · ${w.qualitaet} · ${w.stil} · rendern=${rendern}`); } catch (_) {}
+      try { applog("info", `[schnell] Projekt ${r.project_id} · ${w.format} · ${w.laenge} · ${w.qualitaet} · ${w.stil}${w.stilId ? " · Videovorlage " + w.stilId : ""} · rendern=${rendern}`); } catch (_) {}
       if (!B) m.close();
       // Öffnen über das Archiv — derselbe Weg wie beim Tour-Assistenten.
       window.__rzProjektOeffnenId = r.project_id;

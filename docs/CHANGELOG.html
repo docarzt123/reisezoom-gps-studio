@@ -117,9 +117,25 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.852</span>
+    <span class="version-date">3. November 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <ul>
+    <li><strong>Videovorlagen als Datei weitergeben</strong> &mdash; Jede der zehn Vorlagen und jede eigene &#9733;-Vorlage lässt sich als <code>.rzstyle</code>-Datei speichern (Animator &rarr; Overlays &rarr; &bdquo;Stil exportieren&ldquo; oder im Reiter &bdquo;Stil&ldquo; des Videoassistenten) und mit &bdquo;Stil importieren&ldquo; wieder als eigene Vorlage holen &mdash; zum Teilen oder für den Umzug auf ein anderes Gerät. Die Texte stehen als Platzhalter drin, die Vorlage passt also zu jeder Tour und Sprache.</li>
+    <li><strong>&bdquo;Höchstens&ldquo;-Breite für Overlays</strong> &mdash; Bei automatischer Größe kannst du ein Overlay auf einen Anteil der Bildbreite begrenzen (Overlay-Editor &rarr; Position und Größe). Langer Text bricht dann um, statt über andere Overlays oder den Bildrand zu laufen.</li>
+    <li><strong>Lange Titel in den Videovorlagen</strong> &mdash; Titel liefen über das Papierband (Randnotiz), die Notiz (Feldbuch) oder über die Übersichtskarte aus dem Bild. Jetzt haben die Titel eine Höchstbreite und brechen um.</li>
+    <li><strong>Lichtglas im Format 1:1</strong> &mdash; Das Höhenprofil verdeckte den dritten Live-Wert. Im quadratischen Format zeigt das Glasband jetzt zwei Live-Werte, das Profil erscheint nur unterwegs, und die Endwerte haben das Band für sich.</li>
+    <li><strong>Kommandozeile: alle Videovorlagen</strong> &mdash; <code>gpsstudio render --template</code> kennt jetzt die zehn Vorlagen des Videoassistenten, &bdquo;Klassisch&ldquo; und deine eigenen &#9733;-Vorlagen, auf Englisch, Deutsch oder Spanisch. <code>gpsstudio templates</code> listet alle auf, mit <code>--template-file</code> rendert eine <code>.rzstyle</code>-Datei direkt, ohne Import. Auch die KI-Werkzeuge (MCP) kennen die neuen Vorlagen.</li>
+    <li><strong>Kommandozeile ohne Bibliothek</strong> &mdash; Mit <code>--no-library</code> wird eine GPX-Datei gerendert, ohne die Bibliothek zu öffnen. Ist die Bibliothek nicht lesbar &mdash; etwa ein Netzlaufwerk bei einem Aufruf per SSH unter Windows &mdash;, entsteht das Video aus einer GPX-Datei trotzdem, mit einem Hinweis, statt mit &bdquo;Der Benutzername oder das Kennwort ist falsch&ldquo; abzubrechen.</li>
+    <li><strong>Kommandozeile unter Windows einrichten</strong> &mdash; Die Einstellungen meldeten auch direkt nach dem Einrichten &bdquo;Er zeigt auf eine andere Kopie der App&ldquo;. Der Befehl selbst lief, nur die Prüfung verglich die Zeilenenden falsch.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.851</span>
     <span class="version-date">2. November 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <ul>
     <li><strong>Videoassistent statt Schnellvideo</strong> &mdash; Schnellvideo und Videoassistent sind jetzt ein Werkzeug. Das Video steht fertig da, sobald der Assistent aufgeht, in den Reitern verfeinerst du es. &bdquo;Video erstellen &hellip;&ldquo; und &bdquo;Als Projekt behalten&ldquo; stehen unten in jedem Reiter, du kannst also schon nach &bdquo;Kamera&ldquo; fertig sein. Archiv, Tourseite, Import-Assistent und Suche führen alle dorthin.</li>

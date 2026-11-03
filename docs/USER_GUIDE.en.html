@@ -2548,25 +2548,30 @@ python -m playwright install chromium-headless-shell</code></pre>
 <hr>
 <h2 id="8b-command-line-gpsstudio-for-scripts">8b · Command line — gpsstudio for scripts</h2>
 <p>With the command line, scripts and other programs make videos and map images of your tours — without anyone clicking. Example: a hiking archive with 120 tours where every new tour gets a 9:16 video overnight.</p>
-<p><strong>Set up:</strong> Settings → General → <strong>Advanced</strong> → <strong>“Set up command line”</strong>. On a Mac the command then lives in <code>~/.local/bin/gpsstudio</code>. If the terminal can&#x27;t find it, run <code>echo &#x27;export PATH=&quot;$HOME/.local/bin:$PATH&quot;&#x27; &gt;&gt; ~/.zshrc</code> once and open a new terminal. On Windows, <code>gpsstudio.cmd</code> is placed in a folder that is already on the search path. If you move the app, simply set it up again.</p>
+<p><strong>Set up:</strong> Settings → General → <strong>Advanced</strong> → <strong>“Set up command line”</strong>. On a Mac the command then lives in <code>~/.local/bin/gpsstudio</code>. If the terminal can&#x27;t find it, run <code>echo &#x27;export PATH=&quot;$HOME/.local/bin:$PATH&quot;&#x27; &gt;&gt; ~/.zshrc</code> once and open a new terminal. On Windows, <code>gpsstudio.cmd</code> is placed in <code>C:\Users\&lt;you&gt;\AppData\Local\Microsoft\WindowsApps</code>, a folder that is already on the search path. It sits <strong>next to</strong> the <code>Windows</code> folder, not inside it, and <code>AppData</code> is hidden in Explorer. The <code>.cmd</code> does only one thing: it lets the terminal find the command <code>gpsstudio</code> and calls <code>gpsstudio.exe</code> in the app folder. A program can also call the <code>.exe</code> directly (e.g. <code>&quot;C:\Program Files\Reisezoom GPS Studio\gpsstudio.exe&quot; render …</code>) and doesn&#x27;t need the <code>.cmd</code> at all. If you move the app, simply set it up again.</p>
 <p><strong>Commands:</strong></p>
 <pre><code>gpsstudio tours --search &quot;Gantrisch 2025&quot;          # tours as a list (id, name, date, km, file)
-gpsstudio templates                                # templates: landscape, memory, social and your ★ templates
-gpsstudio render &quot;Gantrisch&quot; --template landscape --out video.mp4
+gpsstudio templates                                # all templates as a list (name, id, names in de/en/es)
+gpsstudio render &quot;Gantrisch&quot; --template wanderlust --out video.mp4
 gpsstudio render tour.gpx --template &quot;My hiking look&quot; --format 9:16 --length 40 --out ~/Videos/
+gpsstudio render tour.gpx --template-file Cinema.rzstyle --out video.mp4
 gpsstudio map-image 11660e04ed1c9695 --out map.png</code></pre>
 <ul>
 <li><strong>Tour:</strong> a GPX/FIT/… file (anywhere, it doesn&#x27;t have to be in the archive), the <strong>id</strong> from <code>gpsstudio tours</code> or a</li>
 </ul>
 <p> unique name. If several tours match, the command stops and lists the candidates.</p>
 <ul>
-<li><strong>Template:</strong> <code>landscape</code>, <code>memory</code>, <code>social</code> or the name of your own ★ template — you create it in the app (quick</li>
+<li><strong>Template (all video templates):</strong> the ten video templates of the video assistant — <code>wanderlust</code>,</li>
 </ul>
-<p> video or video assistant → “★ Save as template”) and call it here by name.</p>
+<p> <code>plain</code>, <code>margin-note</code>, <code>on-the-road</code>, <code>field-book</code>, <code>forward</code>, <code>signpost</code>, <code>cinema</code>, <code>travel-poster</code>, <code>light-glass</code> —,  <code>classic</code>, the older <code>landscape</code>, <code>memory</code>, <code>social</code> (the default stays <code>landscape</code>) or the name of your own ★  template. The German or Spanish name works too. There is no template folder: the built-in ones live in the app, your ★  templates in the settings. <code>gpsstudio templates</code> lists them all as JSON — a program is best off taking the names from  there. <code>--template-file x.rzstyle</code> uses a template file (video assistant → Style → “Export style …”) without  importing it into the app; own templates come in the format they were built in unless you pass <code>--format</code>.</p>
 <ul>
 <li><strong>Options:</strong> <code>--format 16:9|9:16|1:1</code>, <code>--length</code> (seconds, 15–600), <code>--no-photos</code>, <code>--out</code> (file or folder; without:</li>
 </ul>
-<p> the app&#x27;s render folder), <code>--overwrite</code>, <code>--library &lt;folder&gt;</code> (another library).</p>
+<p> the app&#x27;s render folder), <code>--overwrite</code>, <code>--library &lt;folder&gt;</code> (another library), <code>--no-library</code> (don&#x27;t open the library  at all; then a GPX file is needed).</p>
+<ul>
+<li><strong>Library on a NAS, called over SSH:</strong> if you sign in to a Windows PC over SSH with a key, that</li>
+</ul>
+<p> session may not use the network drive — Windows has no password there to sign in to the NAS. It works at the PC itself,  not over SSH. If a GPX file is passed, GPS Studio then renders without the library (a note on stderr and as <code>&quot;warning&quot;</code>  in the JSON line; photos from the archive are left out); <code>--no-library</code> does that right away. For tours from the  archive: sign in first (<code>net use \\nas\share /user:NAME PASSWORD</code>), use SSH with a password instead of a key, or point  <code>--library</code> to a local library.</p>
 <ul>
 <li><strong>Never overwrites:</strong> if the target file exists, a timestamp is put in front of the name — unless you pass <code>--overwrite</code>.</li>
 </ul>

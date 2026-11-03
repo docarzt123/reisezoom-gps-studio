@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.852] – 2026-11-03
+
 ### Added
 - **Export and import video templates as `.rzstyle` files**: any of the ten built-in templates or your own ★ template can
   be saved as a file — Animator → Overlays → *Export style* (next to ★, also *All built-in ones into a folder …*) or the
@@ -23,8 +25,20 @@ Bei jeder neuen Version:
   1:1; your own ones the format they were saved in. The file format is described in `docs/DEVELOPER.md`.
 - **“At most” width for overlays**: with automatic size, an overlay can be limited to a share of the frame width
   (overlay editor → *Position and size*); longer text wraps instead of running over other overlays or the frame edge.
+- **Command line: all video templates**: `gpsstudio render --template` now takes the ten video templates of the video
+  assistant (`wanderlust`, `plain`, `margin-note`, `on-the-road`, `field-book`, `forward`, `signpost`, `cinema`,
+  `travel-poster`, `light-glass`) and `classic`, your own ★ templates from the assistant and their German or Spanish
+  names; `landscape`, `memory` and `social` keep working (still the default). `gpsstudio templates` lists them all with
+  id and names in German, English and Spanish. New `--template-file x.rzstyle` renders with a template file without
+  importing it. The AI assistant tools (MCP) know the new templates too.
+- **Command line without the library**: `--no-library` renders a GPX file without opening the library. If the library
+  can't be read (a network drive in an SSH session on Windows has no sign-in), a GPX file is now rendered anyway, with a
+  note, instead of stopping with “The user name or password is incorrect”; tours from the archive get a clear message
+  on how to sign in.
 
 ### Fixed
+- **Settings → Set up command line on Windows** always said “It points to another copy of the app — set it up again”,
+  even right after setting it up. The command itself worked; only the check compared line endings wrongly.
 - **Long titles in the video templates** ran past the paper band (Randnotiz), the note (Feldbuch) or over the overview
   map and off the frame (Lichtglas and others). Template titles now have a maximum width and wrap onto the next line.
 - **Lichtglas in 1:1**: the elevation profile covered the third live value. In the square format the glass band now

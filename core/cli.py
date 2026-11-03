@@ -2,8 +2,8 @@
 
     gpsstudio tours [--search TEXT] [--limit N]
     gpsstudio templates
-    gpsstudio render <gpx file | tour id | unique tour name> [--template NAME] [--camera STYLE] [--format 9:16|16:9|1:1]
-                     [--length SECONDS] [--no-photos] [--out FILE] [--overwrite]
+    gpsstudio render <gpx file | tour id | unique tour name> [--template NAME | --template-file X.rzstyle] [--camera STYLE]
+                     [--format 9:16|16:9|1:1] [--length SECONDS] [--no-photos] [--out FILE] [--overwrite]
     gpsstudio map-image <gpx file | tour id | name> [--out FILE] [--overwrite]
     gpsstudio mcp [--out-dir FOLDER]      MCP server for AI assistants (stdio, core/mcp_server.py)
     gpsstudio camera-export --rzproj PROJECT.rzproj [--out FILE] [--preview 960x540] [--overwrite]
@@ -20,7 +20,7 @@
                              [--frames 0,600,1169 | --thumbs N [--thumb-width 320]]
                                          the project's video exactly like the app's video export (map, line, signs,
                                          photos, tours, labels, music), optionally in another size
-    (global: --library FOLDER)
+    (global: --library FOLDER | --no-library)
 
 Befehle, Schalter und das Ergebnis-JSON sind englisch (Marc: „wir wollen international sein“); die lesbaren
 Fortschrittszeilen folgen der Sprache der App. Auf stdout steht genau eine JSON-Zeile ({"ok": …}), alles andere
@@ -31,6 +31,12 @@ Sperre — darf neben der offenen App laufen. Projekte entstehen in einem Temp-O
 der App: eine unsichtbare Seite öffnet den echten Schnell-Video-Dialog, wählt Vorlage/Format/Länge, „Im Animator
 öffnen“, dann derselbe Render-Knopf mit festem Ziel (`__rzSchnellRender`). Eine vorhandene Datei wird nie
 überschrieben (Zeitstempel davor), außer mit --overwrite.
+
+03.11.2026 (Nutzer-Meldung, Aufruf per SSH auf Windows, Bibliothek auf dem NAS): Ist die Bibliothek nicht lesbar (Netzlaufwerk
+ohne Anmeldung in dieser Sitzung) und wird eine GPX-Datei übergeben, rendert die Kommandozeile mit einer leeren Bibliothek im
+Temp-Ordner weiter (Hinweis auf stderr und im JSON); --no-library erzwingt das. Vorlagen: die zehn Videovorlagen des
+Assistenten (wanderlust … light-glass, classic), die alten des Schnell-Videos (landscape, memory, social), eigene ★ und
+.rzstyle-Dateien (--template-file).
 """
 from __future__ import annotations
 
@@ -47,6 +53,11 @@ from pathlib import Path
 
 #: englischer Name → interne Vorlage des Schnell-Videos (ui/js/schnellvideo.js VORLAGEN)
 VORLAGEN = {"landscape": "weite", "memory": "tagebuch", "social": "puls"}
+#: 03.11.2026 — englischer Name → Videovorlage des Assistenten (ui/js/schnellvideo.js VA_STILE, ui/js/videovorlagen.js LISTE);
+#: der Name ist der englische Anzeigename (i18n vv.name.<id>), klein und mit Bindestrich
+STILE = {"wanderlust": "fernweh", "plain": "klartext", "margin-note": "randnotiz", "on-the-road": "unterwegs",
+         "field-book": "feldbuch", "forward": "vorwaerts", "signpost": "wegweiser", "cinema": "kino",
+         "travel-poster": "reiseplakat", "light-glass": "lichtglas", "classic": "klassisch"}
 #: 14.10.2026 — Flugstile der Kamerafahrt (englischer Name → interner, ui/js/schnellvideo.js FLUGSTILE)
 KAMERAS = {"companion": "begleiter", "skimmer": "tiefflieger", "swallow": "schwalbe", "crane": "kranschwenk", "thermal": "thermik",
            "cruise": "reiseflughoehe", "dandelion": "pusteblume", "falcon": "falke", "orbit": "orbit", "carousel": "karussell"}
@@ -146,18 +157,56 @@ def _melden(text: str) -> None:
 
 # ── Aufbau ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-def _vorbereiten(app, library: str | None):
-    """Api im Kommandozeilen-Modus: Archiv nur lesend, Projekte in einem Temp-Ordner. Returns (api, temp_ordner)."""
+def _bibliothek_lesbar(app, bib: Path) -> tuple:
+    """(ist Bibliothek, Fehlertext). 03.11.2026 — ein Netzlaufwerk ohne Anmeldung (SSH-Sitzung unter Windows) wirft beim
+    Nachsehen OSError (WinError 1326 „Benutzername oder Kennwort falsch“) statt „gibt es nicht“ zu sagen."""
+    import stat
+    try:   # selbst nachsehen: is_file() sagt je nach Python-Version bei jedem Fehler still „nein“
+        st = os.stat(app.cbib.kenndatei(bib))
+    except (FileNotFoundError, NotADirectoryError):
+        return False, ""
+    except OSError as e:
+        return False, str(e)
+    return stat.S_ISREG(st.st_mode), ""
+
+
+def _vorbereiten(app, library: str | None, ohne_bibliothek: bool = False, datei_reicht: bool = False):
+    """Api im Kommandozeilen-Modus: Archiv nur lesend, Projekte in einem Temp-Ordner. Returns (api, temp_ordner, hinweis).
+
+    03.11.2026 — `ohne_bibliothek` (--no-library) oder eine nicht lesbare Standard-Bibliothek bei einer übergebenen
+    GPX-Datei (`datei_reicht`): leere Bibliothek im Temp-Ordner. Touren aus dem Archiv und Fotos aus dem Archiv gibt es dann
+    nicht; die Datei selbst reicht für Video und Kartenbild. Eine ausdrücklich genannte --library bleibt Pflicht."""
     app.CLI_MODUS = True
     bib = Path(library).expanduser() if library else Path(app.BIB_ORT or app.BIB)
-    if not app.cbib.ist_bibliothek(bib):
-        raise CliFehler(_t(app, "cli.keine_bibliothek", "Keine GPS-Studio-Bibliothek gefunden: {p}").replace("{p}", str(bib)))
-    db = app.cbib.db_pfad(bib)
+    hinweis = ""
+    if ohne_bibliothek:
+        ist, grund = False, ""
+    else:
+        ist, grund = _bibliothek_lesbar(app, bib)
+    if not ist and not ohne_bibliothek:
+        if grund:
+            text = _t(app, "cli.bibliothek_nicht_erreichbar", "Bibliothek nicht erreichbar: {p} ({e}). Bei einem Netzlaufwerk fehlt "
+                      "in dieser Sitzung die Anmeldung (z. B. bei SSH) — vorher anmelden (Windows: net use …), --library auf eine "
+                      "lokale Bibliothek oder --no-library mit einer GPX-Datei.").replace("{p}", str(bib)).replace("{e}", grund)
+        else:
+            text = _t(app, "cli.keine_bibliothek", "Keine GPS-Studio-Bibliothek gefunden: {p}").replace("{p}", str(bib))
+        if library or not datei_reicht:
+            raise CliFehler(text)
+        hinweis = text
+        _melden("⚠ " + text)
+        _melden(_t(app, "cli.ohne_bibliothek", "Weiter ohne Bibliothek — die GPX-Datei reicht, Fotos aus dem Archiv fehlen."))
     tmp = Path(tempfile.mkdtemp(prefix="gpsstudio-cli-")).resolve()
     try:
         app._ds.temp_ordner_merken(tmp)
     except Exception:  # noqa: BLE001
         pass
+    if not ist:
+        bib = tmp / "bibliothek"
+        r = app.cbib.anlegen(bib)
+        if not r.get("ok"):
+            raise CliFehler(str(r.get("error") or r.get("cloud") or "library"))
+        app.clib.open_db(app.cbib.db_pfad(bib)).close()   # leere Datenbank mit allen Tabellen
+    db = app.cbib.db_pfad(bib)
     app.BIB = app.BIB_ORT = bib
     app.LIBRARY_DB = db
     app.BIB_BEREIT = True
@@ -173,7 +222,7 @@ def _vorbereiten(app, library: str | None):
     app.LIBRARY_COVERS = bib / "bilder" / "titel"
     api = app.Api()
     api._lib_conn = app.clib.open_db_lesend(db)
-    return api, tmp
+    return api, tmp, hinweis
 
 
 def _aufraeumen(app, tmp: Path) -> None:
@@ -205,10 +254,70 @@ def _eigene_vorlagen(api) -> list:
         return []
 
 
+def _eigene_videovorlagen(api) -> list:
+    """03.11.2026 — eigene ★ des Video-Assistenten (auch per .rzstyle eingelesene)."""
+    try:
+        return [x for x in ((api.videovorlagen_eigen() or {}).get("liste") or [])
+                if isinstance(x, dict) and x.get("id") and x.get("name") and isinstance((x.get("daten") or {}).get("container"), list)]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _namen(sid: str) -> dict:
+    """Name einer Videovorlage in de/en/es (i18n vv.name.<id>; „klassisch“ heißt im Assistenten va.stil_klassisch)."""
+    from core import i18n as ci18n
+    key, ersatz = ("va.stil_klassisch", "Klassisch") if sid == "klassisch" else ("vv.name." + sid, sid)
+    try:
+        return {c: ci18n.uebersetzer(c)(key, ersatz) for c in ("de", "en", "es")}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _templates(api) -> dict:
-    eigen = _eigene_vorlagen(api)
-    return {"ok": True, "templates": [{"name": n, "kind": "builtin"} for n in VORLAGEN]
-            + [{"name": x["name"], "kind": "own"} for x in eigen], "cameras": list(KAMERAS)}
+    """Alle Vorlagen für --template: die Videovorlagen des Assistenten, die alten des Schnell-Videos und die eigenen ★.
+    `name` ist das, was --template nimmt (die Namen in `names` und die `id` gehen auch)."""
+    raus = [{"name": n, "kind": "builtin", "id": sid, "names": _namen(sid)} for n, sid in STILE.items()]
+    raus += [{"name": n, "kind": "builtin", "id": vid, "legacy": True} for n, vid in VORLAGEN.items()]
+    raus += [{"name": x["name"], "kind": "own", "id": x["id"], "format": (x.get("daten") or {}).get("format") or None}
+             for x in _eigene_videovorlagen(api)]
+    raus += [{"name": x["name"], "kind": "own", "id": x.get("id"), "legacy": True} for x in _eigene_vorlagen(api)]
+    return {"ok": True, "templates": raus, "cameras": list(KAMERAS)}
+
+
+def _norm_name(s: str) -> str:
+    return "-".join(str(s or "").strip().lower().replace("_", " ").split())
+
+
+def vorlage_finden(api, name: str) -> dict | None:
+    """--template → {"art": "stil"|"schnell"|"eigen"|"eigen_alt", …} oder None. Reihenfolge: englischer Name, interne id,
+    Name in de/en/es, eigene ★ des Assistenten, eigene ★ des alten Schnell-Videos."""
+    n = _norm_name(name)
+    if n in STILE:
+        return {"art": "stil", "id": STILE[n]}
+    if n in VORLAGEN:
+        return {"art": "schnell", "id": VORLAGEN[n]}
+    for sid in STILE.values():
+        if n == sid or n in {_norm_name(x) for x in _namen(sid).values()}:
+            return {"art": "stil", "id": sid}
+    for x in _eigene_videovorlagen(api):
+        if n in (_norm_name(x["name"]), _norm_name(x["id"])):
+            return {"art": "eigen", "id": x["id"], "format": (x.get("daten") or {}).get("format")}
+    for x in _eigene_vorlagen(api):
+        if n == _norm_name(x["name"]):
+            return {"art": "eigen_alt", "id": x["id"]}
+    return None
+
+
+def _vorlage_aus_datei(app, pfad: str, fmt: str | None) -> dict:
+    """--template-file X.rzstyle → wie eine eigene ★ (nur für diesen Aufruf, nicht gespeichert)."""
+    from core import rzstyle as crzstyle
+    p = Path(pfad).expanduser()
+    try:
+        d = crzstyle.lesen(p.read_bytes())
+        name, daten = crzstyle.als_eigene_vorlage(d, getattr(app, "_ui_sprache", lambda: "en")(), fmt or "")
+    except (OSError, UnicodeDecodeError, crzstyle.RzStyleFehler) as e:
+        raise CliFehler(f"--template-file {p}: {e}", code=2)
+    return {"art": "eigen", "id": "datei", "format": daten.get("format"), "eintrag": {"id": "datei", "name": name, "daten": daten}}
 
 
 def _tour_aufloesen(app, api, ref: str) -> str:
@@ -346,23 +455,29 @@ def _fortschritt_verfolgen(app, api, t0: float) -> dict:
 async def _render(app, api, gpx: str, a) -> dict:
     from playwright.async_api import async_playwright
     t0 = time.time()
-    eigen = None
-    if a.template not in VORLAGEN:
-        eigen = next((x for x in _eigene_vorlagen(api) if x["name"].strip().lower() == a.template.strip().lower()), None)
-        if not eigen:
-            raise CliFehler(_t(app, "cli.vorlage_fehlt", "Vorlage nicht gefunden: {v} — `gpsstudio templates` zeigt alle.").replace("{v}", a.template),
-                            code=2)
+    V = _vorlage_aus_datei(app, a.template_file, a.format) if getattr(a, "template_file", None) else vorlage_finden(api, a.template)
+    if not V:
+        raise CliFehler(_t(app, "cli.vorlage_fehlt", "Vorlage nicht gefunden: {v} — `gpsstudio templates` zeigt alle.").replace("{v}", a.template),
+                        code=2)
+    if V["art"] == "eigen" and not a.format and V.get("format") in FORMATE:
+        a.format = V["format"]   # eigene Vorlage: in dem Format, in dem sie gebaut wurde
     async with async_playwright() as p:
         browser, page = await _seite(p, app, api)
         try:
             _melden(_t(app, "cli.schritt_projekt", "Projekt wird angelegt …"))
             opts = {"fotoKreisen": True} if getattr(a, "circle_photos", False) else {}
+            if V["art"] == "stil":
+                opts["videovorlage"] = V["id"]
+            elif V["art"] == "eigen":
+                opts["videovorlage"] = "eigen:" + V["id"]
+                if V.get("eintrag"):
+                    opts["videovorlageEigen"] = V["eintrag"]
             await page.evaluate(f"() => {{ window.__rzSchnellFertig = null; window.rzSchnellVideo({json.dumps(gpx)}, {json.dumps(opts)}); }}")
             await _warte(page, "() => !!document.getElementById('sv-animator')", 120, "quick video dialog")
-            if eigen:
-                await page.evaluate(f"() => document.querySelector('[data-sv-eigen=\"{eigen['id']}\"]')?.click()")
-            else:
-                await page.evaluate(f"() => document.querySelector('[data-sv-vorlage=\"{VORLAGEN[a.template]}\"]')?.click()")
+            if V["art"] == "eigen_alt":
+                await page.evaluate(f"() => document.querySelector('[data-sv-eigen=\"{V['id']}\"]')?.click()")
+            elif V["art"] == "schnell":
+                await page.evaluate(f"() => document.querySelector('[data-sv-vorlage=\"{V['id']}\"]')?.click()")
             await page.wait_for_timeout(400)
             if a.format:
                 await page.evaluate(f"() => document.querySelector('[data-sv-gruppe=\"format\"] [data-sv-wert=\"{a.format}\"]')?.click()")
@@ -413,8 +528,8 @@ async def _render(app, api, gpx: str, a) -> dict:
     if st.get("error") or not ziel.exists():
         _melden(str(st.get("error") or ""))   # ganze Meldung (mit Traceback) ins Protokoll, ins JSON nur die erste Zeile
         raise CliFehler(str(st.get("error") or "").strip().splitlines()[0] if st.get("error") else _t(app, "cli.render_fehlt", "Render ohne Datei beendet"))
-    return {"ok": True, "file": str(ziel), "template": a.template, "camera": getattr(a, "camera", None) or "companion",
-            "duration_s": round(time.time() - t0, 1)}
+    return {"ok": True, "file": str(ziel), "template": a.template_file if getattr(a, "template_file", None) else a.template,
+            "camera": getattr(a, "camera", None) or "companion", "duration_s": round(time.time() - t0, 1)}
 
 
 async def _kartenbild(app, api, gpx: str, a) -> dict:
@@ -888,6 +1003,8 @@ def _highlights_export(app, a) -> dict:
 def _parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="gpsstudio", description="GPS Studio from the command line. Prints one JSON line on stdout; progress goes to stderr.")
     ap.add_argument("--library", help="GPS Studio library folder (default: the one the app uses)")
+    ap.add_argument("--no-library", dest="no_library", action="store_true",
+                    help="don't open the library (e.g. a network drive in an SSH session); render/map-image then need a GPX file")
     sub = ap.add_subparsers(dest="command", required=True)
     t = sub.add_parser("tours", help="list tours of the archive")
     t.add_argument("--search", default="", help="words to search for (name, place, year, tag, note, documents)")
@@ -895,7 +1012,9 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("templates", help="list video templates (built-in and your own ★ templates)")
     r = sub.add_parser("render", help="render a video of a tour")
     r.add_argument("tour", help="GPX/FIT/… file, tour id from `gpsstudio tours`, or a unique tour name")
-    r.add_argument("--template", default="landscape", help="landscape, memory, social or the name of your own ★ template")
+    r.add_argument("--template", default="landscape", help="video template: " + ", ".join(STILE) + ", the older "
+                   + ", ".join(VORLAGEN) + " or the name of your own ★ template (`gpsstudio templates` lists them)")
+    r.add_argument("--template-file", dest="template_file", help="a template file (.rzstyle, exported from GPS Studio) instead of --template")
     r.add_argument("--camera", choices=list(KAMERAS), help="camera flight style: " + ", ".join(KAMERAS))
     r.add_argument("--format", choices=FORMATE)
     r.add_argument("--length", type=float, help="video length in seconds (15–600)")
@@ -982,7 +1101,16 @@ def main(argv: list, app) -> int:
             ausgabe(erg)
             return 0 if erg.get("ok") else 1
         global _API
-        api, tmp = _vorbereiten(app, a.library)
+        if a.library and a.no_library:
+            raise CliFehler("--library and --no-library exclude each other", code=2)
+        try:
+            datei = a.command in ("render", "map-image") and Path(a.tour).expanduser().is_file()
+        except OSError:   # Datei auf einem Netzlaufwerk ohne Anmeldung
+            datei = False
+        if a.no_library and a.command in ("render", "map-image") and not datei:
+            raise CliFehler(_t(app, "cli.ohne_bibliothek_datei", "Ohne Bibliothek braucht es eine GPX-Datei (keine Tour-Kennung oder Name)."),
+                            code=2)
+        api, tmp, hinweis = _vorbereiten(app, a.library, ohne_bibliothek=a.no_library, datei_reicht=datei)
         _API = api
         _LAUF["tmp"] = tmp
         if a.command == "tours":
@@ -992,11 +1120,15 @@ def main(argv: list, app) -> int:
         elif a.command == "render":
             if a.length is not None and not (15 <= a.length <= 600):
                 raise CliFehler("--length must be between 15 and 600 seconds", code=2)
+            if a.template_file and a.template != "landscape":
+                raise CliFehler("--template and --template-file exclude each other", code=2)
             gpx = api._ensure_gpx(_tour_aufloesen(app, api, a.tour))
-            ausgabe(asyncio.run(_render(app, api, gpx, a)))
+            erg = asyncio.run(_render(app, api, gpx, a))
+            ausgabe(dict(erg, warning=hinweis) if hinweis else erg)
         elif a.command == "map-image":
             gpx = api._ensure_gpx(_tour_aufloesen(app, api, a.tour))
-            ausgabe(asyncio.run(_kartenbild(app, api, gpx, a)))
+            erg = asyncio.run(_kartenbild(app, api, gpx, a))
+            ausgabe(dict(erg, warning=hinweis) if hinweis else erg)
         elif a.command == "mcp":
             from core import mcp_server
             ordner = Path(a.out_dir).expanduser().resolve() if a.out_dir else Path(app.APP_SUPPORT) / "_renders"
@@ -1043,7 +1175,10 @@ def status(root: Path) -> dict:
     """Ist `gpsstudio` eingerichtet, und zeigt er auf diese App?"""
     ziel = _befehl_ziel()
     da = ziel.is_file()
-    aktuell = da and ziel.read_text(encoding="utf-8", errors="replace") == _befehl_inhalt(root)
+    # 03.11.2026 (Nutzer-Meldung, Windows: „Er zeigt auf eine andere Kopie der App“ direkt nach dem Einrichten) — read_text macht
+    # aus \r\n ein \n, die .cmd wird aber mit \r\n geschrieben: ohne Angleichen war sie unter Windows immer „veraltet“
+    aktuell = da and (ziel.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+                      == _befehl_inhalt(root).replace("\r\n", "\n"))
     im_path = str(ziel.parent) in (os.environ.get("PATH") or "").split(os.pathsep)
     return {"ok": True, "pfad": str(ziel), "eingerichtet": da, "aktuell": bool(aktuell), "im_path": im_path,
             "ordner": str(ziel.parent)}

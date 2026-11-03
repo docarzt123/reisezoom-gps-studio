@@ -3957,15 +3957,20 @@ klickt. Beispiel: ein Wanderarchiv mit 120 Touren, aus dem jede Nacht die neuen 
 **Einrichten:** Einstellungen → Allgemein → **Für Fortgeschrittene** → **„Kommandozeile einrichten“**. Auf dem Mac
 liegt der Befehl danach in `~/.local/bin/gpsstudio`. Findet das Terminal ihn nicht, einmal
 `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc` ausführen und ein neues Terminal öffnen. Auf Windows liegt
-`gpsstudio.cmd` in einem Ordner, der schon im Suchpfad ist. Wird die App verschoben, einfach noch einmal einrichten.
+`gpsstudio.cmd` in `C:\Users\<du>\AppData\Local\Microsoft\WindowsApps` — dieser Ordner ist schon im Suchpfad. Er liegt
+**neben** dem Ordner `Windows`, nicht darin, und `AppData` ist im Explorer versteckt. Die `.cmd` macht nur eines: Sie
+sorgt dafür, dass das Terminal den Befehl `gpsstudio` findet, und ruft die `gpsstudio.exe` im App-Ordner auf. Ein
+Programm kann die `.exe` auch direkt aufrufen (z. B. `"C:\Program Files\Reisezoom GPS Studio\gpsstudio.exe" render …`),
+dann braucht es die `.cmd` gar nicht. Wird die App verschoben, einfach noch einmal einrichten.
 
 **Befehle** (Befehle und Schalter sind englisch, damit sie überall gleich sind):
 
 ```
 gpsstudio tours --search "Gantrisch 2025"          # Touren als Liste (id, Name, Datum, km, Datei)
-gpsstudio templates                                # Vorlagen: landscape, memory, social und deine ★-Vorlagen
-gpsstudio render "Gantrisch" --template landscape --out video.mp4
+gpsstudio templates                                # alle Vorlagen als Liste (Name, id, Namen in de/en/es)
+gpsstudio render "Gantrisch" --template wanderlust --out video.mp4
 gpsstudio render tour.gpx --template "Mein Wanderlook" --format 9:16 --length 40 --out ~/Videos/
+gpsstudio render tour.gpx --template-file Kino.rzstyle --out video.mp4
 gpsstudio map-image 11660e04ed1c9695 --out karte.png
 gpsstudio camera-export --rzproj tour.rzproj --out tour.kamera.json
 gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay.mov
@@ -3976,10 +3981,24 @@ gpsstudio highlights-export --rzproj tour.rzproj --out tour.highlights/
 
 - **Tour:** eine GPX-/FIT-/…-Datei (irgendwo, muss nicht im Archiv liegen), die **id** aus `gpsstudio tours` oder ein
   eindeutiger Name. Passen mehrere Touren, bricht der Befehl ab und nennt die Kandidaten.
-- **Vorlage:** `landscape` (Weite), `memory` (Erinnerung), `social` oder der Name einer eigenen ★-Vorlage — die legst du
-  in der App an (Schnell-Video oder Video-Assistent → „★ Als Vorlage speichern“) und rufst sie hier beim Namen auf.
+- **Vorlage (seit v0.9.852 alle Videovorlagen):** die zehn Videovorlagen des Video-Assistenten — `wanderlust` (Fernweh),
+  `plain` (Klartext), `margin-note` (Randnotiz), `on-the-road` (Unterwegs), `field-book` (Feldbuch), `forward`
+  (Vorwärts), `signpost` (Wegweiser), `cinema` (Kino), `travel-poster` (Reiseplakat), `light-glass` (Lichtglas) —,
+  `classic` (Klassisch), die älteren `landscape`, `memory`, `social` (Standard bleibt `landscape`) oder der Name einer
+  eigenen ★-Vorlage. Der deutsche oder spanische Name geht auch (`--template Kino`). Einen Ordner mit Vorlagen gibt es
+  nicht: Die eingebauten stecken in der App, deine ★-Vorlagen in den Einstellungen. `gpsstudio templates` liefert alle
+  als JSON — ein Programm übernimmt die Namen am besten von dort. Mit `--template-file x.rzstyle` nimmst du eine
+  Vorlagen-Datei (Video-Assistent → Stil → „Stil exportieren …“), ohne sie in der App einzulesen; eigene Vorlagen
+  kommen ohne `--format` in dem Format, in dem sie gebaut wurden.
 - **Schalter:** `--format 16:9|9:16|1:1`, `--length` (Sekunden, 15–600), `--no-photos`, `--out` (Datei oder Ordner;
-  ohne: der Render-Ordner der App), `--overwrite`, `--library <Ordner>` (eine andere Bibliothek).
+  ohne: der Render-Ordner der App), `--overwrite`, `--library <Ordner>` (eine andere Bibliothek), `--no-library` (die
+  Bibliothek gar nicht öffnen; dann braucht es eine GPX-Datei).
+- **Bibliothek auf dem NAS, Aufruf per SSH (seit v0.9.852):** Wer sich per SSH mit Schlüssel an einem Windows-Rechner
+  anmeldet, darf in dieser Sitzung nicht aufs Netzlaufwerk — Windows hat dort kein Kennwort, mit dem es sich am NAS
+  anmelden könnte. Am Rechner selbst klappt es, per SSH nicht. Wird eine GPX-Datei übergeben, rendert GPS Studio dann
+  ohne Bibliothek weiter (Hinweis auf stderr und als `"warning"` in der JSON-Zeile; Fotos aus dem Archiv fehlen dann);
+  `--no-library` macht das gleich so. Für Touren aus dem Archiv: vorher anmelden (`net use \\nas\freigabe
+  /user:NAME KENNWORT`), SSH mit Kennwort statt Schlüssel, oder `--library` auf eine lokale Bibliothek.
 - **Nie überschreiben:** Gibt es die Zieldatei schon, kommt ein Zeitstempel vor den Namen — außer mit `--overwrite`.
 - **Kamerafahrt als Datei:** `camera-export` nimmt ein exportiertes Projekt (*Projekt → Projekt exportieren (.rzproj)*) und
   schreibt die Kamerafahrt Bild für Bild als JSON — für 3D-Programme wie Blender. Ein Video entsteht dabei nicht; das

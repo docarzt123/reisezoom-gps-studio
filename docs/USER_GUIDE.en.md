@@ -3734,25 +3734,42 @@ Example: a hiking archive with 120 tours where every new tour gets a 9:16 video 
 
 **Set up:** Settings → General → **Advanced** → **“Set up command line”**. On a Mac the command then lives in
 `~/.local/bin/gpsstudio`. If the terminal can't find it, run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc`
-once and open a new terminal. On Windows, `gpsstudio.cmd` is placed in a folder that is already on the search path. If
-you move the app, simply set it up again.
+once and open a new terminal. On Windows, `gpsstudio.cmd` is placed in `C:\Users\<you>\AppData\Local\Microsoft\WindowsApps`,
+a folder that is already on the search path. It sits **next to** the `Windows` folder, not inside it, and `AppData` is
+hidden in Explorer. The `.cmd` does only one thing: it lets the terminal find the command `gpsstudio` and calls
+`gpsstudio.exe` in the app folder. A program can also call the `.exe` directly (e.g.
+`"C:\Program Files\Reisezoom GPS Studio\gpsstudio.exe" render …`) and doesn't need the `.cmd` at all. If you move the
+app, simply set it up again.
 
 **Commands:**
 
 ```
 gpsstudio tours --search "Gantrisch 2025"          # tours as a list (id, name, date, km, file)
-gpsstudio templates                                # templates: landscape, memory, social and your ★ templates
-gpsstudio render "Gantrisch" --template landscape --out video.mp4
+gpsstudio templates                                # all templates as a list (name, id, names in de/en/es)
+gpsstudio render "Gantrisch" --template wanderlust --out video.mp4
 gpsstudio render tour.gpx --template "My hiking look" --format 9:16 --length 40 --out ~/Videos/
+gpsstudio render tour.gpx --template-file Cinema.rzstyle --out video.mp4
 gpsstudio map-image 11660e04ed1c9695 --out map.png
 ```
 
 - **Tour:** a GPX/FIT/… file (anywhere, it doesn't have to be in the archive), the **id** from `gpsstudio tours` or a
   unique name. If several tours match, the command stops and lists the candidates.
-- **Template:** `landscape`, `memory`, `social` or the name of your own ★ template — you create it in the app (quick
-  video or video assistant → “★ Save as template”) and call it here by name.
+- **Template (all video templates since v0.9.852):** the ten video templates of the video assistant — `wanderlust`,
+  `plain`, `margin-note`, `on-the-road`, `field-book`, `forward`, `signpost`, `cinema`, `travel-poster`, `light-glass` —,
+  `classic`, the older `landscape`, `memory`, `social` (the default stays `landscape`) or the name of your own ★
+  template. The German or Spanish name works too. There is no template folder: the built-in ones live in the app, your ★
+  templates in the settings. `gpsstudio templates` lists them all as JSON — a program is best off taking the names from
+  there. `--template-file x.rzstyle` uses a template file (video assistant → Style → “Export style …”) without
+  importing it into the app; own templates come in the format they were built in unless you pass `--format`.
 - **Options:** `--format 16:9|9:16|1:1`, `--length` (seconds, 15–600), `--no-photos`, `--out` (file or folder; without:
-  the app's render folder), `--overwrite`, `--library <folder>` (another library).
+  the app's render folder), `--overwrite`, `--library <folder>` (another library), `--no-library` (don't open the library
+  at all; then a GPX file is needed).
+- **Library on a NAS, called over SSH (since v0.9.852):** if you sign in to a Windows PC over SSH with a key, that
+  session may not use the network drive — Windows has no password there to sign in to the NAS. It works at the PC itself,
+  not over SSH. If a GPX file is passed, GPS Studio then renders without the library (a note on stderr and as `"warning"`
+  in the JSON line; photos from the archive are left out); `--no-library` does that right away. For tours from the
+  archive: sign in first (`net use \\nas\share /user:NAME PASSWORD`), use SSH with a password instead of a key, or point
+  `--library` to a local library.
 - **Never overwrites:** if the target file exists, a timestamp is put in front of the name — unless you pass `--overwrite`.
 
 **What a script gets back:** progress line by line on stderr (in the app's language); at the end exactly **one JSON

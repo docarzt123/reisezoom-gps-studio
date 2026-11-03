@@ -2601,12 +2601,13 @@ python -m playwright install chromium-headless-shell</code></pre>
 <hr>
 <h2 id="8b-kommandozeile-gpsstudio-f-r-skripte">8b · Kommandozeile — gpsstudio für Skripte</h2>
 <p>Mit der Kommandozeile machen Skripte und andere Programme Videos und Kartenbilder deiner Touren — ohne dass jemand klickt. Beispiel: ein Wanderarchiv mit 120 Touren, aus dem jede Nacht die neuen Touren ein 9:16-Video bekommen.</p>
-<p><strong>Einrichten:</strong> Einstellungen → Allgemein → <strong>Für Fortgeschrittene</strong> → <strong>„Kommandozeile einrichten“</strong>. Auf dem Mac liegt der Befehl danach in <code>~/.local/bin/gpsstudio</code>. Findet das Terminal ihn nicht, einmal <code>echo &#x27;export PATH=&quot;$HOME/.local/bin:$PATH&quot;&#x27; &gt;&gt; ~/.zshrc</code> ausführen und ein neues Terminal öffnen. Auf Windows liegt <code>gpsstudio.cmd</code> in einem Ordner, der schon im Suchpfad ist. Wird die App verschoben, einfach noch einmal einrichten.</p>
+<p><strong>Einrichten:</strong> Einstellungen → Allgemein → <strong>Für Fortgeschrittene</strong> → <strong>„Kommandozeile einrichten“</strong>. Auf dem Mac liegt der Befehl danach in <code>~/.local/bin/gpsstudio</code>. Findet das Terminal ihn nicht, einmal <code>echo &#x27;export PATH=&quot;$HOME/.local/bin:$PATH&quot;&#x27; &gt;&gt; ~/.zshrc</code> ausführen und ein neues Terminal öffnen. Auf Windows liegt <code>gpsstudio.cmd</code> in <code>C:\Users\&lt;du&gt;\AppData\Local\Microsoft\WindowsApps</code> — dieser Ordner ist schon im Suchpfad. Er liegt <strong>neben</strong> dem Ordner <code>Windows</code>, nicht darin, und <code>AppData</code> ist im Explorer versteckt. Die <code>.cmd</code> macht nur eines: Sie sorgt dafür, dass das Terminal den Befehl <code>gpsstudio</code> findet, und ruft die <code>gpsstudio.exe</code> im App-Ordner auf. Ein Programm kann die <code>.exe</code> auch direkt aufrufen (z. B. <code>&quot;C:\Program Files\Reisezoom GPS Studio\gpsstudio.exe&quot; render …</code>), dann braucht es die <code>.cmd</code> gar nicht. Wird die App verschoben, einfach noch einmal einrichten.</p>
 <p><strong>Befehle</strong> (Befehle und Schalter sind englisch, damit sie überall gleich sind):</p>
 <pre><code>gpsstudio tours --search &quot;Gantrisch 2025&quot;          # Touren als Liste (id, Name, Datum, km, Datei)
-gpsstudio templates                                # Vorlagen: landscape, memory, social und deine ★-Vorlagen
-gpsstudio render &quot;Gantrisch&quot; --template landscape --out video.mp4
+gpsstudio templates                                # alle Vorlagen als Liste (Name, id, Namen in de/en/es)
+gpsstudio render &quot;Gantrisch&quot; --template wanderlust --out video.mp4
 gpsstudio render tour.gpx --template &quot;Mein Wanderlook&quot; --format 9:16 --length 40 --out ~/Videos/
+gpsstudio render tour.gpx --template-file Kino.rzstyle --out video.mp4
 gpsstudio map-image 11660e04ed1c9695 --out karte.png
 gpsstudio camera-export --rzproj tour.rzproj --out tour.kamera.json
 gpsstudio overlay-export --rzproj tour.rzproj --without-track --out tour.overlay.mov
@@ -2618,13 +2619,17 @@ gpsstudio highlights-export --rzproj tour.rzproj --out tour.highlights/</code></
 </ul>
 <p> eindeutiger Name. Passen mehrere Touren, bricht der Befehl ab und nennt die Kandidaten.</p>
 <ul>
-<li><strong>Vorlage:</strong> <code>landscape</code> (Weite), <code>memory</code> (Erinnerung), <code>social</code> oder der Name einer eigenen ★-Vorlage — die legst du</li>
+<li><strong>Vorlage:</strong> die zehn Videovorlagen des Video-Assistenten — <code>wanderlust</code> (Fernweh),</li>
 </ul>
-<p> in der App an (Schnell-Video oder Video-Assistent → „★ Als Vorlage speichern“) und rufst sie hier beim Namen auf.</p>
+<p> <code>plain</code> (Klartext), <code>margin-note</code> (Randnotiz), <code>on-the-road</code> (Unterwegs), <code>field-book</code> (Feldbuch), <code>forward</code>  (Vorwärts), <code>signpost</code> (Wegweiser), <code>cinema</code> (Kino), <code>travel-poster</code> (Reiseplakat), <code>light-glass</code> (Lichtglas) —,  <code>classic</code> (Klassisch), die älteren <code>landscape</code>, <code>memory</code>, <code>social</code> (Standard bleibt <code>landscape</code>) oder der Name einer  eigenen ★-Vorlage. Der deutsche oder spanische Name geht auch (<code>--template Kino</code>). Einen Ordner mit Vorlagen gibt es  nicht: Die eingebauten stecken in der App, deine ★-Vorlagen in den Einstellungen. <code>gpsstudio templates</code> liefert alle  als JSON — ein Programm übernimmt die Namen am besten von dort. Mit <code>--template-file x.rzstyle</code> nimmst du eine  Vorlagen-Datei (Video-Assistent → Stil → „Stil exportieren …“), ohne sie in der App einzulesen; eigene Vorlagen  kommen ohne <code>--format</code> in dem Format, in dem sie gebaut wurden.</p>
 <ul>
 <li><strong>Schalter:</strong> <code>--format 16:9|9:16|1:1</code>, <code>--length</code> (Sekunden, 15–600), <code>--no-photos</code>, <code>--out</code> (Datei oder Ordner;</li>
 </ul>
-<p> ohne: der Render-Ordner der App), <code>--overwrite</code>, <code>--library &lt;Ordner&gt;</code> (eine andere Bibliothek).</p>
+<p> ohne: der Render-Ordner der App), <code>--overwrite</code>, <code>--library &lt;Ordner&gt;</code> (eine andere Bibliothek), <code>--no-library</code> (die  Bibliothek gar nicht öffnen; dann braucht es eine GPX-Datei).</p>
+<ul>
+<li><strong>Bibliothek auf dem NAS, Aufruf per SSH:</strong> Wer sich per SSH mit Schlüssel an einem Windows-Rechner</li>
+</ul>
+<p> anmeldet, darf in dieser Sitzung nicht aufs Netzlaufwerk — Windows hat dort kein Kennwort, mit dem es sich am NAS  anmelden könnte. Am Rechner selbst klappt es, per SSH nicht. Wird eine GPX-Datei übergeben, rendert GPS Studio dann  ohne Bibliothek weiter (Hinweis auf stderr und als <code>&quot;warning&quot;</code> in der JSON-Zeile; Fotos aus dem Archiv fehlen dann);  <code>--no-library</code> macht das gleich so. Für Touren aus dem Archiv: vorher anmelden (<code>net use \\nas\freigabe  /user:NAME KENNWORT</code>), SSH mit Kennwort statt Schlüssel, oder <code>--library</code> auf eine lokale Bibliothek.</p>
 <ul>
 <li><strong>Nie überschreiben:</strong> Gibt es die Zieldatei schon, kommt ein Zeitstempel vor den Namen — außer mit <code>--overwrite</code>.</li>
 <li><strong>Kamerafahrt als Datei:</strong> <code>camera-export</code> nimmt ein exportiertes Projekt (<em>Projekt → Projekt exportieren (.rzproj)</em>) und</li>

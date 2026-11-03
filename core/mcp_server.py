@@ -57,8 +57,9 @@ WERKZEUGE = [
      "annotations": {"readOnlyHint": True, "openWorldHint": False}},
     {"name": "list_templates",
      "title": "List video templates",
-     "description": "List the video templates: built-in 'landscape' (calm, wide), 'memory' (diary style), 'social' "
-                    "(fast, for short clips) and the user's own ★ templates, plus the camera flight styles for render_video.",
+     "description": "List the video templates: the ten built-in ones (wanderlust, plain, margin-note, on-the-road, field-book, "
+                    "forward, signpost, cinema, travel-poster, light-glass) plus classic, the older 'landscape', 'memory', 'social' "
+                    "and the user's own ★ templates, plus the camera flight styles for render_video.",
      "inputSchema": {"type": "object", "properties": {}},
      "annotations": {"readOnlyHint": True, "openWorldHint": False}},
     {"name": "render_video",
@@ -67,7 +68,7 @@ WERKZEUGE = [
                     "job_id at once; rendering takes a few minutes — poll job_status. Jobs run one after another.",
      "inputSchema": {"type": "object", "required": ["tour"], "properties": {
          "tour": {"type": "string", "description": "Tour id from search_tours (preferred) or a unique tour name"},
-         "template": {"type": "string", "default": "landscape", "description": "landscape, memory, social or an own template name"},
+         "template": {"type": "string", "default": "landscape", "description": "a template name from list_templates (e.g. wanderlust, cinema, landscape or an own template)"},
          "camera": {"type": "string", "enum": ["companion", "skimmer", "swallow", "crane", "thermal", "cruise", "dandelion", "falcon", "orbit", "carousel"],
                     "description": "Camera flight style: companion (soft, behind you — default), skimmer (close, low, steep), swallow (agile), "
                                    "crane (swings outward in curves), thermal (higher, gliding), cruise (high and flat), dandelion "
@@ -322,8 +323,7 @@ class Server:
             tour = str(a.get("tour") or "")
             self._tour_pruefen(tour)
             vorlage = str(a.get("template") or "landscape")
-            if vorlage not in self.cli.VORLAGEN and not any(x["name"].strip().lower() == vorlage.strip().lower()
-                                                             for x in self.cli._eigene_vorlagen(self.api)):
+            if not self.cli.vorlage_finden(self.api, vorlage):
                 raise _Fehler(f"unknown template: {vorlage} — see list_templates")
             args = ["render", tour, "--template", vorlage]
             if a.get("camera"):

@@ -3803,24 +3803,42 @@ clic. Ejemplo: un archivo de excursiones con 120 rutas en el que cada ruta nueva
 **Configurar:** Ajustes → General → **Avanzado** → **«Configurar línea de comandos»**. En el Mac el comando queda en
 `~/.local/bin/gpsstudio`. Si el terminal no lo encuentra, ejecuta una vez
 `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc` y abre un terminal nuevo. En Windows, `gpsstudio.cmd` se
-coloca en una carpeta que ya está en la ruta de búsqueda. Si mueves la app, vuelve a configurarla.
+coloca en `C:\Users\<tú>\AppData\Local\Microsoft\WindowsApps`, una carpeta que ya está en la ruta de búsqueda. Está
+**junto a** la carpeta `Windows`, no dentro, y `AppData` está oculta en el Explorador. El `.cmd` solo hace una cosa: que el
+terminal encuentre el comando `gpsstudio`, y llama a `gpsstudio.exe` en la carpeta de la app. Un programa también puede
+llamar directamente al `.exe` (p. ej. `"C:\Program Files\Reisezoom GPS Studio\gpsstudio.exe" render …`) y entonces no
+necesita el `.cmd`. Si mueves la app, vuelve a configurarla.
 
 **Comandos** (en inglés, iguales en todas partes):
 
 ```
 gpsstudio tours --search "Gantrisch 2025"          # rutas en lista (id, nombre, fecha, km, archivo)
-gpsstudio templates                                # plantillas: landscape, memory, social y tus plantillas ★
-gpsstudio render "Gantrisch" --template landscape --out video.mp4
+gpsstudio templates                                # todas las plantillas en lista (nombre, id, nombres en de/en/es)
+gpsstudio render "Gantrisch" --template wanderlust --out video.mp4
 gpsstudio render ruta.gpx --template "Mi estilo" --format 9:16 --length 40 --out ~/Videos/
+gpsstudio render ruta.gpx --template-file Cine.rzstyle --out video.mp4
 gpsstudio map-image 11660e04ed1c9695 --out mapa.png
 ```
 
 - **Ruta:** un archivo GPX/FIT/… (en cualquier sitio, no hace falta que esté en el archivo), el **id** de
   `gpsstudio tours` o un nombre único. Si coinciden varias, el comando se detiene y muestra las candidatas.
-- **Plantilla:** `landscape`, `memory`, `social` o el nombre de tu plantilla ★: la creas en la app (vídeo rápido o
-  asistente → «★ Guardar como plantilla») y aquí la llamas por su nombre.
+- **Plantilla (todas las plantillas de vídeo desde v0.9.852):** las diez plantillas del asistente de vídeo —
+  `wanderlust`, `plain`, `margin-note`, `on-the-road`, `field-book`, `forward`, `signpost`, `cinema`, `travel-poster`,
+  `light-glass` —, `classic`, las antiguas `landscape`, `memory`, `social` (la predeterminada sigue siendo `landscape`) o
+  el nombre de tu plantilla ★. También vale el nombre en español (`--template "Ganas de viajar"`). No hay una carpeta de
+  plantillas: las incluidas están en la app y tus plantillas ★ en los ajustes. `gpsstudio templates` las da todas en
+  JSON; lo mejor es que un programa tome los nombres de ahí. Con `--template-file x.rzstyle` usas un archivo de
+  plantilla (asistente → Estilo → «Exportar estilo …») sin importarlo en la app; las plantillas propias salen en el
+  formato en que se crearon si no indicas `--format`.
 - **Opciones:** `--format 16:9|9:16|1:1`, `--length` (segundos, 15–600), `--no-photos`, `--out` (archivo o carpeta; sin
-  ella: la carpeta de renders de la app), `--overwrite`, `--library <carpeta>` (otra biblioteca).
+  ella: la carpeta de renders de la app), `--overwrite`, `--library <carpeta>` (otra biblioteca), `--no-library` (no abrir
+  la biblioteca; entonces hace falta un archivo GPX).
+- **Biblioteca en un NAS, llamada por SSH (desde v0.9.852):** si inicias sesión en un PC con Windows por SSH con una
+  clave, esa sesión no puede usar la unidad de red: Windows no tiene ahí una contraseña para entrar en el NAS. En el PC
+  funciona, por SSH no. Si se pasa un archivo GPX, GPS Studio sigue sin la biblioteca (aviso en stderr y como `"warning"`
+  en la línea JSON; faltan las fotos del archivo); `--no-library` lo hace así directamente. Para rutas del archivo:
+  inicia sesión antes (`net use \\nas\recurso /user:NOMBRE CONTRASEÑA`), usa SSH con contraseña en lugar de clave, o
+  apunta `--library` a una biblioteca local.
 - **Nunca sobrescribe:** si el archivo ya existe, se antepone una marca de tiempo al nombre, salvo con `--overwrite`.
 
 **Qué recibe un script:** el progreso línea a línea en stderr (en el idioma de la app); al final exactamente **una línea
