@@ -316,7 +316,7 @@ def _vorlage_aus_datei(app, pfad: str, fmt: str | None) -> dict:
         d = crzstyle.lesen(p.read_bytes())
         name, daten = crzstyle.als_eigene_vorlage(d, getattr(app, "_ui_sprache", lambda: "en")(), fmt or "")
     except (OSError, UnicodeDecodeError, crzstyle.RzStyleFehler) as e:
-        raise CliFehler(f"--template-file {p}: {e}", code=2)
+        raise CliFehler(f"--template-file {p}: {e}", code=2) from None
     return {"art": "eigen", "id": "datei", "format": daten.get("format"), "eintrag": {"id": "datei", "name": name, "daten": daten}}
 
 
