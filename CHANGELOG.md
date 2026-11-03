@@ -14,6 +14,22 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Export and import video templates as `.rzstyle` files**: any of the ten built-in templates or your own ★ template can
+  be saved as a file — Animator → Overlays → *Export style* (next to ★, also *All built-in ones into a folder …*) or the
+  *Style* tab of the video assistant. *Import style* adds `.rzstyle` files as your own templates, so templates can be
+  shared or moved to another device. Texts are stored as placeholders (title, subtitle, header line, translated labels in
+  German, English and Spanish), so a template works for any tour and language. Built-in templates contain 16:9, 9:16 and
+  1:1; your own ones the format they were saved in. The file format is described in `docs/DEVELOPER.md`.
+- **“At most” width for overlays**: with automatic size, an overlay can be limited to a share of the frame width
+  (overlay editor → *Position and size*); longer text wraps instead of running over other overlays or the frame edge.
+
+### Fixed
+- **Long titles in the video templates** ran past the paper band (Randnotiz), the note (Feldbuch) or over the overview
+  map and off the frame (Lichtglas and others). Template titles now have a maximum width and wrap onto the next line.
+- **Lichtglas in 1:1**: the elevation profile covered the third live value. In the square format the glass band now
+  shows two live values, and the profile only appears while on the way, so the final values have the band to themselves.
+
 ## [0.9.851] – 2026-11-02
 
 ### Added

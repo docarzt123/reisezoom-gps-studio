@@ -1480,6 +1480,11 @@ ${mehrAuf(1)}
         <!-- 01.11.2026 (Marc: „nach Format einen Reiter Stil … verschiedene Vorlagen“) -->
         ${kopf(T("va.stil_h", "Wie soll es aussehen?"), T("va.stil_sub", "Eine Vorlage setzt Schriften, Einblendungen, Schilder, Bergnamen, Laufpunkt und Linie auf einmal. Danach kannst du alles einzeln ändern."))}
         <div class="va-karten va-karten-2 va-stile" id="va-stile">${VA_STIL_NAMEN.map(k => vaStilKarte(k, k === w.stilId)).join("")}</div>
+        <!-- 02.11.2026 (Marc: Vorlagen vom Desktop ins iPhone übernehmen) — gewählten Stil als .rzstyle speichern / Dateien einlesen -->
+        <div class="va-rzstyle">
+          <button type="button" class="btn btn-small" data-va-rzstyle="export" title="${esc(T("rzstyle.export_tip", "Stil exportieren … — eine Videovorlage als .rzstyle-Datei speichern (z. B. für die iPhone-App)"))}"${VA_STILE[w.stilId] && (VA_STILE[w.stilId].vv || VA_STILE[w.stilId].eigen) ? "" : " disabled"}>${I("upload", 13)} ${esc(T("rzstyle.export", "Stil exportieren …"))}</button>
+          <button type="button" class="btn btn-small" data-va-rzstyle="import" title="${esc(T("rzstyle.import_tip", "Stil importieren … — .rzstyle-Dateien als eigene Videovorlagen übernehmen"))}">${I("download", 13)} ${esc(T("rzstyle.import", "Stil importieren …"))}</button>
+        </div>
       </section>
 
       <section data-va="2">
@@ -3286,6 +3291,25 @@ ${mehrAuf(1)}
         try { vaLinie(); vaKarte(); } catch (_) {}
         try { applog("info", `[assistent] Stil-Vorlage ${w.stilId}`); } catch (_) {}
         vaLive();
+      });
+      // 02.11.2026 — .rzstyle: gewählten Stil exportieren (eingebaut oder eigen; „Klassisch“ ist keine Videovorlage) / einlesen
+      const vaRzKnopf = () => { const b = box.querySelector('[data-va-rzstyle="export"]'); if (b) b.disabled = !(VA_STILE[w.stilId] && (VA_STILE[w.stilId].vv || VA_STILE[w.stilId].eigen)); };
+      box.querySelector("#va-stile")?.addEventListener("click", () => vaRzKnopf());
+      box.querySelector(".va-rzstyle")?.addEventListener("click", async (e) => {
+        const b = e.target.closest("[data-va-rzstyle]"); if (!b || !window.rzStyle) return;
+        if (b.dataset.vaRzstyle === "export") {
+          const S = VA_STILE[w.stilId]; if (!S) return;
+          if (S.eigen) await window.rzStyle.exportieren({ eigen: S.eigen });
+          else if (S.vv) await window.rzStyle.exportieren(S.vv);
+          return;
+        }
+        const r = await window.rzStyle.importieren(w.format);
+        if (r && Array.isArray(r.liste)) {
+          vaEigeneVideovorlagen(r.liste);
+          const st = box.querySelector("#va-stile");
+          if (st) st.innerHTML = VA_STIL_NAMEN.map(k => vaStilKarte(k, k === w.stilId)).join("");
+          vaRzKnopf();
+        }
       });
       // Video: Logo an/aus und Lage (01.11.2026, wie die iPhone-App)
       box.querySelector("#va-logo-an")?.addEventListener("change", (e) => { w.logoAn = !!e.target.checked; const t_ = box.querySelector("#va-logo-teil"); if (t_) t_.hidden = !w.logoAn; });

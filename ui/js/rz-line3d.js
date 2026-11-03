@@ -46,8 +46,11 @@ uniform float u_halfw;  // halbe Linienbreite in Bildpunkten
 uniform float u_pxPerMerc;   // Bildpunkte je Merkator-Einheit (Strichelung)
 uniform float u_pxPerMercRef; // dito zur Zeit des Aufbaus (Bezug für die Strichlänge)
 uniform vec2 u_translate;    // Versatz in Gerätepixeln (Schlagschatten)
+uniform float u_breiteM;     // 02.11.2026 Röhre: Breite in Metern (0 = Breite in Bildpunkten, u_halfw)
 out vec3 v_lw;          // (entlang, quer, Segmentlänge) × w
 out float v_w;
+out float v_hw;         // halbe Breite in Bildpunkten × w (je Endpunkt: bei Metern perspektivisch verschieden)
+out float v_licht;      // Lichtseite: Bildrichtung der Querachse gegen das Licht von oben links (−1…1)
 out float v_dist;       // Bildpunkte bis zum Segmentanfang × w
 out vec4 v_color;
 vec4 rzProject(vec3 posMerc, float elevM) {
@@ -69,16 +72,31 @@ void main() {
   float L = length(dd);
   vec2 d = (L > 0.0001) ? dd / L : vec2(1.0, 0.0);
   vec2 n = vec2(-d.y, d.x);
+  // 02.11.2026 Röhre — Breite in Metern: quer zur Spur um die halbe Breite versetzt projizieren, Abstand im Bild
+  // messen; die Mindestbreite (u_halfw) gilt weiter, damit die Röhre aus der Ferne nicht verschwindet.
+  float halfw = u_halfw;
+  if (u_breiteM > 0.0) {
+    vec2 dm = a_other.xy - a_pos.xy;
+    float lm = length(dm);
+    vec2 nm = (lm > 1e-12) ? vec2(-dm.y, dm.x) / lm : vec2(0.0, 1.0);
+    float meterMerc = cosh(3.14159265 * (1.0 - 2.0 * a_pos.y)) / 40075016.686;
+    vec4 pq = rzProject(a_pos + vec3(nm * (0.5 * u_breiteM * meterMerc), 0.0), a_elev);
+    halfw = max(u_halfw, length(pq.xy / pq.w * u_res * 0.5 - sp));
+  }
   // Kappe: um halfw über den Endpunkt hinaus, weg vom anderen Ende
-  vec2 sp2 = sp + n * a_side * u_halfw - d * u_halfw + vec2(u_translate.x, -u_translate.y);
+  vec2 sp2 = sp + n * a_side * halfw - d * halfw + vec2(u_translate.x, -u_translate.y);
   gl_Position = vec4(sp2 / (u_res * 0.5) * p.w, p.z, p.w);
-  float along = (a_end < 0.5) ? -u_halfw : (L + u_halfw);
+  float along = (a_end < 0.5) ? -halfw : (L + halfw);
   // 05.10.2026 (Klicktest „Flug in der Luft“: Punkt mit eingedellter Oberkante) — am Segmentende ist d gespiegelt,
   // damit auch die Normale: dort liegt Seite +1 geometrisch auf der −1-Seite des Anfangs. Der Querwert muss der
   // GEOMETRIE folgen (sonst passt er nicht zum Anfang), und die Dreiecke laufen v0 → v1 → v3 → v2 (siehe idx).
   float quer = (a_end < 0.5) ? a_side : -a_side;
-  v_lw = vec3(along, quer * u_halfw, L) * p.w;
+  v_lw = vec3(along, quer * halfw, L) * p.w;
   v_w = p.w;
+  v_hw = halfw * p.w;
+  // Querachse zeigt im Bild in Richtung n des Segmentanfangs (am Ende ist n gespiegelt, quer auch)
+  vec2 nAnf = (a_end < 0.5) ? n : -n;
+  v_licht = dot(nAnf, normalize(vec2(-0.45, 1.0)));
   v_dist = a_dist * p.w;   // Merkator-Strecke bis zum Segmentanfang (× w)
   v_color = a_color;
 }`;
@@ -89,8 +107,13 @@ in vec3 v_lw;
 in float v_w;
 in float v_dist;
 in vec4 v_color;
+in float v_hw;
+in float v_licht;
 uniform vec4 u_color;      // Grundfarbe (× Vertexfarbe)
 uniform float u_halfw;
+uniform float u_roehre;    // 02.11.2026: 1 = als Röhre schattieren (Rundung, Licht von oben links, Glanzstreifen)
+uniform float u_glanz;     // 0…1 Stärke des Glanzstreifens
+uniform float u_featherRel; // weiche Kante zusätzlich als Anteil der halben Breite (Bodenschatten der Röhre)
 uniform float u_feather;   // weiche Kante in Bildpunkten (Glow); 0.8 = normal
 uniform vec2 u_dash;       // (Strich, Lücke) in Bildpunkten zur Bezugs-Zoomstufe; x<=0 = durchgezogen
 uniform float u_pxPerMerc;
@@ -99,12 +122,13 @@ out vec4 fragColor;
 void main() {
   vec3 lw = v_lw / v_w;
   float along = lw.x, across = lw.y, L = lw.z;
+  float hw = max(0.5, v_hw / v_w);
   float dist;
   if (along < 0.0) dist = length(vec2(along, across));
   else if (along > L) dist = length(vec2(along - L, across));
   else dist = abs(across);
-  float f = max(0.3, u_feather);
-  float a = 1.0 - smoothstep(u_halfw - f, u_halfw + 0.6, dist);
+  float f = max(0.3, u_feather + u_featherRel * hw);
+  float a = 1.0 - smoothstep(hw - f, hw + 0.6, dist);
   if (u_dash.x > 0.0) {
     // Strichelung entlang der ECHTEN Linie, am BODEN verankert (Merkator-Strecke):
     // beim Zoomen atmet das Muster, es wandert nicht (weder je Kachel noch vom
@@ -114,11 +138,26 @@ void main() {
     float period = dashM + gapM;
     float m = mod(dMerc, period);
     float edge = min(m, dashM - m) * u_pxPerMerc;   // Abstand zur Strichkante in Bildpunkten (negativ = in der Lücke)
-    edge += u_halfw;                                 // runde Kappen: Strich wächst um halfw je Ende
+    edge += hw;                                      // runde Kappen: Strich wächst um halfw je Ende
     a *= smoothstep(-0.7, 0.7, edge);
   }
   if (a <= 0.002) discard;
   vec4 c = u_color * v_color;
+  if (u_roehre > 0.5) {
+    // Querschnitt eines Zylinders: t = Lage quer (−1…1), nz = Normale zum Betrachter. In den runden Kappen der
+    // Abstand zur Achse, damit Enden und Knicke wie Kugelhälften wirken.
+    // auch in den runden Kappen quer schattieren: die Kappen liegen an jedem Knick über dem Nachbarstück — als
+    // Kugelhälften wirkte die Röhre wie eine Perlenkette
+    float t = clamp(across / hw, -1.0, 1.0);
+    float nz = sqrt(max(0.0, 1.0 - t * t));
+    float s = clamp(v_licht, -1.0, 1.0);
+    // Richtungsanteil klein halten: er wechselt mit jedem Segment (Zickzack-Spuren wirkten sonst streifig)
+    float diff = clamp(t * s * 0.30 + nz * 0.85, 0.0, 1.0);
+    vec3 farbe = c.rgb * (0.38 + 0.72 * diff);
+    float tH = s * 0.22;
+    float spec = exp(-pow((t - tH) / 0.22, 2.0)) * u_glanz * nz;
+    c.rgb = min(vec3(1.0), farbe + vec3(1.0) * spec * 0.80);
+  }
   fragColor = vec4(c.rgb, c.a * a);
   fragColor.rgb *= fragColor.a;   // premultiplied (MapLibre-Blend)
 }`;
@@ -179,14 +218,15 @@ void main() {
                       tileMerc: U("u_projection_tile_mercator_coords"), clip: U("u_projection_clipping_plane"),
                       transition: U("u_projection_transition"),
                       res: U("u_res"), halfw: U("u_halfw"), ucolor: U("u_color"),
-                      feather: U("u_feather"), dash: U("u_dash"), pxPerMerc: U("u_pxPerMerc"), pxPerMercRef: U("u_pxPerMercRef"), translate: U("u_translate") };
+                      feather: U("u_feather"), dash: U("u_dash"), pxPerMerc: U("u_pxPerMerc"), pxPerMercRef: U("u_pxPerMercRef"), translate: U("u_translate"),
+                      breiteM: U("u_breiteM"), roehre: U("u_roehre"), glanz: U("u_glanz"), featherRel: U("u_featherRel") };
       },
       onRemove(map, gl) {
         try { if (this._demNeu) map.off("sourcedata", this._demNeu); } catch (_) {}
         for (const b of this._bufs) { try { gl.deleteBuffer(b.vbo); gl.deleteBuffer(b.ibo); } catch (_) {} }
         this._bufs = [];
       },
-      /** Spuren setzen: [{coords:[[lng,lat],…], color, width(px), opacity,
+      /** Spuren setzen: [{coords:[[lng,lat],…], color, width(px), opacity, roehre {glanz}, breiteM, hebMinPx, featherRel,
        *    colors: [[r,g,b,a]…] je Punkt (optional, 0..1),
        *    segColors: [[[r,g,b,a] Anfang, [r,g,b,a] Ende]…] je Segment (optional, Vorrang vor colors — harte
        *    Farbwechsel an einem Punkt ohne Zusatzpunkte, 15.10.2026 Fluglinie wie die Bodenlinie), dash: [strich, lücke] in
@@ -200,6 +240,13 @@ void main() {
           offsetM: (t.offsetM != null) ? +t.offsetM : null,
           agl: Array.isArray(t.agl) || ArrayBuffer.isView(t.agl) ? t.agl : null, lot: !!t.lot,
           smooth: t.smooth,
+          // 02.11.2026 Röhre: roehre {glanz 0…1}; breiteM = Breite in Metern (width bleibt Mindestbreite in px);
+          // hebMinPx = Mindesthöhe über dem Boden in Bildpunkten (gegen das grobe Geländenetz); featherRel = weiche Kante
+          // als Anteil der halben Breite (Bodenschatten)
+          roehre: t.roehre ? { glanz: Math.max(0, Math.min(1, t.roehre.glanz != null ? +t.roehre.glanz : 0.5)) } : null,
+          breiteM: (t.breiteM != null && +t.breiteM > 0) ? +t.breiteM : 0,
+          hebMinPx: (t.hebMinPx != null) ? +t.hebMinPx : 0,
+          featherRel: (t.featherRel != null) ? +t.featherRel : 0,
         }));
         this._counts = null;
         if (this._gl) this._rebuild();
@@ -262,7 +309,7 @@ void main() {
             const boden = this._elev(c[i][0], c[i][1]);
             if (probeAll && i % probeAll === 0) this._bodenProbe.push([c[i][0], c[i][1], boden]);
             const h = t.agl ? boden + Math.max(t.lot ? 0 : aglMin, Math.max(0, +t.agl[i] || 0) * ex)
-                            : boden + ((t.offsetM != null) ? +t.offsetM * hebF : hebM);
+                            : boden + Math.max((t.offsetM != null) ? +t.offsetM * hebF : hebM, t.hebMinPx * aglMin / 3);
             const mc = MC.fromLngLat([c[i][0], c[i][1]], h);
             merc[i] = [mc.x, mc.y, mc.z, h];
             if (t.lot) {   // Lot: zusätzlich der Fußpunkt am Boden (leicht angehoben gegen Z-Fighting)
@@ -324,6 +371,7 @@ void main() {
           const vbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
           const ibo = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
           this._bufs.push({ vbo, ibo, segs, color: t.color, width: t.width, dash: t.dash, feather: t.feather, translate: t.translate,
+                           roehre: t.roehre, breiteM: t.breiteM, featherRel: t.featherRel,
                            lotCoords: t.lot ? c : null, lotK: 1 });
         }
       },
@@ -426,6 +474,10 @@ void main() {
           if (L.translate) gl.uniform2f(L.translate, (b.translate ? b.translate[0] : 0) * pr, (b.translate ? b.translate[1] : 0) * pr);
           if (b.dash) gl.uniform2f(L.dash, b.dash[0] * b.width * zf * pr, b.dash[1] * b.width * zf * pr); else gl.uniform2f(L.dash, 0, 0);
           gl.uniform4f(L.ucolor, b.color[0], b.color[1], b.color[2], b.color[3]);
+          if (L.breiteM) gl.uniform1f(L.breiteM, b.breiteM ? b.breiteM * zf : 0);
+          if (L.roehre) gl.uniform1f(L.roehre, b.roehre ? 1 : 0);
+          if (L.glanz) gl.uniform1f(L.glanz, b.roehre ? b.roehre.glanz : 0);
+          if (L.featherRel) gl.uniform1f(L.featherRel, b.featherRel || 0);
           const k = b.lotCoords ? this._lotSchritt(b, first, segs, pr) : 1;
           if (k <= 1) gl.drawElements(gl.TRIANGLES, segs * 6, gl.UNSIGNED_INT, first * 6 * 4);
           else for (let s = Math.ceil(first / k) * k; s < first + segs; s += k) gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, s * 6 * 4);

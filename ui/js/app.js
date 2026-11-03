@@ -1594,6 +1594,10 @@ async function openAboutModal() {
             — BSD-3-Clause (${t("about.credits.maplibre", "Karten ohne Mapbox-Token, gebündelt")}, ${t("about.credits.angepasst", "angepasst")})
           </li>
           <li>
+            <a href="#" class="md-about-link" data-url="https://threejs.org/">three.js</a>
+            — MIT (${t("about.credits.three", "3D-Laufpunkt, gebündelt")})
+          </li>
+          <li>
             <a href="#" class="md-about-link" data-url="https://leafletjs.com/">Leaflet</a>
             — BSD-2-Clause (${t("about.credits.leaflet", "Web-Karten-Export, gebündelt")})
           </li>

@@ -111,9 +111,13 @@
         farbe: o.ufarbe || "#d2e0dd", versal: false }, o.uzeile || {})));
       if (o.phase) zeilen.push(txt({ titel: T("vv.phase.titel", "Der Anfang"), live: T("vv.phase.live", "Unterwegs"), ende: T("vv.phase.ende", "Geschafft") }[phase].toUpperCase(),
         Object.assign({ gr: (o.ppx || 11) / h1, gewicht: 600, sperrung: 0.27, farbe: o.pfarbe || AK, schrift: "manrope", kursiv: false }, o.pzeile || {})));
+      // 03.11.2026 (Befund der iPhone-App: lange Titel liefen über Papierband, Notiz und Übersichtskarte) — Höchstbreite:
+      // rechts bleibt Platz für Übersichtskarte, Ring oder Konturzahl; mittig gesetzte Titel halten zu beiden Seiten Abstand
+      const lage = Object.assign({ anker: "tl", x: X(65) }, o.box || {});
+      const maxB = lage.max_b != null ? lage.max_b : Math.max(20, lage.anker[1] === "c" ? 100 - 2 * X(65) : 100 - (+lage.x || 0) - X(280));
       return box(Object.assign({ name: T("container.v.titel", "Titel") + " · " + T("vv.phase." + phase, phase), vorlage: phase === "ende" ? "schluss" : "titel",
         anker: "tl", x: X(65), y: Y(100), schriftgroesse: F(h1), zeilenabstand: 0.12, zeit: Z[phase], blende: BL[phase],
-        gross: false, schrift: o.schrift || "manrope", textfarbe: o.farbe || PAPIER }, o.box || {}, { zeilen }));
+        gross: false, schrift: o.schrift || "manrope", textfarbe: o.farbe || PAPIER }, o.box || {}, { max_b: Math.round(maxB * 100) / 100, zeilen }));
     };
     // ── Kennzahlen je Phase (Ersatzfelder statt erfundener Werte) ──
     // 01.11.2026 (Marc: „es müssen alle Möglichkeiten in dem Stil gehen“) — die Werte der Schlusskarte folgen der Auswahl
@@ -175,7 +179,7 @@
         hg_farbe: PAPIER, hg_deckkraft: 1, schatten: true, textschatten: false, zeilen: [], zeit: null, blende: { ein: "links", aus: "none", ein_s: 0.8, aus_s: 0.4 } }));
       kopf({ dunkel: true, lx: 35, ly: 40, lb: 130, kicker: false });
       const tb = { h1: 52, schrift: "cormorant", gew: 600, sp: -0.035, zh: 1, kpx: 9, ksp: 0.16, kfarbe: "#47636a", upx: 13, ufarbe: "#5e777a", phase: true, ppx: 9, pfarbe: "#438a7d",
-        farbe: TINTE, box: { x: X(35), y: Y(106), textschatten: false, groesse: "auto" } };
+        farbe: TINTE, box: { x: X(35), y: Y(106), textschatten: false, groesse: "auto", max_b: X(330) - 2 * X(35) } };   // Titel bleibt im Papierband
       dazu(titelBlock("titel", Object.assign({}, tb, { box: Object.assign({}, tb.box, { y: Y(160) }) })));
       dazu(titelBlock("live", tb));
       dazu(titelBlock("ende", Object.assign({}, tb, { h1: 48 })));
@@ -282,8 +286,11 @@
       dazu(box(Object.assign({ name: T("vv.glasband", "Glasband"), vorlage: "flaeche", anker: "bl", x: X(65), y: Y(62), groesse: "fest", b: 100 - 2 * X(65), h: Y(128),
         zeilen: [], zeit: { von: Z.live.von, bis: null }, blende: { ein: "hoch", aus: "none", ein_s: 0.6, aus_s: 0.4 } }, glas)));
       const w = { px: 38, gap: 40, lpx: 10, box: { x: X(97), y: Y(87), textschatten: false } };
-      dazu(werte("live", Object.assign({}, w, { anzahl: 3 }))); dazu(werte("ende", w));
-      dazu(profil({ b: 380, h: 66, box: { anker: "br", x: X(100), y: Y(85), textschatten: false }, zeit: { von: Z.live.von, bis: null } }));
+      // 03.11.2026 (Befund der iPhone-App: im Quadrat lag das Profil auf dem dritten Wert) — im Quadrat zwei Werte, und das
+      // Profil nur unterwegs, damit die Werte der Schlusskarte (bis zu vier) das Band für sich haben
+      const quadrat = !hoch && fw / fh < 1.2;
+      dazu(werte("live", Object.assign({}, w, { anzahl: quadrat ? 2 : 3 }))); dazu(werte("ende", w));
+      dazu(profil({ b: 380, h: 66, box: { anker: "br", x: X(100), y: Y(85), textschatten: false }, zeit: { von: Z.live.von, bis: quadrat ? Z.live.bis : null } }));
       dazu(mini({ b: 155, h: 105, box: { y: Y(115), x: X(70) } }));
       dazu(ort({ px: 21, kante: "keine", kfarbe: "#aee7d9", kpx: 8, upx: 10, dx: 52, dy: 68,
         box: Object.assign({}, glas, { ecken: 0.66, innen: 0.55, rahmen_farbe: "#8a9a9c", hg_farbe: "#e1f6ed", hg_deckkraft: 0.19, hg_deckkraft2: 0.84, hg_farbe2: "#14262b" }) }));

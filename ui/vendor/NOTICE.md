@@ -13,6 +13,7 @@ weißes Fenster. Lokal gebündelt startet sie offline.
 | `mapbox-gl.js`, `mapbox-gl.css` | [Mapbox GL JS](https://github.com/mapbox/mapbox-gl-js) | 3.12.0 | **Mapbox Terms of Service** (proprietär) — © Mapbox |
 | `maplibre-gl.js`, `maplibre-gl.css` | [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js) | 5.4.0 **mit eigenen Patches** (nur `.js`) | BSD 3-Clause |
 | `leaflet/leaflet.js`, `leaflet/leaflet.css`, `leaflet/images/*` | [Leaflet](https://github.com/Leaflet/Leaflet) | 1.9.4 | BSD 2-Clause |
+| `three.js`, `three-LICENSE.txt` | [three.js](https://github.com/mrdoob/three.js) | r187 (npm `three@0.187.0`), **als klassisches Skript** umgebaut mit `scripts/three_klassisch.py` (nur Import/Export ersetzt, Code unverändert) | MIT |
 | `ui/js/icons.js` (Pfaddaten der Symbole) | [Lucide](https://github.com/lucide-icons/lucide) (`lucide-static`) | 0.460.0 | ISC; Teile aus [Feather](https://github.com/feathericons/feather), MIT |
 
 ## Hinweis zu Mapbox GL JS

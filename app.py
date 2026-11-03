@@ -98,6 +98,7 @@ from core import schonend as cschonend   # 13.10.2026 — Einlesen/Inhaltssuche 
 from core import tempo as ctempo   # 08.09.2026 — Tempo-Kurve (Raffung, Halte, Abschnitte)
 from core import imports as cimports  # v0.9.282: universelle Track-Import-Schicht
 from core import exif as cexif
+from core import rzstyle as crzstyle   # 02.11.2026 — Videovorlagen als .rzstyle-Datei (iPhone-App)
 from core import geotag as cgeo
 from core import installation as cinstall  # 10.09.2026 — Selbst-Installation nach Programme (Mac)
 from core import selbstupdate as cupdate  # 27.09.2026 — Update ohne Neuinstallation
@@ -16428,6 +16429,8 @@ class Api:
         anim = {k: v for k, v in (daten.get("animator") or {}).items() if k in erlaubt_anim}
         eintrag_daten = {"container": daten["container"][:60], "verlauf": daten.get("verlauf") if isinstance(daten.get("verlauf"), dict) else None,
                          "animator": anim, "titel_alt": str(daten.get("titel_alt") or "")[:200]}
+        if daten.get("format") in crzstyle.FORMATE:   # 02.11.2026 — für den .rzstyle-Export: in welchem Format gebaut
+            eintrag_daten["format"] = daten["format"]
         liste = [x for x in (_load_settings().get("videovorlagen_eigen") or []) if isinstance(x, dict)]
         vorhanden = next((x for x in liste if str(x.get("name", "")).strip().lower() == name.lower()), None)
         import uuid
@@ -16440,6 +16443,97 @@ class Api:
         liste = [x for x in (_load_settings().get("videovorlagen_eigen") or []) if isinstance(x, dict) and x.get("id") != vid]
         self.settings_set({"videovorlagen_eigen": liste})
         return {"ok": True, "liste": liste}
+
+    # ── 02.11.2026 — Videovorlagen als .rzstyle-Datei (core/rzstyle.py) ─────────────────────────────────────────
+    # Marc: „könnte man auf dem Desktop Vorlagen bauen und die ins iPhone übernehmen?“ — der Browser baut die Vorlage
+    # (ui/js/rzstyle.js), hier kommen Namen und Übersetzungen dazu, dann wird geschrieben bzw. eingelesen.
+    RZSTYLE_TYPEN = ("GPS Studio Style (*.rzstyle)",)
+
+    def _rzstyle_datei(self, stil: dict, schluessel: dict) -> dict:
+        return crzstyle.vervollstaendigen(stil, schluessel, ci18n.uebersetzer, APP_VERSION)
+
+    @staticmethod
+    def _rzstyle_schreiben(pfad: str, d: dict) -> None:
+        with open(pfad, "w", encoding="utf-8") as f:
+            json.dump(d, f, ensure_ascii=False, indent=1)
+
+    def rzstyle_exportieren(self, stil: dict, schluessel: dict, dateiname: str = "") -> dict:
+        """Eine Vorlage als .rzstyle speichern (Sichern-Dialog). {ok, pfad} | {ok: False, abgebrochen} | {ok: False, error}."""
+        t = _ui_t()
+        try:
+            d = self._rzstyle_datei(stil, schluessel)
+        except crzstyle.RzStyleFehler as e:
+            return {"ok": False, "error": t("rzstyle.fehler_bauen", "Die Vorlage ließ sich nicht als Datei bauen.") + f" ({e})"}
+        pfad = self.pick_save_path(crzstyle.dateiname(dateiname or d["name"]), "", self.RZSTYLE_TYPEN)
+        if not pfad:
+            return {"ok": False, "abgebrochen": True}
+        if not pfad.lower().endswith(".rzstyle"):
+            pfad += ".rzstyle"
+        try:
+            self._rzstyle_schreiben(pfad, d)
+        except OSError as e:
+            return {"ok": False, "error": t("rzstyle.fehler_schreiben", "Konnte die Datei nicht schreiben.") + f" ({e})"}
+        return {"ok": True, "pfad": pfad}
+
+    def rzstyle_alle_exportieren(self, stile: list, schluessel: dict, ordner: str = "") -> dict:
+        """Mehrere Vorlagen (die eingebauten) in einen Ordner: <id>.rzstyle. Ohne `ordner` fragt ein Ordner-Dialog.
+        Vorhandene Dateien gleichen Namens bekommen „-2“ … angehängt (nie überschreiben)."""
+        t = _ui_t()
+        if not ordner:
+            gew = self.pick_file("folder")
+            ordner = gew[0] if gew else ""
+        if not ordner:
+            return {"ok": False, "abgebrochen": True}
+        if not os.path.isdir(ordner) or not os.access(ordner, os.W_OK):
+            return {"ok": False, "error": t("rzstyle.fehler_ordner", "In diesen Ordner kann nicht geschrieben werden.")}
+        dateien = []
+        for stil in (stile or []):
+            try:
+                d = self._rzstyle_datei(stil, schluessel)
+            except crzstyle.RzStyleFehler as e:
+                return {"ok": False, "error": t("rzstyle.fehler_bauen", "Die Vorlage ließ sich nicht als Datei bauen.") + f" ({e})", "dateien": dateien}
+            ziel = os.path.join(ordner, _freier_dateiname(ordner, crzstyle.dateiname(d["id"] or d["name"])))
+            _ds.nutzer_ziel(ziel, gueltig_s=600)
+            try:
+                self._rzstyle_schreiben(ziel, d)
+            except OSError as e:
+                return {"ok": False, "error": t("rzstyle.fehler_schreiben", "Konnte die Datei nicht schreiben.") + f" ({e})", "dateien": dateien}
+            dateien.append(ziel)
+        return {"ok": True, "ordner": ordner, "dateien": dateien}
+
+    def rzstyle_importieren(self, format_wunsch: str = "") -> dict:
+        """.rzstyle-Dateien wählen und als eigene Videovorlagen merken. Gibt es den Namen schon, wird „ 2“ … angehängt.
+        {ok, neu: [namen], fehler: [{datei, grund}], liste} | {ok: False, abgebrochen}."""
+        t = _ui_t()
+        pfade = self.pick_file("open", self.RZSTYLE_TYPEN, True)
+        if not pfade:
+            return {"ok": False, "abgebrochen": True}
+        neu, fehler, liste = [], [], None
+        for pfad in pfade:
+            try:
+                with open(pfad, "rb") as f:
+                    roh = f.read(crzstyle.MAX_BYTES + 1)
+                name, daten = crzstyle.als_eigene_vorlage(crzstyle.lesen(roh), _ui_sprache(), format_wunsch)
+            except (OSError, UnicodeDecodeError, crzstyle.RzStyleFehler) as e:
+                fehler.append({"datei": os.path.basename(pfad), "grund": str(e)})
+                continue
+            if not daten["container"]:
+                fehler.append({"datei": os.path.basename(pfad), "grund": t("rzstyle.leer", "keine Einblendungen")})
+                continue
+            vorhanden = {str(x.get("name", "")).strip().lower() for x in (_load_settings().get("videovorlagen_eigen") or []) if isinstance(x, dict)}
+            basis, n = name, 2
+            while name.lower() in vorhanden:
+                name = f"{basis} {n}"[:60]
+                n += 1
+            r = self.videovorlage_eigen_speichern(name, daten)
+            if r.get("ok"):
+                neu.append(name)
+                liste = r.get("liste")
+            else:
+                fehler.append({"datei": os.path.basename(pfad), "grund": r.get("error") or "?"})
+        if liste is None:
+            liste = [x for x in (_load_settings().get("videovorlagen_eigen") or []) if isinstance(x, dict)]
+        return {"ok": bool(neu), "neu": neu, "fehler": fehler, "liste": liste}
 
     def videostil_vorlage_loeschen(self, vid: str) -> dict:
         liste = [x for x in (_load_settings().get("videostil_vorlagen") or []) if isinstance(x, dict) and x.get("id") != vid]

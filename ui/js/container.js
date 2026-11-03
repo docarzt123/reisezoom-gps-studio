@@ -231,6 +231,10 @@
     out.trenner_farbe = farbe(c.trenner_farbe, null);
     out.trenner_deckkraft = rund(clamp(num(c.trenner_deckkraft, 0.35), 0, 1), 3);
     out.verteilen = !!c.verteilen;
+    // 03.11.2026 — Höchstbreite in % der Bildbreite (nur bei automatischer Größe): lange Titel brechen um, statt über
+    // Papierband, Notiz oder Übersichtskarte hinauszulaufen; fehlt sie, reicht die Einblendung bis an den Bildrand
+    const mb = num(c.max_b, 0);
+    if (mb > 0) out.max_b = rund(clamp(mb, 5, 100), 2);
     out.klebestreifen = !!c.klebestreifen;
     if (!istNix(c.gewicht) && c.gewicht !== "") out.gewicht = Math.round(clamp(num(c.gewicht, 600), 100, 950) / 50) * 50;
     if (!istNix(c.sperrung) && c.sperrung !== "") out.sperrung = rund(clamp(num(c.sperrung, 0), -0.2, 1), 3);

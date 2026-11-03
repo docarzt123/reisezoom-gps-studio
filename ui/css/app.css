@@ -4550,6 +4550,8 @@ body.va-offen .anim-canvas { padding-left: var(--va-platz-l, 0px); padding-right
 .va-sp-nr { font-size: 10px; opacity: 0.6; font-weight: 600; letter-spacing: 0.06em; }
 .va-karten-2 .va-bk-bild.va-stil-bild { aspect-ratio: 16 / 9; }
 .va-stil-bild > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.va-rzstyle { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }   /* 02.11.2026 — Stil exportieren / importieren */
+.va-rzstyle .btn svg { vertical-align: -2px; }
 .va-stil-probe.mit-papier::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 34%; background: #f4f1e9; z-index: 1; }
 .va-stil-probe.mit-papier .va-sp-titel { text-shadow: none; font-size: 17px; }
 .va-stil-probe.mit-papier .va-sp-zahlen { color: #15242b; text-shadow: none; font-size: 11px; }

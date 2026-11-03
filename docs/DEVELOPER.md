@@ -5351,7 +5351,7 @@ Löst die Overlay-Boxen, den Skin „Frei“, Wasserzeichen,
 Diagramm-Karten, Nordpfeil/Maßstab-Boxen und die Schnell-Video-Titelkarte ab.
 
 **Modell — `ui/js/container.js` (`window.rzContainer`).** Ein Container:
-`{id, name, an, vorlage, stil, anker (tl…br, 9), x, y (% Bild), groesse auto|fest, b, h,
+`{id, name, an, vorlage, stil, anker (tl…br, 9), x, y (% Bild), groesse auto|fest, b, h, max_b (optional, % Bildbreite, nur bei auto — `max-width` in `_ctKarteCss`),
 inhalt_h l|c|r, inhalt_v t|m|b, anordnung unter|neben, beschriftung oben|links|aus, schrift,
 schriftgroesse (cqmin), textfarbe, akzent, hg_farbe, hg_deckkraft, hg_bild, hg_bild_modus,
 hg_bild_deckkraft, unschaerfe, innen/zeilenabstand/spaltenabstand/ecken/rahmen_b (em),
@@ -5437,6 +5437,80 @@ Brücke), `test_container_szene.py` (WYSIWYG, Alpha über die Szene, Web-Export)
 `tests/szene_umgebung.py` (`Umgebung.anlegen(prefix, schreibbar=[…])` kopiert
 `~/GPS-Studio-Test`, `projekt()`, `rendern()`) — genutzt von `test_render_alle_karten.py`,
 `test_schilder_render_thumbs.py` (Teil B) und `scripts/selftest_renders.py`.
+
+## rzstyle file format — Videovorlagen als Datei (02.11.2026)
+
+Eine Videovorlage (die zehn eingebauten aus `ui/js/videovorlagen.js` oder eine eigene ★ aus `settings.videovorlagen_eigen`)
+als Datei `<Name>.rzstyle` — damit die iPhone-App dieselben Einblendungen zeichnet und eigene Vorlagen zwischen Desktop
+und iPhone wandern. **Beide Seiten richten sich nach diesem Abschnitt; wer einen Schlüssel ändert, sagt es der anderen.**
+
+**Wo:** Animator → Einblendungen → Knopf *Stil exportieren* (Hochladen-Symbol neben ★) → Vorlage wählen bzw. *Alle
+eingebauten in einen Ordner …*; Knopf *Stil importieren* daneben. Video-Assistent → Reiter *Stil* → *Stil exportieren …*
+(der gewählte Stil; „Klassisch“ ist keine Videovorlage) / *Stil importieren …*. Ohne App:
+`.venv/bin/python scripts/rzstyle_eingebaute.py <ordner> [--ersetzen]` (braucht `node`).
+
+**Dateien:** `ui/js/rzstyle.js` baut (mit `rzVideoVorlagen.bauen`), `core/rzstyle.py` vervollständigt, prüft und liest
+ein, Brücke `rzstyle_exportieren(stil, schluessel, dateiname)`, `rzstyle_alle_exportieren(stile, schluessel, ordner)`,
+`rzstyle_importieren(format_wunsch)`. Test: `tests/test_rzstyle.py`.
+
+UTF-8-JSON, englische Schlüssel; die Einblendungen selbst bleiben **genau so, wie `container.js` sie normalisiert**:
+
+```json
+{
+  "type": "rzstyle",
+  "version": 1,
+  "id": "fernweh",                       // eingebaut: Vorlagen-id; eigen: "vv_xxxxxxxxxx"
+  "name": "Fernweh",                     // eingebaut: Originalname; eigen: Name des Nutzers
+  "names": {"de": "Fernweh", "en": "Wanderlust", "es": "Ganas de viajar"},   // nur eingebaut, eigen: null
+  "builtin": true,
+  "app_version": "0.9.851",
+  "palette": {"route": "#ff896b", "rest": "#f4f1e9", "kante": "#17292d", "breite": 5, "akzent": "#ff896b"},   // eigen: null
+  "animator": {"line_color": "#ff896b", "line_width": 3.5, "...": "..."},
+  "formats": {
+    "16:9": {"container": [], "verlauf": {"oben": {"an": false, "staerke": 0.5}, "unten": {}, "links": {}}},
+    "9:16": {"container": [], "verlauf": {}},
+    "1:1":  {"container": [], "verlauf": {}}
+  },
+  "strings": {"de": {"vv.hier_sind_wir": "Hier sind wir"}, "en": {}, "es": {}},
+  "fonts": ["cormorant", "manrope"],
+  "preview": "data:image/jpeg;base64,…"   // 480 × 270, Teide-Tour; eigen: null
+}
+```
+
+| Schlüssel | Bedeutung |
+|---|---|
+| `animator` | nur diese Werte: `line_color`, `line_width`, `kontur_breite`, `kontur_farbe`, `ghost_track_enabled`, `ghost_track_color`, `ghost_track_opacity_pct`, `linien_look`, `schweif_pct`, `highlights_farbe`, `highlights_stil`, `marker_dot_style`, `bergnamen_an` (dieselbe Liste wie `videovorlage_eigen_speichern`) |
+| `formats` | eingebaut: `16:9`, `9:16`, `1:1`, je mit `rzVideoVorlagen.bauen(id, {format})` gebaut; eigen: nur das Format, in dem sie gemerkt wurde (ältere Einträge ohne Angabe: `16:9`) |
+| `formats.*.verlauf` | Abdunklung am Bildrand wie im Animator (`oben`/`unten`/`links` je `{an, staerke}`), darf `null` sein |
+| `strings` | Übersetzung **jedes** `{t:<key>}`, das in den Einblendungen vorkommt, in `de`, `en`, `es` (eingebaut zusätzlich `vv.name.<id>`); eigen: leere Tabellen |
+| `fonts` | benutzte Schrift-ids aus `container.js` `SCHRIFTEN` (Einblendung und Zeile) |
+| Zeitangaben | unverändert (`video_start` / `video_ende` relativ); gebaut mit den Dauern des Video-Assistenten (Vorspann 3 s, Schluss 4 s) |
+| Bilder | `@lockup-white` / `@lockup-dark` bleiben Verweise — jede App setzt ihr eigenes Logo ein |
+
+**Platzhalter statt Texten** (damit eine Vorlage für jede Tour und Sprache taugt):
+
+- `{title}`, `{subtitle}`, `{kicker}` — Titel, Unterzeile, Kopfzeile der Tour. Eigene Vorlagen: der beim Merken
+  gespeicherte Projekttitel (`titel_alt`) wird beim Export zu `{title}`.
+- `{t:<key>}` — übersetzter Text aus `strings` (Sprache der App, sonst `en`, sonst `de`).
+- **In Großbuchstaben** geschrieben (`{KICKER}`, `{T:VV.GESCHAFFT}` — die Vorlage hat den Text versal gesetzt) → der
+  eingesetzte Text wird ebenfalls groß geschrieben; die Schlüssel selbst sind klein.
+- Wird ein Platzhalter leer (keine Kopfzeile, keine Unterzeile), fällt die Textzeile weg; hat eine Einblendung danach
+  keine Zeile mehr, fällt sie ganz weg.
+- Container-**Namen** (`name`) sind ebenfalls Platzhalter (`{t:container.v.titel} · {t:vv.phase.titel}`) — nur für
+  Listen in der Oberfläche.
+
+**Einlesen** (`core/rzstyle.als_eigene_vorlage`): geprüft werden `type`, `version` (1), mindestens ein Format mit
+`container`-Liste; höchstens 8 MB, 60 Einblendungen. Gewählt wird das Format des Projekts, sonst `16:9`, sonst das erste.
+Übersetzungen werden in der App-Sprache eingesetzt, `{title}` bleibt stehen und ist das neue `titel_alt` (beim Anwenden
+wird daraus der Titel der Tour). Der Name kommt aus `names[<Sprache>]`, sonst `name`; ist er schon vergeben, wird
+„ 2“, „ 3“ … angehängt (eine importierte Vorlage ersetzt nie eine vorhandene). Unbekannte Schlüssel werden ignoriert.
+
+**Seit 03.11.2026** tragen die Titel-Einblendungen der eingebauten Vorlagen `max_b` (Höchstbreite in % der Bildbreite,
+nur bei `groesse: "auto"`; lange Titel brechen um). Ein Leser, der `max_b` nicht kennt, zeichnet wie bisher ohne Grenze.
+Lichtglas 1:1: unterwegs zwei Werte, Höhenprofil nur unterwegs (`zeit.bis` gesetzt).
+
+**Ändern:** neue Schlüssel nur dazu, nie umdeuten; bricht etwas Bestehendes, `version` hochzählen (Leser lehnen
+höhere Versionen ab).
 
 ## Vorläufer im Szenen-Render (30.09.2026, v0.9.746)
 
@@ -9030,6 +9104,8 @@ Daten aus normalen Einblendungen.
   `tempo_als`), gemerkt als `einheiten`.
 - **Tests:** `test_videovorlagen` (alle zehn: Anlegen, Farben, drei Phasen, Merkmal je Vorlage, Laufpunkt-Schild,
   ⌘Z, eigene Vorlage, Editor; `RZ_VV_BILDER=<ordner>` speichert Standbilder), `test_videoassistent_ios` E/F.
+- **Als Datei (02.11.2026):** `.rzstyle` exportieren/einlesen (`ui/js/rzstyle.js`, `core/rzstyle.py`), siehe Abschnitt
+  „rzstyle file format“. Eigene Vorlagen merken seit dann auch ihr Format (`daten.format`).
 
 ## Klicktest-Funde 26.10.2026: Tooltips im Assistenten, Zeitleiste „nur was man braucht“, Fotostopp-Zuordnung
 

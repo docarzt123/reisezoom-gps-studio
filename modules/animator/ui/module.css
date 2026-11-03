@@ -1339,6 +1339,7 @@ body:not(.rz-render-mode) #anim-overlay-preview .ct.ct-aktiv > .ct-karte { outli
 .ct-vv-reihe select { flex: 1; min-width: 0; }
 .ct-vv-name { flex: 1; min-width: 0; }
 .ct-vv-reihe .ct-knopf svg { display: block; }
+#ct-vv-export-reihe { flex: 1 1 100%; width: 100%; }   /* 02.11.2026 — Auswahl „Stil exportieren“ über die ganze Breite */
 .ct-liste { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
 /* 19.10.2026 (Audit) — in der schmaleren Tour-Map-Leiste wurde die Liste so breit wie ihr Inhalt (490 px bei 289 px Platz):
    „Höhenprofil · HÖHENPROFIL · Min … Max …“ und die Knöpfe ragten rechts heraus. Die Liste nimmt die Breite des Bereichs. */

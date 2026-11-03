@@ -1383,6 +1383,12 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="text" id="ct-vv-name" class="ct-vv-name" hidden maxlength="60" placeholder="${t("vv.merken_frage", "Name der Videovorlage")}">
                 <button type="button" class="ct-knopf" id="ct-vv-merken" title="${t("vv.merken_tip", "Diese Einblendungen als eigene Videovorlage merken")}">${typeof rzIcon === "function" ? rzIcon("star", { size: 13 }) : "★"}</button>
                 <button type="button" class="ct-knopf" id="ct-vv-weg" hidden title="${t("vv.eigen_loeschen", "Eigene Vorlage löschen")}">${typeof rzIcon === "function" ? rzIcon("trash-2", { size: 13 }) : "✕"}</button>
+                <button type="button" class="ct-knopf" id="ct-vv-export" title="${t("rzstyle.export_tip", "Stil exportieren … — eine Videovorlage als .rzstyle-Datei speichern (z. B. für die iPhone-App)")}">${typeof rzIcon === "function" ? rzIcon("upload", { size: 13 }) : "↑"}</button>
+                <button type="button" class="ct-knopf" id="ct-vv-import" title="${t("rzstyle.import_tip", "Stil importieren … — .rzstyle-Dateien als eigene Videovorlagen übernehmen")}">${typeof rzIcon === "function" ? rzIcon("download", { size: 13 }) : "↓"}</button>
+              </div>
+              <!-- 02.11.2026 (Marc: Vorlagen vom Desktop ins iPhone übernehmen) — welche Vorlage als .rzstyle speichern -->
+              <div class="ct-vv-reihe" id="ct-vv-export-reihe" hidden>
+                <select id="ct-vv-export-wahl" class="pos-select"></select>
               </div>`}
               <div id="ct-liste" class="ct-liste"></div>
               <div class="muted field-help-content" data-help-content="ct_hilfe" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("container.hinweis", "In der Vorschau ziehen zum Verschieben, anklicken zum Gestalten. Wann eine Einblendung zu sehen ist, stellst du in der Zeitleiste ein.")}</div>
@@ -7191,12 +7197,21 @@ function mountAnimator(body, headerActions, opts) {
   // sonst Flughöhe − Gelände (core/demsample über die Brücke dem_hoehen, gecacht). Nur MapLibre mit Gelände und
   // nur eine Tour (keine Reise). Die Bodenlinien bleiben stehen, sind aber ausgefiltert; nachgeführt wird über die
   // Quellen selbst (setData von preview-track und anim-dot), damit Scrubben, Probelauf und Render gleich laufen.
-  const FLUG_EBENE = "flug-3d", FLUG_PUNKT = "flug-3d-punkt", FLUG_LAUFPUNKT = "flug-3d-laufpunkt";
+  const FLUG_EBENE = "flug-3d", FLUG_PUNKT = "flug-3d-punkt", FLUG_LAUFPUNKT = "flug-3d-laufpunkt", FLUG_FIGUR = "flug-3d-figur";
   const FLUG_BODEN_EBENEN = ["preview-glow", "preview-halo", "preview-kontur", "preview-line", "preview-highlight", "preview-kern", "preview-shadow",
                              "preview-schweif-glow", "preview-schweif",
                              "anim-dot-glow", "anim-dot-core", "anim-dot-fz", "anim-dot-arrow"];
   let _flug = { agl: null, key: "", lade: null, lot: [], idx: 0, ebene: null, punkt: null, an: false, grund: "" };
-  function _flugGewuenscht() { return !!document.getElementById("anim-mc-flug3d")?.checked; }
+  function _flugGewuenscht() { return !!document.getElementById("anim-mc-flug3d")?.checked || !!_roehre(); }
+  // 02.11.2026 Prototyp Röhre (Vergleichsvideo): der Track als 3D-Röhre knapp über dem Boden — läuft über die Flug-Ebene
+  // (rz-line3d mit Wachstum, Farben, Laufpunkt in Linienhöhe). Nur per window.__rzRoehreSetzen({ glanz, breiteM }).
+  function _roehre() { const r = window.__rzRoehre; return (r && +r.breiteM > 0) ? r : null; }
+  window.__rzRoehreSetzen = async (o) => {
+    window.__rzRoehre = o || null; _flug.key = ""; _flug.agl = null;
+    await _flugAnwenden(false);
+    applog("info", "[röhre] " + JSON.stringify({ an: _flug.an, grund: _flug.grund, roehre: window.__rzRoehre }));
+    return _flug.an;
+  };
   // 15.10.2026 (Marc: „Was musst du einstellen, damit der Track nicht mehr am Boden klebt? … ja, bau direkt“) — ein
   // IGC-Track ist ein Flug (Gleitschirm, Segelflug, Drachen): Gelände und „Flug in der Luft“ gehen beim Laden von selbst
   // an. Nur, solange das Projekt den Schalter noch nie gesetzt hat — wer ihn ausschaltet, dem bleibt er aus. DJI-Drohnen
@@ -7245,7 +7260,7 @@ function mountAnimator(body, headerActions, opts) {
   function _flugMoeglich() {
     if (!window.rzLine3d || !map || !currentCoords || currentCoords.length < 2) return "keine_tour";
     if (map.__rzEngine === "mapbox") return "mapbox";
-    if (!currentTerrainOn() || !(map.__rzSpec && map.__rzSpec.terrain)) return "gelaende";
+    if (!_roehre() && (!currentTerrainOn() || !(map.__rzSpec && map.__rzSpec.terrain))) return "gelaende";
     if (_reiseAktiv()) return "reise";
     if (_nurOrteEt()) return "orte";   // 14.10.2026 — Orte nacheinander: keine Linie, auch nicht in der Luft
     return "";
@@ -7255,6 +7270,12 @@ function mountAnimator(body, headerActions, opts) {
     return n ? `${n}|${c[0]}|${c[n - 1]}|${(_ovSeries && _ovSeries.ele && _ovSeries.ele.length) || 0}` : "";
   }
   async function _flugHoehen() {
+    const ro = _roehre();
+    if (ro && !document.getElementById("anim-mc-flug3d")?.checked) {   // Röhre: Mitte eine Röhrendicke + Radius über dem Boden
+      _flug.agl = new Float32Array(currentCoords.length).fill(+ro.breiteM * (ro.hebFaktor != null ? +ro.hebFaktor : 1.5));
+      _flug.key = _flugSchluessel();
+      return _flug.agl;
+    }
     const key = _flugSchluessel();
     if (_flug.key === key && _flug.agl) return _flug.agl;
     if (_flug.lade && _flug.ladeKey === key) return _flug.lade;
@@ -7287,11 +7308,14 @@ function mountAnimator(body, headerActions, opts) {
   function _flugBodenFiltern(aus) {
     // 14.10.2026 — Orte nacheinander: dort bleiben Linie und Punkt immer aus, auch wenn „Flug in der Luft“ abschaltet
     const weg = aus || !!_nurOrteEt();
-    for (const id of FLUG_BODEN_EBENEN.concat(["preview-ghost"])) {   // Geist: hängt im Flug in der Luft (siehe _flugAnwendenKern)
+    const nurRoehre = _roehre() && !document.getElementById("anim-mc-flug3d")?.checked;   // Röhre: Restlinie bleibt flach
+    for (const id of FLUG_BODEN_EBENEN.concat(nurRoehre ? [] : ["preview-ghost"])) {   // Geist: hängt im Flug in der Luft (siehe _flugAnwendenKern)
       try { if (map.getLayer(id)) map.setFilter(id, weg ? ["==", ["literal", 1], 0] : null); } catch (_) {}
     }
   }
   function _flugWeg() {
+    try { if (map && map.getLayer(FLUG_FIGUR)) map.removeLayer(FLUG_FIGUR); } catch (_) {}
+    _flug.figur = null;
     try { if (map && map.getLayer(FLUG_LAUFPUNKT)) map.removeLayer(FLUG_LAUFPUNKT); } catch (_) {}
     try { if (map && map.getLayer(FLUG_PUNKT)) map.removeLayer(FLUG_PUNKT); } catch (_) {}
     try { if (map && map.getLayer(FLUG_EBENE)) map.removeLayer(FLUG_EBENE); } catch (_) {}
@@ -7340,7 +7364,7 @@ function mountAnimator(body, headerActions, opts) {
     // Schatten) — mit „Flug in der Luft“ hängt auch der Geist in Flughöhe (blass, in seiner Farbe), am Boden ist er aus
     let geist = false;
     try { geist = !!currentGhostEnabled(); } catch (_) {}
-    _flug.mitGeist = geist;
+    _flug.mitGeist = geist && !(_roehre() && !document.getElementById("anim-mc-flug3d")?.checked);
     const spuren = _flugSpuren(agl);
     if (!map.getLayer(FLUG_EBENE)) {
       _flug.ebene = window.rzLine3d.create(FLUG_EBENE, { offsetM: 0 });
@@ -7362,6 +7386,14 @@ function mountAnimator(body, headerActions, opts) {
       _flug.laufpunkt.sicht = _dotSicht;   // 29.10.2026 — auch in der Luft: hinter dem Berg wie am Boden
       try { map.addLayer(_flug.laufpunkt); } catch (e) { applog("warn", "[flug3d] Laufpunkt: " + e); _flugNochmal(); return; }
     }
+    // 02.11.2026 Prototyp 3D-Laufpunkt (Kugel/Pfeil, rz-figur3d mit three.js) — three.js wird erst hier geladen
+    const _ro = _roehre();
+    if (_ro && _ro.figur && window.rzFigur3d) {
+      try {
+        await window.rzFigur3d.laden();
+        if (!map.getLayer(FLUG_FIGUR)) { _flug.figur = window.rzFigur3d.create(FLUG_FIGUR); map.addLayer(_flug.figur); }
+      } catch (e) { applog("warn", "[figur3d] " + e); _flug.figur = null; }
+    } else if (map.getLayer(FLUG_FIGUR)) { try { map.removeLayer(FLUG_FIGUR); } catch (_) {} _flug.figur = null; }
     _flug.ebene.setTracks(spuren);
     _flugBodenFiltern(true);
     _flug.an = true; _flug.grund = "";
@@ -7387,6 +7419,17 @@ function mountAnimator(body, headerActions, opts) {
     _flug.farbKey = _flugFarbSchluessel();
     _flug.gefaerbt = !!f;
     const lotFarben = f ? [].concat(...lot.map(i => { const c = f.punkt(i); return [c, c]; })) : null;
+    const ro = _roehre();
+    if (ro && !document.getElementById("anim-mc-flug3d")?.checked) {
+      // Reihenfolge wie im Flug (Schatten, Lot, ggf. Geist, Hauptlinie), damit _flugBereich gleich bleibt; Lot leer
+      return [
+        { coords: currentCoords, agl: nullen, color: "#000000", opacity: 0.32, width: lw, breiteM: +ro.breiteM * 1.5, featherRel: 0.9 },
+        { coords: [], color: farbe, width: 1 },
+        ...(_flug.mitGeist ? [{ coords: currentCoords, agl: nullen, color: currentGhostColor(), opacity: currentGhostOpacity(), width: lw * 0.6, smooth: false }] : []),
+        { coords: currentCoords, agl, color: f ? "#ffffff" : farbe, segColors: f ? f.seg : null, opacity: _hauptDeckkraft(), width: lw * (ro.minFaktor != null ? +ro.minFaktor : 1.4),
+          breiteM: +ro.breiteM, roehre: { glanz: ro.glanz != null ? +ro.glanz : 0.5 } },
+      ];
+    }
     return [
       { coords: currentCoords, agl: nullen, color: "#000000", opacity: 0.32, width: Math.max(2, lw * 0.8), smooth: false },
       { coords: lot.map(i => currentCoords[i]), agl: lot.map(i => agl[i]), lot: true, color: f ? "#ffffff" : farbe, colors: lotFarben, opacity: 0.35, width: 1.4 },
@@ -7522,11 +7565,41 @@ function mountAnimator(body, headerActions, opts) {
     // 15.10.2026 — Lot unter dem Punkt bleibt (rz-line3d); der Punkt selbst ist das Bild des Laufpunkts (rz-punkt3d).
     // Ohne WebGL-Ebene (alte Seite) wie bisher die Ersatzpille.
     if (_flug.laufpunkt) {
-      _flug.punkt.setTracks([{ coords: [pos], agl: [h], lot: true, color: farbe, opacity: 0.8, width: 1.8 }]);
+      _flug.punkt.setTracks(_roehre() && !document.getElementById("anim-mc-flug3d")?.checked ? [] : [{ coords: [pos], agl: [h], lot: true, color: farbe, opacity: 0.8, width: 1.8 }]);
       const L = _dotLuft;
       // Drehung: Fahrtrichtung (wie icon-rotate brg am Boden); ohne Drehen nach Norden
-      _flug.laufpunkt.setPunkt({ lng: pos[0], lat: pos[1], agl: h, bild: L.bild, bildKey: L.key, cssPx: L.cssPx * (_flug.letztSk > 0 ? _flug.letztSk : 1),
-                                 drehung: L.dreht ? (_flug.letztBrg || 0) : 0, karte: L.karte });
+      const ro = _roehre();
+      if (_flug.figur && ro && ro.figur) {
+        // 3D-Körper statt Bild: an die Röhre gekoppelt (Größe ≈ 2,5 × Röhrendicke, ebenso die Mindestgröße)
+        _flug.laufpunkt.setPunkt(null);
+        const fak = ro.figurFaktor != null ? +ro.figurFaktor : 2.5, gM = fak * (+ro.breiteM || 8);
+        const brg = _flug.letztBrg || 0;
+        let neig = 0;
+        try {   // Steigung des Geländes entlang der Fahrtrichtung, über ± max(Körper, 15 m)
+          const d = Math.max(15, gM), kl = 111320 * Math.max(0.05, Math.cos(pos[1] * Math.PI / 180));
+          const dx = Math.sin(brg * Math.PI / 180) * d / kl, dy = Math.cos(brg * Math.PI / 180) * d / 111320;
+          const e1 = map.queryTerrainElevation([pos[0] - dx, pos[1] - dy]), e2 = map.queryTerrainElevation([pos[0] + dx, pos[1] + dy]);
+          if (isFinite(e1) && isFinite(e2)) neig = Math.max(-35, Math.min(35, Math.atan2(e2 - e1, 2 * d) * 180 / Math.PI));
+        } catch (_) {}
+        // Mindestgröße: fak × die Mindestbreite der Röhre — der Körper bleibt aus jeder Entfernung gleich viel breiter als die
+        // Röhre. (Vorher mindestens wie der 2D-Laufpunkt: aus der Ferne ~5 × so breit wie die Röhre, er verdeckte sie und
+        // saß scheinbar oben drauf — Marc, 02.11.2026: „die Röhre soll aus der Mitte der 3D-Modelle kommen“.)
+        const minPx = fak * currentLineWidth() * (ro.minFaktor != null ? +ro.minFaktor : 1.4);
+        // Feuerkugel: die gelaufene Strecke hinter dem Kopf (rückwärts ab dem nächsten Punkt) und die Videozeit fürs Flackern
+        let spur = null;
+        if (ro.figur === "feuer") {
+          spur = []; let sum = 0, vor = pos;
+          for (let j = best; j >= 0 && spur.length < 400; j--) { const q2 = c[j]; sum += _meterZwischen(vor, q2); spur.push(q2); vor = q2; if (sum > 10 * gM + 200) break; }
+        }
+        const zeit = window.__rzRenderClock ? window.__rzRenderClock() / 1000 : performance.now() / 1000;
+        _flug.figur.setFigur({ lng: pos[0], lat: pos[1], agl: h, form: ro.figur, farbe: ro.figurFarbe || farbe,
+                               glanz: ro.glanz, groesseM: gM, minPx, drehung: brg, neigung: neig, spur, zeit,
+                               kalt: ro.kalt === true ? (ro.figurFarbe || farbe) : (ro.kalt || null) });
+      } else {
+        if (_flug.figur) _flug.figur.setFigur(null);
+        _flug.laufpunkt.setPunkt({ lng: pos[0], lat: pos[1], agl: h, bild: L.bild, bildKey: L.key, cssPx: L.cssPx * (_flug.letztSk > 0 ? _flug.letztSk : 1),
+                                   drehung: L.dreht ? (_flug.letztBrg || 0) : 0, karte: L.karte });
+      }
     } else {
       _flug.punkt.setTracks([
         { coords: [pos], agl: [h], lot: true, color: farbe, opacity: 0.8, width: 1.8 },          // Lot unter dem Punkt
@@ -22532,6 +22605,7 @@ function mountAnimator(body, headerActions, opts) {
     if (ts) S.push(ts);
     if (c.deckkraft < 1) S.push(`opacity:${c.deckkraft}`);
     if (c.groesse === "fest") S.push(`width:${c.b}cqw;height:${c.h}cqh`);
+    else if (c.max_b) S.push(`max-width:${c.max_b}cqw`);   // Höchstbreite: lange Texte brechen um
     const jh = { l: "flex-start", c: "center", r: "flex-end" }[c.inhalt_h];
     const jv = { t: "flex-start", m: "center", b: "flex-end" }[c.inhalt_v];
     S.push(`--ct-jh:${jh};--ct-jv:${jv};text-align:${{ l: "left", c: "center", r: "right" }[c.inhalt_h]}`);
@@ -23133,6 +23207,25 @@ function mountAnimator(body, headerActions, opts) {
       + `<optgroup label="${_ctEsc(t("vv.gruppe_fertig", "Vorlagen"))}">${VV.map(v => `<option value="${v.id}">${_ctEsc(v.nr + " · " + t("vv.name." + v.id, v.name))}</option>`).join("")}</optgroup>`
       + ((_ctVvEigene || []).length ? `<optgroup label="${_ctEsc(t("vv.gruppe_eigen", "Eigene"))}">${_ctVvEigene.map(v => `<option value="eigen:${_ctEsc(v.id)}">★ ${_ctEsc(v.name)}</option>`).join("")}</optgroup>` : "");
   }
+  /** 02.11.2026 — Auswahl für „Stil exportieren …“: die zehn eingebauten, die eigenen, alle eingebauten auf einmal. */
+  function _ctVvExportOptionen() {
+    const sel = document.getElementById("ct-vv-export-wahl"); if (!sel) return;
+    const VV = window.rzVideoVorlagen ? window.rzVideoVorlagen.LISTE : [];
+    sel.innerHTML = `<option value="">${_ctEsc(t("rzstyle.export_wahl", "Welchen Stil exportieren?"))}</option>`
+      + `<optgroup label="${_ctEsc(t("vv.gruppe_fertig", "Vorlagen"))}">${VV.map(v => `<option value="${v.id}">${_ctEsc(v.nr + " · " + t("vv.name." + v.id, v.name))}</option>`).join("")}`
+      + `<option value="*alle">${_ctEsc(t("rzstyle.alle", "Alle eingebauten in einen Ordner …"))}</option></optgroup>`
+      + ((_ctVvEigene || []).length ? `<optgroup label="${_ctEsc(t("vv.gruppe_eigen", "Eigene"))}">${_ctVvEigene.map(v => `<option value="eigen:${_ctEsc(v.id)}">★ ${_ctEsc(v.name)}</option>`).join("")}</optgroup>` : "");
+  }
+  async function _ctVvExport(wert) {
+    if (!wert || !window.rzStyle) return;
+    if (wert === "*alle") { await window.rzStyle.alleExportieren(); return; }
+    if (wert.startsWith("eigen:")) {
+      const E = (_ctVvEigene || []).find(v => v.id === wert.slice(6));
+      if (E) await window.rzStyle.exportieren({ eigen: E });
+      return;
+    }
+    await window.rzStyle.exportieren(wert);
+  }
   async function _ctVvEigeneLaden() {
     try { const r = await api().videovorlagen_eigen(); _ctVvEigene = (r && r.liste) || []; } catch (e) { _ctVvEigene = []; applog("warn", "[videovorlage] eigene laden: " + e); }   // warte-ok: Einstellungen, sofort
     _ctVvOptionenZeichnen();
@@ -23206,7 +23299,8 @@ function mountAnimator(body, headerActions, opts) {
      "linien_look", "schweif_pct", "highlights_farbe", "highlights_stil", "marker_dot_style", "bergnamen_an"].forEach(k => { if (a[k] !== undefined) anim[k] = a[k]; });
     try {
       const r = await api().videovorlage_eigen_speichern(String(name), {   // warte-ok: Einstellungen, sofort
-        container: _ctListe().filter(c => c.vorlage !== "foto"), verlauf: _ctVerlauf(), animator: anim, titel_alt: _ctProjektTitel() });
+        container: _ctListe().filter(c => c.vorlage !== "foto"), verlauf: _ctVerlauf(), animator: anim, titel_alt: _ctProjektTitel(),
+        format: _ctFormatSchluessel() });
       if (r && r.ok) { _ctVvEigene = r.liste || []; _ctVvOptionenZeichnen(); toast(t("vv.gemerkt", "Als Videovorlage gemerkt — auch im Video-Assistenten unter „Stil“."), "success", 3200); }
       else toast((r && r.error) || t("vv.merken_fehler", "Konnte die Vorlage nicht speichern."), "error", 4000);
     } catch (e) { toast(String(e), "error", 4000); }
@@ -23225,6 +23319,22 @@ function mountAnimator(body, headerActions, opts) {
         _ctVvAnwenden(v);
       });
       document.getElementById("ct-vv-merken")?.addEventListener("click", () => { _ctVvMerken(); });
+      // 02.11.2026 — .rzstyle: exportieren (erst wählen, dann Sichern-Dialog) und einlesen
+      document.getElementById("ct-vv-export")?.addEventListener("click", () => {
+        const reihe = document.getElementById("ct-vv-export-reihe"); if (!reihe) return;
+        reihe.hidden = !reihe.hidden;
+        if (!reihe.hidden) { _ctVvExportOptionen(); document.getElementById("ct-vv-export-wahl")?.focus(); }
+      });
+      document.getElementById("ct-vv-export-wahl")?.addEventListener("change", async (e) => {
+        const v = e.target.value; e.target.value = "";
+        const reihe = document.getElementById("ct-vv-export-reihe"); if (reihe) reihe.hidden = true;
+        await _ctVvExport(v);
+      });
+      document.getElementById("ct-vv-import")?.addEventListener("click", async () => {
+        if (!window.rzStyle) return;
+        const r = await window.rzStyle.importieren(_ctFormatSchluessel());
+        if (r && Array.isArray(r.liste)) { _ctVvEigene = r.liste; _ctVvOptionenZeichnen(); }
+      });
       document.getElementById("ct-vv-name")?.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); _ctVvMerken(); }
         else if (e.key === "Escape") { e.target.value = ""; e.target.hidden = true; }
@@ -23794,7 +23904,8 @@ function mountAnimator(body, headerActions, opts) {
       + `<div class="se-grid">`
       + `<label>${_ctEsc(t("container.abstand", "Abstand"))}</label><span class="ct-ez-reihe">${zahl("x", -100, 100, 0.5, "% ↔")}${zahl("y", -100, 100, 0.5, "% ↕")}</span>`
       + `<label>${_ctEsc(t("container.groesse", "Größe"))}</label>${sel("groesse", [["auto", t("container.groesse.auto", "automatisch")], ["fest", t("container.groesse.fest", "fest")]])}`
-      + (c.groesse === "fest" ? `<label></label><span class="ct-ez-reihe">${zahl("b", 1, 100, 0.5, "% ↔")}${zahl("h", 1, 100, 0.5, "% ↕")}</span>` : "")
+      + (c.groesse === "fest" ? `<label></label><span class="ct-ez-reihe">${zahl("b", 1, 100, 0.5, "% ↔")}${zahl("h", 1, 100, 0.5, "% ↕")}</span>`
+        : `<label>${_ctEsc(t("container.max_b", "Höchstens"))}</label><span class="ct-ez-zahl" title="${_ctEsc(t("container.max_b_tip", "Breiteste Ausdehnung in % der Bildbreite — längere Texte brechen um. Leer = bis an den Bildrand."))}"><input type="number" data-k="max_b" min="5" max="100" step="1" value="${c.max_b || ""}" placeholder="–"><small>% ↔</small></span>`)
       + `<label>${_ctEsc(t("container.inhalt", "Inhalt"))}</label><span class="ct-ez-reihe">${sel("inhalt_h", [["l", "⇤"], ["c", "↔"], ["r", "⇥"]])}${sel("inhalt_v", [["t", "⤒"], ["m", "↕"], ["b", "⤓"]])}</span>`
       + `</div>`
       + _ctZeitHtml(c)
@@ -23876,7 +23987,7 @@ function mountAnimator(body, headerActions, opts) {
       const k = el.getAttribute("data-k");
       if (!k) return false;
       let v = wertVon(el);
-      const leerErlaubt = k === "gewicht" || k === "sperrung";   // 01.11.2026 — leer = automatisch
+      const leerErlaubt = k === "gewicht" || k === "sperrung" || k === "max_b";   // 01.11.2026 — leer = automatisch (max_b: ohne Grenze)
       if ((el.type === "number" || el.type === "range") && !isFinite(v) && !leerErlaubt) return true;
       _ctAendern(id(), (c) => {
         if (k === "trenner_an") { c.trenner = v ? "linie" : "keine"; return; }
