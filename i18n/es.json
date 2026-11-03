@@ -6685,6 +6685,7 @@
   "eingang.s_inhalt": "Después, la búsqueda por contenido analiza las imágenes: las fotos nuevas se encuentran también con «atardecer», «cruz de cumbre» …",
   "eingang.s_inhalt_aus": "La búsqueda por contenido está desactivada: encuentras las fotos por lugar y fecha. Para activarla: Ajustes → Biblioteca y nube",
   "map.banner.zu": "Ocultar este aviso",
+  "map.banner.aufklappen": "Haz clic para ver el aviso completo",
   "library.tour_add": "Añadir ruta",
   "library.tour_add_drop": "o arrastra aquí un archivo de track",
   "library.tour_add_datei": "Archivo de track …",

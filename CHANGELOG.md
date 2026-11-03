@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.853] – 2026-11-03
+
+### Fixed
+- **MapTiler button in the “only the coarse satellite image” notice was out of reach**: since 0.9.851 the notice shrinks
+  to the yellow warning sign next to the zoom buttons after 8 seconds, and in that form its text and both buttons
+  (*MapTiler satellite*, *Map style with names*) were hidden; clicking the sign did nothing. Clicking the sign now opens
+  the notice again with both buttons, and it stays open until you close it with ✕.
+
 ## [0.9.852] – 2026-11-03
 
 ### Added

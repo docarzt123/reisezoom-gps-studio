@@ -2546,6 +2546,8 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
   back), in the archive maps to all archive maps. The note is quiet, can be closed with ✕ and never appears in the
   video. Since the same version it also appears in the Animator when a project is opened straight away with „Satellite
   (free)“ outside the aerial imagery (before, only after a style change).
+  **Since v0.9.853:** after 8 seconds the note shrinks to the yellow warning sign next to the zoom buttons. Clicking
+  the sign opens it again with both buttons; it then stays open until you click ✕.
 - **ProRes 422 HQ** (since 2026-09-05): Settings → video codec, for editing in Final Cut or Resolve. Output is .mov and large.
 - **Export a map animation without GPS** (new after v0.9.784): a project without a recording travels in the `.rzproj` together with its stage — points, curves and means of transport stay editable. Importing creates a new project of its own (a second import overwrites nothing). If the project has no stage yet, the export says so instead of writing an empty file.
 - **Export swarm/journey** (since 2026-09-05): “Export project (.rzproj)” now packs **all** tracks and the swarm/journey project of a composition. The recipient imports it as usual and the composition opens right in the Animator. Before, only the first track arrived, without the project.

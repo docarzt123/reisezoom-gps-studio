@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 02 Nov 2026 10:21:51 +0000</lastBuildDate>
+<lastBuildDate>Tue, 03 Nov 2026 17:25:22 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.852</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-852</link>
+<guid isPermaLink="false">gps-studio-v0.9.852</guid>
+<pubDate>Tue, 03 Nov 2026 12:00:00 +0000</pubDate>
+<description>Videovorlagen als Datei weitergeben — Jede der zehn Vorlagen und jede eigene ★-Vorlage lässt sich als .rzstyle -Datei speichern (Animator → Overlays → „Stil exportieren“ oder im Reiter „Stil“ des Videoassistenten) und mit „Stil importieren“ wieder als eigene Vorlage holen — zum Teilen oder für den Umzug auf ein anderes Gerät. Die Texte stehen als Platzhalter drin, die Vorlage passt also zu jeder Tour und Sprache.
+
+„Höchstens“-Breite für Overlays — Bei automatischer Größe kannst du ein Overlay auf einen Anteil der Bildbreite begrenzen (Overlay-Editor → Position und Größe). Langer Text bricht dann um, statt über andere Overlays oder den Bildrand zu laufen.
+
+Lange Titel in den Videovorlagen — Titel liefen über das Papierband (Randnotiz), die Notiz (Feldbuch) oder über die Übersichtskarte aus dem Bild. Jetzt haben die Titel eine Höchstbreite und brechen um.
+
+Lichtglas im Format 1:1 — Das Höhenprofil verdeckte den dritten Live-Wert. Im quadratischen Format zeigt das Glasband jetzt zwei Live-Werte, das Profil erscheint nur unterwegs, und die Endwerte haben das Band für sich.</description>
+</item>
 <item>
 <title>v0.9.851</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-851</link>
@@ -245,19 +258,6 @@ Etappe ohne Fahrzeug — Neuer Schalter „Fahrzeug der Etappe zeigen“: ausges
 Video-Render gibt nicht mehr auf — Stürzt der unsichtbare Render-Browser mitten im Video ab, startet die App ihn neu und macht beim selben Bild weiter, statt das halbe Video wegzuwerfen. Im Log steht jetzt, warum er gestorben ist und wie viel Arbeitsspeicher frei war.
 
 Medien: Liste springt nicht mehr — Während im Hintergrund Fotos eingelesen werden, springt eine Suchliste beim Scrollen nicht mehr nach oben.</description>
-</item>
-<item>
-<title>v0.9.794</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-794</link>
-<guid isPermaLink="false">gps-studio-v0.9.794</guid>
-<pubDate>Thu, 15 Oct 2026 12:00:00 +0000</pubDate>
-<description>Tour hinzufügen, gut sichtbar — Im Archiv steht oben in der Touren-Spalte „+ Tour hinzufügen“ — Track-Datei, Ordner beobachten oder Import-Assistent.
-
-Logbuch: Auswahl als eigene Tour — Im GPX-Inspektor mehrere Logbuch-Einträge wählen (⇧-Klick Bereich, ⌘-Klick einzeln) und als eigene Tour speichern — vom ersten bis zum letzten Eintrag, Pausen dazwischen inklusive. So holst du die Wanderung samt Rast aus einer Datei, in der auch die Autofahrt steckt.
-
-Etappen leichter bearbeiten — Stationen am Griff ziehen oder mit ▲▼ umsortieren, einen Kartenpunkt einfach benennen (ohne Adresssuche), und Umkehren behält die Höhe eines Hochflugs.
-
-Schilder direkt auf der Karte — Ein neues Schild steht sofort auf der Karte, und du tippst seinen Text gleich dort. Doppelklick auf ein Schild öffnet den Schild-Editor.</description>
 </item>
 </channel>
 </rss>

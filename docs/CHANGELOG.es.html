@@ -117,9 +117,35 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.853</span>
+    <span class="version-date">3 de noviembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>El botón de MapTiler del aviso vuelve a estar a mano</strong> &mdash; Desde 0.9.851 el aviso &laquo;solo la imagen de satélite gruesa&raquo; se reduce a los 8 segundos a la señal amarilla junto a los botones de zoom &mdash; y con ello desaparecían los botones &laquo;Satélite de MapTiler&raquo; y &laquo;Estilo de mapa con nombres&raquo;, y un clic en la señal no hacía nada. Ahora un clic en la señal vuelve a abrir el aviso con los dos botones; se queda abierto hasta que lo cierres con &#x2715;.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.852</span>
+    <span class="version-date">3 de noviembre de 2026</span>
+  </div>
+  <ul>
+    <li><strong>Compartir plantillas de vídeo como archivo</strong> &mdash; Cada una de las diez plantillas y cada plantilla &#9733; propia se puede guardar como archivo <code>.rzstyle</code> (Animator &rarr; Overlays &rarr; &laquo;Exportar estilo&raquo; o la pestaña &laquo;Estilo&raquo; del asistente de vídeo) y recuperar como plantilla propia con &laquo;Importar estilo&raquo; &mdash; para compartirla o llevarla a otro equipo. Los textos se guardan como marcadores, así la plantilla sirve para cualquier ruta e idioma.</li>
+    <li><strong>Anchura &laquo;Como máximo&raquo; para overlays</strong> &mdash; Con tamaño automático puedes limitar un overlay a una parte del ancho de la imagen (editor de overlays &rarr; Posición y tamaño). El texto largo pasa a la línea siguiente en lugar de tapar otros overlays o salirse del borde.</li>
+    <li><strong>Títulos largos en las plantillas de vídeo</strong> &mdash; Los títulos se salían de la banda de papel (Randnotiz), de la nota (Feldbuch) o pasaban sobre el mapa general y fuera de la imagen. Ahora tienen un ancho máximo y saltan de línea.</li>
+    <li><strong>Lichtglas en 1:1</strong> &mdash; El perfil de altitud tapaba el tercer valor en directo. En formato cuadrado la banda de cristal muestra ahora dos valores, el perfil solo aparece durante el recorrido y los valores finales tienen la banda para ellos solos.</li>
+    <li><strong>Línea de comandos: todas las plantillas de vídeo</strong> &mdash; <code>gpsstudio render --template</code> acepta ahora las diez plantillas del asistente de vídeo, &laquo;Clásico&raquo; y tus plantillas &#9733;, con su nombre en inglés, alemán o español. <code>gpsstudio templates</code> las lista todas y <code>--template-file</code> renderiza directamente un archivo <code>.rzstyle</code>, sin importarlo. Las herramientas de IA (MCP) también conocen las nuevas plantillas.</li>
+    <li><strong>Línea de comandos sin biblioteca</strong> &mdash; Con <code>--no-library</code> se renderiza un archivo GPX sin abrir la biblioteca. Si la biblioteca no se puede leer &mdash; por ejemplo una unidad de red en una sesión SSH en Windows &mdash;, el vídeo de un archivo GPX se crea igualmente, con un aviso, en lugar de detenerse con &laquo;El nombre de usuario o la contraseña no son correctos&raquo;.</li>
+    <li><strong>Configurar la línea de comandos en Windows</strong> &mdash; Los ajustes decían &laquo;Apunta a otra copia de la app&raquo; incluso justo después de configurarla. El comando funcionaba; solo la comprobación comparaba mal los finales de línea.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.851</span>
     <span class="version-date">2 de noviembre de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <ul>
     <li><strong>Asistente de vídeo en lugar de vídeo rápido</strong> &mdash; El vídeo rápido y el asistente de vídeo son ahora una sola herramienta. El vídeo está listo en cuanto se abre el asistente y en las pestañas lo afinas. &laquo;Crear vídeo &hellip;&raquo; y &laquo;Conservar como proyecto&raquo; están abajo en cada pestaña, así que puedes terminar ya después de &laquo;Cámara&raquo;. El archivo, la página de la ruta, el asistente de importación y la búsqueda llevan todos allí.</li>

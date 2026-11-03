@@ -2741,6 +2741,8 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   zurück), in den Archivkarten für alle Archivkarten. Der Hinweis ist leise, lässt sich mit ✕ ausblenden und erscheint
   nie im Video. Seit derselben Version erscheint er im Animator auch dann, wenn das Projekt gleich mit „Satellit
   (kostenlos)“ außerhalb der Luftbilder geöffnet wird (vorher erst nach einem Stilwechsel).
+  **Seit v0.9.853:** Nach 8 Sekunden schrumpft der Hinweis zum gelben Warnzeichen neben den Zoom-Knöpfen. Ein Klick
+  auf das Zeichen klappt ihn mit beiden Knöpfen wieder auf; dann bleibt er offen, bis du ✕ klickst.
 - **ProRes 422 HQ** (seit 05.09.2026): in Einstellungen → Video-Codec, für den Schnitt in Final Cut oder Resolve. Datei wird .mov und groß.
 - **Kartenanimation ohne GPS exportieren** (neu nach v0.9.784): Ein Projekt ohne Aufzeichnung reist samt seiner Etappe im `.rzproj` mit — Punkte, Kurven und Verkehrsmittel bleiben bearbeitbar. Der Import legt beim Empfänger ein eigenes neues Projekt an (ein zweiter Import überschreibt nichts). Hat das Projekt noch keine Etappe, sagt der Export das, statt eine leere Datei zu schreiben.
 - **Schwarm/Reise exportieren** (seit 05.09.2026): „Projekt exportieren (.rzproj)" packt bei einer Komposition jetzt **alle** Touren und das Schwarm-/Reise-Projekt ein. Der Empfänger importiert das Paket wie gewohnt, die Komposition öffnet sich direkt im Animator. Vorher kam nur die erste Tour ohne Projekt an.

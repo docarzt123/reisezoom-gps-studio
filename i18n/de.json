@@ -6685,6 +6685,7 @@
   "eingang.s_inhalt": "Danach erfasst die Inhaltssuche die Bildinhalte — die neuen Fotos sind dann auch über „Sonnenuntergang“, „Gipfelkreuz“ … zu finden",
   "eingang.s_inhalt_aus": "Die Inhaltssuche ist aus — die Fotos findest du über Ort und Zeit. Einschalten: Einstellungen → Bibliothek & Cloud",
   "map.banner.zu": "Hinweis ausblenden",
+  "map.banner.aufklappen": "Klicken zeigt den ganzen Hinweis",
   "library.tour_add": "Tour hinzufügen",
   "library.tour_add_drop": "oder Track-Datei hierher ziehen",
   "library.tour_add_datei": "Track-Datei …",

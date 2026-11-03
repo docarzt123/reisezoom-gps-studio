@@ -2600,6 +2600,8 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
   del archivo, para todos los mapas del archivo. El aviso es discreto, se cierra con ✕ y nunca aparece en el vídeo.
   Desde la misma versión aparece también en el animador cuando un proyecto se abre directamente con «Satélite (gratis)»
   fuera de las ortofotos (antes, solo tras cambiar de estilo).
+  **Desde v0.9.853:** a los 8 segundos el aviso se reduce a la señal amarilla junto a los botones de zoom. Un clic en
+  la señal lo vuelve a abrir con los dos botones; entonces se queda abierto hasta que pulses ✕.
 - **ProRes 422 HQ** (desde 05.09.2026): en Ajustes → códec de vídeo, para editar en Final Cut o Resolve. El archivo es .mov y grande.
 - **Exportar una animación de mapa sin GPS** (nuevo tras v0.9.784): un proyecto sin grabación viaja en el `.rzproj` junto con su etapa; puntos, curvas y medios de transporte siguen siendo editables. La importación crea un proyecto nuevo propio (una segunda importación no sobrescribe nada). Si el proyecto aún no tiene etapa, la exportación lo dice en lugar de escribir un archivo vacío.
 - **Exportar enjambre/viaje** (desde 05.09.2026): «Exportar proyecto (.rzproj)» incluye ahora **todas** las rutas y el proyecto de enjambre/viaje de una composición. El destinatario lo importa como siempre y la composición se abre directamente en el Animador. Antes solo llegaba la primera ruta, sin proyecto.

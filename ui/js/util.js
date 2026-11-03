@@ -611,6 +611,14 @@ const _rzBannerWeg = new Set();
 // 8 s) nur noch das Zeichen in der Ecke, der Text als Tooltip. Entfernen wartet 1,5 s,
 // damit ein Stilwechsel ihn nicht kurz wegnimmt und wieder einblendet.
 const _rzBannerGesehen = new Set();
+// 03.11.2026 (Nutzer-Meldung: „Aktivierung der MapTiler-Karte war einfach durch Klick möglich, das geht jetzt nicht mehr“)
+// — klein in der Ecke fehlten Text und Knöpfe, und ein Klick aufs Zeichen tat nichts. Jetzt klappt der Klick den Hinweis
+// wieder auf; aufgeklappt bleibt er offen (auch nach einem Stilwechsel), bis ✕ ihn schließt.
+const _rzBannerOffen = new Set();
+function _rzBannerKompaktTitel(el, html) {
+  const tmp = document.createElement("div"); tmp.innerHTML = html;
+  el.title = (tmp.textContent || "") + " — " + t("map.banner.aufklappen", "Klicken zeigt den ganzen Hinweis");
+}
 function rzMapBanner(map, key, html) {
   if (!map || !map.getContainer) return;
   const c = map.getContainer();
@@ -631,18 +639,26 @@ function rzMapBanner(map, key, html) {
   const zu = (typeof rzIcon === "function") ? rzIcon("x", { size: 14 }) : "×";
   el.innerHTML = `<span class="rz-map-banner-ico">${ico}</span><span>${html}</span>`
     + `<button type="button" class="rz-map-banner-zu" title="${_escHtml(t("map.banner.zu", "Hinweis ausblenden"))}" aria-label="${_escHtml(t("map.banner.zu", "Hinweis ausblenden"))}">${zu}</button>`;
-  el.querySelector(".rz-map-banner-zu").onclick = (ev) => { ev.stopPropagation(); _rzBannerWeg.add(key + "|" + html); el.remove(); };
+  el.querySelector(".rz-map-banner-zu").onclick = (ev) => { ev.stopPropagation(); _rzBannerWeg.add(key + "|" + html); _rzBannerOffen.delete(key + "|" + html); el.remove(); };
   // 07.10.2026 (Klicktest) — in kleinen Karten (Schnell-Video-Vorschau 9:16) füllte der Text die ganze Vorschau:
   // dort nur das Zeichen, der Text als Tooltip
-  const schmal = ((c.clientWidth || 0) > 0 && c.clientWidth < 380) || _rzBannerGesehen.has(sig);
+  const schmal = !_rzBannerOffen.has(sig) && (((c.clientWidth || 0) > 0 && c.clientWidth < 380) || _rzBannerGesehen.has(sig));
   el.classList.toggle("rz-map-banner-kompakt", schmal);
   wrap.classList.toggle("rz-map-banners-kompakt", !!wrap.querySelector(".rz-map-banner-kompakt") && !wrap.querySelector(".rz-map-banner:not(.rz-map-banner-kompakt)"));   // in die Ecke, nicht über den Titel
-  if (schmal) { const tmp = document.createElement("div"); tmp.innerHTML = html; el.title = tmp.textContent || ""; } else el.removeAttribute("title");
+  if (schmal) _rzBannerKompaktTitel(el, html); else el.removeAttribute("title");
+  el.onclick = (ev) => {
+    if (!el.classList.contains("rz-map-banner-kompakt")) return;
+    ev.stopPropagation();
+    _rzBannerOffen.add(sig);
+    el.classList.remove("rz-map-banner-kompakt");
+    el.removeAttribute("title");
+    wrap.classList.toggle("rz-map-banners-kompakt", !wrap.querySelector(".rz-map-banner:not(.rz-map-banner-kompakt)"));
+  };
   // nach 8 s gelesen: in die Ecke als Zeichen (Text als Tooltip) — auch ohne Neuaufbau
-  if (!schmal) setTimeout(() => {
-    if (!el.isConnected || el.dataset.html !== html) return;
+  if (!schmal && !_rzBannerOffen.has(sig)) setTimeout(() => {
+    if (!el.isConnected || el.dataset.html !== html || _rzBannerOffen.has(sig)) return;
     _rzBannerGesehen.add(sig);
-    const tmp = document.createElement("div"); tmp.innerHTML = html; el.title = tmp.textContent || "";
+    _rzBannerKompaktTitel(el, html);
     el.classList.add("rz-map-banner-kompakt");
     wrap.classList.toggle("rz-map-banners-kompakt", !wrap.querySelector(".rz-map-banner:not(.rz-map-banner-kompakt)"));
   }, 8000);

@@ -117,9 +117,35 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.853</span>
+    <span class="version-date">3 November 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>MapTiler button in the notice is back within reach</strong> &mdash; Since 0.9.851 the &ldquo;only the coarse satellite image&rdquo; notice shrinks to the yellow warning sign next to the zoom buttons after 8 seconds &mdash; and with it the buttons &ldquo;MapTiler satellite&rdquo; and &ldquo;Map style with names&rdquo; disappeared, while clicking the sign did nothing. Clicking the sign now opens the notice again with both buttons; it stays open until you close it with &#x2715;.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.852</span>
+    <span class="version-date">3 November 2026</span>
+  </div>
+  <ul>
+    <li><strong>Share video templates as files</strong> &mdash; Each of the ten templates and each of your own &#9733; templates can be saved as an <code>.rzstyle</code> file (Animator &rarr; Overlays &rarr; &ldquo;Export style&rdquo; or the &ldquo;Style&rdquo; tab of the video assistant) and brought back as your own template with &ldquo;Import style&rdquo; &mdash; to share it or move it to another device. Texts are stored as placeholders, so a template fits any tour and language.</li>
+    <li><strong>&ldquo;At most&rdquo; width for overlays</strong> &mdash; With automatic size you can limit an overlay to a share of the frame width (overlay editor &rarr; Position and size). Long text then wraps instead of running over other overlays or the frame edge.</li>
+    <li><strong>Long titles in the video templates</strong> &mdash; Titles ran past the paper band (Randnotiz), the note (Feldbuch) or over the overview map and off the frame. Titles now have a maximum width and wrap.</li>
+    <li><strong>Lichtglas in 1:1</strong> &mdash; The elevation profile covered the third live value. In the square format the glass band now shows two live values, the profile only appears on the way, and the final values have the band to themselves.</li>
+    <li><strong>Command line: all video templates</strong> &mdash; <code>gpsstudio render --template</code> now takes the ten templates of the video assistant, &ldquo;Classic&rdquo; and your own &#9733; templates, by their English, German or Spanish names. <code>gpsstudio templates</code> lists them all, and <code>--template-file</code> renders an <code>.rzstyle</code> file directly, without importing it. The AI tools (MCP) know the new templates too.</li>
+    <li><strong>Command line without the library</strong> &mdash; <code>--no-library</code> renders a GPX file without opening the library. If the library can&rsquo;t be read &mdash; for example a network drive in an SSH session on Windows &mdash; a GPX file is now rendered anyway, with a note, instead of stopping with &ldquo;The user name or password is incorrect&rdquo;.</li>
+    <li><strong>Setting up the command line on Windows</strong> &mdash; Settings said &ldquo;It points to another copy of the app&rdquo; even right after setting it up. The command itself worked; only the check compared line endings wrongly.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.851</span>
     <span class="version-date">2 November 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <ul>
     <li><strong>Video assistant instead of quick video</strong> &mdash; Quick video and video assistant are one tool now. The video is ready as soon as the assistant opens, and the tabs let you refine it. &ldquo;Create video &hellip;&rdquo; and &ldquo;Keep as project&rdquo; sit at the bottom of every tab, so you can be done after &ldquo;Camera&rdquo;. Archive, tour page, import assistant and search all lead there.</li>

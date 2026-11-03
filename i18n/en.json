@@ -6685,6 +6685,7 @@
   "eingang.s_inhalt": "Then the content search captures the picture contents — the new photos can also be found via “sunset”, “summit cross” …",
   "eingang.s_inhalt_aus": "Content search is off — you find the photos by place and time. Switch it on: Settings → Library & cloud",
   "map.banner.zu": "Hide this notice",
+  "map.banner.aufklappen": "Click to show the full notice",
   "library.tour_add": "Add tour",
   "library.tour_add_drop": "or drag a track file here",
   "library.tour_add_datei": "Track file …",
