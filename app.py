@@ -188,7 +188,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.855"
+APP_VERSION = "0.9.856"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -317,8 +317,33 @@ _ds.app_ordner_setzen(APP_SUPPORT)   # 14.09.2026: Bereich + Papierkorb des Date
 from core import ortsdaten as _ortsdaten  # noqa: E402
 _ortsdaten.einrichten(APP_SUPPORT / "ortsdaten")   # 22.10.2026: Sehenswürdigkeiten/Orte aus Kacheln statt Overpass
 DROPS_DIR = APP_SUPPORT / "_drops"      # für per-Drag&Drop importierte Files
+def _bilder_ordner() -> Path:
+    """Bilder-Ordner des Nutzers. 05.11.2026: Unter Windows liegt er oft nicht unter %USERPROFILE%\\Pictures
+    (OneDrive-Sicherung, verschoben auf eine andere Platte) — dort fragt die App Windows nach dem echten Ort."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class _GUID(ctypes.Structure):
+                _fields_ = [("d1", wintypes.DWORD), ("d2", wintypes.WORD), ("d3", wintypes.WORD),
+                            ("d4", ctypes.c_ubyte * 8)]
+            # FOLDERID_Pictures {33E28130-4E1E-4676-835A-98395C3BC3BB}
+            g = _GUID(0x33E28130, 0x4E1E, 0x4676, (ctypes.c_ubyte * 8)(0x83, 0x5A, 0x98, 0x39, 0x5C, 0x3B, 0xC3, 0xBB))
+            p = ctypes.c_wchar_p()
+            if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(g), 0, None, ctypes.byref(p)) == 0:
+                try:
+                    if p.value:
+                        return Path(p.value)
+                finally:
+                    ctypes.windll.ole32.CoTaskMemFree(p)
+        except Exception:
+            pass
+    return Path.home() / "Pictures"
+
+
 # Tour-Karten landen im Pictures-Ordner, da User sie häufiger braucht
-TOURMAPS_DIR = (APP_SUPPORT / "Tour Maps") if APP_ORDNER_UEBERSCHRIEBEN else (Path.home() / "Pictures" / "Reisezoom Tour Maps")
+TOURMAPS_DIR = (APP_SUPPORT / "Tour Maps") if APP_ORDNER_UEBERSCHRIEBEN else (_bilder_ordner() / "Reisezoom Tour Maps")
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
 # 16.10.2026 — Testsuite: jeder Test bekommt eine eigene Kopie der Einstellungen (scripts/run_tests.py setzt
 # RZ_SETTINGS_DATEI). Ohne gebaute App ist der App-Ordner das Repo — alle Tests teilten sich die eine settings.json dort,
@@ -478,7 +503,13 @@ def _unter(pfad, ordner) -> bool:
 # 03.09.2026 — Kachel-Zwischenspeicher des Renders (Grenze folgt den Einstellungen)
 canim.TILE_CACHE_DIR = APP_SUPPORT / "_tilecache"
 DROPS_DIR.mkdir(parents=True, exist_ok=True)
-TOURMAPS_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    TOURMAPS_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    # 05.11.2026 — Bilder-Ordner fehlt/ist ein toter Verweis (Windows 11: Start brach mit FileNotFoundError ab).
+    # Die Tour-Karten weichen in den App-Ordner aus, statt den Start zu verhindern.
+    TOURMAPS_DIR = APP_SUPPORT / "Tour Maps"
+    TOURMAPS_DIR.mkdir(parents=True, exist_ok=True)
 # ⚠️ SESSIONS_GPX_DIR wird hier BEWUSST nicht angelegt: Es liegt in der
 # Bibliothek, und die darf beim Erststart oder bei abgezogener Platte nicht
 # nebenbei entstehen (siehe `_bib_oeffnen`).
@@ -3999,7 +4030,7 @@ class Api:
             png = any(e in ("png", "jpg", "jpeg") for e in _parse_extensions(tuple(file_types or ())))
             # 18.10.2026 — der Videoordner heißt nur auf dem Mac „Movies“, sonst „Videos“
             film = "Movies" if sys.platform == "darwin" else "Videos"
-            for kand in (Path.home() / ("Pictures" if png else film), Path.home()):
+            for kand in ((_bilder_ordner() if png else Path.home() / film), Path.home()):
                 if kand.is_dir():
                     ordner = str(kand)
                     break

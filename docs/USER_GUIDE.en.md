@@ -3990,6 +3990,9 @@ remembers your answer, so the question won't come back.
 ### "Windows Defender protected your PC" (Windows)
 The same problem on Windows. **"More info" → "Run anyway"**.
 
+### GPS Studio won't start on Windows: error mentioning "Reisezoom Tour Maps"
+Before v0.9.856 the start failed when the Windows **Pictures** folder wasn't in its usual place, for example because OneDrive backs it up or it was moved to another drive. Since v0.9.856 GPS Studio asks Windows for the real Pictures folder. If that still can't be used, tour maps go into the app folder and GPS Studio starts normally. Fix for older versions: just update to the new version.
+
 ### The first Animator render takes a long time
 On the very first render the app downloads Chromium once for the map render pipeline (~150 MB). A modal appears with a progress indicator. After that, every further render starts right away.
 

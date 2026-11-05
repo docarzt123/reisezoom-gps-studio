@@ -5,8 +5,19 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 05 Nov 2026 07:22:37 +0000</lastBuildDate>
+<lastBuildDate>Thu, 05 Nov 2026 16:27:28 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.855</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-855</link>
+<guid isPermaLink="false">gps-studio-v0.9.855</guid>
+<pubDate>Thu, 05 Nov 2026 12:00:00 +0000</pubDate>
+<description>Fotos lassen sich im Editor zuverlässig auf der Karte ziehen — Bei der Form „Sofortbild“ lag die unsichtbare Eingabe für die Bildunterschrift über dem ganzen Foto — nach dem ersten Griff verschob man die Karte statt des Fotos, und mit ausgewähltem Keyframe übernahm der die Karte. Jetzt sitzt die Eingabe nur auf dem weißen Streifen unter dem Bild; das Foto selbst ziehst du jedes Mal.
+
+Rechter Rand am Videoende greifbar — Reicht ein Foto-Balken bis zum Videoende, saß genau auf seinem Rand der weiße Ausblend-Punkt, obwohl dort nichts ausgeblendet wird — der Rand sprang beim Ziehen zurück. Der Punkt ist dort weg, der Rand lässt sich ziehen.
+
+Balken bleibt beim Bearbeiten ausgewählt — Ein Klick ins Schild-Fenster (zum Beispiel auf „Bleibt sichtbar“) hob die Auswahl des Balkens auf. Jetzt bleibt er markiert; die Entfernen-Taste löscht dabei nichts.</description>
+</item>
 <item>
 <title>v0.9.854</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-854</link>
@@ -237,19 +248,6 @@ Orte und Pässe entlang der Strecke — Neue Option im Highlights-Fenster: alle 
 Versionen für Höhe und Zeit — Nur die Höhe korrigiert oder Zeiten repariert? Das wird jetzt eine eigene Version, zu der du zurückkannst.
 
 Dashcam-GPS — GPS-Dateien von Dashcams (.dat, z. B. Vantrue) werden gelesen.</description>
-</item>
-<item>
-<title>v0.9.797</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-797</link>
-<guid isPermaLink="false">gps-studio-v0.9.797</guid>
-<pubDate>Sun, 18 Oct 2026 12:00:00 +0000</pubDate>
-<description>Schild bearbeiten = wie im Video — Das Schild, das du gerade bearbeitest, sitzt jetzt genau wie im fertigen Video — gleiche Größe, am Bildrand genauso hereingeschoben.
-
-Keyframe aus Versehen verändert? — Ein ⌘Z holt ihn genau zurück, und unten sagt eine leise Zeile, wenn ein Keyframe die Karte übernimmt.
-
-Fotostopps — Der runde Foto-Pin richtet sich nach „Bleibt sichtbar“, ein in der Zeitleiste verschobener Fotostopp nimmt seinen Ort mit (die Kamera fliegt dorthin, die Bildunterschrift nennt den neuen Ort), und beim Umschalten des Looks bleibt kein Pin mehr neben dem Schild stehen.
-
-Pausen an der richtigen Stelle — Pausen aus dem Logbuch landen richtig, auch wenn die Route zweimal am selben Ort vorbeikommt — und die Kaffeetasse ist als Symbol zurück.</description>
 </item>
 </channel>
 </rss>

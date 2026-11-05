@@ -4065,6 +4065,9 @@ pregunta no vuelve.
 ### «El equipo ha sido protegido por Windows Defender» (Windows)
 El mismo problema en Windows. **«Más información» → «Ejecutar de todas formas»**.
 
+### GPS Studio no arranca en Windows: error con «Reisezoom Tour Maps»
+Antes de la v0.9.856 el arranque fallaba si la carpeta **Imágenes** de Windows no estaba en su sitio habitual, por ejemplo porque OneDrive la respalda o se movió a otro disco. Desde la v0.9.856 GPS Studio pregunta a Windows por la carpeta Imágenes real. Si aun así no se puede usar, los mapas de ruta se guardan en la carpeta de la app y GPS Studio arranca con normalidad. Solución para versiones anteriores: simplemente actualizar a la nueva versión.
+
 ### En el primer render del Animator tarda mucho
 En el primerísimo render, la app descarga una sola vez Chromium para la pipeline de render del mapa (~150 MB). Aparece un modal con indicación de progreso. Después, cada render posterior arranca directamente.
 

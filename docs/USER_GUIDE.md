@@ -4250,6 +4250,9 @@ Video-Decoder ein. macOS merkt sich die Antwort, die Frage kommt nicht wieder.
 ### „Der Computer wurde durch Windows Defender geschützt" (Windows)
 Selbes Problem auf Windows. **„Weitere Informationen" → „Trotzdem ausführen"**.
 
+### GPS Studio startet unter Windows nicht: Fehler mit „Reisezoom Tour Maps“
+Vor v0.9.856 brach der Start ab, wenn der Windows-Ordner **Bilder** nicht an seinem gewohnten Platz lag, etwa weil OneDrive ihn sichert oder er auf eine andere Platte verschoben wurde. Seit v0.9.856 fragt GPS Studio Windows nach dem echten Bilder-Ordner. Lässt der sich trotzdem nicht anlegen, landen die Tour-Karten im App-Ordner und GPS Studio startet ganz normal. Abhilfe für ältere Versionen: einfach auf die neue Version aktualisieren.
+
 ### Beim ersten Animator-Render dauert's lange
 Beim allerersten Render lädt die App einmalig Chromium für die Karten-Render-Pipeline runter (~150 MB). Modal erscheint mit Fortschritts-Anzeige. Danach läuft jeder weitere Render direkt los.
 

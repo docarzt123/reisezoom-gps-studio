@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.856] – 2026-11-05
+
+### Fixed
+- **Windows: GPS Studio did not start when the Pictures folder was not in its usual place** (OneDrive backup, moved to
+  another drive): creating “Reisezoom Tour Maps” failed with `FileNotFoundError` and the app stopped. GPS Studio now asks
+  Windows for the real Pictures folder; if the folder still can't be created, tour maps go into the app folder and the
+  start continues.
+
 ## [0.9.855] – 2026-11-05
 
 ### Fixed
