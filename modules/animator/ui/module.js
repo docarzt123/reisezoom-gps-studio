@@ -16246,7 +16246,13 @@ function mountAnimator(body, headerActions, opts) {
       if (!cap) return;
       // 18.10.2026 — zum Verschieben scharf geschaltet (↔): nicht tippbar, sonst schluckt der Text den Mausdruck und ein
       // reines Text-Schild ließ sich nicht mehr ziehen
-      const an = _animSignEditMode && fi === _animSignForceIdx && fi === _animSignEditorIdx && fi !== _animSignMoveArmed;
+      // 05.11.2026 (Beta-Tester, Video: „wenn ich das Bild anklicke … kann ich das nicht gesichert verschieben, das funktioniert
+      // mal und dann wieder nicht“) — ein Foto ohne Bildunterschrift hat keine Textfläche; die unsichtbare Eingabe lag dann über
+      // dem ganzen Foto und schluckte den Mausdruck (nur der allererste Griff traf noch das Bild). Dann nicht tippbar: das Foto
+      // ist ziehbar, die Unterschrift kommt ins Feld „Bildunterschrift“ im Editor. Mit Unterschrift liegt die Eingabe nur
+      // über dem Text, der Rest des Fotos bleibt greifbar.
+      const deckt = !!(mk.wrap.__bildAn && !(mk.wrap.__bildMass && mk.wrap.__bildMass.text));
+      const an = _animSignEditMode && fi === _animSignForceIdx && fi === _animSignEditorIdx && fi !== _animSignMoveArmed && !deckt;
       mk.wrap.classList.toggle("rz-sign--tippbar", an);
       const leer = !String(cap.textContent || "").trim();
       mk.wrap.classList.toggle("rz-sign--platzhalter", an && leer);
@@ -21520,6 +21526,10 @@ function mountAnimator(body, headerActions, opts) {
                                         abflugBis: [_ovLeisteAusZeit(fsF.halt[1]), _ovLeisteAusZeit(Math.min(ph.G, fsF.halt[1] + 5))] } : null,
                      einBis: _ovLeisteAusZeit(Math.min(tAus, tAn + einS)), ausAb: _ovLeisteAusZeit(Math.max(tAn, tAus - ausS)),
                      ohneBlende: immer,
+                     // 05.11.2026 (Beta-Tester, Video: rechten Rand am Videoende gezogen, „springt wieder in die ursprüngliche
+                     // Position zurück“) — bis zum Videoende gibt es keine Ausblendung; ihr weißer Punkt saß genau auf dem
+                     // rechten Rand und fing den Griff ab. Ohne Wirkung → kein Punkt, der Rand ist greifbar.
+                     ohneAus: !immer && (fsF ? fsBisEnde : m.a_hide >= 1.5),
                      // 02.10.2026 (Marc: „den Namen des Schildes … sehen") — Name vorn, Zeit dahinter
                      text: fsF ? name.replace(/\s+/g, " ") + " · " + t("animator.fs.gross", "Foto groß") + " " + zahl(fsF.halt[0]) + "–" + zahl(fsF.halt[1]) + " s"
                          : name.replace(/\s+/g, " ") + " · " + (immer ? t("signs.always", "Ganze Zeit") : (zahl(tAn) + " s – " + ((fsF ? fsBisEnde : m.a_hide >= 1.5) ? t("animator.ov.spur_videoende", "Videoende") : zahl(tAus) + " s"))),

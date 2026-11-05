@@ -1073,11 +1073,18 @@ function mountTimelineBar(opts) {
     if (!_balkenAktiv || (e.key !== "Delete" && e.key !== "Backspace") || e.metaKey || e.ctrlKey || e.altKey) return;
     const z = e.target;
     if (z && (z.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(z.tagName || ""))) return;
+    if (z && z.closest && z.closest("#rz-detail, .sign-editor, .rz-detail")) return;   // 05.11.2026 — Fokus im Editor: nie den Balken löschen
     if (e.defaultPrevented) return;
     if (_balkenAktiv.loeschen()) { e.preventDefault(); e.stopPropagation(); }
   });
+  // 05.11.2026 (Beta-Tester, Video: „will den Wert ‚Bleibt sichtbar‘ verändern, dann verliert dieser Bilderbalken seinen
+  // Fokus“) — auch ein Klick in den Editor rechts hob die Auswahl auf, der Balken war nicht mehr zu finden. Klicks in die
+  // Detail-Spalte bzw. ein Editor-Fenster lassen sie stehen (Entfernen in Eingabefeldern löscht ohnehin keinen Balken).
   _win("mousedown", (e) => {
-    if (_balkenAktiv && !(e.target && host.contains(e.target))) { const b = _balkenAktiv; _balkenAktiv = null; b.abwaehlen(); }
+    const t = e.target;
+    if (!_balkenAktiv || (t && host.contains(t))) return;
+    if (t && t.closest && t.closest("#rz-detail, .sign-editor, .rz-detail")) return;
+    const b = _balkenAktiv; _balkenAktiv = null; b.abwaehlen();
   });
   function _balkenGruppe(g) {
     // g: { box, kopfTitel, kopfTip, farbe, zeilenIcon, blendenGriffe, zeitraumNeu, rc: {neu, offen, oeffnen,
@@ -1262,7 +1269,7 @@ function mountTimelineBar(opts) {
             + bild + lage
             + `<span class="tl-ov-name">${_esc(sg.text || "")}</span>`
             + (g.blendenGriffe && !sg.ohneBlende ? `<span class="tl-ov-griff" data-griff="ein" style="left:${ein}%"></span>`
-                               + `<span class="tl-ov-griff" data-griff="aus" style="left:${100 - aus}%"></span>` : "")
+                               + (sg.ohneAus ? "" : `<span class="tl-ov-griff" data-griff="aus" style="left:${100 - aus}%"></span>`) : "")
             + (sg.festL ? "" : `<span class="tl-ov-rand" data-griff="l"></span>`)
             + (sg.festR ? "" : `<span class="tl-ov-rand" data-griff="r"></span>`);
           mk.appendChild(b);

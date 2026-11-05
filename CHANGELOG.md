@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.855] – 2026-11-05
+
+### Fixed
+- **Instant photo could only be dragged on the map now and then**: with the sign editor open, the invisible caption input
+  of the “Instant photo” shape lay over the whole picture, so after the first grab you dragged the map instead — and with
+  a keyframe selected, that keyframe took over the moved map. The caption input now covers only the white strip below
+  the picture; the photo itself can be dragged every time.
+- **Right edge of a photo bar at the video end sprang back**: a bar that lasts until the end of the video had the white
+  fade-out dot right on its edge, although fading out has no effect there. The dot is gone, so the edge can be grabbed
+  and dragged to shorten the bar.
+- **Photo bar lost its selection while editing**: clicking into the sign window (for example to change “Stays visible”)
+  deselected the bar in the timeline. It now stays selected; the Delete key does nothing while the focus is in the window.
+
 ## [0.9.854] – 2026-11-05
 
 ### Fixed

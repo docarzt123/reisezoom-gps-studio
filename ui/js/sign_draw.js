@@ -379,7 +379,14 @@
       var y0 = iy + (image ? imgW : 0) + Math.round(rand * 0.35) + lineH / 2;
       for (var j = 0; j < lines.length; j++) ctx.fillText(lines[j], cw / 2, y0 + j * lineH);
     }
-    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: "bottom" };
+    // 05.11.2026 (Beta-Tester: Foto ließ sich im Editor „mal und dann wieder nicht“ verschieben) — ohne `text` legte das
+    // HTML-Schild seine unsichtbare Eingabe über das ganze Foto und schluckte den Mausdruck. Jetzt wie die anderen Stile:
+    // wo die Unterschrift steht — der weiße Streifen unter dem Bild (Drehung um wenige Grad vernachlässigt).
+    var ox = (c.width - cw) / 2, oy = (c.height - ch) / 2, ty = iy + (image ? imgW : 0) + Math.round(rand * 0.35);
+    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: "bottom",
+             text: { x: (ox + rand) / dpr, y: (oy + ty) / dpr, w: innerW / dpr, h: Math.max(lines.length, 1) * lineH / dpr, zeile: lineH / dpr,
+                     px: fs / dpr, ausrichtung: "center", farbe: (o.textColor && o.textColor !== "auto") ? o.textColor : "#25302c",
+                     schrift: FONT.replace(fs + "px", (fs / dpr) + "px") } };
   }
 
   // Mini-Bild für den Ausgang „mini": rundes Foto mit weißem Ring, RZ_MINI_PX Durchmesser (CSS-px), Anker unten.

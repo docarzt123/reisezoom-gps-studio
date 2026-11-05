@@ -117,9 +117,21 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.854</span>
+    <span class="version-num">v0.9.855</span>
     <span class="version-date">5 November 2026</span>
     <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>Photos can be dragged on the map reliably in the editor</strong> &mdash; With the &ldquo;Instant photo&rdquo; shape the invisible caption input covered the whole photo &mdash; after the first grab you moved the map instead of the photo, and with a keyframe selected that keyframe took over the map. The input now sits only on the white strip below the picture; you drag the photo itself every time.</li>
+    <li><strong>Right edge at the video end can be grabbed</strong> &mdash; When a photo bar lasted until the end of the video, the white fade-out dot sat right on its edge although nothing fades out there &mdash; the edge sprang back when dragged. The dot is gone there, the edge can be dragged.</li>
+    <li><strong>Bar stays selected while editing</strong> &mdash; Clicking into the sign window (for example on &ldquo;Stays visible&rdquo;) deselected the bar. It now stays selected; the Delete key does nothing meanwhile.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.854</span>
+    <span class="version-date">5 November 2026</span>
   </div>
   <ul>
     <li><strong>Photos ended too early in the sign row</strong> &mdash; A sign without a fixed moment counts &ldquo;Stays visible&rdquo; only after a hold at its spot (such as a photo stop) &mdash; preview and video did that, the bar in the sign row did not. So a photo stayed on screen although its bar had already ended. The bar now uses the same calculation; dragging its right edge sets &ldquo;Stays visible&rdquo; without the hold, moving it keeps its length.</li>

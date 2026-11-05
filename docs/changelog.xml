@@ -5,8 +5,17 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 03 Nov 2026 20:56:46 +0000</lastBuildDate>
+<lastBuildDate>Thu, 05 Nov 2026 07:22:37 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.854</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-854</link>
+<guid isPermaLink="false">gps-studio-v0.9.854</guid>
+<pubDate>Thu, 05 Nov 2026 12:00:00 +0000</pubDate>
+<description>Fotos endeten in der Schild-Spur zu früh — Ein Schild ohne festen Zeitpunkt zählt „Bleibt sichtbar“ erst nach einem Halt an seiner Stelle (etwa einem Fotostopp) — Vorschau und Video taten das, der Balken in der Schild-Spur nicht. So blieb ein Foto noch stehen, obwohl sein Balken schon zu Ende war. Jetzt rechnet der Balken genauso; ziehst du seinen rechten Rand, stellst du „Bleibt sichtbar“ ohne den Halt ein, verschiebst du ihn, bleibt seine Länge.
+
+Schild im Editor wirkte immer sichtbar — Das Schild, das du gerade bearbeitest, bleibt zum Arbeiten auf der Karte — außerhalb seiner Zeit erscheint es jetzt aber blass, mit dem Hinweis, dass es dort im Video nicht zu sehen ist. Vorher sah es so aus, als tauche es schon im Intro auf oder bleibe über späteren Fotos stehen.</description>
+</item>
 <item>
 <title>v0.9.853</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-853</link>
@@ -241,19 +250,6 @@ Keyframe aus Versehen verändert? — Ein ⌘Z holt ihn genau zurück, und unten
 Fotostopps — Der runde Foto-Pin richtet sich nach „Bleibt sichtbar“, ein in der Zeitleiste verschobener Fotostopp nimmt seinen Ort mit (die Kamera fliegt dorthin, die Bildunterschrift nennt den neuen Ort), und beim Umschalten des Looks bleibt kein Pin mehr neben dem Schild stehen.
 
 Pausen an der richtigen Stelle — Pausen aus dem Logbuch landen richtig, auch wenn die Route zweimal am selben Ort vorbeikommt — und die Kaffeetasse ist als Symbol zurück.</description>
-</item>
-<item>
-<title>v0.9.796</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-796</link>
-<guid isPermaLink="false">gps-studio-v0.9.796</guid>
-<pubDate>Sat, 17 Oct 2026 12:00:00 +0000</pubDate>
-<description>Verschobene Fotos gleich am richtigen Ort — Fotos, die du im Finder oder Explorer verschiebst oder umbenennst, stehen in den Medien sofort am neuen Ort — mit dem Datum, das jetzt in der Datei steht. Vorher blieben sie bis zur nächsten großen Nachschau (bis zu einem Tag) mit den alten Daten stehen.
-
-Track-Fehler im Inspektor finden — Meldet das Archiv „Fehler im Track“, zeigt der Inspektor jetzt die einzelnen Stellen mit Kilometer — ein Klick springt hin und bietet „Reparieren“ an. Alte Prüfergebnisse werden beim Öffnen neu geprüft, Archiv und Inspektor sagen dasselbe.
-
-Logbuch: Art ändern — Auf der Tour-Seite stellst du über „⋯“ an einem Logbuch-Eintrag die Fortbewegung um — Fahrt, Wanderung, Rad, Pause … Das gilt dann überall.
-
-Etappe ohne Fahrzeug — Neuer Schalter „Fahrzeug der Etappe zeigen“: ausgeschaltet bleibt der Laufpunkt Kugel, Pfeil oder dein Bild, statt zum Auto oder Flugzeug zu werden.</description>
 </item>
 </channel>
 </rss>
