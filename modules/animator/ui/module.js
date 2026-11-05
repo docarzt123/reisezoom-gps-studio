@@ -16800,7 +16800,15 @@ function mountAnimator(body, headerActions, opts) {
         if (!mk || !mk.wrap) return;
         const meta = _animSignMetas[fi] || { a_show: -1, a_hide: 2, fade: 0 };
         let op = 1, visible;
-        if (_animSignsPreviewAll || _isStaticFrame || _animSignForceIdx === fi) { visible = true; op = 1; }
+        let ausserhalb = false;
+        if (_animSignsPreviewAll || _isStaticFrame) { visible = true; op = 1; }
+        else if (_animSignForceIdx === fi) {
+          // 04.11.2026 (Nutzer-Meldung: Foto im Intro zu sehen, obwohl sein Balken erst danach beginnt) — das Schild im
+          // Editor bleibt greifbar, außerhalb seiner Zeit aber nur blass: dort ist es im Video nicht zu sehen
+          visible = true;
+          ausserhalb = !(M >= meta.a_show && M <= meta.a_hide);
+          op = ausserhalb ? 0.35 : Math.max(0.35, Math.min(1, window.__rzSignDeckkraft ? window.__rzSignDeckkraft(meta, M) : 1));
+        }
         else {
           visible = (M >= meta.a_show && M <= meta.a_hide);
           if (visible) op = Math.max(0, Math.min(1, window.__rzSignDeckkraft ? window.__rzSignDeckkraft(meta, M) : 1));
@@ -16808,9 +16816,16 @@ function mountAnimator(body, headerActions, opts) {
         const wrap = mk.wrap;
         const dispVal = visible ? "" : "none";
         if (mk._lastDisp !== dispVal) { wrap.style.display = dispVal; mk._lastDisp = dispVal; }
+        if (mk._ausserhalb !== ausserhalb) {
+          mk._ausserhalb = ausserhalb;
+          wrap.classList.toggle("rz-sign--ausserhalb", ausserhalb);
+          if (ausserhalb) wrap.title = t("signs.edit_ausserhalb", "Zu dieser Zeit im Video nicht zu sehen – nur zum Bearbeiten eingeblendet");
+          else wrap.removeAttribute("title");
+        }
         if (!visible) return;
         const opR = Math.round(op * 100) / 100;
-        if (mk._lastOp !== opR) { wrap.style.opacity = String(opR); mk._lastOp = opR; }
+        // 04.11.2026 — gegen den echten Wert vergleichen: das Neu-Stylen des Schilds im Editor setzt die Deckkraft zurück
+        if (mk._lastOp !== opR || (opR < 1 && wrap.style.opacity !== String(opR))) { wrap.style.opacity = String(opR); mk._lastOp = opR; }
         // 18.10.2026 — Bild-Modus (Bild der Canvas-Engine): Größe und Randversatz wie die Schild-Ebene, kein CSS-Zoom
         if (wrap.__bildAn) { _animSignDomRand(mk); return; }
         // 05.10.2026 — Ausgang „mini": aus dem Anker berechnet (kein CSS-Übergang), damit Video = Vorschau.
@@ -19352,6 +19367,14 @@ function mountAnimator(body, headerActions, opts) {
         // 29.10.2026 (`gpsstudio highlights-export`) — Zeitfenster je Schild-Objekt (Index = Feature-id der Schild-Ebene) und
         // der Anker des zuletzt gezeigten Bilds: der Export rechnet Deckkraft und Aufpoppen damit genau wie die Ebene
         metas: () => _animSignMetas, anker: () => _animSignLastAnchorM,
+        // 04.11.2026 (Nutzer-Meldung: Foto blieb länger stehen, als sein Balken zeigt) — die Spur rechnet mit DERSELBEN
+        // Verlängerung um einen Halt an der Stelle wie die Vorschau (_animSignMitAnker); haltSek = diese Verlängerung in s
+        mitAnker: (sn, a, d) => _animSignMitAnker(sn, a, d),
+        haltSek: (sn) => {
+          if (!sn || typeof sn.timeAnchor === "number") return 0;
+          const h = _animSignHaltAnker(Number(sn.lon), Number(sn.lat), sn.strecke_m);
+          return h > 1e-6 ? h * _animSignsDuration() : 0;
+        },
       },
       updateAtAnchor: _animSignsUpdateAtAnchor,
       applyMarkerAnchor: _animSignsApplyMarkerAnchor,
@@ -21418,7 +21441,9 @@ function mountAnimator(body, headerActions, opts) {
     const sn = _sgS().normalize(s);
     const A = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _sgS().ankerFuer(Number(sn.lon), Number(sn.lat), sn.strecke_m);
     const dur = _sgS().dauer();
-    const m = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: A }, dur) : { a_show: A, a_hide: 2, fade: 0, pop: 0 };
+    // 04.11.2026 — wie die Vorschau: „Bleibt sichtbar“ zählt erst nach einem Halt an der Stelle (sonst endete der Balken zu früh)
+    const mit = _sgS().mitAnker ? _sgS().mitAnker(sn, A, dur) : { ...sn, track_anchor: A };
+    const m = window.__rzSignMeta ? window.__rzSignMeta(mit, dur) : { a_show: A, a_hide: 2, fade: 0, pop: 0 };
     return { sn, A, dur, m };
   }
   function _sgSpurAktualisieren() {
@@ -21685,9 +21710,13 @@ function mountAnimator(body, headerActions, opts) {
       out.after = bisEnde ? 0 : Math.max(0.1, Math.round((aHide - aShow) * dur * 10) / 10);
       return { out, sn, ph };
     }
+    // 04.11.2026 — Verlängerung um einen Halt an der Stelle (nur Schilder ohne festen Zeitpunkt, s. _sgMeta)
+    const haltS = (_sgS().haltSek && (+sn.after || 0) > 0) ? _sgS().haltSek(sn) : 0;
     if (griff === "schieben") {
       out.timeAnchor = Math.round((A + (aShow - m.a_show)) * 100000) / 100000;
       if (!(m.a_hide >= 1.5) && bisEnde) out.after = 0;
+      // mit festem Zeitpunkt fällt die Verlängerung weg → in „Bleibt sichtbar“ übernehmen, der Balken bleibt gleich lang
+      else if (haltS > 0) out.after = Math.round(((+sn.after || 0) + haltS) * 10) / 10;
     } else if (griff === "l") {
       if (aShow <= A) out.before = Math.max(0, Math.round((A - aShow) * dur * 10) / 10);
       else {   // Anfang hinter den Anker gezogen: der Anker wandert mit, das Ende bleibt
@@ -21705,7 +21734,7 @@ function mountAnimator(body, headerActions, opts) {
       out.exit = exAlt === "none" ? "fade" : exAlt;
       if (out.exit_s <= 0.05) { out.exit = "none"; out.exit_s = null; }
     } else if (griff === "r") {
-      out.after = bisEnde ? 0 : Math.max(0.1, Math.round((aHide - A) * dur * 10) / 10);
+      out.after = bisEnde ? 0 : Math.max(0.1, Math.round(((aHide - A) * dur - haltS) * 10) / 10);
       if (aHide < A) { out.timeAnchor = Math.round(aHide * 100000) / 100000; out.after = 0.1; out.before = Math.max(0, Math.round((aHide - aShow) * dur * 10) / 10); }
     }
     return { out, sn, ph };

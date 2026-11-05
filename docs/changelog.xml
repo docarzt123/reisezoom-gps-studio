@@ -5,8 +5,15 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 03 Nov 2026 17:25:22 +0000</lastBuildDate>
+<lastBuildDate>Tue, 03 Nov 2026 20:56:46 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.853</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-853</link>
+<guid isPermaLink="false">gps-studio-v0.9.853</guid>
+<pubDate>Tue, 03 Nov 2026 12:00:00 +0000</pubDate>
+<description>MapTiler-Knopf im Hinweis wieder erreichbar — Seit 0.9.851 wird der Hinweis „nur grobes Satellitenbild“ nach 8 Sekunden zum gelben Warnzeichen neben den Zoom-Knöpfen — dabei verschwanden die Knöpfe „MapTiler-Satellit“ und „Kartenstil mit Namen“, und ein Klick aufs Zeichen tat nichts. Jetzt klappt ein Klick auf das Zeichen den Hinweis mit beiden Knöpfen wieder auf; er bleibt offen, bis du ihn mit ✕ schließt.</description>
+</item>
 <item>
 <title>v0.9.852</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-852</link>
@@ -247,17 +254,6 @@ Track-Fehler im Inspektor finden — Meldet das Archiv „Fehler im Track“, ze
 Logbuch: Art ändern — Auf der Tour-Seite stellst du über „⋯“ an einem Logbuch-Eintrag die Fortbewegung um — Fahrt, Wanderung, Rad, Pause … Das gilt dann überall.
 
 Etappe ohne Fahrzeug — Neuer Schalter „Fahrzeug der Etappe zeigen“: ausgeschaltet bleibt der Laufpunkt Kugel, Pfeil oder dein Bild, statt zum Auto oder Flugzeug zu werden.</description>
-</item>
-<item>
-<title>v0.9.795</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-795</link>
-<guid isPermaLink="false">gps-studio-v0.9.795</guid>
-<pubDate>Fri, 16 Oct 2026 12:00:00 +0000</pubDate>
-<description>Luftbild an der Landesgrenze — Liegt eine Tour direkt an einer Grenze, fragt die App für die Ecke auch das Luftbild des Nachbarlands ab. Antwortet dieser Dienst „hier kein Bild“, galt das bisher als Ausfall — mit vielen unnötigen Nachfragen und der Warnung „Luftbild … antwortet nicht – Hunderte Kacheln fehlen“. Jetzt ist die Stelle einfach durchsichtig, die Grundkarte scheint durch, ohne Warnung.
-
-Video-Render gibt nicht mehr auf — Stürzt der unsichtbare Render-Browser mitten im Video ab, startet die App ihn neu und macht beim selben Bild weiter, statt das halbe Video wegzuwerfen. Im Log steht jetzt, warum er gestorben ist und wie viel Arbeitsspeicher frei war.
-
-Medien: Liste springt nicht mehr — Während im Hintergrund Fotos eingelesen werden, springt eine Suchliste beim Scrollen nicht mehr nach oben.</description>
 </item>
 </channel>
 </rss>

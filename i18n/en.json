@@ -4636,6 +4636,7 @@
   "signs.exit.both": "Fade + pop out",
   "signs.exit.mini": "Shrinks to a round mini photo (stays)",
   "signs.exit_s": "Fade-out duration (s)",
+  "signs.edit_ausserhalb": "Not visible in the video at this time – shown only for editing",
   "signs.exit_hint": "It only fades out if the sign disappears before the end of the video (“Stays visible” above 0). In the timeline you can drag both durations at the white dots.",
   "signs.always_hint": "This sign is visible for the whole video (bar across the full width). Drag the edges of its bar in the timeline to set when it comes and goes.",
   "animator.kf.map_not_ready": "Map not settled yet — please set the keyframe again in a moment",

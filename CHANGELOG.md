@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.854] – 2026-11-05
+
+### Fixed
+- **Sign row in the timeline showed photos ending too early**: a sign without a fixed moment counts “Stays visible” only
+  after a hold at its spot (for example a photo stop), and preview and video did that — the bar in the sign row did not,
+  so a photo stayed on screen after its bar had ended. The bar now uses the same calculation; dragging its right edge
+  sets “Stays visible” without the hold, moving the bar keeps its length.
+- **Sign open in the editor was shown at full strength at every moment**: the sign being edited stays on the map so you
+  can work on it, but outside its time it is now faded with a hint that it is not visible in the video there — before it
+  looked as if it appeared in the intro or stayed on top of later photos.
+
 ## [0.9.853] – 2026-11-03
 
 ### Fixed

@@ -4636,6 +4636,7 @@
   "signs.exit.both": "Desvanecer + de golpe",
   "signs.exit.mini": "Se encoge a una mini foto redonda (se queda)",
   "signs.exit_s": "Duración de la salida (s)",
+  "signs.edit_ausserhalb": "No se ve en el vídeo en este momento: solo se muestra para editar",
   "signs.exit_hint": "Solo se desvanece si el cartel desaparece antes del final del vídeo («Sigue visible» mayor que 0). En la línea de tiempo puedes arrastrar ambas duraciones en los puntos blancos.",
   "signs.always_hint": "Este cartel se ve durante todo el vídeo (barra a lo ancho). Cuándo aparece y desaparece lo arrastras en los bordes de su barra en la línea de tiempo.",
   "animator.kf.map_not_ready": "El mapa aún no está listo — vuelve a poner el keyframe en un momento",

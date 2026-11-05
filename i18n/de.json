@@ -4636,6 +4636,7 @@
   "signs.exit.both": "Aus- + Wegpoppen",
   "signs.exit.mini": "Schrumpft zum runden Mini-Bild (bleibt stehen)",
   "signs.exit_s": "Dauer Ausblendung (Sek.)",
+  "signs.edit_ausserhalb": "Zu dieser Zeit im Video nicht zu sehen – nur zum Bearbeiten eingeblendet",
   "signs.exit_hint": "Ausgeblendet wird nur, wenn das Schild vor dem Videoende verschwindet („Bleibt sichtbar“ größer 0). In der Zeitleiste lassen sich beide Dauern an den weißen Punkten ziehen.",
   "signs.always_hint": "Dieses Schild ist das ganze Video zu sehen (Balken über die volle Breite). Wann es kommt und geht, ziehst du in der Zeitleiste an den Rändern des Balkens.",
   "animator.kf.map_not_ready": "Karte noch nicht stabil — KF bitte gleich nochmal setzen",
