@@ -243,7 +243,10 @@
     out.lage = c.lage === "laufpunkt" ? "laufpunkt" : "bild";
     out.fuehrung = c.fuehrung !== false;
     out.fuehrung_farbe = farbe(c.fuehrung_farbe, null);   // leer = Textfarbe
-    out.ausweichen = c.ausweichen !== false;
+    // 06.11.2026 (Marc: „soll aus dem Bild fahren“, wie die iOS-App) — am Rand fährt das Schild mit dem Punkt hinaus; die
+    // Seite wechselt es nur noch auf Wunsch. Neuer Schlüssel, weil der alte `ausweichen` bisher immer als true gespeichert
+    // wurde (Standard an) — so fahren auch bestehende Schilder hinaus.
+    if (c.seite_wechseln === true) out.seite_wechseln = true;
     if (c.lage_fest) out.lage_fest = true;
     if (c.look_fest) out.look_fest = true;
     // 01.11.2026 (Marc: „bei Randnotiz kann man den Text teilweise nicht lesen … vielleicht eine Kontur um den Text …

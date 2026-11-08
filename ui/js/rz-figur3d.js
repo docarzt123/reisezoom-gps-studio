@@ -6,7 +6,8 @@
  *
  *   await rzFigur3d.laden();                         // three.js erst bei Bedarf (ui/vendor/three.js, ~2 MB)
  *   const f = rzFigur3d.create("laufpunkt-3d"); map.addLayer(f);
- *   f.setFigur({ lng, lat, agl, form: "kugel" | "puk" | "pfeil" | "feuer" (Kugel + Schweif), farbe, glanz, groesseM, minPx, drehung, neigung });
+ *   f.setFigur({ lng, lat, agl, form: "komet" | "kometpfeil" | "kugel" | "puk" | "pfeil" | "feuer" (Kugel + Schweif), farbe, glanz, groesseM, minPx, drehung, neigung,
+ *                leucht: "#rrggbb" (Komet: Farbe des Scheins = heißeste Glutstufe) });
  *   f.setFigur(null);                                // ausblenden
  *
  *   groesseM  Durchmesser (Kugel, Puk) bzw. Länge (Pfeil) in Metern; minPx = Mindestgröße in CSS-Pixeln (aus der Ferne)
@@ -43,13 +44,25 @@
     return t;
   }
 
+  /** Weicher runder Schein (weiß, nach außen durchsichtig) — eingefärbt über die Sprite-Farbe, additiv. */
+  function _scheinTextur(T) {
+    const c = document.createElement("canvas"); c.width = c.height = 128;
+    const g = c.getContext("2d"), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    r.addColorStop(0, "rgba(255,255,255,0.85)"); r.addColorStop(0.25, "rgba(255,255,255,0.45)");
+    r.addColorStop(0.55, "rgba(255,255,255,0.12)"); r.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
+    return t;
+  }
+
   /** Pfeil in Einheitsgröße: Länge 1 entlang +z (vorn), flach in der x/z-Ebene, Dicke nach oben (+y). */
-  function _pfeilGeometrie(T) {
+  function _pfeilGeometrie(T, dicke) {
     const s = new T.Shape();
     // Navigationspfeil mit Kerbe hinten (wie der 2D-Laufpfeil): Spitze vorn, zwei Flügel, Kerbe
     s.moveTo(0, 0.5); s.lineTo(0.36, -0.5); s.lineTo(0, -0.24); s.lineTo(-0.36, -0.5); s.closePath();
-    const g = new T.ExtrudeGeometry(s, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.045, bevelSegments: 4, curveSegments: 4 });
-    g.translate(0, 0, -0.08);
+    const d = dicke || 0.16;
+    const g = new T.ExtrudeGeometry(s, { depth: d, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.045, bevelSegments: 4, curveSegments: 4 });
+    g.translate(0, 0, -d / 2);
     g.scale(1.5, 1.5, 1.5);   // der Pfeil wirkt flach — 1,5 × so lang wie die Kugel breit ist
     g.rotateX(-Math.PI / 2);    // Shape-y (vorn) → −z … umdrehen, damit die Spitze nach +z zeigt
     g.rotateY(Math.PI);
@@ -91,7 +104,32 @@
           const deckel = new T.Mesh(new T.CircleGeometry(0.5 - pR, 48), this._weiss);
           deckel.rotation.x = y > 0 ? -Math.PI / 2 : Math.PI / 2; deckel.position.y = y + (y > 0 ? pR : -pR); puk.add(deckel);
         }
+        // 06.11.2026 Komet — glühende Kugel (Marc: „die Kugel muss der hellste Punkt sein, ab da wird's dunkler nach
+        // hinten“): selbstleuchtender weißglühender Kern (unbeleuchtet, kein Schatten auf der Kugel), darum zwei weiche
+        // Scheine: innen fast weiß, außen in der Glutfarbe. Die Scheine prüfen keine Tiefe (das Gelände schnitt sie sonst
+        // als Sichel ab) — hinter dem Berg blendet sie stattdessen die Sichtprüfung des Laufpunkts aus (rzSignSicht).
+        this._perle = new T.MeshBasicMaterial({ color: 0xfffbf2 });
+        const komet = new T.Mesh(new T.SphereGeometry(0.5, 48, 32), this._perle);
+        // Flächen statt Sprites: three richtet Sprites nach der Kameradrehung aus, unsere Kamera ist eine reine Matrix ohne
+        // Drehung — der Schein stand als senkrechte Scheibe in der Landschaft (von schräg oben fast unsichtbar). Die Flächen
+        // werden in render() zum echten Kameraort gedreht.
+        const scheinMat = (farbe) => new T.MeshBasicMaterial({ map: _scheinTextur(T), color: farbe, transparent: true,
+          blending: T.AdditiveBlending, depthWrite: false, depthTest: false, side: T.DoubleSide });
+        this._scheinInnen = new T.Mesh(new T.PlaneGeometry(1, 1), scheinMat(0xfff4dc));
+        this._scheinInnen.visible = false;
+        this._schein = new T.Mesh(new T.PlaneGeometry(1, 1), scheinMat(0xffffff));
+        this._schein.visible = false;
+        // Komet-Pfeil: dritter Schein weiter hinten (Triebwerk, Marc 06.11.2026)
+        this._scheinHinten = new T.Mesh(new T.PlaneGeometry(1, 1), scheinMat(0xffffff));
+        this._scheinHinten.visible = false;
+        // 06.11.2026 (Marc: „mach statt der Kugel jetzt das gleiche mit einem Pfeil“) — Komet-Pfeil: derselbe weißglühende,
+        // unbeleuchtete Körper wie die Kometenkugel, als Pfeil (etwas dicker, damit er neben der Röhre nicht wie ein Blatt
+        // wirkt), Seiten in der Glutfarbe; die Röhre kommt hinten aus der Kerbe
+        this._glutRand = new T.MeshBasicMaterial({ color: 0xffd27a });
+        const kometpfeil = new T.Mesh(_pfeilGeometrie(T, 0.3), [this._perle, this._glutRand]);
         this._formen = {
+          komet,
+          kometpfeil,
           kugel,
           puk,
           pfeil: new T.Mesh(_pfeilGeometrie(T), [this._weiss, this._material]),
@@ -101,7 +139,7 @@
         this._schatten = new T.Mesh(new T.CircleGeometry(0.5, 40),
           new T.MeshBasicMaterial({ map: _schattenTextur(T), transparent: true, depthWrite: false }));
         this._schatten.rotation.x = -Math.PI / 2;
-        this._scene.add(this._koerper, this._schatten);
+        this._scene.add(this._koerper, this._schatten, this._schein, this._scheinInnen, this._scheinHinten);
         // Feuerkugel (rz-feuer3d): eigene Gruppe, Einheit = Kugeldurchmesser
         if (window.rzFeuer3d) { this._feuer = window.rzFeuer3d.erzeugen(T); this._feuer.gruppe.visible = false; this._scene.add(this._feuer.gruppe); }
       },
@@ -110,6 +148,11 @@
           for (const k in (this._formen || {})) this._formen[k].traverse((o) => { if (o.geometry) o.geometry.dispose(); });
           if (this._material) this._material.dispose();
           if (this._weiss) this._weiss.dispose();
+          if (this._perle) this._perle.dispose();
+          if (this._glutRand) this._glutRand.dispose();
+          if (this._scheinInnen) { this._scheinInnen.geometry.dispose(); this._scheinInnen.material.map.dispose(); this._scheinInnen.material.dispose(); }
+          if (this._schein) { this._schein.geometry.dispose(); this._schein.material.map.dispose(); this._schein.material.dispose(); }
+          if (this._scheinHinten) { this._scheinHinten.geometry.dispose(); this._scheinHinten.material.map.dispose(); this._scheinHinten.material.dispose(); }
           if (this._feuer) this._feuer.entsorgen();
           if (this._schatten) { this._schatten.geometry.dispose(); this._schatten.material.map.dispose(); this._schatten.material.dispose(); }
         } catch (_) {}
@@ -164,7 +207,10 @@
         const m = this._map, MC = window.maplibregl && window.maplibregl.MercatorCoordinate;
         if (!MC) return;
         let boden = 0;
-        try { const e = m.queryTerrainElevation && m.getTerrain && m.getTerrain() ? m.queryTerrainElevation([f.lng, f.lat]) : 0; boden = (typeof e === "number" && isFinite(e)) ? e : 0; } catch (_) {}
+        // 06.11.2026 (Marc: „warum zittert die Kugel so?“) — die Abfrage genau unter dem Kopf sprang am Steilhang um im Mittel
+        // 16 m je Bild; die Röhre nimmt die Höhen ihrer Trackpunkte. Wer `boden` mitgibt (aus denselben Punkthöhen), sitzt ruhig.
+        if (f.boden != null && isFinite(+f.boden)) boden = +f.boden;
+        else try { const e = m.queryTerrainElevation && m.getTerrain && m.getTerrain() ? m.queryTerrainElevation([f.lng, f.lat]) : 0; boden = (typeof e === "number" && isFinite(e)) ? e : 0; } catch (_) {}
         // Höhe wie die Röhre (rz-line3d): über Grund × Geländeüberhöhung — sonst sitzt der Körper bei überhöhtem Gelände
         // über oder unter der Röhre statt in ihrer Mitte
         let ex = 1;
@@ -172,9 +218,6 @@
         const agl = Math.max(0, +f.agl || 0) * ex;
         const mc = MC.fromLngLat([f.lng, f.lat], boden + agl);
         const s = mc.meterInMercatorCoordinateUnits();
-        // Größe: Meter, aber nie kleiner als minPx Bildpunkte
-        let groesse = Math.max(0.5, +f.groesseM || 10);
-        try { groesse = Math.max(groesse, (+f.minPx || 0) * this._mProPx(f.lng, f.lat)); } catch (_) {}
         // Modellraum in Metern: x Ost, y oben, z Süd (three-üblich; Merkator-y wächst nach Süden). −s auf y wie im
         // MapLibre-Beispiel: nach der Drehung um x wird Modell-z zu Merkator-y, und die Spiegelung hält den Umlaufsinn
         // der Dreiecke richtig (MapLibres Matrix spiegelt selbst einmal)
@@ -186,12 +229,30 @@
         // Ohne das rechnet three den Glanz von der Figurmitte aus — oben auf Kugel, Puk und Pfeil lag ein dunkler Fleck.
         const e = new T.Vector4(0, 0, 1, 0).applyMatrix4(gesamt.clone().invert());
         this._auge = Math.abs(e.w) > 1e-12 ? new T.Vector3(e.x / e.w, e.y / e.w, e.z / e.w) : new T.Vector3(0, 1e5, 1e5);
+        // Größe: Meter, aber nie kleiner als minPx Bildpunkte. Meter je Bildpunkt AM KOPF, quer zur Blickrichtung, aus der
+        // Gesamtmatrix (06.11.2026: vorher über map.project am Boden — das fragte das Gelände ab und sprang am Hang, die
+        // Kugel pumpte von Bild zu Bild um bis zu 30 %).
+        let groesse = Math.max(0.5, +f.groesseM || 10);
+        try {
+          const v = this._auge.clone().normalize();
+          let r = new T.Vector3().crossVectors(v, new T.Vector3(0, 1, 0));
+          if (r.lengthSq() < 1e-8) r.set(1, 0, 0);
+          r.normalize();
+          const p0 = new T.Vector4(0, 0, 0, 1).applyMatrix4(gesamt), p1 = new T.Vector4(r.x, r.y, r.z, 1).applyMatrix4(gesamt);
+          const cv = m.getCanvas(), W = cv.clientWidth || cv.width, H = cv.clientHeight || cv.height;
+          const px = Math.hypot((p1.x / p1.w - p0.x / p0.w) * W / 2, (p1.y / p1.w - p0.y / p0.w) * H / 2);
+          if (px > 1e-6 && isFinite(px)) groesse = Math.max(groesse, (+f.minPx || 0) / px);
+        } catch (_) {}
+        this._groesseM = groesse;   // gezeichnete Größe (Meter): die Röhre endet am Kugelrand (rz-line3d u_luecke)
+        // Abstand Mitte → Austritt der Röhre: Kugelrand bzw. beim Pfeil die Kerbe (0,24 × 1,5 der Einheitsgröße, etwas davor)
+        this._lueckeM = groesse * (f.form === "kometpfeil" ? 0.3 : 0.5);
+        if (window.__rzKometLog) { try { const sp = m.project([f.lng, f.lat]); window.__rzKometLog.push([+(window.__rzVideoSek || 0).toFixed(3), +f.lng.toFixed(7), +f.lat.toFixed(7), +boden.toFixed(1), +agl.toFixed(1), +groesse.toFixed(1), +sp.x.toFixed(1), +sp.y.toFixed(1)]); } catch (_) {} }   // Prüfstand
         this._kamera.position.copy(this._auge);
         this._kamera.updateMatrixWorld(true);
         this._kamera.projectionMatrix = gesamt.multiply(this._kamera.matrixWorld);   // × Ansicht⁻¹ (three) = Gesamtmatrix
         // Körper
         const feuer = f.form === "feuer" && !!this._feuer;
-        const form = (f.form === "pfeil" || f.form === "puk") ? f.form : "kugel";
+        const form = (f.form === "pfeil" || f.form === "puk" || f.form === "komet" || f.form === "kometpfeil") ? f.form : "kugel";
         for (const k in this._formen) this._formen[k].visible = (k === form);   // Feuerkugel = normale Kugel + Schweif
         if (this._feuer) this._feuer.gruppe.visible = feuer;
         if (feuer) this._feuerSetzen(f, groesse, boden, agl, mc);
@@ -203,13 +264,46 @@
         // Fahrtrichtung: Nord = −z; im Uhrzeigersinn von oben gesehen = negative Drehung um y
         this._koerper.rotation.order = "YXZ";
         this._koerper.rotation.y = Math.PI - dreh;
-        this._koerper.rotation.x = form === "kugel" ? 0 : -neig;   // bergauf: Spitze bzw. Vorderkante hebt sich
+        this._koerper.rotation.x = (form === "kugel" || form === "komet") ? 0 : -neig;   // bergauf: Spitze bzw. Vorderkante hebt sich
         this._koerper.scale.setScalar(groesse);
         // Schatten auf dem Boden: Abstand nach unten, mit der Höhe weicher und größer
         this._schatten.position.set(0, -agl + Math.max(0.3, groesse * 0.02), 0);
         this._schatten.scale.setScalar(groesse * (1.25 + Math.min(1, agl / Math.max(1, groesse)) * 0.35));
         this._schatten.material.opacity = Math.max(0.25, 0.75 - 0.25 * Math.min(1, agl / Math.max(1, groesse)));
         this._schatten.visible = f.schatten !== false;
+        // Komet: Hauch der Glutfarbe im Perlmutt + Schein um den Kopf
+        const leucht = (form === "komet" || form === "kometpfeil") ? (f.leucht || f.farbe || "#ffffff") : null;
+        if (form === "kometpfeil") this._glutRand.color.set(f.leucht || f.farbe || "#ffd27a");
+        let sicht = 1;
+        if (leucht && typeof window.rzSignSicht === "function") {
+          try { sicht = Math.max(0, Math.min(1, +window.rzSignSicht(m, f.lng, f.lat, boden + agl, 12))); } catch (_) { sicht = 1; }
+          if (!isFinite(sicht)) sicht = 1;
+        }
+        this._schein.visible = this._scheinInnen.visible = !!leucht && sicht > 0.01;
+        this._scheinHinten.visible = this._schein.visible && form === "kometpfeil";
+        if (leucht) {
+          const st = (f.scheinStark != null ? +f.scheinStark : 1.0) * sicht;
+          this._schein.material.color.set(leucht);
+          this._schein.material.opacity = st;
+          this._schein.position.set(0, 0, 0);
+          this._schein.scale.setScalar(groesse * (f.scheinFaktor != null ? +f.scheinFaktor : 3.4));
+          this._schein.lookAt(this._auge);
+          this._scheinInnen.material.opacity = 0.8 * st;
+          this._scheinInnen.position.set(0, 0, 0);
+          this._scheinInnen.scale.setScalar(groesse * 1.7);
+          this._scheinInnen.lookAt(this._auge);
+          if (form === "kometpfeil") {
+            // 06.11.2026 (Marc: „den Glow nach hinten schicken, dass es aussieht wie ein Raketentriebwerk — in der Mitte sieht
+            // es blöd aus“) — die Scheine sitzen hinter der Kerbe auf der Achse: heißer Kern am Austritt, dahinter größer und
+            // schwächer, der dritte am weitesten hinten. Der Pfeil selbst bleibt der hellste Körper.
+            const hinten = new T.Vector3(0, 0, -1).applyQuaternion(this._koerper.quaternion);
+            const setz = (o, abst, gr, op) => { o.position.copy(hinten).multiplyScalar(groesse * abst); o.scale.setScalar(groesse * gr); o.material.opacity = op; o.lookAt(this._auge); };
+            setz(this._scheinInnen, 0.42, 1.1, 0.85 * st);
+            setz(this._schein, 0.85, 2.2, 0.8 * st);
+            this._scheinHinten.material.color.set(leucht);
+            setz(this._scheinHinten, 1.4, 2.0, 0.45 * st);
+          }
+        }
         // Licht von oben links im Bild: Richtung aus Kamera-Peilung (Ost/Nord), Höhe fest
         const b = (m.getBearing ? m.getBearing() : 0) * Math.PI / 180;
         const links = [-Math.cos(b), Math.sin(b)];   // Bild-links in (Ost, Nord)

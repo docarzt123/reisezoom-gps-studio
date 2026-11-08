@@ -28,7 +28,9 @@ MAX_CONTAINER = 60
 # dieselbe Liste wie in app.py videovorlage_eigen_speichern — nur diese Linien-/Laufpunkt-Werte reisen mit
 ANIMATOR_SCHLUESSEL = ("line_color", "line_width", "kontur_breite", "kontur_farbe", "ghost_track_enabled", "ghost_track_color",
                        "ghost_track_opacity_pct", "linien_look", "schweif_pct", "highlights_farbe", "highlights_stil",
-                       "marker_dot_style", "bergnamen_an")
+                       "marker_dot_style", "bergnamen_an",
+                       # 06.11.2026 — Röhre, Kopf, Nachglühen
+                       "linie_3d", "roehre_glanz", "roehre_breite_m", "roehre_abstand_m", "kopf_3d", "nachgluehen_sek", "glut_look")
 _PLATZHALTER = re.compile(r"\{(t:[A-Za-z0-9_.\-]+|title|subtitle|kicker)\}", re.IGNORECASE)
 _KEY = re.compile(r"^[a-z0-9_.\-]{1,120}$")
 

@@ -740,6 +740,15 @@ function mountAnimator(body, headerActions, opts) {
             <select id="anim-linien-look"><option value="klassisch" selected>klassisch</option><option value="glut">glut</option><option value="neon">neon</option><option value="leuchtspur">leuchtspur</option></select>
             <input type="range" id="anim-schweif" min="0" max="15" step="0.5" value="0">
             <input type="checkbox" id="anim-farbe-je-tag">
+            <!-- 06.11.2026 — Track als 3D-Röhre + Komet + Nachglühen; bedient im Aussehen-Panel und im Assistenten.
+                 Neue Projekte: Röhre, Komet, 1,5 s (core/sessions.py); bestehende bleiben flach ohne Nachglühen. -->
+            <select id="anim-linie-3d"><option value="flach" selected>flach</option><option value="roehre">roehre</option></select>
+            <input type="range" id="anim-roehre-glanz" min="0" max="1" step="0.05" value="0.35">
+            <input type="range" id="anim-roehre-breite" min="2" max="40" step="1" value="12">
+            <input type="range" id="anim-roehre-abstand" min="0" max="50" step="1" value="12">
+            <select id="anim-kopf-3d"><option value="komet">komet</option><option value="kometpfeil" selected>kometpfeil</option><option value="pfeil">pfeil</option><option value="puk">puk</option><option value="punkt">punkt</option></select>
+            <input type="range" id="anim-nachgluehen" min="0" max="5" step="0.25" value="0">
+            <select id="anim-glut-look"><option value="linie" selected>linie</option><option value="koralle">koralle</option><option value="warmkalt">warmkalt</option><option value="pink">pink</option><option value="tuerkis">tuerkis</option></select>
           </div>
           <div class="field" id="anim-glow-strength-field" title="${t("animator.glow.tooltip")}">
             <label class="field-label">${t("animator.toggle.glow")} <span class="label-val" id="anim-glow-strength-v">0 px</span></label>
@@ -3148,6 +3157,15 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-schweif", _MODKEY, "schweif_pct", { type: "number",
     onLoad: _spaeter(() => applyLinienLook()),
     onChange: () => { applyLinienLook(); try { refreshPreviewTrackData(); } catch (_) {} } });
+  // 06.11.2026 — Röhre, Kopf, Nachglühen. Kurz gebündelt: Regler feuern beim Ziehen viele Ereignisse.
+  { let _r3T = null;
+    const neu = () => { clearTimeout(_r3T); _r3T = setTimeout(() => { try { _roehreGeaendert(); } catch (e) { rzSwallow(e, "roehre@einst"); } }, 60); };
+    for (const [id, key, typ] of [["anim-linie-3d", "linie_3d", "string"], ["anim-roehre-glanz", "roehre_glanz", "number"],
+                                  ["anim-roehre-breite", "roehre_breite_m", "number"], ["anim-roehre-abstand", "roehre_abstand_m", "number"],
+                                  ["anim-kopf-3d", "kopf_3d", "string"], ["anim-nachgluehen", "nachgluehen_sek", "number"],
+                                  ["anim-glut-look", "glut_look", "string"]]) {
+      bindSetting(id, _MODKEY, key, { type: typ, onLoad: _spaeter(() => _roehreGeaendert(true)), onChange: neu });
+    } }
   bindSetting("anim-glow-strength", _MODKEY, "glow_strength", { type: "number",
     onLoad: v => updateLabel("anim-glow-strength-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => {
@@ -6723,7 +6741,8 @@ function mountAnimator(body, headerActions, opts) {
     // 24.10.2026 — Leuchtspur : die Linie bleibt scharf (kein Lichthof, kein Kern), dafür stellt die Vorlage beim
     // Umschalten einmal Leuchtpunkt, Schweif und dunkle Kontur vor — „der Punkt leuchtet, die Strecke bleibt lesbar".
     leuchtspur: { farbe: "#48d6c4", glowMin: 0, halo: 0, haloBreite: 1, kern: 0,
-                  vorwahl: { "anim-dot-style": "leucht", "anim-schweif": 6, "anim-kontur-breite": 1.5, "anim-kontur-farbe": "#10302c" } },
+                  // 06.11.2026 — Nachglühen statt Schweif (% der Strecke)
+                  vorwahl: { "anim-dot-style": "leucht", "anim-nachgluehen": 1.5, "anim-kontur-breite": 1.5, "anim-kontur-farbe": "#10302c" } },
   };
   function currentLinienLook() { const v = document.getElementById("anim-linien-look")?.value; return (LINIEN_LOOKS || {})[v] ? v : "klassisch"; }
   function _lookDaten() { return (LINIEN_LOOKS || {})[currentLinienLook()] || null; }
@@ -6793,6 +6812,8 @@ function mountAnimator(body, headerActions, opts) {
     const pct = currentSchweifPct();
     const g = _schweifLetzt && (_schweifLetzt.geometry || _schweifLetzt);
     let c = g && g.type === "LineString" ? g.coordinates : (g && g.type === "MultiLineString" ? g.coordinates[g.coordinates.length - 1] : null);
+    // 06.11.2026 — Nachglühen (Sek.) ersetzt den alten Schweif (% der Strecke); alte Projekte ohne Nachglühen behalten ihn
+    if (_glutDaten(_glut2dEinst())) { _glut2d(src, c, leer); return; }
     // Ruhe mit „ganzen Track zeigen“: es gibt keinen Kopf — kein Schweif
     if (!pct || hauptDezent() || !c || c.length < 2 || !currentCoords || (c.length >= currentCoords.length && previewFullTrack())) { src.setData(leer); return; }
     // 23.10.2026 (Leuchtpunkt) — Länge im Bild statt in % der Strecke: Regler × 40 Bildpunkte, umgerechnet über den Maßstab
@@ -6814,12 +6835,79 @@ function mountAnimator(body, headerActions, opts) {
     aus.reverse();
     src.setData({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: aus } });
   }
+  function _glut2dEinst() { return window.__rzGlut2d || _glutEinst(); }   // Prüfstand: window.__rzGlut2d = { look, sek }
+  // Bei einem Halt bewegt sich die Linie nicht (kein setData) — das Nachglühen soll trotzdem weiter abkühlen: bei jedem
+  // Zeichnen der Karte nachziehen, wenn die Videozeit weiter ist als beim letzten Mal (danach gleich → keine Schleife).
+  let _glut2dJetzt = null;
+  function _glut2dTakt() {
+    if (_glut2dJetzt == null || (+window.__rzVideoSek || 0) === _glut2dJetzt || !_glutDaten(_glut2dEinst())) return;
+    if (_flug.an && _roehre()) return;   // die Röhre glüht selbst (Shader), die 2D-Ebenen sind ausgefiltert
+    try { _schweifAusDaten(null); } catch (e) { rzSwallow(e, "glut2d@takt"); }
+  }
+  /** 06.11.2026 Nachglühen 2D (Einstellung nachgluehen_sek + glut_look): der Schweif = das Stück der gelaufenen Strecke,
+   *  das jünger als `sek` ist — exakt auf dem Track (Ecken bleiben Ecken), gefärbt nach dem Alter jedes Punkts wie die
+   *  Röhre; der Lichthof (preview-schweif-glow) verlischt mit dem Alter. */
+  function _glut2d(src, c, leer) {
+    const G = _glutDaten(_glut2dEinst()), z = _glutZeiten(), jetzt = +window.__rzVideoSek || 0;
+    _glut2dJetzt = jetzt;
+    const bis = _schweifLetzt && _schweifLetzt.__rzBis;
+    const n = currentCoords ? currentCoords.length : 0;
+    const aus = () => { src.setData(leer); for (const id of ["preview-schweif-glow", "preview-schweif"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none"); };
+    if (!G || !z || !c || c.length < 2 || !(bis > 0) || hauptDezent()) { aus(); return; }
+    const kopf = c[c.length - 1], i0 = Math.min(n - 1, Math.floor(bis));
+    // rückwärts sammeln, bis das Alter `sek` erreicht ist (dort zwischen zwei Punkten anschneiden)
+    const pts = [kopf], alter = [0];
+    for (let i = i0; i >= 0; i--) {
+      const a = jetzt - z[i];
+      if (a >= G.sek) {
+        const aV = alter[alter.length - 1], pV = pts[pts.length - 1], u = a > aV ? (G.sek - aV) / (a - aV) : 0;
+        pts.push([pV[0] + (currentCoords[i][0] - pV[0]) * u, pV[1] + (currentCoords[i][1] - pV[1]) * u]); alter.push(G.sek);
+        break;
+      }
+      pts.push(currentCoords[i]); alter.push(Math.max(0, a));
+    }
+    if (pts.length < 2) { aus(); return; }
+    pts.reverse(); alter.reverse();
+    const cum = [0]; for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + _meterZwischen(pts[k - 1], pts[k]));
+    const L = cum[cum.length - 1];
+    if (!(L > 0)) { aus(); return; }
+    src.setData({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: pts } });
+    // Verlauf an FESTEN Altersstufen (nicht an Trackpunkten — die rutschten von Bild zu Bild, der Schweif flimmerte):
+    // je Stufe die Stelle suchen, an der das Alter erreicht ist (alter fällt von sek am Anfang auf 0 am Kopf)
+    const o = _hauptDeckkraft(), STUFEN = 24, stellen = [];
+    for (let k = STUFEN; k >= 0; k--) {
+      const a = G.sek * k / STUFEN;
+      let p = null;
+      for (let j = 1; j < pts.length; j++) {
+        if (alter[j - 1] >= a && alter[j] <= a) { const u = alter[j - 1] > alter[j] ? (alter[j - 1] - a) / (alter[j - 1] - alter[j]) : 0; p = (cum[j - 1] + (cum[j] - cum[j - 1]) * u) / L; break; }
+      }
+      if (p == null) p = a >= alter[0] ? 0 : 1;
+      stellen.push([p, a]);
+    }
+    const kern = ["interpolate", ["linear"], ["line-progress"]], hof = ["interpolate", ["linear"], ["line-progress"]];
+    let letzt = -1;
+    for (const [p, a] of stellen) {
+      if (!(p > letzt + 1e-6)) continue; letzt = p;
+      const b = _glutBei(G, a / G.sek);
+      kern.push(p, _rgba(b.farbe, Math.min(1, 0.10 + 1.1 * b.hitze) * o)); hof.push(p, _rgba(b.farbe, 0.75 * b.hitze * o));
+    }
+    if (kern.length < 7) { aus(); return; }
+    const lw = currentLineWidth();
+    for (const [id, breite, blur, expr] of [["preview-schweif-glow", 5.0, 2.2, hof], ["preview-schweif", 1.6, 0.2, kern]]) {
+      if (!map.getLayer(id)) continue;
+      map.setLayoutProperty(id, "visibility", "visible");
+      map.setPaintProperty(id, "line-width", _lwZ(lw * breite));
+      map.setPaintProperty(id, "line-blur", _lwZ(lw * blur));
+      map.setPaintProperty(id, "line-gradient", expr);
+    }
+  }
   function _schweifVerdrahten() {
     const tr = map && map.getSource("preview-track");
     if (!tr || tr.__rzSchweifHaken) return;
     tr.__rzSchweifHaken = true;
     const orig = tr.setData.bind(tr);
     tr.setData = (d) => { const ret = orig(d); try { _schweifAusDaten(d); } catch (e) { rzSwallow(e, "schweif@track"); } return ret; };
+    try { map.on("render", _glut2dTakt); } catch (_) {}   // 06.11.2026 — Nachglühen kühlt auch beim Halt
   }
   /** alle Foto-Schilder (ohne Clips) halten an bzw. keines; liefert den neuen Zustand. */
   window.__rzFotoHalteAlle = (soll) => {
@@ -7203,15 +7291,166 @@ function mountAnimator(body, headerActions, opts) {
                              "anim-dot-glow", "anim-dot-core", "anim-dot-fz", "anim-dot-arrow"];
   let _flug = { agl: null, key: "", lade: null, lot: [], idx: 0, ebene: null, punkt: null, an: false, grund: "" };
   function _flugGewuenscht() { return !!document.getElementById("anim-mc-flug3d")?.checked || !!_roehre(); }
-  // 02.11.2026 Prototyp Röhre (Vergleichsvideo): der Track als 3D-Röhre knapp über dem Boden — läuft über die Flug-Ebene
-  // (rz-line3d mit Wachstum, Farben, Laufpunkt in Linienhöhe). Nur per window.__rzRoehreSetzen({ glanz, breiteM }).
-  function _roehre() { const r = window.__rzRoehre; return (r && +r.breiteM > 0) ? r : null; }
+  // 06.11.2026 — die Röhre läuft über dieselbe Ebene, ist aber KEIN Flug: Kamera (Blickrichtung, Ausweichen, Bildmitte in
+  // Flughöhe), Höhenwerte (Boden = GPX − Höhe über Grund) und Wartesprüche gelten nur für den echten Flug in der Luft.
+  function _luftFlug() { return !!document.getElementById("anim-mc-flug3d")?.checked; }
+  function _flugLuftAn() { return !!(_flug && _flug.an) && _luftFlug(); }
+  // 02.11.2026 Röhre: der Track als 3D-Röhre knapp über dem Boden — läuft über die Flug-Ebene (rz-line3d mit Wachstum,
+  // Farben, Laufpunkt in Linienhöhe). 06.11.2026 eingebaut: Einstellungen linie_3d, roehre_glanz, roehre_breite_m,
+  // roehre_abstand_m, kopf_3d, nachgluehen_sek, glut_look. Prüfstand: window.__rzRoehreSetzen({ glanz, breiteM, … })
+  // überschreibt die Einstellungen (null = wieder die Einstellungen).
+  function _zahlVon(id, std) { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : std; }   // Funktion: wird beim Binden schon gebraucht
+  /** Nachglühen aus den Einstellungen: { look, sek } oder null (aus). */
+  function _glutEinst() {
+    const sek = _zahlVon("anim-nachgluehen", 0);
+    return sek > 0 ? { look: document.getElementById("anim-glut-look")?.value || "linie", sek } : null;
+  }
+  function _roehreGewaehlt() { return document.getElementById("anim-linie-3d")?.value === "roehre"; }
+  function _roehre() {
+    const r = window.__rzRoehre;
+    if (r) return +r.breiteM > 0 ? r : null;
+    if (!_roehreGewaehlt()) return null;
+    const breiteM = Math.max(1, _zahlVon("anim-roehre-breite", 12)), abstand = Math.max(0, _zahlVon("anim-roehre-abstand", breiteM));
+    const kopf = document.getElementById("anim-kopf-3d")?.value || "kometpfeil";
+    return { breiteM, glanz: Math.max(0, Math.min(1, _zahlVon("anim-roehre-glanz", 0.35))),
+             hebFaktor: (abstand + breiteM / 2) / breiteM,   // Mitte = Abstand + halbe Dicke über dem Boden
+             figur: kopf === "punkt" ? null : kopf, figurFaktor: 2.2, glut: _glutEinst() };
+  }
+  let _roehreStand = null;
+  /** Nach einer Änderung der Röhren-/Glut-Einstellungen: Röhre neu aufbauen bzw. abbauen, 2D-Nachglühen nachziehen.
+   *  `laden` = aus dem Laden eines Projekts (alle Regler melden sich einzeln) — nur, wenn sich wirklich etwas geändert hat. */
+  function _roehreGeaendert(laden) {
+    const stand = JSON.stringify([_roehreGewaehlt(), _roehre(), _glutEinst()]);
+    // offenes Aussehen-Panel nachziehen (⌘Z, Projektwechsel, Assistent setzen die versteckten Eingaben)
+    try {
+      document.querySelectorAll(".anim-stil-panel [data-r3]").forEach(f => {
+        const alt = document.getElementById(f.dataset.r3); if (!alt || f.value === alt.value) return;
+        f.value = alt.value;
+        const v = f.closest(".anim-stil-panel").querySelector(`[data-r3-v="${f.dataset.r3}"]`);
+        if (v && _R3_FMT[f.dataset.r3]) v.textContent = _R3_FMT[f.dataset.r3](parseFloat(alt.value) || 0);
+      });
+      document.querySelectorAll(".anim-stil-panel [data-nur-roehre]").forEach(z => { z.hidden = !_roehreGewaehlt(); });
+      document.querySelectorAll(".anim-stil-panel [data-nur-glut]").forEach(z => { z.hidden = !(_zahlVon("anim-nachgluehen", 0) > 0); });
+    } catch (e) { rzSwallow(e, "roehre@panel"); }
+    if (laden && stand === _roehreStand) return;
+    _roehreStand = stand;
+    try { applyLinienLook(); } catch (e) { rzSwallow(e, "roehre@look"); }
+    try { refreshPreviewTrackData(); } catch (_) {}
+    if (!map) return;
+    _flug.key = ""; _flug.agl = null;
+    _flugAnwenden(false).then(() => { try { _flugPunktNeu(); } catch (_) {} }).catch((e) => applog("warn", "[röhre] " + e));
+    try { _roehreHinweisZeigen(); } catch (_) {}
+  }
+  /** Mapbox kann keine eigenen WebGL-Ebenen mit Gelände wie MapLibre — dort wird die Röhre flach gezeichnet (Marc 06.11.2026). */
+  function _roehreMapbox() { return _roehreGewaehlt() && !window.__rzRoehre && !!map && map.__rzEngine === "mapbox"; }
+  function _roehreHinweisZeigen() {
+    document.querySelectorAll("[data-roehre-mapbox]").forEach(e => { e.hidden = !_roehreMapbox(); });
+  }
   window.__rzRoehreSetzen = async (o) => {
     window.__rzRoehre = o || null; _flug.key = ""; _flug.agl = null;
     await _flugAnwenden(false);
-    applog("info", "[röhre] " + JSON.stringify({ an: _flug.an, grund: _flug.grund, roehre: window.__rzRoehre }));
+    applog("info", "[röhre] " + JSON.stringify({ an: _flug.an, grund: _flug.grund, roehre: _roehre() }));
     return _flug.an;
   };
+  window.__rzRoehreStand = () => ({ an: !!_flug.an, grund: _flug.grund, roehre: _roehre(), glut: _glutEinst(), mapbox: _roehreMapbox(),
+                                    figur: !!_flug.figur,
+                                    kopfFarbe: (() => { try { const t = (_flug.ebene && _flug.ebene._tracks || []).find(x => x && x.glut && x.kopfFarbe); return t ? Array.from(t.kopfFarbe) : null; } catch (_) { return null; } })(),
+                                    glutSek: (() => { try { const t = (_flug.ebene && _flug.ebene._tracks || []).find(x => x && x.glut); return t ? t.glut.sek : 0; } catch (_) { return 0; } })() });   // Prüfstand
+  // ── 06.11.2026 Komet + Nachglühen (Marcs Design-Paket „Trackröhre und Komet“, Prototyp) ─────────────────────────────
+  // Jeder Trackpunkt bekommt die Videosekunde, in der der Kopf ihn passiert (aus Tempo-Tabelle, Schnitt und Phasen —
+  // dieselbe Rechnung wie Laufpunkt und Schilder). Die Ebenen färben nach dem ALTER = Videozeit − Passage: frisch = heiß,
+  // nach `sek` Sekunden die Linienfarbe. Nach Zeit, nicht nach Strecke: Stopps kühlen weiter ab, eine Schleife heizt
+  // eine frühere Stelle nicht wieder auf, 25/30/60 fps und Sprünge zeigen dasselbe.
+  // Looks: Stufen [u, Farbe] mit u = Alter/sek; nach der letzten Stufe weich bis u = 1 in die Endfarbe.
+  // „linie“ leitet die Stufen aus der Linienfarbe ab, die anderen bringen ihre Endfarbe mit (wie Mockups 01/02/04/05).
+  // 06.11.2026 (Marc: „der Schweif flimmert“) — der weiße Kern dauerte nur ~0,075 s (zwei Bilder): jede Unregelmäßigkeit
+  // der GPS-Punktabstände machte ihn Bild für Bild länger oder kürzer. Kern jetzt ~0,3 s (Briefing: „wenige Zehntelsekunden“),
+  // sanfte Stufen — so mittelt er über rund neun Bilder.
+  // 06.11.2026 (Marc: „die Kugel muss der hellste Punkt sein, ab da wird's dunkler nach hinten. Das ist die glühende
+  // Kugel“) — Weiß gehört allein der Kugel; die Röhre beginnt in der heißesten Glutfarbe und wird nach hinten dunkler.
+  // Erste Stufe = Farbe des Glührands und Scheins der Kugel.
+  const GLUT_LOOKS = {
+    linie:    { stufen: null },
+    tuerkis:  { ende: "#48d6c4", stufen: [[0, "#bff9f0"], [0.30, "#8ff0e4"], [0.60, "#62e2d3"]] },
+    koralle:  { ende: "#ff896b", stufen: [[0, "#ffd27a"], [0.25, "#ffad4a"], [0.55, "#ff915a"]] },
+    warmkalt: { ende: "#48d6c4", stufen: [[0, "#ffcf70"], [0.20, "#ff9a3c"], [0.40, "#ff6a3a"], [0.60, "#e8506a"], [0.82, "#8f86d6"]] },
+    pink:     { ende: "#6399ef", stufen: [[0, "#ffb3e0"], [0.25, "#ff65bd"], [0.60, "#a879ff"]] },
+  };
+  /** Mischfarbe hex zwischen a und b (t = 0…1). */
+  function _hexMix(a, b, t) {
+    const A = _hexRgb(a), B = _hexRgb(b), m = (i) => Math.round(A[i] + (B[i] - A[i]) * t);
+    return "#" + [m(0), m(1), m(2)].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("");
+  }
+  /** Glut-Einstellung ({ look, sek } aus _glutEinst bzw. dem Prüfstand) → { sek, stufen, ende, leucht } oder null. */
+  function _glutDaten(g) {
+    if (!g || !(+g.sek > 0)) return null;
+    const L = GLUT_LOOKS[g.look] || GLUT_LOOKS.linie;
+    const ende = L.ende || currentLineColor();
+    const stufen = L.stufen || [[0, _hexMix(ende, "#ffffff", 0.6)], [0.35, _hexMix(ende, "#ffffff", 0.3)], [0.65, _hexMix(ende, "#ffffff", 0.1)]];
+    return { sek: +g.sek, stufen, ende, leucht: stufen[0][1] };
+  }
+  /** Farbe + Hitze bei Alter/sek = u (wie rzGlut im Shader von rz-line3d). */
+  function _glutBei(G, u) {
+    const st = G.stufen; u = Math.max(0, u);
+    const hitze = Math.pow(Math.max(0, Math.min(1, 1 - u)), 1.6);
+    if (u <= st[0][0]) return { farbe: st[0][1], hitze };
+    for (let k = 1; k < st.length; k++) if (u <= st[k][0]) return { farbe: _hexMix(st[k - 1][1], st[k][1], (u - st[k - 1][0]) / Math.max(1e-4, st[k][0] - st[k - 1][0])), hitze };
+    const uv = st[st.length - 1][0], x = Math.max(0, Math.min(1, (u - uv) / Math.max(1e-4, 1 - uv)));
+    return { farbe: _hexMix(st[st.length - 1][1], G.ende, x * x * (3 - 2 * x)), hitze };
+  }
+  let _glutZ = { key: "", zeiten: null };
+  /** Komet: Sekunden zwischen Kugelrand und Kugelmitte beim jetzigen Tempo (Röhre endet am Rand, kein Stiel). */
+  /** Tempo des Kopfs in Metern je Videosekunde (± 3 Punkte um den Kopf), 0 = unbekannt. */
+  function _kopfTempo() {
+    try {
+      const z = _glutZ.zeiten, c = currentCoords, i = _flug.idx | 0;
+      if (!z || !c || c.length < 3) return 0;
+      const a = Math.max(0, i - 3), b = Math.min(c.length - 1, i + 3);
+      let m = 0; for (let k = a; k < b; k++) m += _meterZwischen(c[k], c[k + 1]);
+      const dt = z[b] - z[a];
+      if (!(dt > 1e-4) || !(m > 0) || Math.abs(z[a]) > 1e6 || Math.abs(z[b]) > 1e6) return 0;
+      return m / dt;
+    } catch (_) { return 0; }
+  }
+  function _kopfLuecke() {
+    const fg = _flug.figur, v = _kopfTempo();
+    if (!fg || !(fg._groesseM > 0) || !(v > 0)) return 0;
+    return Math.min(0.6, (fg._lueckeM > 0 ? fg._lueckeM : fg._groesseM / 2) / v);
+  }
+  /** 08.11.2026 — Ort des 3D-Kopfs für rz-line3d: im Umkreis rM echte Tiefe; ältere Röhrenstücke (älter als altSek, also
+   *  nicht das frische Stück hinter dem Kopf) werden im Umkreis schnittM ausgespart — Hin-und-zurück-Wege. */
+  function _kopfOrt() {
+    const fg = _flug.figur, f = fg && fg._figur;
+    if (!f || !(fg._groesseM > 0)) return null;
+    const g = fg._groesseM, schnittM = 0.85 * g, v = _kopfTempo();
+    return { lng: f.lng, lat: f.lat, rM: 3 * g, schnittM, altSek: v > 0 ? Math.min(5, 2.5 * schnittM / v) : 0 };
+  }
+  /** Videosekunde je Punkt von currentCoords, in der der Kopf ihn passiert (vor dem Schnitt: lange vorbei, danach: nie). */
+  function _glutZeiten() {
+    const n = currentCoords ? currentCoords.length : 0;
+    if (n < 2) return null;
+    const ph = _sgPhasen();
+    const key = [n, ph.A, ph.B, ph.intro, ph.anim, _paceMap ? _paceMap.length : 0,
+                 _paceMap ? [0.1, 0.3, 0.5, 0.7, 0.9].map(x => _paceMap[Math.floor(x * (_paceMap.length - 1))]).join(",") : ""].join("|");
+    if (_glutZ.key === key && _glutZ.zeiten) return _glutZ.zeiten;
+    const z = new Float32Array(n).fill(1e7);
+    const f0 = fracAusFortschritt(ph.A, n);
+    for (let i = 0; i <= Math.floor(f0); i++) z[i] = -1e7;
+    const M = Math.max(4000, Math.min(200000, 8 * n));
+    let fPrev = f0, tPrev = ph.intro, next = Math.floor(f0) + 1;
+    for (let k = 1; k <= M && next < n; k++) {
+      const a = ph.A + (ph.B - ph.A) * k / M;
+      const f = fracAusFortschritt(a, n), t = ph.intro + (k / M) * ph.anim;
+      while (next < n && next <= f + 1e-9) {
+        const u = f > fPrev ? (next - fPrev) / (f - fPrev) : 1;
+        z[next] = tPrev + (t - tPrev) * Math.max(0, Math.min(1, u)); next++;
+      }
+      fPrev = f; tPrev = t;
+    }
+    _glutZ = { key, zeiten: z };
+    return z;
+  }
+  window.__rzGlutZeiten = () => { const z = _glutZeiten(); return z ? Array.from(z) : null; };   // Prüfstand
   // 15.10.2026 (Marc: „Was musst du einstellen, damit der Track nicht mehr am Boden klebt? … ja, bau direkt“) — ein
   // IGC-Track ist ein Flug (Gleitschirm, Segelflug, Drachen): Gelände und „Flug in der Luft“ gehen beim Laden von selbst
   // an. Nur, solange das Projekt den Schalter noch nie gesetzt hat — wer ihn ausschaltet, dem bleibt er aus. DJI-Drohnen
@@ -7222,13 +7461,13 @@ function mountAnimator(body, headerActions, opts) {
     if (!z) return;
     let flug = false;
     try { flug = !!_flug.istFlug; } catch (_) { flug = false; }   // beim Einhängen steht `_flug` noch nicht
-    z.hidden = !(flug || _flugGewuenscht());
+    z.hidden = !(flug || _luftFlug());
   }
   function _flugAuto(path) {
     const _igc = /\.igc$/i.test(String(path || ""));
     _flug.istFlug = _igc || !!(_ovSeries && _ovSeries.sensors && Array.isArray(_ovSeries.sensors.rel_alt) && _ovSeries.sensors.rel_alt.length);
     _flugZeile();
-    if (_isReiseroute || _reiseAktiv() || _nurOrteEt() || _flugGewuenscht()) return;
+    if (_isReiseroute || _reiseAktiv() || _nurOrteEt() || _luftFlug()) return;
     const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
     if (proj && proj.animator && "flug_3d" in proj.animator) return;   // im Projekt schon entschieden
     const igc = /\.igc$/i.test(String(path || ""));
@@ -7339,6 +7578,16 @@ function mountAnimator(body, headerActions, opts) {
     const warum = _flugMoeglich();
     if (warum) {
       _flugWeg(); _flug.grund = warum;
+      // 06.11.2026 (Marc: „Mapbox ja so machen“) — Röhre mit Mapbox: flach zeichnen und einmal je Projekt sagen, warum
+      if (warum === "mapbox" && _roehreMapbox() && !document.getElementById("anim-mc-flug3d")?.checked && !window.__rzRenderMode) {
+        const pid = (typeof getActiveProject === "function" && getActiveProject()) ? getActiveProject().id : "";
+        if (_flug.mapboxHinweis !== pid) {
+          _flug.mapboxHinweis = pid;
+          toast(t("animator.roehre.mapbox", "Die 3D-Röhre gibt es nur mit den freien Karten — mit Mapbox wird die Linie flach gezeichnet."), "info", 6000);
+        }
+        try { _roehreHinweisZeigen(); } catch (_) {}
+        return;
+      }
       if (meldung && warum !== "keine_tour") toast(t("animator.flug3d_geht_nicht_" + warum,
         { mapbox: "Flug in der Luft geht nur mit den freien Karten (nicht mit Mapbox).",
           gelaende: "Flug in der Luft braucht Gelände (3D) — schalte es unter Karte ein.",
@@ -7367,7 +7616,14 @@ function mountAnimator(body, headerActions, opts) {
     _flug.mitGeist = geist && !(_roehre() && !document.getElementById("anim-mc-flug3d")?.checked);
     const spuren = _flugSpuren(agl);
     if (!map.getLayer(FLUG_EBENE)) {
-      _flug.ebene = window.rzLine3d.create(FLUG_EBENE, { offsetM: 0 });
+      // 08.11.2026 — nachAufbau: die Röhre rechnet ihre Bodenhöhen beim Zoomen neu (feinere Geländekacheln); der 3D-Kopf
+      // nimmt seine Höhe aus denselben Werten und muss danach neu gesetzt werden, sonst schwebt er neben der Röhre
+      // (in der Vorschau bis zum nächsten Bewegen, gemessen ~10 m nach Zoom 13,6 → 17)
+      _flug.ebene = window.rzLine3d.create(FLUG_EBENE, { offsetM: 0, jetzt: () => +window.__rzVideoSek || 0,
+                                                          kopfLuecke: () => _kopfLuecke(),
+                                                          // 08.11.2026 — um den 3D-Kopf (3 × Kopfgröße) vergleicht die Röhre die Tiefe echt
+                                                          kopfOrt: () => _kopfOrt(),
+                                                          nachAufbau: () => { if (_flug.figur && _flug.an && currentCoords) { _flugPunktNeu(); try { map.triggerRepaint(); } catch (_) {} } } });
       // 18.10.2026 (Suite unter Last: „Style is not done loading“ beim Anlegen der Flugebene — sie fehlte, und niemand
       // versuchte es erneut) — sobald die Karte ruhig ist, noch einmal. Bis dahin ist _flug.an falsch, die Szene wartet
       // (__rzAnimBereit.flug). Die pixelgleichen Kugel-/Symbol-Videos im Test hatten eine andere Ursache (Test setzte
@@ -7391,7 +7647,9 @@ function mountAnimator(body, headerActions, opts) {
     if (_ro && _ro.figur && window.rzFigur3d) {
       try {
         await window.rzFigur3d.laden();
-        if (!map.getLayer(FLUG_FIGUR)) { _flug.figur = window.rzFigur3d.create(FLUG_FIGUR); map.addLayer(_flug.figur); }
+        // 06.11.2026 (Marc: „die Kugel sieht so krass draufgesetzt aus“) — der Kopf UNTER der Röhre einhängen: er schreibt
+        // Tiefe, die Röhre (schreibt keine) wird danach dagegen geprüft — das Stück vor dem Kopf verdeckt ihn, er klebt nicht obendrauf
+        if (!map.getLayer(FLUG_FIGUR)) { _flug.figur = window.rzFigur3d.create(FLUG_FIGUR); map.addLayer(_flug.figur, map.getLayer(FLUG_EBENE) ? FLUG_EBENE : undefined); }
       } catch (e) { applog("warn", "[figur3d] " + e); _flug.figur = null; }
     } else if (map.getLayer(FLUG_FIGUR)) { try { map.removeLayer(FLUG_FIGUR); } catch (_) {} _flug.figur = null; }
     _flug.ebene.setTracks(spuren);
@@ -7407,7 +7665,8 @@ function mountAnimator(body, headerActions, opts) {
     let j0 = 0; while (j0 < lot.length && lot[j0] < ai0) j0++;
     let j1 = lot.length - 1; while (j1 >= 0 && lot[j1] > ende) j1--;
     const nAlle = currentCoords ? currentCoords.length - 1 : ende;
-    _flug.ebene.setRanges([[ai0, ende], j1 >= j0 ? [j0, j1 + 1] : [0, 0], ...(_flug.mitGeist ? [[0, nAlle]] : []), [ai0, ende]]);
+    _flug.ebene.setRanges([[ai0, ende], j1 >= j0 ? [j0, j1 + 1] : [0, 0], ...(_flug.mitGeist ? [[0, nAlle]] : []), [ai0, ende],
+                           ...(_flug.mitHalo ? [[ai0, ende]] : [])]);
     _flug.ai0 = ai0; _flug.voll = ende >= (currentCoords ? currentCoords.length - 1 : 0) && ai0 === 0;
   }
   /** Die Spuren der Fluglinie: Schatten, Lotlinien, ggf. Geist, Hauptlinie. */
@@ -7420,14 +7679,36 @@ function mountAnimator(body, headerActions, opts) {
     _flug.gefaerbt = !!f;
     const lotFarben = f ? [].concat(...lot.map(i => { const c = f.punkt(i); return [c, c]; })) : null;
     const ro = _roehre();
+    _flug.mitHalo = false;
     if (ro && !document.getElementById("anim-mc-flug3d")?.checked) {
       // Reihenfolge wie im Flug (Schatten, Lot, ggf. Geist, Hauptlinie), damit _flugBereich gleich bleibt; Lot leer
+      // 06.11.2026 Komet: Hauptlinie mit Nachglühen, dahinter (zuletzt gezeichnet, additiv) der Lichthof
+      const G = _glutDaten(ro.glut), zeiten = G ? _glutZeiten() : null;
+      const hFarbe = G ? G.ende : farbe;
+      const glut = G && zeiten ? { sek: G.sek, stufen: G.stufen } : null;
+      _flug.mitHalo = !!glut;
+      const tiefeHebM = ro.tiefeHebM != null ? +ro.tiefeHebM : 80;   // gegen gröbere Geländekacheln (rz-line3d u_tiefeHebM)
+      // Komet: Schweif weitet sich zum Kopf auf (knapp unter Kopfgröße), über ~0,35 s
+      // Marc 06.11.2026: „die Röhre muss am Anfang die gleiche Farbe haben wie der Pfeil oder die Kugel“ — Kopffarbe
+      // (Perlmutt wie rz-figur3d) am Röhrenanfang, über ~0,3 s in die Glut (kürzer flimmerte schon der alte weiße Kern)
+      const kopf = (glut && (ro.figur === "komet" || ro.figur === "kometpfeil")) ? { faktor: ro.kopfFaktor != null ? +ro.kopfFaktor : 1.35, sek: ro.kopfSek != null ? +ro.kopfSek : 0.25,
+        farbe: ro.kopfFarbe === false ? null : (ro.kopfFarbe || "#fffbf2"), farbSek: ro.kopfFarbSek != null ? +ro.kopfFarbSek : 0.3 } : null;
       return [
-        { coords: currentCoords, agl: nullen, color: "#000000", opacity: 0.32, width: lw, breiteM: +ro.breiteM * 1.5, featherRel: 0.9 },
+        { coords: currentCoords, agl: nullen, color: "#000000", opacity: 0.32, width: lw, breiteM: +ro.breiteM * 1.5, featherRel: 0.9, tiefeHebM,
+          // am Kopf echte Tiefe (sonst lag der Schatten durch den Ausgleich VOR der Kugel — dunkler Strich über ihr)
+          zeiten: kopf ? zeiten : null, kopf: kopf ? { faktor: 1.0001, sek: kopf.sek } : null,
+          // 08.11.2026 (Marc, Schorfheide s 21–22: Pfeil flimmert) — unter dem Kopf ganz weg, dort liegt sein eigener Schatten
+          kopfAus: kopf ? 2.5 : 0 },
         { coords: [], color: farbe, width: 1 },
         ...(_flug.mitGeist ? [{ coords: currentCoords, agl: nullen, color: currentGhostColor(), opacity: currentGhostOpacity(), width: lw * 0.6, smooth: false }] : []),
-        { coords: currentCoords, agl, color: f ? "#ffffff" : farbe, segColors: f ? f.seg : null, opacity: _hauptDeckkraft(), width: lw * (ro.minFaktor != null ? +ro.minFaktor : 1.4),
-          breiteM: +ro.breiteM, roehre: { glanz: ro.glanz != null ? +ro.glanz : 0.5 } },
+        { coords: currentCoords, agl, color: f && !glut ? "#ffffff" : hFarbe, segColors: f && !glut ? f.seg : null, opacity: _hauptDeckkraft(), width: lw * (ro.minFaktor != null ? +ro.minFaktor : 1.4),
+          breiteM: +ro.breiteM, roehre: { glanz: ro.glanz != null ? +ro.glanz : 0.5 }, zeiten, glut, tiefeHebM, kopf },
+        // 08.11.2026 (Marc, Schorfheide s 12: „da scheint die Röhre durch den Pfeil durch“) — der Lichthof ist 3,4× so
+        // breit wie die Röhre, lief ohne Lücke bis in die Kopfmitte und verglich die Tiefe 80 m angehoben: zeigte der
+        // Pfeil zur Kamera, lag er violett über dem Pfeil. Wie der Schatten: Lücke bis zur Kerbe, am Kopf echte Tiefe.
+        ...(glut ? [{ coords: currentCoords, agl, color: hFarbe, width: lw * 5, breiteM: +ro.breiteM * 3.4, zeiten, glut, tiefeHebM,
+                      kopf: kopf ? { faktor: 1.0001, sek: kopf.sek } : null,
+                      halo: { stark: ro.glut.halo != null ? +ro.glut.halo : 0.45 } }] : []),
       ];
     }
     return [
@@ -7537,14 +7818,17 @@ function mountAnimator(body, headerActions, opts) {
     // über den Karten-Worker (rzSetDataLatest), der Punkt sofort. Die Fluglinie braucht keinen Worker: ihr Ende folgt
     // hier direkt dem Punkt (außer „ganzer Track“).
     // Nur wenn die Bodenlinie gerade teilweise läuft — in Ruhe am Start zeigt sie den ganzen Track (v0.9.469), dann bleibt das so.
-    try { if (!previewFullTrack() && _flug.voll === false) _flugBereich(_flug.ai0 || 0, Math.max(_flug.ai0 || 0, best)); } catch (_) {}
+    try { if (!previewFullTrack() && _flug.voll === false) _flugBereich(_flug.ai0 || 0, Math.max(_flug.ai0 || 0, _flug.mitHalo ? Math.min(n - 1, best + 1) : best)); } catch (_) {}
     if (document.getElementById("anim-dot-show")?.checked === false || !_dotLuft) {
-      _flug.punkt.setTracks([]); if (_flug.laufpunkt) _flug.laufpunkt.setPunkt(null); return;
+      _flug.punkt.setTracks([]); if (_flug.laufpunkt) _flug.laufpunkt.setPunkt(null);
+      if (_flug.figur) _flug.figur.setFigur(null);   // 06.11.2026 — Laufpunkt aus: auch kein 3D-Kopf
+      return;
     }
     // Punkt = sehr kurze Strecke mit runden Enden: etwa 1 Bildpunkt lang, aber mindestens 3 m — Merkator in float32
     // löst nur ~2–4 m auf (1e-7° ergab Richtung 0 → unsichtbar, 7 m bei Zoom 15 eine Pille statt eines Kreises)
     // Höhe zwischen den Nachbarpunkten (Projektion auf das nähere Segment) — der Punkt sitzt sonst stufig neben der Linie
     let h = _flug.agl[best] || 0;
+    _flug.segJ = null; _flug.segT = 0;
     for (const j of [best - 1, best]) {
       if (j < 0 || j + 1 >= n) continue;
       const ax = c[j][0], ay = c[j][1], bx = c[j + 1][0] - ax, by = c[j + 1][1] - ay, L2 = bx * bx + by * by;
@@ -7553,6 +7837,7 @@ function mountAnimator(body, headerActions, opts) {
       if (t < -1e-6 || t > 1 + 1e-6) continue;
       const tt = Math.max(0, Math.min(1, t));
       h = (+_flug.agl[j] || 0) * (1 - tt) + (+_flug.agl[j + 1] || 0) * tt;
+      _flug.segJ = j; _flug.segT = tt;
       break;
     }
     _flug.letztPos = pos;
@@ -7592,7 +7877,17 @@ function mountAnimator(body, headerActions, opts) {
           for (let j = best; j >= 0 && spur.length < 400; j--) { const q2 = c[j]; sum += _meterZwischen(vor, q2); spur.push(q2); vor = q2; if (sum > 10 * gM + 200) break; }
         }
         const zeit = window.__rzRenderClock ? window.__rzRenderClock() / 1000 : performance.now() / 1000;
-        _flug.figur.setFigur({ lng: pos[0], lat: pos[1], agl: h, form: ro.figur, farbe: ro.figurFarbe || farbe,
+        const _G = _glutDaten(ro.glut);
+        // Boden aus denselben Punkthöhen wie die Röhre (rz-line3d `_boden` der Schattenspur, gleiche Koordinaten) — die
+        // Abfrage genau unter dem Kopf sprang am Hang, der Kopf hüpfte gegen die Röhre (06.11.2026)
+        let _boden = null;
+        try {
+          const tb = _flug.ebene && _flug.ebene._tracks && _flug.ebene._tracks[0] && _flug.ebene._tracks[0]._boden;
+          const jj = _flug.segJ, tt2 = _flug.segT;
+          if (tb && tb.length === n && jj != null && jj + 1 < n && isFinite(tb[jj]) && isFinite(tb[jj + 1])) _boden = tb[jj] * (1 - tt2) + tb[jj + 1] * tt2;
+        } catch (_) { _boden = null; }
+        _flug.figur.setFigur({ lng: pos[0], lat: pos[1], agl: h, form: ro.figur, farbe: ro.figurFarbe || (_G ? _G.ende : farbe),
+                               leucht: _G ? _G.leucht : (ro.figurFarbe || farbe), boden: _boden,
                                glanz: ro.glanz, groesseM: gM, minPx, drehung: brg, neigung: neig, spur, zeit,
                                kalt: ro.kalt === true ? (ro.figurFarbe || farbe) : (ro.kalt || null) });
       } else {
@@ -7611,7 +7906,7 @@ function mountAnimator(body, headerActions, opts) {
   /** Flughöhe über Grund (Meter × Überhöhung) an einer Stelle 0…1 des Tracks — für die mitfahrende Kamera:
    *  sie zielt sonst auf den Boden unter dem Flug, und die Linie in 300–500 m Höhe wandert oben aus dem Bild. */
   function _flugKameraPlus(frac01) {
-    if (!_flug.an || !_flug.agl || !_flug.agl.length) return 0;
+    if (!_flugLuftAn() || !_flug.agl || !_flug.agl.length) return 0;   // Röhre: Kamera zielt auf den Boden wie flach
     const ex = Math.max(0, parseFloat(document.getElementById("anim-ex")?.value) || 1);
     return _flugAglBei(frac01) * ex;
   }
@@ -7675,7 +7970,7 @@ function mountAnimator(body, headerActions, opts) {
   /** Hochflug: so viele Zoomstufen zieht die Kamera zurück, dass Punkt in der Höhe UND Boden ins Bild passen — der Abstand
    *  wächst um ~2,4 × Flughöhe (bei 500 km landet man bei der Erdkugel). Nur bei Hochflug (Drohnenflüge bleiben, wie sie sind). */
   function _flugZoomMinus(frac01, zoom, lat, pitch) {
-    if (!_flug.an || !_hochflugAktiv() || !map) return 0;
+    if (!_flugLuftAn() || !_hochflugAktiv() || !map) return 0;
     const h = _flugKameraPlus(frac01);
     if (!(h > 1)) return 0;
     let hp = 800; try { hp = map.getCanvas().clientHeight || 800; } catch (_) {}
@@ -7808,7 +8103,7 @@ function mountAnimator(body, headerActions, opts) {
       if (!SA || !map || !currentCoords || currentCoords.length < 2 || map.__rzEngine === "mapbox" || !map.getTerrain || !map.getTerrain()
           || !_kameraIstAuto() || !document.getElementById("anim-pitch")
           // 30.10.2026 (Suite, Hochflug) — beim Flug in der Luft steht der Punkt nicht am Boden: kein Ausweichen
-          || (_flug && _flug.an) || _flugGewuenscht()) { _auswKurve = null; _auswSchluessel = ""; return Promise.resolve(false); }
+          || _flugLuftAn() || _luftFlug()) { _auswKurve = null; _auswSchluessel = ""; return Promise.resolve(false); }
       const events = getEffectiveEvents();
       const ti = introFraction(), tf = trackFraction();
       const trim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
@@ -11959,7 +12254,7 @@ function mountAnimator(body, headerActions, opts) {
       const tp = _folgePunkt(coordFrac) || currentCoords[coordIdx];
       easeArgs.center = _mitVersatz(tp.slice ? tp.slice(0, 2) : tp, interp);
       // 05.10.2026 — Flug in der Luft: Bildmitte in Flughöhe (sonst zielt die Kamera auf den Boden darunter)
-      if (_flug.an) {
+      if (_flugLuftAn()) {
         try {
           const g = map.queryTerrainElevation(easeArgs.center);
           if (g != null && isFinite(g)) {
@@ -12983,7 +13278,7 @@ function mountAnimator(body, headerActions, opts) {
         // 14.10.2026 (Hochflug: Kamera sprang von 300 auf 650 km) — bei „Flug in der Luft“ ist die GPX-Höhe die FLUGhöhe;
         // der Boden ist sie minus Höhe über Grund (sonst zählt die Flughöhe doppelt, sobald das Gelände 0 liefert)
         const v0 = _gpxElevations[ci];
-        const v = (v0 != null && isFinite(v0) && _flug.an && _flug.agl && _flug.agl.length) ? v0 - (+_flug.agl[Math.round(ci * (_flug.agl.length - 1) / Math.max(1, _gpxElevations.length - 1))] || 0) : v0;
+        const v = (v0 != null && isFinite(v0) && _flugLuftAn() && _flug.agl && _flug.agl.length) ? v0 - (+_flug.agl[Math.round(ci * (_flug.agl.length - 1) / Math.max(1, _gpxElevations.length - 1))] || 0) : v0;
         const g = (v != null && isFinite(v)) ? v * ex : null;
         // 08.09.2026: 0 ohne geladene Höhenkacheln = unbekannt (s. _faithBuild) → GPX-Höhe
         if (e != null && isFinite(e) && !(e === 0 && g != null && Math.abs(g) > 50)) return e;
@@ -13043,7 +13338,7 @@ function mountAnimator(body, headerActions, opts) {
       const _bp = A.bp ? [_w((c) => c.bp ? A.bp[0] + (((c.bp[0] - A.bp[0]) % 360 + 540) % 360 - 180) : null),
                           _w((c) => c.bp ? c.bp[1] : null)] : null;
       _camApply([_xf, _w((c) => c.pos[1]), _w((c) => c.pos[2])],
-                A.ori ? _nlerpQ(A.ori, B.ori, u) : null, _bp && _bp[0] != null && _bp[1] != null ? _bp : (A.bp ? _lerpBP(A.bp, B.bp, u) : null), _eM);
+                A.ori ? ((window.rzQuatWeich && window.rzQuatWeich(cams, i, u)) || _nlerpQ(A.ori, B.ori, u)) : null, _bp && _bp[0] != null && _bp[1] != null ? _bp : (A.bp ? _lerpBP(A.bp, B.bp, u) : null), _eM);
     };
     try {
       const _fProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
@@ -13107,7 +13402,7 @@ function mountAnimator(body, headerActions, opts) {
               const ci = Math.max(0, Math.min(_gpxElevations.length - 1, Math.round(_markerAt(a) * (_gpxElevations.length - 1))));
               let v = _gpxElevations[ci];
               // 14.10.2026 — bei „Flug in der Luft“ ist die GPX-Höhe die Flughöhe: Boden = Flughöhe − Höhe über Grund
-              if (v != null && isFinite(v) && _flug.an && _flug.agl && _flug.agl.length) v -= _flugAglBei(_markerAt(a));
+              if (v != null && isFinite(v) && _flugLuftAn() && _flug.agl && _flug.agl.length) v -= _flugAglBei(_markerAt(a));
               return (v != null && isFinite(v)) ? v * _exag : null;
             } catch (_) { return null; }
           };
@@ -13158,7 +13453,7 @@ function mountAnimator(body, headerActions, opts) {
               : _fStatic, ip);
             const _fsDreh = 0;   // 07.10.2026 — Fotostopp steckt als Keyframes in den Events (_haltKeyframes)
             let _ipH = ip;
-            if (_fFollow && !ip.center && _flug.an && ll) {   // 14.10.2026 Hochflug: herumkreisen + mit der Höhe zurückziehen
+            if (_fFollow && !ip.center && _flugLuftAn() && ll) {   // 14.10.2026 Hochflug: herumkreisen + mit der Höhe zurückziehen
               const _bl = _hochflugBlick(_markerAt(a), ip.bearing || 0, ip.pitch);
               _ipH = Object.assign({}, ip, { bearing: _bl.bearing, pitch: _bl.pitch });
               zm -= _flugZoomMinus(_markerAt(a), zm, ll[1], _bl.pitch);
@@ -13201,7 +13496,7 @@ function mountAnimator(body, headerActions, opts) {
             } catch (_) {}
             // 21.10.2026 (Web-Fund F-33: Teide ohne 3D-Gelände → Kachelflecken, schräge Keile, Route weg) — ohne Gelände
             // ist die Karte flach: die Mitte liegt auf Höhe 0, nicht auf der GPX-Höhe (2–3 km über der Karte)
-            if (eM == null && !(map.getTerrain && map.getTerrain()) && !_flug.an) {
+            if (eM == null && !(map.getTerrain && map.getTerrain()) && !_flugLuftAn()) {
               eM = 0; _letztEM = 0; try { ez = _MC().fromLngLat(ll, 0).z; } catch (_) {}
             }
             if (eM == null) {   // Kachel nicht geladen → GPX-Höhe des Streckenpunkts (× Überhöhung)
@@ -13209,7 +13504,7 @@ function mountAnimator(body, headerActions, opts) {
               if (g != null) { eM = g; _letztEM = g; try { ez = _MC().fromLngLat(ll, g).z; } catch (_) {} }
             }
             // 05.10.2026 — Flug in der Luft: folgt die Kamera dem Track, liegt ihre Mitte in Flughöhe
-            if (eM != null && _fFollow && !ip.center && _flug.an) {
+            if (eM != null && _fFollow && !ip.center && _flugLuftAn()) {
               eM += _flugKameraPlus(_markerAt(a)); _letztEM = eM;
               try { ez = _MC().fromLngLat(ll, eM).z; } catch (_) {}
             }
@@ -13668,7 +13963,7 @@ function mountAnimator(body, headerActions, opts) {
           }
           { const _aw = _auswBei(timelineProgress);   // 29.10.2026 — automatische Kamera weicht Geländefalten aus
             if (_aw) { jumpArgs.pitch = Math.max(0, (+jumpArgs.pitch || 0) - _aw.dp); jumpArgs.zoom = Math.max(0, jumpArgs.zoom - _aw.dz); } }
-          map.__rzFlugMitte = !!(_didFollow && _flug.an);
+          map.__rzFlugMitte = !!(_didFollow && _flugLuftAn());
           if (_e != null) {
             jumpArgs.elevation = _e;
             if (map.getCenterClampedToGround && map.getCenterClampedToGround()) map.setCenterClampedToGround(false);
@@ -22989,8 +23284,10 @@ function mountAnimator(body, headerActions, opts) {
     });
   }
   /** 01.11.2026 — Einblendungen „am Laufpunkt“ (Wegweiser, Ortsschild): je Bild an die gezeichnete Stelle des Laufpunkts
-   *  (rzProjektGezeichnet, Gelände wie gezeichnet). Der Anker bleibt am echten Punkt — passt das Schild nicht ins Bild,
-   *  wechselt es die Seite (nie den Anker verschieben). Hinter einem Hang oder außerhalb des Bilds: ausgeblendet.
+   *  (rzProjektGezeichnet, Gelände wie gezeichnet). Der Anker bleibt am echten Punkt. 06.11.2026 (Marc: „soll aus dem
+   *  Bild fahren“, wie die iOS-App): am Rand fährt das Schild mit dem Punkt hinaus und wird abgeschnitten, bis kein Stück
+   *  mehr im Bild ist; die Seite wechselt es nur mit „Am Rand Seite wechseln“ (`seite_wechseln`). Hinter einem Hang:
+   *  ausgeblendet.
    *  Führungslinie und Ring am Punkt liegen in einer eigenen SVG-Ebene. */
   function _ctLaufpunktAt() {
     const layer = document.getElementById("anim-overlay-preview");
@@ -23009,7 +23306,8 @@ function mountAnimator(body, headerActions, opts) {
         sicht = window.rzSignSicht ? window.rzSignSicht(map, +ll[0], +ll[1]) : 1;
       } catch (_) {}
     }
-    const da = isFinite(x) && isFinite(y) && x >= 0 && x <= LW && y >= 0 && y <= LH && sicht > 0.01;
+    // Punkt darf außerhalb liegen (Schild fährt mit hinaus) — nur nicht absurd weit (hinter der Kamera projiziert)
+    const da = isFinite(x) && isFinite(y) && x > -LW && x < 2 * LW && y > -LH && y < 2 * LH && sicht > 0.01;
     if (!svg) {
       svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("class", "ct-lp-linien");
@@ -23022,6 +23320,7 @@ function mountAnimator(body, headerActions, opts) {
     els.forEach(el => {
       el.classList.toggle("ct-lp-weg", !da);
       if (!da) return;
+      const punktDrin = x >= 0 && x <= LW && y >= 0 && y <= LH;
       const c = liste.find(v => v.id === el.getAttribute("data-ctid")) || {};
       el.style.setProperty("--lp-x", x.toFixed(1) + "px");
       el.style.setProperty("--lp-y", y.toFixed(1) + "px");
@@ -23030,7 +23329,7 @@ function mountAnimator(body, headerActions, opts) {
       const ox = (+c.x || 0) / 100 * LW, oy = (+c.y || 0) / 100 * LH, an = c.anker || "tl";
       const ax = an[1] === "l" ? 0 : an[1] === "r" ? -1 : -0.5, ay = an[0] === "t" ? 0 : an[0] === "b" ? -1 : -0.5;
       let sx = 1, sy = 1;
-      if (c.ausweichen !== false) {
+      if (c.seite_wechseln === true && punktDrin) {
         // Seite wählen: so wenig wie möglich über den Bildrand und über andere Einblendungen (Titel, Zahlen, Karte …);
         // große Flächen (Bänder, Papier, Glas) zählen nicht — auf denen darf ein Schild liegen
         if (!hinder) {
@@ -23053,6 +23352,12 @@ function mountAnimator(body, headerActions, opts) {
       el.style.setProperty("--lp-sx", String(sx)); el.style.setProperty("--lp-sy", String(sy));
       el.style.setProperty("--lp-ax", String((sx < 0 ? -1 - ax : ax) * 100));
       el.style.setProperty("--lp-ay", String((sy < 0 ? -1 - ay : ay) * 100));
+      {   // ganz aus dem Bild gefahren → weg (Führungslinie und Ring liegen dann auch draußen)
+        const L0 = x + sx * ox + (sx < 0 ? -1 - ax : ax) * w, T0 = y + sy * oy + (sy < 0 ? -1 - ay : ay) * h;
+        const sichtbar = punktDrin || (L0 + w > 0 && L0 < LW && T0 + h > 0 && T0 < LH);
+        el.classList.toggle("ct-lp-weg", !sichtbar);
+        if (!sichtbar) return;
+      }
       if (c.fuehrung === false || el.style.visibility === "hidden") return;
       const op = parseFloat(el.style.opacity || "1");
       // Führungslinie: vom Punkt schräg zur nächsten Kante des Schilds, das letzte Stück waagerecht
@@ -23335,7 +23640,8 @@ function mountAnimator(body, headerActions, opts) {
     const a = (_activeProject && _activeProject[_MODKEY]) || {};
     const anim = {};
     ["line_color", "line_width", "kontur_breite", "kontur_farbe", "ghost_track_enabled", "ghost_track_color", "ghost_track_opacity_pct",
-     "linien_look", "schweif_pct", "highlights_farbe", "highlights_stil", "marker_dot_style", "bergnamen_an"].forEach(k => { if (a[k] !== undefined) anim[k] = a[k]; });
+     "linien_look", "schweif_pct", "highlights_farbe", "highlights_stil", "marker_dot_style", "bergnamen_an",
+     "linie_3d", "roehre_glanz", "roehre_breite_m", "roehre_abstand_m", "kopf_3d", "nachgluehen_sek", "glut_look"].forEach(k => { if (a[k] !== undefined) anim[k] = a[k]; });
     try {
       const r = await api().videovorlage_eigen_speichern(String(name), {   // warte-ok: Einstellungen, sofort
         container: _ctListe().filter(c => c.vorlage !== "foto"), verlauf: _ctVerlauf(), animator: anim, titel_alt: _ctProjektTitel(),
@@ -23936,7 +24242,7 @@ function mountAnimator(body, headerActions, opts) {
       + `<div class="se-group-title">${_ctEsc(t("container.gr.lage", "Lage und Größe"))}</div>`
       + `<div class="se-grid"><label>${_ctEsc(t("container.lage_bezug", "Hängt am"))}</label>${sel("lage", [["bild", t("container.lage.bild", "Bild")], ["laufpunkt", t("container.lage.laufpunkt", "Laufpunkt")]])}`
       + (c.lage === "laufpunkt" ? `<label>${_ctEsc(t("container.fuehrung", "Führungslinie"))}</label><span class="ct-ez-reihe"><input type="checkbox" data-k="fuehrung"${c.fuehrung !== false ? " checked" : ""}><input type="color" data-k="fuehrung_farbe" value="${_ctEsc(c.fuehrung_farbe || c.textfarbe)}"></span>`
-          + `<label>${_ctEsc(t("container.ausweichen", "Am Rand Seite wechseln"))}</label><input type="checkbox" data-k="ausweichen"${c.ausweichen !== false ? " checked" : ""}>` : "")
+          + `<label>${_ctEsc(t("container.ausweichen", "Am Rand Seite wechseln"))}</label><input type="checkbox" data-k="seite_wechseln"${c.seite_wechseln === true ? " checked" : ""} title="${_ctEsc(t("container.ausweichen_tip", "Aus: das Schild fährt am Bildrand mit dem Punkt hinaus. An: es wechselt am Rand und über anderen Einblendungen die Seite."))}">` : "")
       + `<label>${_ctEsc(t("container.lage_fest", "Lage festhalten"))}</label><input type="checkbox" data-k="lage_fest"${c.lage_fest ? " checked" : ""} title="${_ctEsc(t("container.lage_fest_tip", "Nie automatisch verschieben, auch wenn sich Einblendungen im Hochformat überschneiden"))}">`
       + `</div>`
       + `<div class="ct-anker">${window.rzContainer.ANKER.map(a => `<button type="button" class="ct-ank${c.anker === a ? " on" : ""}" data-anker="${a}" title="${_ctEsc(t("animator.pos." + a, a))}"></button>`).join("")}</div>`
@@ -24993,7 +25299,7 @@ function mountAnimator(body, headerActions, opts) {
   // nach (Mitte 10–57 m je Bild, Richtungswechsel bis 174°) und drehte sich dauernd mit (20–70°/s). Bei „Flug in der Luft“
   // deshalb mindestens FLUG_BAHN_GLATT_M Bahnglättung (die Kreise mitteln sich heraus) und eine träge Blickrichtung.
   const FLUG_BAHN_GLATT_M = 600, FLUG_KURS_FENSTER_M = 5000, FLUG_KURS_GLATT_S = 5, FLUG_TRAEGHEIT = 0.6;
-  function _flugKameraRuhig() { try { return _flugGewuenscht(); } catch (_) { return false; } }
+  function _flugKameraRuhig() { try { return _luftFlug(); } catch (_) { return false; } }
   function _kameraBahn() {
     const m = Math.max(_folgeGlattM(), _spurGlattM(), _flugKameraRuhig() ? FLUG_BAHN_GLATT_M : 0);   // 11.10.2026 — „Spur glätten“ wirkt auf die Kamera, nicht die Linie
     if (!(m > 0) || !currentCoords || currentCoords.length < 3 || !window.rzSpurGlaetten) return currentCoords;
@@ -25478,7 +25784,8 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-stil="glow" min="0" max="10" step="0.5" value="${st.glow}"></div>
       ${ziel === "haupt" ? `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.look.tip", ""))}"><label>${t("animator.look", "Vorlage")}</label>
         <select data-linien-look>${["klassisch", "glut", "neon", "leuchtspur"].map(k => `<option value="${k}"${currentLinienLook() === k ? " selected" : ""}>${t("animator.look." + k, k)}</option>`).join("")}</select></div>
-      <div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.schweif.tip", ""))}"><label>${t("animator.schweif", "Schweif")} <b data-schweif-v>${currentSchweifPct()}</b> %</label>
+      ${_r3Zeilen()}
+      <div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.schweif.tip", ""))}"${currentSchweifPct() > 0 ? "" : " hidden"}><label>${t("animator.schweif_alt", "Schweif (alt)")} <b data-schweif-v>${currentSchweifPct()}</b> %</label>
         <input type="range" data-schweif min="0" max="15" step="0.5" value="${currentSchweifPct()}"></div>
       ${_tagesStarts().length ? `<div class="anim-stil-zeile ist-check" title="${_animEscapeHtml(t("animator.farbe_je_tag.tip", ""))}"><label><input type="checkbox" data-farbe-je-tag${currentFarbeJeTag() ? " checked" : ""}> ${t("animator.farbe_je_tag", "Farbe je Tag")}</label></div>` : ""}` : ""}
       <div class="anim-stil-zeile anim-fw-einstieg-zeile" title="${_animEscapeHtml(t("animator.colors.einstieg_tip", "Färbt die Linie nach Tempo, Höhe, Steigung oder Strecke — öffnet die Track-Farben oben in diesem Editor."))}">
@@ -25710,6 +26017,7 @@ function mountAnimator(body, headerActions, opts) {
       }); }
     { const fj = el.querySelector("[data-farbe-je-tag]"), alt = document.getElementById("anim-farbe-je-tag");
       if (fj && alt) fj.addEventListener("change", () => { alt.checked = fj.checked; alt.dispatchEvent(new Event("change", { bubbles: true })); }); }
+    _r3Verdrahten(el);
     { const sw = el.querySelector("[data-schweif]"), alt = document.getElementById("anim-schweif");
       if (sw && alt) {
         const setz = (ev) => { alt.value = sw.value; const v = el.querySelector("[data-schweif-v]"); if (v) v.textContent = sw.value;
@@ -25718,6 +26026,57 @@ function mountAnimator(body, headerActions, opts) {
         sw.addEventListener("change", () => setz("change"));
       } }
     return el;
+  }
+  // ── 06.11.2026 — Röhre, Kopf, Nachglühen im Aussehen-Panel der Haupt-Tour ──
+  // Die Felder spiegeln die versteckten Eingaben (#anim-linie-3d …), die über bindSetting im Projekt landen.
+  const _R3_FMT = {
+    "anim-roehre-glanz": v => Math.round(v * 100) + " %", "anim-roehre-breite": v => Math.round(v) + " m",
+    "anim-roehre-abstand": v => Math.round(v) + " m",
+    "anim-nachgluehen": v => v > 0 ? (Math.round(v * 100) / 100).toLocaleString(window.rzSprachCode ? window.rzSprachCode() : undefined) + " s" : t("animator.nachgluehen.aus", "aus"),
+  };
+  function _r3Wert(id, std) { const e = document.getElementById(id); return e ? e.value : std; }
+  function _r3Zeilen() {
+    const roehre = _roehreGewaehlt(), sek = _zahlVon("anim-nachgluehen", 0);
+    const opt = (id, v, txt) => `<option value="${v}"${_r3Wert(id) === v ? " selected" : ""}>${_animEscapeHtml(txt)}</option>`;
+    const regler = (id, label, tip, extra) => { const e = document.getElementById(id), v = parseFloat(e ? e.value : 0) || 0;
+      return `<div class="anim-stil-zeile"${extra || ""} title="${_animEscapeHtml(tip)}"><label>${_animEscapeHtml(label)} <b data-r3-v="${id}">${_R3_FMT[id](v)}</b></label>
+        <input type="range" data-r3="${id}" min="${e ? e.min : 0}" max="${e ? e.max : 1}" step="${e ? e.step : 0.1}" value="${v}"></div>`; };
+    const nurR = ` data-nur-roehre${roehre ? "" : " hidden"}`;
+    return `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.linie3d.tip", "Flach: die Linie liegt auf der Karte. Röhre: der Track schwebt als leuchtende 3D-Röhre knapp über dem Gelände (nur freie Karten)."))}"><label>${t("animator.linie3d", "Darstellung")}</label>
+        <select data-r3="anim-linie-3d">${opt("anim-linie-3d", "flach", t("animator.linie3d.flach", "Flach"))}${opt("anim-linie-3d", "roehre", t("animator.linie3d.roehre", "3D-Röhre"))}</select></div>
+      <div class="anim-stil-zeile muted" data-roehre-mapbox${_roehreMapbox() ? "" : " hidden"}>${_animEscapeHtml(t("animator.roehre.mapbox", "Die 3D-Röhre gibt es nur mit den freien Karten — mit Mapbox wird die Linie flach gezeichnet."))}</div>
+      <div class="anim-stil-zeile"${nurR} title="${_animEscapeHtml(t("animator.kopf3d.tip", "Was vorne an der Röhre läuft. Komet: eine glühende Kugel, aus der die Röhre herauskommt."))}"><label>${t("animator.kopf3d", "Kopf")}</label>
+        <select data-r3="anim-kopf-3d">${opt("anim-kopf-3d", "kometpfeil", t("animator.kopf3d.kometpfeil", "Komet-Pfeil"))}${opt("anim-kopf-3d", "komet", t("animator.kopf3d.komet", "Komet"))}${opt("anim-kopf-3d", "pfeil", t("animator.kopf3d.pfeil", "3D-Pfeil"))}${opt("anim-kopf-3d", "puk", t("animator.kopf3d.puk", "3D-Puk"))}${opt("anim-kopf-3d", "punkt", t("animator.kopf3d.punkt", "Wie der Laufpunkt"))}</select></div>
+      ${regler("anim-roehre-glanz", t("animator.roehre.glanz", "Glanz"), t("animator.roehre.glanz_tip", "Wie stark die Röhre im Licht glänzt."), nurR)}
+      ${regler("anim-roehre-breite", t("animator.roehre.breite", "Röhren-Dicke"), t("animator.roehre.breite_tip", "Dicke der Röhre in Metern. Aus der Ferne bleibt sie mindestens so breit wie die Track-Dicke."), nurR)}
+      ${regler("anim-roehre-abstand", t("animator.roehre.abstand", "Abstand zum Boden"), t("animator.roehre.abstand_tip", "Wie hoch die Röhre über dem Gelände schwebt."), nurR)}
+      ${regler("anim-nachgluehen", t("animator.nachgluehen", "Nachglühen"), t("animator.nachgluehen.tip", "Wie lange die frisch gelaufene Strecke hinter dem Laufpunkt nachglüht, bevor sie die Linienfarbe annimmt. 0 = aus."))}
+      <div class="anim-stil-zeile" data-nur-glut${sek > 0 ? "" : " hidden"} title="${_animEscapeHtml(t("animator.glut_look.tip", "Die Farben, durch die das Nachglühen abkühlt."))}"><label>${t("animator.glut_look", "Glut-Farbe")}</label>
+        <select data-r3="anim-glut-look">${opt("anim-glut-look", "linie", t("animator.glut_look.linie", "Aus der Linienfarbe"))}${opt("anim-glut-look", "koralle", t("animator.glut_look.koralle", "Koralle"))}${opt("anim-glut-look", "warmkalt", t("animator.glut_look.warmkalt", "Warm zu Kühl"))}${opt("anim-glut-look", "pink", t("animator.glut_look.pink", "Pink, Violett, Blau"))}${opt("anim-glut-look", "tuerkis", t("animator.glut_look.tuerkis", "Türkis"))}</select></div>`;
+  }
+  function _r3Verdrahten(el) {
+    el.querySelectorAll("[data-r3]").forEach(f => {
+      const id = f.dataset.r3, alt = document.getElementById(id);
+      if (!alt) return;
+      const setz = (ev) => {
+        alt.value = f.value;
+        const v = el.querySelector(`[data-r3-v="${id}"]`); if (v && _R3_FMT[id]) v.textContent = _R3_FMT[id](parseFloat(f.value) || 0);
+        alt.dispatchEvent(new Event(ev, { bubbles: true }));
+        if (id === "anim-linie-3d") el.querySelectorAll("[data-nur-roehre]").forEach(z => { z.hidden = f.value !== "roehre"; });
+        if (id === "anim-nachgluehen") {
+          el.querySelectorAll("[data-nur-glut]").forEach(z => { z.hidden = !(parseFloat(f.value) > 0); });
+          // der alte Schweif (% der Strecke) weicht dem Nachglühen, sobald man es benutzt
+          const sw = document.getElementById("anim-schweif");
+          if (ev === "change" && parseFloat(f.value) > 0 && sw && parseFloat(sw.value) > 0) {
+            sw.value = "0"; sw.dispatchEvent(new Event("input", { bubbles: true })); sw.dispatchEvent(new Event("change", { bubbles: true }));
+            const zs = el.querySelector("[data-schweif]"); if (zs) { zs.value = "0"; const zz = zs.closest(".anim-stil-zeile"); if (zz) zz.hidden = true; }
+          }
+        }
+        if (id === "anim-linie-3d") try { _roehreHinweisZeigen(); } catch (_) {}
+      };
+      if (f.tagName === "SELECT") f.addEventListener("change", () => setz("change"));
+      else { f.addEventListener("input", () => setz("input")); f.addEventListener("change", () => setz("change")); }
+    });
   }
   function _stilToggleBauen(schluessel, ziel, tr, row) {
     const b = document.createElement("button");
@@ -31188,7 +31547,7 @@ function mountAnimator(body, headerActions, opts) {
     flugzeug: "flug", hubschrauber: "flug", gleitschirm: "flug", heissluftballon: "flug" };
   function _wanderGruppe() {
     try {
-      if ((_flug && _flug.an) || _flugGewuenscht() || /\.igc$/i.test(String(currentGpx || ""))) return "flug";
+      if (_flugLuftAn() || _luftFlug() || /\.igc$/i.test(String(currentGpx || ""))) return "flug";
       // Orte/Etappen mit Verkehrsart: die meistgewählte
       const et = _hauptEt();
       const arten = (_isReiseroute ? _routeWpsLesen().slice(0, -1).map(w => w && w.art) : (et && et.arten) || []).filter(Boolean);

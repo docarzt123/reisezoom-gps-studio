@@ -4222,6 +4222,25 @@ function rzPchip(pts, i, u, wert) {
   return (2 * u3 - 3 * u2 + 1) * yA + (u3 - 2 * u2 + u) * h * mA + (-2 * u3 + 3 * u2) * yB + (u3 - u2) * h * mB;
 }
 window.rzPchip = rzPchip;
+// 05.11.2026 — Drehung (Mapbox-Quaternion) weich zwischen den Stützstellen: gerade (nlerp) verbunden änderte die
+// Kamera bei 30 fps ihre Drehgeschwindigkeit nur jedes zweite Bild (15 Stützstellen/s) — gleiches Hüpfen wie beim
+// Tempo (26.10.2026). Je Anteil rzPchip, die Nachbarn vorher auf dieselbe Seite wie A geklappt (q und −q sind dieselbe
+// Drehung), danach normiert. Fehlt eine Drehung, gerade wie bisher.
+function rzQuatWeich(pts, i, u, pchip) {
+  const A = pts[i] && pts[i].ori, B = pts[i + 1] && pts[i + 1].ori;
+  if (!A || !B) return null;
+  const seite = (q) => (q && (q[0]*A[0] + q[1]*A[1] + q[2]*A[2] + q[3]*A[3]) < 0) ? [-q[0], -q[1], -q[2], -q[3]] : q;
+  const lo = Math.max(0, i - 1), hi = Math.min(pts.length - 1, i + 2), teil = [];
+  for (let k = lo; k <= hi; k++) teil.push({ t: pts[k].t, q: seite(pts[k].ori) });
+  const j = i - lo, r = [0, 1, 2, 3].map((c) => (pchip || rzPchip)(teil, j, u, (p) => (p.q ? p.q[c] : null)));
+  if (r.some((v) => v == null || !isFinite(v))) {
+    const b = seite(B), g = [0, 1, 2, 3].map((c) => A[c] + (b[c] - A[c]) * u), n = Math.hypot(...g) || 1;
+    return g.map((v) => v / n);
+  }
+  const n = Math.hypot(r[0], r[1], r[2], r[3]) || 1;
+  return [r[0] / n, r[1] / n, r[2] / n, r[3] / n];
+}
+window.rzQuatWeich = rzQuatWeich;
 /** Regler 0–10 → (Basislänge in Metern, Mindestzahl Punkte). */
 function kursGlaettung(stufe) {
   const v = Math.max(0, Math.min(10, +stufe || 0));

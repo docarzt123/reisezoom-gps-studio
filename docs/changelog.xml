@@ -5,8 +5,15 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 05 Nov 2026 16:27:28 +0000</lastBuildDate>
+<lastBuildDate>Thu, 05 Nov 2026 19:53:25 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.856</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-856</link>
+<guid isPermaLink="false">gps-studio-v0.9.856</guid>
+<pubDate>Thu, 05 Nov 2026 12:00:00 +0000</pubDate>
+<description>GPS Studio startet unter Windows wieder, auch wenn der Bilder-Ordner woanders liegt — Lag der Windows-Ordner „Bilder“ nicht an seinem gewohnten Platz (zum Beispiel weil OneDrive ihn sichert oder er auf eine andere Platte verschoben wurde), brach der Start mit einer Fehlermeldung zu „Reisezoom Tour Maps“ ab. Jetzt fragt GPS Studio Windows nach dem richtigen Bilder-Ordner; klappt das nicht, landen die Tour-Karten im App-Ordner und die App startet ganz normal.</description>
+</item>
 <item>
 <title>v0.9.855</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-855</link>
@@ -235,19 +242,6 @@ Farbe nach Tempo — „Auto“ verteilt die Farben über den typischen Bereich 
 Aufnahmezeit vieler Fotos ändern — Kamera stand auf dem falschen Jahr? Fotos markieren, „Aufnahmezeit ändern …“, z. B. 10 Jahre früher — mit Vorschau und Sicherung der Originale.
 
 Richtiger Tag im Archiv — Eine Tour zählt für den Tag, an dem sie vor Ort begonnen hat — wer nach Mitternacht losfährt, landet nicht mehr am Vortag.</description>
-</item>
-<item>
-<title>v0.9.798</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-798</link>
-<guid isPermaLink="false">gps-studio-v0.9.798</guid>
-<pubDate>Mon, 19 Oct 2026 12:00:00 +0000</pubDate>
-<description>Genauere Linie bei langen Touren — Die Linie folgt deinem GPX mit einem Punkt alle 10 m statt mit höchstens 800 Punkten — Kehren und Pässe bleiben auf der Straße. Tempo, Steigung und Strecke kommen immer aus allen Punkten, keine 190 km/h mehr in der Kehre.
-
-Orte und Pässe entlang der Strecke — Neue Option im Highlights-Fenster: alle Orte, durch die du fährst, und alle Pässe als kleine Stecknadeln — ideal für Motorradtouren.
-
-Versionen für Höhe und Zeit — Nur die Höhe korrigiert oder Zeiten repariert? Das wird jetzt eine eigene Version, zu der du zurückkannst.
-
-Dashcam-GPS — GPS-Dateien von Dashcams (.dat, z. B. Vantrue) werden gelesen.</description>
 </item>
 </channel>
 </rss>

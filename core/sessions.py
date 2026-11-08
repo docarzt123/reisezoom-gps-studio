@@ -310,6 +310,11 @@ def _project_from_defaults(name: str, defaults: dict) -> dict:
     anim.setdefault("ghost_track_enabled", True)
     anim.setdefault("ghost_track_opacity_pct", 30)
     anim.setdefault("ghost_track_dashed", True)   # 06.10.2026 (A2) — „standardmäßig an, gestrichelt"
+    # 06.11.2026 (Marc 02.11.: „neue Projekte Röhre, bestehende bleiben flach“; 06.11.: Komet Standard, Nachglühen
+    # 1,5 s) — bestehende Projekte haben die Schlüssel nicht und bleiben flach ohne Nachglühen. Mapbox zeichnet flach.
+    anim.setdefault("linie_3d", "roehre")
+    anim.setdefault("kopf_3d", "kometpfeil")   # 06.11.2026 abends (Marc: „Pfeil default“)
+    anim.setdefault("nachgluehen_sek", 1.5)
     return {
         "id": _new_project_id(),
         "name": name,

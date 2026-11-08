@@ -188,7 +188,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.856"
+APP_VERSION = "0.9.857"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -16456,7 +16456,8 @@ class Api:
             return {"ok": False, "error": _ui_t()("error.vorlage_name", "Bitte einen Namen angeben")}
         erlaubt_anim = {"line_color", "line_width", "kontur_breite", "kontur_farbe", "ghost_track_enabled", "ghost_track_color",
                         "ghost_track_opacity_pct", "linien_look", "schweif_pct", "highlights_farbe", "highlights_stil",
-                        "marker_dot_style", "bergnamen_an"}
+                        "marker_dot_style", "bergnamen_an",
+                        "linie_3d", "roehre_glanz", "roehre_breite_m", "roehre_abstand_m", "kopf_3d", "nachgluehen_sek", "glut_look"}
         anim = {k: v for k, v in (daten.get("animator") or {}).items() if k in erlaubt_anim}
         eintrag_daten = {"container": daten["container"][:60], "verlauf": daten.get("verlauf") if isinstance(daten.get("verlauf"), dict) else None,
                          "animator": anim, "titel_alt": str(daten.get("titel_alt") or "")[:200]}

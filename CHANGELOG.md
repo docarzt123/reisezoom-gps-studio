@@ -14,6 +14,32 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Track as a 3D tube with a comet head and afterglow**: under the track's appearance (pencil next to the tour),
+  “Display” switches between the flat line and a 3D tube that floats just above the terrain. At the front runs a glowing
+  comet ball the tube comes out of; the comet arrow is a glowing arrow with the tube coming out of its notch and the glow behind it like an engine (3D arrow and 3D puck are also available). Right at the head the tube has the head's own colour and then turns into the glow colour. The freshly covered stretch glows behind
+  the head and cools down to the line colour over a set time (“Afterglow”, default 1.5 s); the glow colours come from
+  the line colour or from one of the looks Coral, Warm to cool, Pink/violet/blue and Turquoise. The afterglow is measured
+  in video time, so it looks the same in the preview, after jumping and in the video, at 25, 30 or 60 fps, and stops
+  keep cooling down. Gloss, tube thickness and height above ground are adjustable. The video assistant (tab Line) has
+  the same choices. New projects start with the tube, the comet arrow and 1.5 s afterglow; existing projects stay flat.
+  The tube needs the free maps — with Mapbox the line is drawn flat and a note explains why.
+
+### Changed
+- **“Afterglow (s)” replaces the old trail (% of the route)** for the flat line as well: the glowing stretch now follows
+  the track exactly and is measured in seconds. Projects that use the old trail keep it until the afterglow is switched on.
+- **Signs attached to the moving dot now leave the picture with the dot**: at the edge of the picture the sign used to
+  jump to the other side of the dot as soon as it no longer fit. Now it stays on its side, slides out with the dot and is
+  cut off by the edge until no part of it is left in the picture. The old behaviour is still there as the switch
+  “Switch sides at the edge” (now off by default; existing signs slide out too).
+
+### Fixed
+- **Camera rotation with Mapbox maps now changes smoothly every frame**: between the camera's support points (15 per
+  second) the Mapbox camera orientation was joined in straight pieces, so at 30 fps its turning speed changed only every
+  second frame — the same pairwise stutter that was fixed for the camera position in October. The orientation now follows
+  the same smooth curve as position and height, in the preview and in the video. With the usual follow camera the
+  difference is very small.
+
 ## [0.9.856] – 2026-11-05
 
 ### Fixed
