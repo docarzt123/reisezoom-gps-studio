@@ -1824,6 +1824,9 @@ body.is-rendering .anim-ansicht-hinweis { display: none; }
 .overlay-preview-layer .ct-werkzeug select, .overlay-preview-layer .ct-werkzeug button { font: inherit; color: inherit; background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 3px 6px; cursor: pointer; }
 .overlay-preview-layer .ct-werkzeug button.on { background: rgba(72,214,196,0.25); border-color: #48d6c4; }
+/* 08.11.2026 — „Fertig“ beendet das Bearbeiten (auch Esc) */
+.overlay-preview-layer .ct-werkzeug button.ct-wz-fertig { margin-left: 4px; display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(72,214,196,0.22); border-color: #48d6c4; font-weight: 600; }
 .overlay-preview-layer .ct-werkzeug input[type="color"] { width: 26px; height: 22px; padding: 0; border: none; background: none; cursor: pointer; }
 .overlay-preview-layer .ct-ecke { position: absolute; right: -6px; bottom: -6px; width: 11px; height: 11px; background: #ff3ea5; border: 2px solid #fff;
   border-radius: 2px; cursor: nwse-resize; pointer-events: auto; z-index: 5; }

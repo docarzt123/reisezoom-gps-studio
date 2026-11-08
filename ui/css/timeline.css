@@ -45,7 +45,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 84px;   /* nach .lane-label */
+  left: var(--tl-lbl, 84px);   /* nach .lane-label (08.11.2026: Breite ziehbar) */
   right: 14px;  /* v0.9.5 — Rand-Inset für Marker an Anker 1.0 */
   pointer-events: none;
   z-index: 4;
@@ -76,8 +76,8 @@
   overflow: visible;
 }
 .timeline-cluster-row .cluster-label {
-  flex: 0 0 84px;
-  width: 84px; min-width: 84px; max-width: 84px; box-sizing: border-box; overflow: hidden;   /* 28.09.2026 — bündig mit den Spuren, s. .lane-label */
+  flex: 0 0 var(--tl-lbl, 84px);
+  width: var(--tl-lbl, 84px); min-width: var(--tl-lbl, 84px); max-width: var(--tl-lbl, 84px); box-sizing: border-box; overflow: hidden;   /* 28.09.2026 — bündig mit den Spuren, s. .lane-label */
   padding: 0 8px;
   display: flex;
   align-items: center;
@@ -171,13 +171,13 @@
 /* v0.9.227 — Marker-/Foto-Reserve-Spuren entfernt (Schilder+Fotos haben ihr
    eigenes System). Spezial-Styling war hier; Lanes existieren nicht mehr. */
 .timeline-lane .lane-label {
-  flex: 0 0 84px;
+  flex: 0 0 var(--tl-lbl, 84px);
   /* 28.09.2026 (Marc, Screenshot: „die KF-Punkte sollten direkt untereinander sein, sind aber hin und
      her geschoben") — fest 84 px. Mit nur `flex-basis` wuchs die Spalte mit ihrem Inhalt (automatische
      Mindestbreite im Flex-Layout): „▾ 🧭 Drehung" und „▾ 📍 Erdpunkt" waren breiter als „▾ 📐 Pitch",
      die Spur dahinter begann je Zeile woanders — und mit ihr jeder Keyframe-Punkt. Lange Namen kürzt
      .lane-name mit „…" (voller Name im Tooltip). */
-  width: 84px; min-width: 84px; max-width: 84px; box-sizing: border-box; overflow: hidden;
+  width: var(--tl-lbl, 84px); min-width: var(--tl-lbl, 84px); max-width: var(--tl-lbl, 84px); box-sizing: border-box; overflow: hidden;
   padding: 0 8px;
   display: flex;
   align-items: center;
@@ -682,7 +682,7 @@
   content: "";
   position: absolute;
   top: 50%;
-  left: 84px;
+  left: var(--tl-lbl, 84px);
   right: 14px;
   height: 3px;
   margin-top: -1.5px;
@@ -1075,7 +1075,7 @@ body.wert-zieht .timeline-marker.is-selected {
 /* Die Beschriftungsspalte bleibt 84 px breit, auch bei langen Box-Namen — sonst
    verrutscht der Balken gegen die Zeitachse (in der echten App gesehen, 24.09.2026). */
 .timeline-lane[data-kind="ovbox"] .lane-label,
-.timeline-lane[data-kind="ovkopf"] .lane-label { min-width: 0; max-width: 84px; overflow: hidden; }
+.timeline-lane[data-kind="ovkopf"] .lane-label { min-width: 0; max-width: var(--tl-lbl, 84px); overflow: hidden; }
 .timeline-lane[data-kind="ovbox"] .lane-label { padding-left: 14px; }
 .timeline-lane[data-kind="ovbox"] .lane-markers { pointer-events: none; }
 .timeline-lane[data-kind="ovbox"].ist-aus .lane-label { opacity: .5; }
@@ -1190,6 +1190,8 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-gruppe .tl-gruppe-name, .tl-gruppe .tl-gruppe-zahlen { position: relative; z-index: 1; }
 /* 02.10.2026 (Marc: „am oberen Ende der Timeline den Bereich größer oder kleiner ziehen, dann werden die Spuren
    höher oder niedriger") — Griff an der Oberkante */
+.tl-lbl-griff { position: absolute; top: 8px; bottom: 0; left: calc(var(--tl-lbl, 84px) - 3px); width: 6px; cursor: col-resize; z-index: 29; }
+.tl-lbl-griff:hover, .tl-lbl-griff.zieht { background: rgba(255,255,255,.18); }   /* 08.11.2026 — Beschriftungsspalte breiter ziehen */
 .tl-hoehe-griff { position: absolute; left: 0; right: 0; top: 0; height: 7px; cursor: ns-resize; z-index: 30; }
 .tl-hoehe-griff::after { content: ""; position: absolute; left: 50%; top: 3px; width: 36px; height: 3px; margin-left: -18px;
   border-radius: 2px; background: rgba(255,255,255,.18); transition: background .15s; }

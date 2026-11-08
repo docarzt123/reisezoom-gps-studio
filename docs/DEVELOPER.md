@@ -4721,6 +4721,9 @@ nach `_top`). Fix: `fitBounds` hing am Nordpfeil-`else`. Test `test_webkarte_tra
 **Tour-Auswahl mehrfach (08.11.2026):** `rzArchivTourenWaehlen` (ui/js/util.js) — Alle/Keine (`alleSetzen`), Shift-Klick
 (`_letzterKlick`, Klick an der Zeile, preventDefault), Strg/⌘+A am Dokument solange offen (`_tasteA`, im Textfeld nur leer),
 Limit 5000 (einzel: 300). Test `test_touren_mehrfachauswahl.py`.
+**rz-figur3d im Globus (08.11.2026):** bei `projectionTransition > 0` kommt die Modellmatrix aus
+`map.transform.getMatrixForModel([lng, lat], boden + agl)` (gleiche Achsen x Ost/y oben/z Süd in Metern), sonst wie bisher
+aus MercatorCoordinate — Komet-Kopf und 3D-Modelle erscheinen auch im Globus (Prüfstand `layer._globus`).
 **Laufpunkt als 3D-Modell (08.11.2026):** Fahrzeug-Aussehen `3d` (`FZ_STILE`, Projektfeld `marker_dot_fz_stil`). Modelle in
 `ui/js/rz-modelle.js` (aus dem Prototyp der Web-Fassung, dort gleiche Datei — beide pflegen): 20 Arten aus Grundkörpern in
 Metern, normiert auf Länge 1, Rollen je Dreieck (`farbe`, `farbe2`, `glas` …), `mesh(art, phase)` (48 Bewegungsstufen je
@@ -4738,6 +4741,12 @@ Hubschrauber und Ballon (`_MODELL_UHR`): Phase an der Videozeit, keine Ruhe — 
 rz-modelle: `mesh(art, phase, ruhe)` (8 Ruhestufen im Cache), Modelle mischen ihre Pose zur Ruhe (`bein`, `mix`); Prüfstand
 `__rzModellBewegung`; Neigung aus dem Gelände über ±max(15 m, halbe Modelllänge). Wo nur ein Bild geht (weitere
 Touren, Etappen-Editor, Mapbox) gilt `3d` wie `symbol` (`_fzAlsSymbol`). Test: `test_laufpunkt_modell3d.py`.
+**Zeitleiste (08.11.2026):** Spaltenbreite `--tl-lbl` (CSS-Variable statt fest 84 px, Griff `.tl-lbl-griff`, localStorage
+`rz-tl-beschriftung`); Höhenziehen kappt zuerst die Spurhöhe (`_tlSSetzen(…, ziehen)`, `_tlSKappen` per Halbierungssuche)
+statt Gruppen zuzuklappen; Medien-Spur mit `.lane-klapp`; Overlay-Balken-Text = `_ctInhalt(c)` + Zeit.
+**Gelöschte Auto-Schilder:** `_animSignsDelete`/`_animSignsClearAll` merken `auto`-Schlüssel in `hl_entfernt` (nach dem
+Speichern → ein ⌘Z-Schritt), `_hlSchilderAbgleichen` zählt sie als belegt; Art wieder anhaken räumt ihre Schlüssel aus.
+Einblendung: „Fertig“ in der Werkzeugleiste (`data-wz="fertig"`) und Esc → `_ctEditorZu`.
 **Reiter 2D/3D (08.11.2026):** `_dotKacheln` zeigt bei der Haupt-Tour (`mitKopf`) die Reiter `data-reiter` 2d/3d; der Reiter
 folgt der Wahl (`_dotIst3d`: Kopf ≠ punkt oder Aussehen `3d` + Fahrzeug), `_dotReiter` merkt einen Reiterklick bis zur
 nächsten Kachel. 3D-Kacheln `m:<fahrzeug>` (setzen Aussehen `3d` + Form) und `k:<kopf>`; 2D-Fahrzeug bei Aussehen `3d` → zurück

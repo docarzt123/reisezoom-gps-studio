@@ -32,7 +32,8 @@ Bei jeder neuen Version:
   The moving dot's shapes are split into two tabs, 2D (ball, arrow, vehicle pictures and symbols, own picture, vehicle look)
   and 3D (3D models; with the tube also comet arrow, comet, 3D arrow, 3D puck). The same in the preview, after
   jumping and in the video. Coloured like the symbols (line colour or fixed colours). Also in the air and on the 3D tube with the
-  head “Like the moving dot”. Needs the free maps; with Mapbox and for further tours the symbol is shown.
+  head “Like the moving dot”, and on the globe (overview of a flight stage) too. Needs the free maps; with Mapbox and
+  for further tours the symbol is shown.
 - **Track as a 3D tube with a comet head and afterglow**: under the track's appearance (pencil next to the tour),
   “Display” switches between the flat line and a 3D tube that floats just above the terrain. At the front runs a glowing
   comet ball the tube comes out of; the comet arrow is a glowing arrow with the tube coming out of its notch and the glow behind it like an engine (3D arrow and 3D puck are also available). Right at the head the tube has the head's own colour and then turns into the glow colour. The freshly covered stretch glows behind
@@ -46,6 +47,11 @@ Bei jeder neuen Version:
   tiles there; any other shape (ball, arrow, vehicle, own picture) runs on the tube itself — also in the video assistant.
 
 ### Changed
+- **Timeline**: the label column on the left can be dragged wider (double-click: default), the “Media” row can be
+  collapsed like the other rows, and overlay bars show what they display (text, value names — placeholders such as
+  {ele_low} appear as the value's name —, “Logo” …) before their time. In the video assistant the moving-dot buttons wrap
+  into two rows when the comet heads of the 3D tube are added (they overlapped).
+- **Editing an overlay in the preview** has a “Done” button in its toolbar; Esc ends editing too.
 - **“Afterglow (s)” replaces the old trail (% of the route)** for the flat line as well: the glowing stretch now follows
   the track exactly and is measured in seconds. Projects that use the old trail keep it until the afterglow is switched on.
 - **Signs attached to the moving dot now leave the picture with the dot**: at the edge of the picture the sign used to
@@ -54,6 +60,11 @@ Bei jeder neuen Version:
   “Switch sides at the edge” (now off by default; existing signs slide out too).
 
 ### Fixed
+- **Deleted automatic signs stay deleted**: highlight signs (highest point, steepest section, top speed, half distance,
+  waypoints) and stage station signs came back after deleting them as long as their kind was ticked. Deleting (also
+  “delete all”) is remembered in the project; ticking the kind again brings them back. Undo restores both.
+- **Timeline height**: dragging the timeline higher no longer makes it jump back small; it grows up to its limit (60 % of
+  the preview) and stays there.
 - **Web map export without a saved view**: with the north arrow switched on, the exported map stayed empty when no map
   section had been passed; it now fits all tracks.
 - **Camera rotation with Mapbox maps now changes smoothly every frame**: between the camera's support points (15 per

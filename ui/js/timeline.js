@@ -90,6 +90,7 @@ function mountTimelineBar(opts) {
   host.innerHTML = `
     <div class="timeline-bar">
       <div class="tl-hoehe-griff" title="${tlT("animator.timeline.hoehe_tip", "Ziehen: Spuren höher oder niedriger · Doppelklick: Standard")}"></div>
+      <div class="tl-lbl-griff" title="${tlT("animator.timeline.lbl_tip", "Ziehen: Beschriftungen links breiter oder schmaler · Doppelklick: Standard")}"></div>
       <div class="timeline-track" id="tl-track">
         <!-- v0.9.4: Cluster-Row über allen Lanes. Ein Marker pro unique-anchor
              der den GANZEN Cluster (alle 4 Properties zusammen) verschiebt.
@@ -268,16 +269,26 @@ function mountTimelineBar(opts) {
   function _tlSKappen(v) {
     const flaeche = (host.closest(".anim-canvas") || host.parentElement)?.clientHeight || 0;
     if (!flaeche) return v;
-    let n = 0;
-    while (v > 0.6 && host.getBoundingClientRect().height > flaeche * _TL_ANTEIL_MAX && n++ < 20) {
-      v = Math.max(0.6, v - 0.1);
-      host.style.setProperty("--tl-s", String(Math.round(v * 100) / 100));
+    // 08.11.2026 — in feinen Schritten (0,02 statt 0,1): beim Hochziehen pendelte die Leiste an der Grenze um ±18 px
+    if (host.getBoundingClientRect().height <= flaeche * _TL_ANTEIL_MAX) return v;
+    let lo = 0.6, hi = v;   // Halbierungssuche: größte Spurhöhe, die noch passt
+    for (let n = 0; n < 8 && hi - lo > 0.01; n++) {
+      const m = (lo + hi) / 2;
+      host.style.setProperty("--tl-s", String(Math.round(m * 1000) / 1000));
+      if (host.getBoundingClientRect().height > flaeche * _TL_ANTEIL_MAX) hi = m; else lo = m;
     }
+    v = lo;
+    host.style.setProperty("--tl-s", String(Math.round(v * 1000) / 1000));
     return v;
   }
-  function _tlSSetzen(v, merken) {
+  function _tlSSetzen(v, merken, ziehen) {
     v = Math.max(0.6, Math.min(2.2, v));
     host.style.setProperty("--tl-s", String(Math.round(v * 100) / 100));
+    // 08.11.2026 (Marc: „wenn ich die Timeline höher ziehe, springt sie irgendwann zurück und ist klein“) — beim Ziehen
+    // klappte _platzSchaffen Spurgruppen zu, sobald die Leiste über 60 % der Vorschau kam: sie schrumpfte schlagartig. Wer
+    // selbst zieht, bekommt jetzt erst die Spurhöhe gekappt (sie bleibt an der Grenze stehen); zugeklappt wird nur noch,
+    // wenn es selbst bei der kleinsten Spurhöhe nicht passt.
+    if (ziehen) v = _tlSKappen(v);
     _platzSchaffen(null, true);   // Höhe/Fenster geändert: auch wieder aufklappen, was jetzt passt
     v = _tlSKappen(v);
     if (merken) { try { localStorage.setItem(_TL_S_KEY, String(v)); } catch (_) {} }
@@ -289,6 +300,37 @@ function mountTimelineBar(opts) {
     clearTimeout(_tlSResize);
     _tlSResize = setTimeout(() => { if (host.isConnected) _tlSSetzen(_tlS(), false); }, 150);
   });
+  // ── Breite der Beschriftungsspalte ziehen (08.11.2026, Marc: „der linke Teil der Timeline muss sich breiter ziehen
+  //    lassen, damit man lesen kann, was da steht“) ── CSS-Variable --tl-lbl (70–280 px), je Gerät gemerkt
+  const _TL_LBL_KEY = "rz-tl-beschriftung";
+  const _tlLbl = () => { try { const v = parseFloat(localStorage.getItem(_TL_LBL_KEY)); return isFinite(v) ? Math.max(70, Math.min(280, v)) : 84; } catch (_) { return 84; } };
+  function _tlLblSetzen(v, merken) {
+    v = Math.round(Math.max(70, Math.min(280, v)));
+    host.style.setProperty("--tl-lbl", v + "px");
+    if (merken) { try { localStorage.setItem(_TL_LBL_KEY, String(v)); } catch (_) {} }
+    _zeichnenPlanen(true);
+    try { _ovHoeheMelden(); } catch (_) {}
+  }
+  host.style.setProperty("--tl-lbl", _tlLbl() + "px");
+  (function lblGriff() {
+    const g = host.querySelector(".tl-lbl-griff");
+    if (!g) return;
+    g.addEventListener("mousedown", (ev) => {
+      if (ev.button !== 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      if (ev.detail >= 2) { _tlLblSetzen(84, true); return; }   // Doppelklick: Standard
+      const x0 = ev.clientX, w0 = _tlLbl();
+      g.classList.add("zieht");
+      const bewegen = (e2) => _tlLblSetzen(w0 + (e2.clientX - x0), false);
+      const los = (e2) => {
+        document.removeEventListener("mousemove", bewegen, true); document.removeEventListener("mouseup", los, true);
+        g.classList.remove("zieht");
+        _tlLblSetzen(w0 + (e2.clientX - x0), true);
+      };
+      document.addEventListener("mousemove", bewegen, true);
+      document.addEventListener("mouseup", los, true);
+    });
+  })();
   (function hoeheGriff() {
     const g = host.querySelector(".tl-hoehe-griff");
     if (!g) return;
@@ -300,11 +342,11 @@ function mountTimelineBar(opts) {
       // gegen die Höhe der ganzen Zeitleiste: 100 px ziehen ≈ ein Drittel höher, nicht gleich das Doppelte
       const h0 = Math.max(240, host.getBoundingClientRect().height);
       g.classList.add("zieht");
-      const bewegen = (e2) => { _tlSSetzen(s0 * (h0 + (y0 - e2.clientY)) / h0, false); };
+      const bewegen = (e2) => { _tlSSetzen(s0 * (h0 + (y0 - e2.clientY)) / h0, false, true); };
       const hoch = (e2) => {
         document.removeEventListener("mousemove", bewegen, true); document.removeEventListener("mouseup", hoch, true);
         g.classList.remove("zieht");
-        _tlSSetzen(s0 * (h0 + (y0 - e2.clientY)) / h0, true);
+        _tlSSetzen(s0 * (h0 + (y0 - e2.clientY)) / h0, true, true);
         _zeichnenPlanen(true);
       };
       document.addEventListener("mousemove", bewegen, true);
@@ -1514,8 +1556,10 @@ function mountTimelineBar(opts) {
     const box = host.querySelector("#tl-medien"); if (!box) return;
     box.hidden = !_medien.length;
     if (_medien.length && !box.firstChild) {
-      box.innerHTML = `<div class="timeline-lane" data-kind="medien"><div class="lane-label" title="${_esc(tlT("animator.lane.medien_tip", "Fotos und Videos aus deinen Medien, aufgenommen während der Tour. Darüberfahren zeigt das Bild, ein Klick macht ein Schild daraus."))}"><span class="lane-icon">📷</span><span class="lane-name">${_esc(tlT("animator.lane.medien", "Medien"))}</span></div>
+      box.innerHTML = `<div class="timeline-lane" data-kind="medien"><div class="lane-label" title="${_esc(tlT("animator.lane.medien_tip", "Fotos und Videos aus deinen Medien, aufgenommen während der Tour. Darüberfahren zeigt das Bild, ein Klick macht ein Schild daraus."))}"><span class="lane-klapp" role="button" title="${_esc(tlT("animator.lane.klapp_tip", "Spur klein- oder aufklappen"))}">▾</span><span class="lane-icon">📷</span><span class="lane-name">${_esc(tlT("animator.lane.medien", "Medien"))}</span></div>
         <div class="lane-track"><div class="lane-markers tl-medien-striche"></div></div></div>`;
+      // 08.11.2026 (Marc: „Medien muss man auch klein klappen können, wie den Rest auch“) — ▾ wie bei jeder Spur, gemerkt
+      try { _kleinAnwenden(box.querySelector(".timeline-lane")); } catch (e) { console.warn("[zeitleiste] Medien klein:", e); }
       const st = box.querySelector(".tl-medien-striche");
       st.addEventListener("click", (e) => {
         const m = e.target.closest("[data-mi]"); if (!m) return;

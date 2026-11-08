@@ -4054,6 +4054,9 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
 
 /* Wahlknöpfe (Format, Länge, Dauer, Anzahl) */
 .va-wahl { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+/* 08.11.2026 (Klicktest) — Laufpunkt-Wahl mit der Röhre: neun Knöpfe passten nicht in eine Reihe (Beschriftungen
+   überlappten); jetzt umbrechen, die vier Köpfe stehen dann in der ersten Reihe */
+#va-lp.va-wahl { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
 .va-wahl .sv-wahl { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 6px 8px; border-radius: 10px;
   background: var(--bg-2); border: 1px solid var(--border-strong); color: var(--text-dim); font: inherit; font-size: 14px; font-weight: 550; cursor: pointer; }
 .va-wahl .sv-wahl > span { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }

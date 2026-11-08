@@ -18,7 +18,8 @@
  *   agl       Höhe der Körpermitte über dem Gelände in Metern (wie die Röhre)
  *
  * Licht: fest von oben links im Bild (wie die Röhre in rz-line3d) — es dreht mit der Kamera, damit jedes Video gleich
- * wirkt. Schatten: weicher Fleck auf dem Boden unter dem Körper. Nur Merkator (im Globus nichts).
+ * wirkt. Schatten: weicher Fleck auf dem Boden unter dem Körper. Merkator und Globus (seit 08.11.2026 über
+ * transform.getMatrixForModel).
  */
 (function () {
   "use strict";
@@ -243,7 +244,11 @@
         const f = this._figur, T = this._T;
         if (!f || !T || !this._renderer) return;
         const pd = args && args.defaultProjectionData;
-        if (pd && +pd.projectionTransition > 0.001) return;   // Globus: (noch) nicht
+        // 08.11.2026 (Marc: „3D muss überall gehen“) — im Globus zeichnete die Ebene nichts (ein Flug-Überblick
+        // zeigte kein Flugzeug). Jetzt rechnet MapLibre die Lage des Modells (transform.getMatrixForModel: dieselben Achsen —
+        // x Ost, y oben, z Süd, Meter — für Merkator und Globus); unten wird nur die Modellmatrix getauscht.
+        const globus = !!(pd && +pd.projectionTransition > 0.001);
+        this._globus = globus;   // Prüfstand
         const mm = pd && pd.mainMatrix ? pd.mainMatrix : args;
         if (!mm || mm.length !== 16) return;
         const m = this._map, MC = window.maplibregl && window.maplibregl.MercatorCoordinate;
@@ -263,9 +268,13 @@
         // Modellraum in Metern: x Ost, y oben, z Süd (three-üblich; Merkator-y wächst nach Süden). −s auf y wie im
         // MapLibre-Beispiel: nach der Drehung um x wird Modell-z zu Merkator-y, und die Spiegelung hält den Umlaufsinn
         // der Dreiecke richtig (MapLibres Matrix spiegelt selbst einmal)
-        const modell = new T.Matrix4().makeTranslation(mc.x, mc.y, mc.z)
+        let modell = new T.Matrix4().makeTranslation(mc.x, mc.y, mc.z)
           .scale(new T.Vector3(s, -s, s))
           .multiply(new T.Matrix4().makeRotationX(Math.PI / 2));
+        if (globus) {
+          try { const gm = m.transform && m.transform.getMatrixForModel ? m.transform.getMatrixForModel([f.lng, f.lat], boden + agl) : null; if (gm) modell = new T.Matrix4().fromArray(gm); }
+          catch (e) { console.warn("[figur3d] Globus-Matrix:", e); return; }
+        }
         const gesamt = new T.Matrix4().fromArray(mm).multiply(modell);
         // Kamera an ihren echten Ort im Modellraum stellen (der Punkt, den die Gesamtmatrix auf w = 0, x = y = 0 abbildet).
         // Ohne das rechnet three den Glanz von der Figurmitte aus — oben auf Kugel, Puk und Pfeil lag ein dunkler Fleck.

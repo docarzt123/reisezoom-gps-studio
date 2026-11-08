@@ -3784,7 +3784,13 @@ function mountAnimator(body, headerActions, opts) {
     if (!box) return;
     const gespeichert = _activeProject?.[_MODKEY]?.highlights_arten;
     if (Array.isArray(gespeichert)) box.querySelectorAll("input[data-hl-art]").forEach(e => { e.checked = gespeichert.includes(e.getAttribute("data-hl-art")); });
-    box.addEventListener("change", () => { saveProjectSettings(_MODKEY, { highlights_arten: _hlArtenGewaehlt() }); _hlNeu(); });
+    box.addEventListener("change", (ev) => {
+      const patch = { highlights_arten: _hlArtenGewaehlt() };
+      // 08.11.2026 — eine Art wieder anhaken holt ihre gelöschten Schilder zurück (sonst wäre der Haken wirkungslos)
+      const art = ev && ev.target && ev.target.checked ? ev.target.getAttribute("data-hl-art") : null;
+      if (art) patch.hl_entfernt = _hlEntfernt().filter(k => !(k === art || (art === "wegpunkte" && k.startsWith("wegpunkte:"))));
+      saveProjectSettings(_MODKEY, patch); _hlNeu();
+    });
   })();
   // v0.9.41 — Stats-Quelle bei aktivem Trim
   bindSetting("anim-stats-use-trim", _MODKEY, "stats_use_trim", { type: "bool" });
@@ -17983,14 +17989,24 @@ function mountAnimator(body, headerActions, opts) {
     function _animSignsDelete(i) {
       const list = _animSignsList().slice();
       if (i < 0 || i >= list.length) return;
+      const weg = list[i];
       list.splice(i, 1);
       _animSignsSave(list);
+      // 08.11.2026 (Marc: „Projekt mit dem Assistenten erstellt, das Halbe-Strecke-Schild entfernt — es kommt immer wieder“) —
+      // automatische Schilder (Highlights, Wegpunkte, Etappen-Stationen) legte der Abgleich neu an, solange ihre Art
+      // angehakt war. Gelöschte merkt sich das Projekt jetzt (hl_entfernt); NACH dem Speichern, damit ⌘Z beides zurückholt.
+      if (weg && weg.auto) {
+        try { const e = new Set(_hlEntfernt()); e.add(String(weg.auto)); saveProjectSettings(_MODKEY, { hl_entfernt: [...e] }); }
+        catch (err) { applog("warn", "[hl] gelöschtes Auto-Schild merken: " + err); }
+      }
       _animSignsAttachToMap();
       _animSignsRenderList();
     }
     function _animSignsClearAll() {
       if (!_animSignsList().length) return;
+      const autos = _animSignsList().filter(s => s && s.auto).map(s => String(s.auto));
       _animSignsSave([]);
+      if (autos.length) { try { saveProjectSettings(_MODKEY, { hl_entfernt: [...new Set(_hlEntfernt().concat(autos))] }); } catch (err) { applog("warn", "[hl] gelöschte Auto-Schilder merken: " + err); } }   // 08.11.2026
       _animSignsAttachToMap();
       _animSignsRenderList();
     }
@@ -22414,7 +22430,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!C) return [];
     return _ctListe().map(c => {
       const b = C.timingBoxen([Object.assign({}, c, { an: true })])[0];
-      return Object.assign(b, { enabled: !!c.an, name: _ctName(c), farbe: _CT_SPUR_FARBE[c.vorlage] || "#ffcf70" });
+      return Object.assign(b, { enabled: !!c.an, name: _ctName(c), inhalt: _ctInhalt(c), farbe: _CT_SPUR_FARBE[c.vorlage] || "#ffcf70" });
     });
   }
   function _ovSpurJetzt() {
@@ -22441,7 +22457,8 @@ function mountAnimator(body, headerActions, opts) {
           : mitSek(z && z.bis ? (z.bis.art === "s" ? { art: "video_start", wert: aus } : z.bis) : null, aus);
         return { an: _ovLeisteAusZeit(an), aus: _ovLeisteAusZeit(aus),
                  einBis: _ovLeisteAusZeit(an + e), ausAb: _ovLeisteAusZeit(aus - a),
-                 text: vonTxt + " – " + bisTxt };
+                 // 08.11.2026 — der Inhalt vorn (was zu sehen ist), die Zeit dahinter
+                 text: (b.inhalt ? b.inhalt + "   ·   " : "") + vonTxt + " – " + bisTxt };
       });
       return { id: b.id, name: b.name, enabled: !!b.enabled, farbe: b.farbe, segmente };
     });
@@ -22618,6 +22635,8 @@ function mountAnimator(body, headerActions, opts) {
   function _hlEin() {
     return !_isStaticFrame && !!document.getElementById("anim-hl-on")?.checked;
   }
+  /** 08.11.2026 — von Hand gelöschte automatische Schilder (Schlüssel wie `auto`: "halbe", "wegpunkte:Name", "station:…"). */
+  function _hlEntfernt() { const a = _activeProject?.[_MODKEY]?.hl_entfernt; return Array.isArray(a) ? a.map(String) : []; }
   function _hlArtenGewaehlt() {
     const a = [];
     document.querySelectorAll("#anim-hl-arten input[data-hl-art]").forEach(e => { if (e.checked) a.push(e.getAttribute("data-hl-art")); });
@@ -22762,6 +22781,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     const bleiben = alt.filter(s => !(s && s.auto && s.auto_sig === _hlSig(s)));
     const belegt = new Set(bleiben.filter(s => s && s.auto).map(s => s.auto));
+    for (const k of _hlEntfernt()) belegt.add(k);   // 08.11.2026 — gelöschte Auto-Schilder kommen nicht wieder
     const neu = [];
     if (_hlEin()) {
       const ps = _hlStil();
@@ -23788,6 +23808,23 @@ function mountAnimator(body, headerActions, opts) {
   }
   /** 17.10.2026 — in der Liste auch den Text zeigen („Titel · Tirol Runde“): so findet man die Einblendung, deren Text
    *  man ändern will, ohne sie in der Vorschau erst an die richtige Stelle der Zeitleiste zu scrubben. */
+  /** 08.11.2026 (Marc, Zeitleiste: „kann man da nicht reinschreiben, was angezeigt wird … eins ist nur ein Textfeld, da
+   *  könnte doch der Inhalt davon in der Timeline stehen“) — Inhalt einer Einblendung in einer Zeile: Text (erste Zeile),
+   *  Werte mit ihrem Namen, sonst die Art der Zeile („Höhenprofil“, „Logo“ …). */
+  // ohne wörtliche geschweifte Klammern geschrieben (scripts/check_ui_fallen.py zählt Klammern)
+  const _CT_PLATZHALTER = new RegExp("\\x7b([a-z_0-9]+)(?::[^\\x7d]*)?\\x7d", "gi");
+  function _ctInhalt(c) {
+    const teile = (c.zeilen || []).map(z => {
+      if (!z) return "";
+      // Platzhalter wie {ele_low} als Namen der Werte („Min Tiefster Punkt“ statt „Min {ele_low}“)
+      if (z.typ === "text") return String(z.text || "").trim().split("\n")[0]
+        .replace(_CT_PLATZHALTER, (m, k) => { try { return _ovFieldLabel(k) || k; } catch (_) { return k; } }).slice(0, 60);
+      if (z.typ === "wert") return _ovFieldLabel(z.feld);
+      return t("container.z." + z.typ, z.typ);
+    }).filter(Boolean);
+    const s = [...new Set(teile)].join(" · ");
+    return s.length > 120 ? s.slice(0, 118) + "…" : s;
+  }
   function _ctListenName(c) {
     const n = _ctName(c);
     const z = (c.zeilen || []).find(x => x && x.typ === "text" && String(x.text || "").trim());
@@ -24220,7 +24257,9 @@ function mountAnimator(body, headerActions, opts) {
       + `<input type="color" data-wz="farbe" value="${_ctEsc(c.textfarbe || "#ffffff")}" title="${_ctEsc(t("ct_wz.farbe", "Textfarbe"))}">`
       + `<button type="button" data-wz="schatten" class="${(c.textschutz || "aus") !== "aus" ? "on" : ""}" title="${_ctEsc(t("ct_wz.schatten", "Textschatten"))}">S</button>`
       + `<select data-wz="stil" title="${_ctEsc(t("ct_wz.stil", "Stil"))}">${STI.map(([k, n]) => _ctOpt(k, c.stil, n)).join("")}</select>`
-      + (zAkt && (+zAkt.dx || +zAkt.dy) ? `<button type="button" data-wz="zurueck" title="${_ctEsc(t("ct_wz.zeile_zurueck", "Zeile wieder an ihren Platz"))}">↺</button>` : "");
+      + (zAkt && (+zAkt.dx || +zAkt.dy) ? `<button type="button" data-wz="zurueck" title="${_ctEsc(t("ct_wz.zeile_zurueck", "Zeile wieder an ihren Platz"))}">↺</button>` : "")
+      // 08.11.2026 (Marc: „wie komme ich aus der Bearbeitung wieder raus? da fehlt ein Schließen“) — Fertig (auch Esc)
+      + `<button type="button" data-wz="fertig" class="ct-wz-fertig" title="${_ctEsc(t("ct_wz.fertig_tip", "Bearbeiten beenden (Esc)"))}">${window.rzIcon ? rzIcon("check", { size: 13 }) : "✓"} ${_ctEsc(t("ct_wz.fertig", "Fertig"))}</button>`;
     layer.appendChild(w);
     // über die Einblendung setzen (Ebenen-px; die Ebene ist ggf. skaliert)
     const k = _ctEbeneK(layer), L = layer.getBoundingClientRect(), r = el.getBoundingClientRect();
@@ -24245,6 +24284,7 @@ function mountAnimator(body, headerActions, opts) {
     w.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-wz]"); if (!b) return;
       const f = b.getAttribute("data-wz");
+      if (f === "fertig") { e.stopPropagation(); _ctEditorZu(); return; }
       const faktor = f === "groesser" ? 1.1 : f === "kleiner" ? 1 / 1.1 : 1;
       if (faktor !== 1 && zAkt && zAkt.typ === "text") aendern((x) => { const zz = x.zeilen.find(q => q.id === zAkt.id); if (zz) zz.gr = Math.round(Math.max(0.2, Math.min(3, (+zz.gr || 1) * faktor)) * 1000) / 1000; }, t("ct_wz.groesse", "Größe"));
       else if (faktor !== 1) aendern((x) => { x.schriftgroesse = Math.round(Math.max(0.5, Math.min(30, (+x.schriftgroesse || 2) * faktor)) * 100) / 100; }, t("ct_wz.groesse", "Größe"));
@@ -24308,6 +24348,13 @@ function mountAnimator(body, headerActions, opts) {
     _ctAendern(id, c => { c.an = false; }, t("container.aus_x", "Einblendung ausgeschaltet"));
     try { _ctListeZeichnen(); } catch (e) { applog("warn", "[container] Liste nach ✕: " + e); }
   }
+  // 08.11.2026 — Esc beendet das Bearbeiten einer Einblendung (nicht beim Tippen in einem Feld)
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !_ctEditId || window.__rzRenderMode) return;
+    const z = e.target;
+    if (z && (z.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(z.tagName))) return;
+    _ctEditorZu();
+  });
   function _ctEditorZu() {
     _ctEditId = null; _ctZeileAktiv = null;
     document.querySelectorAll("#anim-overlay-preview .ct-werkzeug, #anim-overlay-preview .ct-ecke").forEach(x => x.remove());
