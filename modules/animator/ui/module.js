@@ -84,8 +84,9 @@ function mountAnimator(body, headerActions, opts) {
   // ui/img/fahrzeuge/<fahrzeug>_<stil>.png (Draufsicht, Front nach oben; geschnitten mit scripts/fahrzeug_icons_schneiden.py).
   // Fehlt ein Bild (Boot/Flugzeug noch nicht geliefert), bleibt es bei der Plakette.
   // 13.10.2026 — „symbol“: das einfärbbare Symbol je Bewegungsart (ui/js/bewegung.js), in Linienfarbe oder fest
-  const FZ_STILE = ["plakette", "symbol", "foto", "aquarell", "comic", "piktogramm", "kupferstich", "neon", "pixel", "blaupause", "papier", "knete"];
-  const FZ_STIL_NAMEN = { plakette: "Plakette (wie bisher)", symbol: "Symbol", foto: "Fotorealistisch", aquarell: "Bleistift & Aquarell", comic: "Comic",
+  // 08.11.2026 — „3d“: echtes 3D-Modell (ui/js/rz-modelle.js, gezeichnet von rz-figur3d), für alle Arten
+  const FZ_STILE = ["plakette", "symbol", "3d", "foto", "aquarell", "comic", "piktogramm", "kupferstich", "neon", "pixel", "blaupause", "papier", "knete"];
+  const FZ_STIL_NAMEN = { plakette: "Plakette (wie bisher)", symbol: "Symbol", "3d": "3D-Modell", foto: "Fotorealistisch", aquarell: "Bleistift & Aquarell", comic: "Comic",
     piktogramm: "Piktogramm", kupferstich: "Kupferstich", neon: "Neon", pixel: "Pixel-Art", blaupause: "Blaupause", papier: "Papier", knete: "Knete" };
   const _fzBilder = new Map();   // "auto_comic" → { img, ok, fehl }
   // Die App lädt ihre Oberfläche aus einer Temp-Kopie (app.py) — per Skript gebaute Bild-Pfade brauchen die Asset-Basis;
@@ -93,7 +94,7 @@ function mountAnimator(body, headerActions, opts) {
   const _fzPfad = (key) => (window.__rzAssetBase || "") + "img/fahrzeuge/" + key + ".png";
   let _fzLaedt = 0, _fzNeuT = 0;
   function _fzBild(art, stil) {
-    if (!art || !stil || stil === "plakette" || stil === "symbol" || FZ_NUR_SYMBOL.has(art)) return null;
+    if (!art || !stil || stil === "plakette" || stil === "symbol" || stil === "3d" || FZ_NUR_SYMBOL.has(art)) return null;
     const key = art + "_" + stil;
     let e = _fzBilder.get(key);
     if (!e) {
@@ -837,6 +838,10 @@ function mountAnimator(body, headerActions, opts) {
               </div>
               <label class="field-label dot-fzs-titel" style="margin-top:8px;" title="${t("animator.dot.fz_stil_tip", "Wie Fahrzeuge aussehen — auch auf geplanten Etappen")}">${t("animator.dot.fz_stil", "Fahrzeug-Aussehen")} <span class="label-val" id="anim-dot-fzs-v"></span></label>
               <div class="dot-wahl dot-fzs-wahl" id="anim-dot-fzs-wahl"></div>
+              <!-- 08.11.2026 (Marc: „eine Grundgeschwindigkeit einstellen“) — Bewegungstempo der 3D-Modelle (bedient im Track-Editor) -->
+              <input type="range" id="anim-dot-modell-tempo" min="0.25" max="3" step="0.25" value="1" hidden>
+              <!-- 08.11.2026 (Marc: „hatte der Webchat nicht mehrere Autos?“) — Form des 3D-Autos (rz-modelle VARIANTEN.auto) -->
+              <input type="hidden" id="anim-dot-modell-auto" value="auto">
               <select id="anim-dot-fz-stil" class="select" hidden>
                 ${FZ_STILE.map(s => `<option value="${s}">${t("animator.dot.fzs_" + s, FZ_STIL_NAMEN[s])}</option>`).join("")}
               </select>
@@ -7332,6 +7337,7 @@ function mountAnimator(body, headerActions, opts) {
       document.querySelectorAll(".anim-stil-panel [data-nur-roehre]").forEach(z => { z.hidden = !_roehreGewaehlt(); });
       document.querySelectorAll(".anim-stil-panel [data-nur-glut]").forEach(z => { z.hidden = !(_zahlVon("anim-nachgluehen", 0) > 0); });
     } catch (e) { rzSwallow(e, "roehre@panel"); }
+    try { _dotKachelnAlle(); } catch (e) { rzSwallow(e, "roehre@kacheln"); }   // 08.11.2026 — Kopf steckt in der Laufpunkt-Form
     if (laden && stand === _roehreStand) return;
     _roehreStand = stand;
     try { applyLinienLook(); } catch (e) { rzSwallow(e, "roehre@look"); }
@@ -7822,6 +7828,7 @@ function mountAnimator(body, headerActions, opts) {
     if (document.getElementById("anim-dot-show")?.checked === false || !_dotLuft) {
       _flug.punkt.setTracks([]); if (_flug.laufpunkt) _flug.laufpunkt.setPunkt(null);
       if (_flug.figur) _flug.figur.setFigur(null);   // 06.11.2026 — Laufpunkt aus: auch kein 3D-Kopf
+      _modell3dSetzen(null);
       return;
     }
     // Punkt = sehr kurze Strecke mit runden Enden: etwa 1 Bildpunkt lang, aber mindestens 3 m — Merkator in float32
@@ -7857,6 +7864,7 @@ function mountAnimator(body, headerActions, opts) {
       if (_flug.figur && ro && ro.figur) {
         // 3D-Körper statt Bild: an die Röhre gekoppelt (Größe ≈ 2,5 × Röhrendicke, ebenso die Mindestgröße)
         _flug.laufpunkt.setPunkt(null);
+        _modell3dSetzen(null);
         const fak = ro.figurFaktor != null ? +ro.figurFaktor : 2.5, gM = fak * (+ro.breiteM || 8);
         const brg = _flug.letztBrg || 0;
         let neig = 0;
@@ -7890,8 +7898,14 @@ function mountAnimator(body, headerActions, opts) {
                                leucht: _G ? _G.leucht : (ro.figurFarbe || farbe), boden: _boden,
                                glanz: ro.glanz, groesseM: gM, minPx, drehung: brg, neigung: neig, spur, zeit,
                                kalt: ro.kalt === true ? (ro.figurFarbe || farbe) : (ro.kalt || null) });
+      } else if (L && L.modell) {
+        // 08.11.2026 — 3D-Modell auch in der Luft bzw. auf der Röhre („Wie der Laufpunkt“)
+        if (_flug.figur) _flug.figur.setFigur(null);
+        _flug.laufpunkt.setPunkt(null);
+        _modellZeigen(pos, _flug.letztBrg || 0, _flug.segJ != null ? _flug.segJ + _flug.segT : best, h, _flug.letztSk);
       } else {
         if (_flug.figur) _flug.figur.setFigur(null);
+        _modell3dSetzen(null);
         _flug.laufpunkt.setPunkt({ lng: pos[0], lat: pos[1], agl: h, bild: L.bild, bildKey: L.key, cssPx: L.cssPx * (_flug.letztSk > 0 ? _flug.letztSk : 1),
                                    drehung: L.dreht ? (_flug.letztBrg || 0) : 0, karte: L.karte });
       }
@@ -8525,6 +8539,7 @@ function mountAnimator(body, headerActions, opts) {
       const ls = layers || ((map.getStyle() || {}).layers) || [];
       const edit = ls.find((l) => l.id.indexOf("et-edit-") === 0);
       map.moveLayer("anim-dot-gl", edit ? edit.id : undefined);
+      if (map.getLayer(MODELL_EBENE)) map.moveLayer(MODELL_EBENE, edit ? edit.id : undefined);   // 08.11.2026 3D-Modell darüber
     } catch (_) {}
   }
 
@@ -9427,12 +9442,25 @@ function mountAnimator(body, headerActions, opts) {
   }
   function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
   function dotFzStil()  { const v = document.getElementById("anim-dot-fz-stil")?.value; return FZ_STILE.includes(v) ? v : "plakette"; }
+  /** 08.11.2026 — Tempo der Bewegung der 3D-Modelle (Beine, Pedale, Räder, Rotor): Faktor 0,25 … 3, 1 = Grundtakt. */
+  const AUTO_FORMEN = { auto: "Kombi", auto_klein: "Kleinwagen", auto_limousine: "Limousine", auto_suv: "SUV", auto_sport: "Sportwagen",
+                        auto_cabrio: "Cabrio", auto_pickup: "Pick-up", auto_van: "Kleinbus", auto_gelaende: "Geländewagen" };
+  function dotModellAuto() { const v = document.getElementById("anim-dot-modell-auto")?.value; return AUTO_FORMEN[v] ? v : "auto"; }
+  /** Modell-Art für eine Laufpunkt-Form: das Auto in der gewählten Form, sonst die Art selbst. */
+  function _modellArt(art) { return art === "auto" ? dotModellAuto() : art; }
+  function dotModellTempo() { const v = parseFloat(document.getElementById("anim-dot-modell-tempo")?.value); return isFinite(v) ? Math.max(0.25, Math.min(3, v)) : 1; }
   // 13.10.2026 — Farbe der Symbole: „linie“ (Linienfarbe der Tour + Akzent) oder „fest“ (zwei Farben, Vorgabe Schiefer/Mint)
   function dotSymFarbe()  { return document.getElementById("anim-dot-sym-farbe")?.value === "fest" ? "fest" : "linie"; }
   function dotSymDunkel() { return document.getElementById("anim-dot-sym-dunkel")?.value || "#2b3a40"; }
   function dotSymAkzent() { return document.getElementById("anim-dot-sym-akzent")?.value || "#4fc9ab"; }
   /** Zeigt der Laufpunkt für `art` das Symbol? Beim Stil „Symbol“ immer, die neuen Arten gibt es nur so. */
-  function _fzAlsSymbol(art) { return !!(window.rzBewegungSymbol && rzBewegungSymbol(art)) && (dotFzStil() === "symbol" || FZ_NUR_SYMBOL.has(art)); }
+  // „3D-Modell“: wo nur ein Bild geht (weitere Touren, Etappen-Editor, Mapbox), steht das Symbol
+  function _fzAlsSymbol(art) { return !!(window.rzBewegungSymbol && rzBewegungSymbol(art)) && (dotFzStil() === "symbol" || dotFzStil() === "3d" || FZ_NUR_SYMBOL.has(art)); }
+  /** 08.11.2026 — Zeigt der Laufpunkt für `art` das 3D-Modell? Stil „3D-Modell“, Modell vorhanden, MapLibre (nicht Mapbox). */
+  function _fz3d(art) {
+    return dotFzStil() === "3d" && !!(window.rzModelle && window.rzModelle.ARTEN.includes(art)) && !!window.rzFigur3d
+      && !!window.maplibregl && !(map && map.__rzEngine === "mapbox");
+  }
   /** Symbol-Farben für eine Linienfarbe (je Tour verschieden) nach der gewählten Farbart. */
   /** Symbol als SVG für Knöpfe und Kacheln — in den festen Farben (gewählt oder Schiefer/Mint), auf hellem Grund. */
   function _symUiSvg(art, px) {
@@ -9661,6 +9689,21 @@ function mountAnimator(body, headerActions, opts) {
           paint: { "circle-radius": Math.max(3, currentLineWidth() * 1.5), "circle-color": farbe,
                    "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2,
                    "circle-pitch-alignment": "map" } });
+      } else if (FAHRZEUGE.includes(dst.style) && _fz3d(dst.style)) {
+        // 08.11.2026 (Marc: „die 3D-Fahrzeuge vom Web-Chat einbauen“) — 3D-Modell je Verkehrsart; gezeichnet von der
+        // Ebene anim-dot-3d (rz-figur3d). Das Symbol bleibt als Bild der GeoJSON-Ebene (Ersatz, falls WebGL fehlt).
+        const sf = _symFarben(farbe) || { dunkel: farbe, akzent: "#ffffff" };
+        try {
+          if (map.hasImage("anim-fz")) map.removeImage("anim-fz");
+          const sb = rzBewegungBild(dst.style, _symFarben(farbe), 192);
+          map.addImage("anim-fz", sb, { pixelRatio: 4 });
+          _dotLuft = { bild: sb, key: "3d|" + _modellArt(dst.style) + "|" + sf.dunkel + "|" + sf.akzent, cssPx: 48 * gr, dreht: true, karte: true };
+        } catch (e) { applog("warn", "[dot] 3D-Modell, Ersatzsymbol: " + e); }
+        _dotLuft = Object.assign(_dotLuft || { bild: null, key: "3d|" + dst.style, cssPx: 48 * gr, dreht: true, karte: true },
+                                 { modell: { art: _modellArt(dst.style), farbe: sf.dunkel, farbe2: sf.akzent }, modellPx: 58 * gr });
+        if (map.hasImage("anim-fz")) map.addLayer({ id: "anim-dot-fz", type: "symbol", source: "anim-dot",
+          layout: { "icon-image": "anim-fz", "icon-size": _dotSk(gr), "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
+                    "icon-pitch-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true } });
       } else if (FAHRZEUGE.includes(dst.style) && _fzAlsSymbol(dst.style)) {
         // 13.10.2026 — Symbol je Bewegungsart (Draufsicht, Front nach oben): flach auf der Karte, dreht sich mit dem Weg
         try {
@@ -9896,7 +9939,7 @@ function mountAnimator(body, headerActions, opts) {
     const L = _dotLuft;
     if (frac == null) frac = _dotFracZuletzt;
     _bodenLetzt = pos ? { pos, brg, sk, puls, frac } : null;
-    if (!pos || !L || _flug.an || map.__rzNurOrte) { _bodenPkt.setPunkt(null); _brueckeSetzen(null, null); return; }
+    if (!pos || !L || _flug.an || map.__rzNurOrte) { _bodenPkt.setPunkt(null); _brueckeSetzen(null, null); if (!_flug.an) _modell3dSetzen(null); return; }
     // nie vor das gezeichnete Linienende (s. _linieBis); rückwärts (Scrubben) gilt die eigene Stelle
     _bodenFrac = frac;
     if (_linieBis != null && !window.__rzRenderMode && currentCoords && frac > _linieBis + 1e-3) {
@@ -9912,8 +9955,122 @@ function mountAnimator(body, headerActions, opts) {
       const kb = _leuchtBodenBild(L.farbe, L.gr, q);
       bild = kb.bild; key = L.key + "|boden|" + q; px = kb.cssPx;
     }
+    if (L.modell) { _bodenPkt.setPunkt(null); _modellZeigen(pos, brg, _bodenFrac, 0, sk); return; }
+    _modell3dSetzen(null);
     _bodenPkt.setPunkt({ lng: pos[0], lat: pos[1], agl: 0, bild, bildKey: key, cssPx: px * (sk > 0 ? sk : 1),
                          drehung: L.dreht ? (+brg || 0) : 0, karte: L.karte });
+  }
+  // 08.11.2026 — Laufpunkt als 3D-Modell (Fahrzeug-Aussehen „3D-Modell“): eigene rz-figur3d-Ebene über anim-dot-gl, am
+  // Boden und in der Luft dieselbe. three.js lädt beim ersten Mal nach; solange zählt es als ladendes Fahrzeugbild
+  // (__rzAnimBereit.fzBilder) — das Video wartet, sonst fehlte das Modell in den ersten Bildern.
+  var _modell3d = null, _modell3dLaedt = false;
+  var MODELL_EBENE = "anim-dot-3d";   // var: _bodenPunktHeben kann vor dieser Zeile laufen
+  function _modell3dSetzen(d) {
+    if (!d) { if (_modell3d && _modell3d._figur) _modell3d.setFigur(null); return; }
+    if (!map || !window.rzFigur3d || map.__rzEngine === "mapbox") return;
+    if (!window.THREE) {
+      if (!_modell3dLaedt) {
+        _modell3dLaedt = true; _fzLaedt++;
+        window.rzFigur3d.laden()
+          .then(() => { try { dotSetzen(_dotFracZuletzt); _flugPunktNeu(); } catch (e) { applog("warn", "[modell3d] nach dem Laden: " + e); } })
+          .catch((e) => applog("warn", "[modell3d] three.js: " + e))
+          .finally(() => { _modell3dLaedt = false; _fzLaedt = Math.max(0, _fzLaedt - 1); });
+      }
+      return;
+    }
+    try {
+      if (!map.getLayer(MODELL_EBENE)) {
+        _modell3d = window.rzFigur3d.create(MODELL_EBENE);
+        map.addLayer(_modell3d);
+        _bodenPunktHeben();
+      }
+      _modell3d.setFigur(d);
+    } catch (e) { applog("warn", "[modell3d] Ebene: " + e); }
+  }
+  /** Bewegung des Modells (08.11.2026, Marc: „bleibt ein Wanderer bei einer Pause stehen?“ — „ja beides“):
+   *  - phase: an der gefahrenen STRECKE, nicht an der Zeit. Weg seit Trackbeginn / mittleres Videotempo / Zyklus — bei
+   *    normalem Tempo der Takt aus rz-modelle (ZYKLUS), langsamer, wo der Punkt langsamer fährt. Stehende Punkte in der
+   *    Aufzeichnung (Pause) bringen keinen Weg → keine Bewegung (vorher lief der Wanderer auf der Stelle).
+   *  - ruhe: 0…1, die Figur gleitet in ihre Ruhepose, wenn der Punkt steht (Halt, Fotostopp, Pause in der Aufzeichnung,
+   *    Intro, Ende). Aus der Zeitachse gerechnet (Stelle zur Videosekunde t ± 0,1 … 0,8 s), nicht aus dem Verlauf — beim
+   *    Springen, in der Vorschau und im Video gleich. Vor dem Losfahren geht sie schon wieder in den Schritt. */
+  let _modellWeg = null;
+  function _modellWegBei(f) {
+    const c = currentCoords;
+    if (!c || c.length < 2) return 0;
+    if (!_modellWeg || _modellWeg.c !== c) {
+      const w = new Float64Array(c.length);
+      for (let i = 1; i < c.length; i++) w[i] = w[i - 1] + _meterZwischen(c[i - 1], c[i]);
+      _modellWeg = { c, w };
+    }
+    const w = _modellWeg.w, x = Math.max(0, Math.min(c.length - 1, +f || 0)), i = Math.min(c.length - 2, Math.floor(x));
+    return w[i] + (w[i + 1] - w[i]) * (x - i);
+  }
+  function _fracBeiZeit(t) { try { return trackFracAusAnkerHaupt(_sgAnkerAusZeit(t)); } catch (_) { return null; } }
+  // Marc 08.11.2026: „beim Hubschrauber muss der Rotor aber weiter drehen!“ — Rotor und Brennerflamme laufen an der
+  // Videozeit weiter, auch im Stand (Schweben, Halt); keine Ruhepose.
+  const _MODELL_UHR = new Set(["hubschrauber", "heissluftballon"]);
+  function _modellBewegung(art, frac) {
+    const R = window.rzModelle, Z0 = R && R.ZYKLUS[art];
+    if (!Z0) return { phase: 0, ruhe: 0 };
+    const Z = Z0 / dotModellTempo();   // 08.11.2026 — Bewegungstempo (Track-Editor)
+    if (_MODELL_UHR.has(art)) {
+      const T = +window.__rzVideoSek;
+      const s = isFinite(T) ? T : (window.__rzRenderClock ? window.__rzRenderClock() / 1000 : performance.now() / 1000);
+      return { phase: ((s / Z) % 1 + 1) % 1, ruhe: 0 };
+    }
+    let phase = 0, ruhe = 0;
+    try {
+      const ph = _sgPhasen();
+      const fA = _fracBeiZeit(ph.intro), fB = _fracBeiZeit(ph.intro + ph.anim);
+      const vRef = (fA != null && fB != null) ? (_modellWegBei(fB) - _modellWegBei(fA)) / Math.max(0.001, ph.anim) : 0;   // m je Videosekunde
+      const sek = vRef > 0 ? _modellWegBei(frac) / vRef : (window.__rzRenderClock ? window.__rzRenderClock() / 1000 : performance.now() / 1000);
+      phase = ((sek / Z) % 1 + 1) % 1;
+      const T = +window.__rzVideoSek;
+      if (isFinite(T) && currentCoords) {
+        const f0 = _fracBeiZeit(T);
+        if (f0 != null) {
+          const p0 = coordBeiFrac(currentCoords, f0);
+          let mpp = 1; try { mpp = 156543.03 * Math.cos(p0[1] * Math.PI / 180) / Math.pow(2, map.getZoom()); } catch (_) {}
+          const tol = Math.max(0.05, 0.3 * mpp);   // GPS-Zittern im Stand zählt nicht als Fahrt
+          const still = (rich) => {   // wie lange steht der Punkt schon (rich −1) bzw. noch (rich +1), höchstens 0,8 s
+            let s0 = 0;
+            for (let k = 1; k <= 8; k++) {
+              const t2 = T + rich * k * 0.1;
+              if (t2 < 0 || t2 > ph.G + 0.8) break;
+              const f2 = _fracBeiZeit(t2); if (f2 == null) break;
+              if (_meterZwischen(coordBeiFrac(currentCoords, f2), p0) > tol) break;
+              s0 = k * 0.1;
+            }
+            return s0;
+          };
+          const sm = (a, b, x) => { const u = Math.max(0, Math.min(1, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+          const zurueck = still(-1);
+          ruhe = zurueck > 0 ? Math.min(sm(0.1, 0.5, zurueck), sm(0.1, 0.5, still(1))) : 0;
+        }
+      }
+    } catch (_) { /* Bewegung ist Zierde — im Fehlerfall einfach ohne */ }
+    return { phase, ruhe };
+  }
+  window.__rzModellBewegung = (art, frac) => _modellBewegung(art, frac);   // Prüfstand (test_laufpunkt_modell3d)
+  function _modellZeigen(pos, brg, frac, agl, sk) {
+    const L = _dotLuft, md = L && L.modell;
+    if (!md || !pos) { _modell3dSetzen(null); return; }
+    const px = (L.modellPx || 58) * (sk > 0 ? sk : 1);
+    let neig = 0;
+    if (!(window.rzModelle && window.rzModelle.LUFT.has(md.art))) {
+      // Steigung entlang der Fahrtrichtung über etwa die halbe Modelllänge (mindestens 15 m), wie beim 3D-Kopf der Röhre
+      try {
+        const mpp = 156543.03 * Math.cos(pos[1] * Math.PI / 180) / Math.pow(2, map.getZoom());
+        const d = Math.max(15, 0.5 * px * mpp), b = (+brg || 0) * Math.PI / 180, kl = 111320 * Math.max(0.05, Math.cos(pos[1] * Math.PI / 180));
+        const dx = Math.sin(b) * d / kl, dy = Math.cos(b) * d / 111320;
+        const e1 = map.queryTerrainElevation([pos[0] - dx, pos[1] - dy]), e2 = map.queryTerrainElevation([pos[0] + dx, pos[1] + dy]);
+        if (isFinite(e1) && isFinite(e2)) neig = Math.max(-25, Math.min(25, Math.atan2(e2 - e1, 2 * d) * 180 / Math.PI));
+      } catch (_) { neig = 0; }
+    }
+    _modell3dSetzen({ lng: pos[0], lat: pos[1], agl: +agl || 0, form: "modell", farbe: md.farbe,
+                      modell: Object.assign({ art: md.art, farbe: md.farbe, farbe2: md.farbe2 }, _modellBewegung(md.art, frac)),
+                      groesseM: 0.5, minPx: px, drehung: +brg || 0, neigung: neig, obenauf: dotVerdeckt() === "oben" });
   }
   // 31.10.2026 (Marc am MacBook: „ruckelt“, „Laufpfeil kommt nicht mit“, „Track wird nicht hinter dem Laufpunkt
   // mitgezeichnet“) — die Linie kommt über MapLibres Karten-Worker: jede neue Fassung baut alle Linienkacheln neu. Ist der
@@ -20385,37 +20542,143 @@ function mountAnimator(body, headerActions, opts) {
     return u;
   }
   /** Kacheln füllen: `formBox` (Kugel, Pfeil, Fahrzeuge — `setForm(f)`), `fzsBox` (Aussehen, gilt für alle Fahrzeuge). */
-  function _dotKacheln(formBox, fzsBox, form, setForm) {
+  // 08.11.2026 (Marc: „wenn ich die Röhre hab, kann ich den Laufpunkt nicht mehr ändern — das ist ja auch blöd“ → „ja bau so“)
+  // — EIN Ort für das, was vorne fährt: bei der Röhre stehen Komet, Komet-Pfeil, 3D-Pfeil und 3D-Puk als erste Kacheln der
+  // Laufpunkt-Form (setzen anim-kopf-3d); jede andere Kachel stellt den Kopf auf „wie der Laufpunkt“ (punkt). Das eigene
+  // Feld „Kopf“ im Röhren-Block ist weg. Nur Haupt-Tour (die Röhre gibt es nur dort).
+  const _KOEPFE = ["kometpfeil", "komet", "pfeil", "puk"];
+  const _KOPF_SVG = {
+    kometpfeil: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="15" r="9" fill="rgba(255,170,90,.35)"/><polygon points="12,3 19,20 12,15.5 5,20" fill="#fffbf2" stroke="#ffb15a" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    komet: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="rgba(255,170,90,.3)"/><circle cx="12" cy="12" r="6" fill="#fffbf2" stroke="#ffb15a" stroke-width="1.2"/></svg>',
+    pfeil: '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="12,3 19,20 12,15.5 5,20" fill="#48d6c4" stroke="#1f6f66" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    puk: '<svg viewBox="0 0 24 24" width="24" height="24"><ellipse cx="12" cy="15" rx="9" ry="4" fill="#1f6f66"/><ellipse cx="12" cy="12" rx="9" ry="4" fill="#48d6c4" stroke="#1f6f66" stroke-width="1"/></svg>',
+  };
+  function _kopfWahl() { const v = document.getElementById("anim-kopf-3d")?.value; return _KOEPFE.includes(v) ? v : (v === "punkt" ? "punkt" : "kometpfeil"); }
+  function _kopfSetzen(k) {
+    const s = document.getElementById("anim-kopf-3d");
+    if (!s || s.value === k) return;
+    s.value = k;
+    s.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  /** Laufpunkt-Kacheln überall neu (Seitenleiste + offene Aussehen-Panels), z. B. nach Röhre an/aus oder Kopf-Wechsel. */
+  function _dotKachelnAlle() {
+    try { _dotWahlZeichnen(); } catch (e) { applog("warn", "[dot] Kacheln: " + e); }
+    document.querySelectorAll(".anim-stil-panel").forEach(p => { try { if (p.__dotFuellen) p.__dotFuellen(); } catch (e) { applog("warn", "[dot] Kacheln im Panel: " + e); } });
+  }
+  // 08.11.2026 (Marc: „mach die Auswahl irgendwie anders unterteilt nach 2D und 3D“) — zwei Reiter über den Kacheln:
+  //   2D: Kugel, Leuchtpunkt, Pfeil, die Fahrzeuge im gewählten 2D-Aussehen (Plakette, Symbol, Foto …), eigenes Bild;
+  //       darunter „Fahrzeug-Aussehen“ (nur die 2D-Arten)
+  //   3D: bei der Röhre Komet-Pfeil, Komet, 3D-Pfeil, 3D-Puk; dazu die 20 Fahrzeuge als 3D-Modell (Auto-Form, Tempo im Editor)
+  // Der Reiter folgt der Wahl; ein Klick auf den Reiter zeigt nur die Kacheln, gewählt wird erst mit einer Kachel.
+  // Nur die Haupt-Tour hat 3D (weitere Touren zeichnen Bilder).
+  let _dotReiter = null;   // null = aus der Wahl ableiten
+  let _fz2dZuletzt = "plakette";   // 2D-Aussehen, zu dem „2D“ zurückkehrt, wenn gerade „3D-Modell“ gilt
+  const _FZ_STILE_2D = FZ_STILE.filter(s => s !== "3d");
+  function _dotIst3d(form) {
+    const kopfAn = _roehreGewaehlt() && !_roehreMapbox() && _kopfWahl() !== "punkt";
+    return kopfAn || (dotFzStil() === "3d" && FAHRZEUGE.includes(form));
+  }
+  function _dotKacheln(formBox, fzsBox, form, setForm, mitKopf) {
     const fzs = dotFzStil(), esc = _animEscapeHtml;
-    const bild = (fz, s) => (s === "symbol" || FZ_NUR_SYMBOL.has(fz)) ? `<span class="rz-sym-chip">${_symUiSvg(fz, 30)}</span>`
+    const r3 = !!mitKopf && _roehreGewaehlt() && !_roehreMapbox(), kopf = _kopfWahl(), kopfAn = r3 && kopf !== "punkt";
+    if (fzs !== "3d") _fz2dZuletzt = fzs;
+    const fz2d = fzs === "3d" ? _fz2dZuletzt : fzs;
+    const ist3d = !!mitKopf && (kopfAn || (fzs === "3d" && FAHRZEUGE.includes(form)));
+    const reiter = mitKopf ? (_dotReiter || (ist3d ? "3d" : "2d")) : "2d";
+    const bild = (fz, s) => (s === "3d" && _modellBildUrl(fz)) ? `<img src="${_modellBildUrl(fz)}" alt="">`
+      : (s === "symbol" || s === "3d" || FZ_NUR_SYMBOL.has(fz)) ? `<span class="rz-sym-chip">${_symUiSvg(fz, 30)}</span>`
       : (s && s !== "plakette" ? `<img src="${_fzPfad(fz + "_" + s)}" alt="" onerror="this.remove()">` : `<img src="${_plaketteUrl(fz)}" alt="">`);
+    const nameVon = (f) => f === "dot" ? t("animator.dot.style_dot", "Kugel") : f === "leucht" ? t("animator.dot.style_leucht", "Leuchtpunkt") : (f === "arrow" ? t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")
+      : (f === "bild" ? t("animator.dot.style_bild", "Eigenes Bild") : t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])));
+    const kachel = (f, inhalt, an, name, extra) => `<button type="button" class="dot-kachel${extra || ""}${an ? " ist-an" : ""}" data-form="${f}" title="${esc(name)}"><span class="dot-kachel-bild">${inhalt}</span></button>`;
     if (formBox) {
       const lp = _lpBilder.get(dotBild());
-      formBox.innerHTML = ["dot", "leucht", "arrow", ...FAHRZEUGE, "bild"].map(f => {
-        const name = f === "dot" ? t("animator.dot.style_dot", "Kugel") : f === "leucht" ? t("animator.dot.style_leucht", "Leuchtpunkt") : (f === "arrow" ? t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")
-          : (f === "bild" ? t("animator.dot.style_bild", "Eigenes Bild") : t("animator.dot.fz_" + f, FAHRZEUG_NAMEN[f])));
-        const inhalt = f === "bild" ? (lp && lp.ok && lp.data ? `<img src="${lp.data}" alt="">` : (window.rzIcon ? rzIcon("image", { size: 18 }) : "＋"))
-          : (FAHRZEUGE.includes(f) ? bild(f, fzs) : _DOT_SYMBOL[f]);
-        return `<button type="button" class="dot-kachel${form === f ? " ist-an" : ""}" data-form="${f}" title="${esc(name)}"><span class="dot-kachel-bild">${inhalt}</span></button>`;
-      }).join("");
-      formBox.querySelectorAll("[data-form]").forEach(k => k.onclick = () => setForm(k.dataset.form));
+      let html = mitKopf ? `<div class="dot-bild-formen dot-reiter" role="tablist">
+          <button type="button" class="btn btn-sm dot-bild-form${reiter === "2d" ? " ist-an" : ""}" data-reiter="2d" role="tab" title="${esc(t("animator.dot.reiter_2d_tip", "Flache Laufpunkte: Kugel, Pfeil, Fahrzeug-Bilder und Symbole, eigenes Bild"))}">2D</button>
+          <button type="button" class="btn btn-sm dot-bild-form${reiter === "3d" ? " ist-an" : ""}" data-reiter="3d" role="tab" title="${esc(t("animator.dot.reiter_3d_tip", "Echte 3D-Körper: Fahrzeuge als 3D-Modell, mit der 3D-Röhre auch Komet und 3D-Pfeil"))}">3D</button></div>` : "";
+      if (reiter === "3d") {
+        html += (r3 ? _KOEPFE : []).map(k => kachel("k:" + k, _KOPF_SVG[k], kopfAn && kopf === k,
+          t("animator.kopf3d." + k, { kometpfeil: "Komet-Pfeil", komet: "Komet", pfeil: "3D-Pfeil", puk: "3D-Puk" }[k]), " dot-kachel-kopf")).join("");
+        html += FAHRZEUGE.map(f => kachel("m:" + f, bild(f, "3d"), !kopfAn && fzs === "3d" && form === f, nameVon(f) + " · 3D")).join("");
+        if (!r3) html += `<div class="muted dot-reiter-hinweis">${esc(t("animator.dot.reiter_3d_roehre", "Komet, Komet-Pfeil, 3D-Pfeil und 3D-Puk gibt es mit der Darstellung „3D-Röhre“."))}</div>`;
+      } else {
+        html += ["dot", "leucht", "arrow", ...FAHRZEUGE, "bild"].map(f => {
+          const inhalt = f === "bild" ? (lp && lp.ok && lp.data ? `<img src="${lp.data}" alt="">` : (window.rzIcon ? rzIcon("image", { size: 18 }) : "＋"))
+            : (FAHRZEUGE.includes(f) ? bild(f, fz2d) : _DOT_SYMBOL[f]);
+          return kachel(f, inhalt, !ist3d && form === f, nameVon(f));
+        }).join("");
+      }
+      formBox.innerHTML = html;
+      formBox.querySelectorAll("[data-reiter]").forEach(b => b.onclick = () => { _dotReiter = b.dataset.reiter; _dotKacheln(formBox, fzsBox, form, setForm, mitKopf); });
+      formBox.querySelectorAll("[data-form]").forEach(k => k.onclick = () => {
+        const f = k.dataset.form, sel = document.getElementById("anim-dot-fz-stil");
+        _dotReiter = null;
+        if (f.startsWith("k:")) { _kopfSetzen(f.slice(2)); _dotKachelnAlle(); return; }
+        if (r3) _kopfSetzen("punkt");
+        if (f.startsWith("m:")) {                              // 3D-Modell: Aussehen „3d“, Form = Fahrzeug
+          if (sel && sel.value !== "3d") sel.value = "3d";
+          setForm(f.slice(2));
+        } else {                                               // 2D: ein Fahrzeug bekommt wieder sein 2D-Aussehen
+          if (sel && sel.value === "3d" && FAHRZEUGE.includes(f)) sel.value = _fz2dZuletzt;
+          setForm(f);
+        }
+        _dotKachelnAlle();
+      });
     }
     if (fzsBox) {
+      // „Fahrzeug-Aussehen“ gehört zu 2D; im Reiter 3D (oder bei einer 3D-Wahl) ausgeblendet
+      const zeile = fzsBox.closest(".anim-stil-zeile"), titel = fzsBox.id === "anim-dot-fzs-wahl" ? document.querySelector(".dot-fzs-titel") : null;
+      if (mitKopf) {
+        const weg = reiter === "3d";
+        if (zeile) zeile.hidden = weg || !dotZeigen(); else fzsBox.hidden = weg;
+        if (titel) titel.hidden = weg;
+      }
       const fz = FAHRZEUGE.includes(form) && !FZ_NUR_SYMBOL.has(form) ? form : "auto";   // die neuen Arten gibt es nur als Symbol
-      fzsBox.innerHTML = FZ_STILE.map(st => `<button type="button" class="dot-kachel${fzs === st ? " ist-an" : ""}" data-fzs="${st}" title="${esc(t("animator.dot.fzs_" + st, FZ_STIL_NAMEN[st]))}"><span class="dot-kachel-bild">${bild(fz, st)}</span></button>`).join("");
+      fzsBox.innerHTML = _FZ_STILE_2D.map(st => `<button type="button" class="dot-kachel${fz2d === st ? " ist-an" : ""}" data-fzs="${st}" title="${esc(t("animator.dot.fzs_" + st, FZ_STIL_NAMEN[st]))}"><span class="dot-kachel-bild">${bild(fz, st)}</span></button>`).join("");
       fzsBox.querySelectorAll("[data-fzs]").forEach(k => k.onclick = () => {
-        const sel = document.getElementById("anim-dot-fz-stil"); sel.value = k.dataset.fzs; sel.dispatchEvent(new Event("change"));
-        _dotKacheln(formBox, fzsBox, form, setForm);   // ausgewählte Kachel + Fahrzeugbilder der Form-Reihe nachziehen
+        const sel = document.getElementById("anim-dot-fz-stil"); sel.value = k.dataset.fzs; _fz2dZuletzt = k.dataset.fzs; sel.dispatchEvent(new Event("change"));
+        _dotKacheln(formBox, fzsBox, form, setForm, mitKopf);   // ausgewählte Kachel + Fahrzeugbilder der Form-Reihe nachziehen
       });
     }
   }
+  /** 08.11.2026 — Kachelbild eines 3D-Modells (rz-modelle vorschau) in den Symbolfarben der Haupt-Tour. */
+  const _modellBilder = new Map();
+  function _modellBildUrl(art0) {
+    const art = _modellArt(art0);
+    if (!window.rzModelle || !window.rzModelle.ARTEN.includes(art)) return "";
+    const sf = _symFarben(currentLineColor()) || { dunkel: currentLineColor(), akzent: "#ffffff" }, key = art + "|" + sf.dunkel + "|" + sf.akzent;
+    if (!_modellBilder.has(key)) {
+      try { _modellBilder.set(key, window.rzModelle.vorschau(art, 96, { farbe: sf.dunkel, farbe2: sf.akzent }).toDataURL("image/png")); }
+      catch (e) { applog("warn", "[dot] 3D-Vorschau: " + e); _modellBilder.set(key, ""); }
+    }
+    return _modellBilder.get(key);
+  }
+  /** 08.11.2026 — Kacheln „Auto-Form“ (3D-Modell): neun Autos, Vorschau in den Fahrzeugfarben. */
+  function _autoKacheln(zeile) {
+    const box = zeile && zeile.querySelector("[data-auto-wahl]");
+    if (!box || !window.rzModelle) return;
+    const sf = _symFarben(currentLineColor()) || { dunkel: currentLineColor(), akzent: "#ffffff" }, akt = dotModellAuto();
+    box.innerHTML = Object.keys(AUTO_FORMEN).map(v => {
+      let url = "";
+      try { url = window.rzModelle.vorschau(v, 96, { farbe: sf.dunkel, farbe2: sf.akzent }).toDataURL("image/png"); } catch (e) { applog("warn", "[dot] Auto-Vorschau: " + e); }
+      const name = t("animator.dot.auto_" + v, AUTO_FORMEN[v]);
+      return `<button type="button" class="dot-kachel${v === akt ? " ist-an" : ""}" data-auto="${v}" title="${_animEscapeHtml(name)}"><span class="dot-kachel-bild">${url ? `<img src="${url}" alt="">` : _animEscapeHtml(name)}</span></button>`;
+    }).join("");
+    box.querySelectorAll("[data-auto]").forEach(b => b.onclick = () => {
+      const h = document.getElementById("anim-dot-modell-auto"); if (!h) return;
+      h.value = b.dataset.auto; dotGeaendert(true);
+    });
+  }
   function _dotWahlZeichnen() {
     _dotKacheln(document.getElementById("anim-dot-wahl"), document.getElementById("anim-dot-fzs-wahl"), dotStil(),
-      (f) => { const sel = document.getElementById("anim-dot-style"); _dotStilVorBild = sel.value; sel.value = f; sel.dispatchEvent(new Event("change")); });
+      (f) => { const sel = document.getElementById("anim-dot-style"); _dotStilVorBild = sel.value; sel.value = f; sel.dispatchEvent(new Event("change")); }, true);
     const v = document.getElementById("anim-dot-fzs-v"); if (v) v.textContent = t("animator.dot.fzs_" + dotFzStil(), FZ_STIL_NAMEN[dotFzStil()]);
   }
   function dotGeaendert(speichern) {
     try { _dotWahlZeichnen(); } catch (e) { applog("warn", "[dot] Auswahl: " + e); }
+    // 08.11.2026 — Zeile „Bewegungstempo“ nur beim Fahrzeug-Aussehen „3D-Modell“
+    document.querySelectorAll(".anim-stil-panel [data-nur-3d]").forEach(z => { z.hidden = !dotZeigen() || dotFzStil() !== "3d"; });
+    document.querySelectorAll(".anim-stil-panel [data-nur-auto3d]").forEach(z => { z.hidden = !dotZeigen() || dotFzStil() !== "3d" || dotStil() !== "auto"; _autoKacheln(z); });
     dotAnzeigen();
     dotEbenenAufbauen();
     // 02.09.2026: Größe und Form gelten auch für die Punkte der übrigen
@@ -20448,7 +20711,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!speichern) return;
     try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.laufpunkt_geaendert", "Laufpunkt geändert")); } catch (_) {}   // 10.09.2026
     const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(), marker_dot_fz_stil: dotFzStil(),
-                    marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(),
+                    marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(), marker_dot_modell_tempo: dotModellTempo(), marker_dot_modell_auto: dotModellAuto(),
                     marker_dot_rueckblick_m: dotRueckblick(),
                     marker_dot_bild: dotBild(), marker_dot_bild_form: dotBildForm(), marker_dot_bild_drehen: dotBildDrehen(),
                     marker_dot_sym_farbe: dotSymFarbe(), marker_dot_sym_dunkel: dotSymDunkel(), marker_dot_sym_akzent: dotSymAkzent(),
@@ -20458,6 +20721,8 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   document.getElementById("anim-dot-smooth")?.addEventListener("input", () => dotGeaendert(true));
+  document.getElementById("anim-dot-modell-tempo")?.addEventListener("input", () => { try { dotSetzen(_dotFracZuletzt); _flugPunktNeu(); } catch (e) { applog("warn", "[dot] Tempo: " + e); } });
+  document.getElementById("anim-dot-modell-tempo")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-rb")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-rb-m")?.addEventListener("input", () => dotGeaendert(false));
   document.getElementById("anim-dot-rb-m")?.addEventListener("change", () => dotGeaendert(true));
@@ -20584,6 +20849,8 @@ function mountAnimator(body, headerActions, opts) {
       if (stil) stil.value = a.marker_dot_style || "dot";
       const fzs = document.getElementById("anim-dot-fz-stil");
       if (fzs) fzs.value = FZ_STILE.includes(a.marker_dot_fz_stil) ? a.marker_dot_fz_stil : "plakette";
+      const mta = document.getElementById("anim-dot-modell-auto"); if (mta) mta.value = AUTO_FORMEN[a.marker_dot_modell_auto] ? a.marker_dot_modell_auto : "auto";
+      const mte = document.getElementById("anim-dot-modell-tempo"); if (mte) mte.value = (a.marker_dot_modell_tempo != null && isFinite(+a.marker_dot_modell_tempo)) ? +a.marker_dot_modell_tempo : 1;   // 08.11.2026
       const lpb = document.getElementById("anim-dot-bild"); if (lpb) lpb.value = a.marker_dot_bild || "";
       const lpf = document.getElementById("anim-dot-bild-form"); if (lpf) lpf.value = LP_FORMEN.includes(a.marker_dot_bild_form) ? a.marker_dot_bild_form : "plakette";
       const lpd = document.getElementById("anim-dot-bild-drehen"); if (lpd) lpd.checked = !!a.marker_dot_bild_drehen;
@@ -25825,7 +26092,7 @@ function mountAnimator(body, headerActions, opts) {
         <label class="checkbox-row"><input type="checkbox" data-lp-drehen${dotBildDrehen() ? " checked" : ""}> ${t("animator.dot.bild_drehen", "Dreht sich mit der Fahrtrichtung")}</label></div>` : ""}
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.fz_stil", "Fahrzeug-Aussehen")} <span class="muted">(${t("animator.dot.fz_stil_alle", "alle Fahrzeuge")})</span></label>
         <div class="dot-wahl dot-fzs-wahl" data-fzs-wahl></div></div>
-      <div class="anim-stil-zeile" data-nur-dot data-sym-zeile ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.sym_farbe", "Farbe der Symbole")} <span class="muted">(${t("animator.dot.sym_alle", "alle Symbole")})</span></label>
+      <div class="anim-stil-zeile" data-nur-dot data-sym-zeile ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.sym_farbe", "Farben der Fahrzeuge")} <span class="muted">(${t("animator.dot.sym_alle", "Symbole und 3D-Modelle")})</span></label>
         <div class="dot-bild-formen" role="group">
           <button type="button" class="btn btn-sm dot-bild-form" data-symfarbe="linie" title="${_animEscapeHtml(t("animator.dot.sym_linie_tip", "In der Linienfarbe der Tour, mit passendem Akzent"))}">${t("animator.dot.sym_linie", "Linienfarbe")}</button>
           <button type="button" class="btn btn-sm dot-bild-form" data-symfarbe="fest" title="${_animEscapeHtml(t("animator.dot.sym_fest_tip", "Zwei feste Farben für alle Symbole"))}">${t("animator.dot.sym_fest", "Feste Farben")}</button></div>
@@ -25833,6 +26100,10 @@ function mountAnimator(body, headerActions, opts) {
           <label>${t("animator.dot.sym_koerper", "Körper")} <input type="color" data-sym="dunkel"></label>
           <label>${t("animator.dot.sym_akzent", "Akzent")} <input type="color" data-sym="akzent"></label>
           <button type="button" class="btn btn-sm" data-sym-zurueck title="${_animEscapeHtml(t("animator.dot.sym_zurueck_tip", "Schiefer und Mint"))}">${t("animator.dot.sym_zurueck", "Vorgabe")}</button></div></div>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile" data-nur-auto3d ${st.dot_show && !ganz && dotFzStil() === "3d" && dotStil() === "auto" ? "" : "hidden"}><label>${t("animator.dot.auto_form", "Auto-Form")}</label>
+        <div class="dot-wahl" data-auto-wahl></div></div>` : ""}
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile" data-nur-3d ${st.dot_show && !ganz && dotFzStil() === "3d" ? "" : "hidden"} title="${_animEscapeHtml(t("animator.dot.modell_tempo_tip", "Wie schnell sich Beine, Pedale, Räder und Rotor der 3D-Modelle bewegen — 1× ist der Grundtakt. Steht der Laufpunkt, steht auch die Bewegung (außer Rotor und Brenner)."))}"><label>${t("animator.dot.modell_tempo", "Bewegungstempo (3D-Modelle)")} <b data-gv="anim-dot-modell-tempo">${dotModellTempo()}</b>×</label>
+        <input type="range" data-global="anim-dot-modell-tempo" min="0.25" max="3" step="0.25" value="${dotModellTempo()}"></div>` : ""}
       <div class="anim-stil-zeile" data-nur-dot ${st.dot_show && !ganz ? "" : "hidden"}><label>${t("animator.dot.size", "Größe")} <b data-v="dot_size">${st.dot_size}</b>×</label>
         <input type="range" data-stil="dot_size" min="0.5" max="3" step="0.1" value="${st.dot_size}"></div>
       ${ziel === "haupt" ? `<div class="anim-stil-zeile dot-verdeckt-zeile" data-nur-dot data-verdeckt-zeile ${st.dot_show && !ganz ? "" : "hidden"}>
@@ -25847,8 +26118,10 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-global="anim-dot-smooth" min="0" max="10" step="1" value="${dotGlaettung()}"></div>`;
     {   // 07.10.2026 — Laufpunkt-Kacheln: Klick setzt die (versteckte) Liste, deren Änderung wie bisher verarbeitet wird
       const sel = el.querySelector('[data-stil="dot_style"]'), fb = el.querySelector("[data-dot-wahl]"), zb = el.querySelector("[data-fzs-wahl]");
-      const fuellen = () => { _dotKacheln(fb, zb, ziel === "haupt" ? dotStil() : sel.value, (f) => { sel.value = f; sel.dispatchEvent(new Event("change")); fuellen(); });
+      const fuellen = () => { _dotKacheln(fb, zb, ziel === "haupt" ? dotStil() : sel.value, (f) => { sel.value = f; sel.dispatchEvent(new Event("change")); fuellen(); }, ziel === "haupt");
                               _symZeileFuellen(el.querySelector("[data-sym-zeile]")); };
+      el.__dotFuellen = fuellen;   // 08.11.2026 — Röhre an/aus, Kopf-Wechsel: Kacheln nachziehen
+      el.querySelectorAll("[data-nur-auto3d]").forEach(z => _autoKacheln(z));
       // 13.10.2026 — Farbe der Symbole: gilt für alle Symbole (Felder im Laufpunkt-Block, gespeichert wie die übrigen)
       const sz = el.querySelector("[data-sym-zeile]");
       if (sz) {
@@ -25939,7 +26212,12 @@ function mountAnimator(body, headerActions, opts) {
     el.querySelectorAll("[data-global]").forEach(inp => inp.addEventListener("input", () => {
       const ziel = document.getElementById(inp.dataset.global); if (!ziel) return;
       ziel.value = inp.value; ziel.dispatchEvent(new Event("input", { bubbles: true }));
-      const b = el.querySelector('[data-v="dot_smooth"]'); if (b) b.textContent = inp.value;
+      if (inp.dataset.global === "anim-dot-smooth") { const b = el.querySelector('[data-v="dot_smooth"]'); if (b) b.textContent = inp.value; }
+      const gv = el.querySelector(`[data-gv="${inp.dataset.global}"]`); if (gv) gv.textContent = inp.value;
+    }));
+    // 08.11.2026 — Bewegungstempo: beim Loslassen speichern (wie die übrigen Laufpunkt-Werte)
+    el.querySelectorAll('[data-global="anim-dot-modell-tempo"]').forEach(inp => inp.addEventListener("change", () => {
+      const ziel = document.getElementById("anim-dot-modell-tempo"); if (ziel) ziel.dispatchEvent(new Event("change", { bubbles: true }));
     }));
     el.querySelectorAll("[data-stil]").forEach(inp => {
       const k = inp.dataset.stil;
@@ -25948,6 +26226,9 @@ function mountAnimator(body, headerActions, opts) {
         const show = el.querySelector('[data-stil="dot_show"]').checked, pfeil = el.querySelector('[data-stil="dot_style"]').value === "arrow";
         el.querySelectorAll("[data-nur-dot]").forEach(z => { z.hidden = !show || ganz; });
         el.querySelectorAll("[data-nur-pfeil]").forEach(z => { z.hidden = !(show && pfeil) || ganz; });
+        el.querySelectorAll("[data-nur-3d]").forEach(z => { z.hidden = !show || ganz || dotFzStil() !== "3d"; });
+        el.querySelectorAll("[data-nur-auto3d]").forEach(z => { z.hidden = !show || ganz || dotFzStil() !== "3d" || dotStil() !== "auto"; });
+        if (ziel === "haupt" && el.__dotFuellen) el.__dotFuellen();   // 08.11.2026 — Reiter 2D/3D: Fahrzeug-Aussehen nur bei 2D
       };
       const anwenden = () => {
         const wert = (k === "line_style" || k === "dot_style") ? inp.value : (k === "dot_show") ? inp.checked : parseFloat(inp.value);
@@ -26045,8 +26326,7 @@ function mountAnimator(body, headerActions, opts) {
     return `<div class="anim-stil-zeile" title="${_animEscapeHtml(t("animator.linie3d.tip", "Flach: die Linie liegt auf der Karte. Röhre: der Track schwebt als leuchtende 3D-Röhre knapp über dem Gelände (nur freie Karten)."))}"><label>${t("animator.linie3d", "Darstellung")}</label>
         <select data-r3="anim-linie-3d">${opt("anim-linie-3d", "flach", t("animator.linie3d.flach", "Flach"))}${opt("anim-linie-3d", "roehre", t("animator.linie3d.roehre", "3D-Röhre"))}</select></div>
       <div class="anim-stil-zeile muted" data-roehre-mapbox${_roehreMapbox() ? "" : " hidden"}>${_animEscapeHtml(t("animator.roehre.mapbox", "Die 3D-Röhre gibt es nur mit den freien Karten — mit Mapbox wird die Linie flach gezeichnet."))}</div>
-      <div class="anim-stil-zeile"${nurR} title="${_animEscapeHtml(t("animator.kopf3d.tip", "Was vorne an der Röhre läuft. Komet: eine glühende Kugel, aus der die Röhre herauskommt."))}"><label>${t("animator.kopf3d", "Kopf")}</label>
-        <select data-r3="anim-kopf-3d">${opt("anim-kopf-3d", "kometpfeil", t("animator.kopf3d.kometpfeil", "Komet-Pfeil"))}${opt("anim-kopf-3d", "komet", t("animator.kopf3d.komet", "Komet"))}${opt("anim-kopf-3d", "pfeil", t("animator.kopf3d.pfeil", "3D-Pfeil"))}${opt("anim-kopf-3d", "puk", t("animator.kopf3d.puk", "3D-Puk"))}${opt("anim-kopf-3d", "punkt", t("animator.kopf3d.punkt", "Wie der Laufpunkt"))}</select></div>
+      <!-- 08.11.2026 — „Kopf“ wählt man jetzt in der Laufpunkt-Form (erste Kacheln bei der Röhre) -->
       ${regler("anim-roehre-glanz", t("animator.roehre.glanz", "Glanz"), t("animator.roehre.glanz_tip", "Wie stark die Röhre im Licht glänzt."), nurR)}
       ${regler("anim-roehre-breite", t("animator.roehre.breite", "Röhren-Dicke"), t("animator.roehre.breite_tip", "Dicke der Röhre in Metern. Aus der Ferne bleibt sie mindestens so breit wie die Track-Dicke."), nurR)}
       ${regler("anim-roehre-abstand", t("animator.roehre.abstand", "Abstand zum Boden"), t("animator.roehre.abstand_tip", "Wie hoch die Röhre über dem Gelände schwebt."), nurR)}
@@ -26073,6 +26353,7 @@ function mountAnimator(body, headerActions, opts) {
           }
         }
         if (id === "anim-linie-3d") try { _roehreHinweisZeigen(); } catch (_) {}
+        if (id === "anim-linie-3d") _dotKachelnAlle();   // 08.11.2026 — Komet-Kacheln erscheinen/verschwinden
       };
       if (f.tagName === "SELECT") f.addEventListener("change", () => setz("change"));
       else { f.addEventListener("input", () => setz("input")); f.addEventListener("change", () => setz("change")); }

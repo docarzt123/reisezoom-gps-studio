@@ -435,13 +435,26 @@ und darunter ihre Bedienung:
   Lichtschein und ein großer, zarter Lichtfleck auf der Karte. Hält die Tour länger als knapp eine Sekunde an (Pause,
   Fotostopp, Ende), atmet der Punkt langsam (Takt 1,6 s); sobald es weiterfährt, hört das sofort auf. Der Schweif ist beim
   Leuchtpunkt im Bildmaß bemessen — gleich lang, egal wie weit gezoomt ist.
+  **Zwei Reiter, 2D und 3D (seit 08.11.2026):** über den Kacheln wählst du **2D** (Kugel, Leuchtpunkt, Pfeil, die Fahrzeuge
+  als Bild oder Symbol, eigenes Bild — darunter das Fahrzeug-Aussehen) oder **3D** (die 20 Fahrzeuge als 3D-Modell, mit der
+  3D-Röhre vorn auch Komet-Pfeil, Komet, 3D-Pfeil und 3D-Puk; Auto-Form und Bewegungstempo im Track-Editor). Ein Klick auf
+  den Reiter zeigt nur die Kacheln, gewählt wird mit einer Kachel.
   Die Form wählst du als Bildkachel; darunter steht **„Fahrzeug-Aussehen (alle Fahrzeuge)“** mit zwölf
-  Kacheln: Plakette (das gezeichnete Symbol), **Symbol** (seit v0.9.792, siehe unten) oder fotorealistisch, Bleistift & Aquarell, Comic,
+  Kacheln (nur im Reiter 2D): Plakette (das gezeichnete Symbol), **Symbol** (seit v0.9.792, siehe unten) oder fotorealistisch, Bleistift & Aquarell, Comic,
   Piktogramm, Kupferstich, Neon, Pixel-Art, Blaupause, Papier, Knete. Diese Bilder sind von oben
   gezeichnet, liegen flach auf der Karte und drehen sich mit der Fahrtrichtung — auch auf geplanten
   Etappen. **Symbole je Bewegungsart (seit v0.9.792):** 20 schlichte Symbole von oben — Auto, Motorrad, Wohnmobil, Bus,
   Fahrrad, Mountainbike, Wanderer, Läufer, Reiter, Ski, Zug, Boot, Segelboot, Fähre, Kajak, SUP, Flugzeug, Hubschrauber,
-  Gleitschirm, Heißluftballon. Sie liegen flach auf der Karte und drehen sich mit dem Weg. Darunter wählst du die
+  Gleitschirm, Heißluftballon. Sie liegen flach auf der Karte und drehen sich mit dem Weg. **3D-Modell (neu, Reiter 3D):** dieselben
+  20 Arten als echte 3D-Fahrzeuge, die auf der Karte stehen, mit der Kamera mitdrehen und sich am Hang neigen; Wanderer,
+  Läufer, Radfahrer, Reiter, Paddler und Räder bewegen sich mit der gefahrenen Strecke; steht der Punkt (Fotostopp, Ende),
+  gehen die Figuren in eine Ruhepose — der Wanderer steht gerade, die Pedale stehen waagrecht, das Paddel ruht. Rotor des
+  Hubschraubers und Brennerflamme des Ballons laufen auch im Stand weiter. **Bewegungstempo (3D-Modelle)** im Track-Editor
+  (0,25–3×) stellt den Grundtakt ein. Zwei eigene Farben gibt es unter **„Farben der Fahrzeuge“ → Feste Farben** (Körper und
+  Akzent), die Größe über **Größe**. Beim Auto wählst du unter **„Auto-Form“** eins von neun: Kombi, Kleinwagen, Limousine,
+  SUV, Sportwagen, Cabrio (mit Fahrer), Pick-up, Kleinbus, Geländewagen. Gefärbt
+  werden sie wie die Symbole (Linienfarbe oder feste Farben). Auch in der Luft und auf der 3D-Röhre (Kopf „Wie der
+  Laufpunkt“). Braucht die freien Karten — mit Mapbox und bei weiteren Touren steht das Symbol. Darunter wählst du die
   **Farbe der Symbole** (gilt für alle): **Linienfarbe** färbt das Symbol in der Farbe der Tour mit passendem Akzent,
   **Feste Farben** nimmt zwei Farben deiner Wahl (Körper und Akzent, „Vorgabe“ = Schiefer und Mint). Die neuen Arten ab
   Wohnmobil gibt es nur als Symbol — wählst du ein anderes Aussehen, zeigen sie trotzdem ihr Symbol.
@@ -2664,7 +2677,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **3D-Röhre, Komet und Nachglühen (neu, 06.11.2026)** — im Aussehen-Panel des Tracks (✎ an der Tour) wählst du unter
   **Darstellung** zwischen *Flach* (die Linie liegt auf der Karte) und *3D-Röhre*: Der Track schwebt als glänzende Röhre
   knapp über dem Gelände. Vorne läuft als **Kopf** ein glühender **Komet** — eine weiße Kugel, aus der die Röhre
-  herauskommt; der *Komet-Pfeil* (Standard) glüht genauso, die Röhre kommt aus seiner Kerbe, der Schein sitzt dahinter wie ein Triebwerk. Direkt am Kopf hat die Röhre dessen Farbe und geht dann in die Glut über; wahlweise auch *3D-Pfeil*, *3D-Puk* oder *Wie der Laufpunkt*. **Glanz**, **Röhren-Dicke** (in Metern; aus der
+  herauskommt; der *Komet-Pfeil* (Standard) glüht genauso, die Röhre kommt aus seiner Kerbe, der Schein sitzt dahinter wie ein Triebwerk. Direkt am Kopf hat die Röhre dessen Farbe und geht dann in die Glut über; wahlweise auch *3D-Pfeil* oder *3D-Puk*. **Was vorne fährt, wählst du an einer Stelle — bei der Laufpunkt-Form:** Ist die Röhre an, stehen dort vorn die Kacheln Komet-Pfeil, Komet, 3D-Pfeil und 3D-Puk; wählst du stattdessen Kugel, Pfeil, ein Fahrzeug oder dein Bild, fährt genau das auf der Röhre (im Video-Assistenten genauso im Reiter Linie unter „Laufpunkt“). Zurück auf flach gilt wieder deine Laufpunkt-Wahl. **Glanz**, **Röhren-Dicke** (in Metern; aus der
   Ferne bleibt die Röhre mindestens so breit wie die Track-Dicke) und **Abstand zum Boden** sind einstellbar.
   **Nachglühen** (0–5 s): die frisch gelaufene Strecke glüht hinter dem Kopf nach und kühlt in der eingestellten Zeit zur
   Linienfarbe ab — gemessen in Videozeit, deshalb sieht es in der Vorschau, nach einem Sprung und im Video gleich aus, egal
@@ -3311,6 +3324,11 @@ Ein eigener, bewusst **schlanker** Tab für **interaktive Karten fürs Web/Blog*
 
 ### Mehrere Tracks (seit v0.9.432) ⭐
 Du kannst mehrere GPX-Tracks in **einer** Karte zeigen — z. B. mehrere Etappen einer Tour oder Hin- und Rückweg. Der **erste Track kommt aus dem geladenen GPX** (globale GPX-Leiste). Weitere fügst du in der Sidebar-Sektion **„Weitere Tracks"** über **„＋ Track hinzufügen"** hinzu und wählst je Datei eine GPX. Pro Track stellst du **Name, Farbe, Breite** und **Start/Ziel-Pins** ein; mit 🗑 entfernst du ihn wieder. Die Karte passt sich automatisch auf **alle** Tracks zusammen ein, und die Vorschau ist wie immer **exakt** der Export.
+
+### Tracks anklickbar — Link zu deiner Seite (neu)
+Unter **„Links zu deinen Seiten"** gibst du dem geladenen Track einen **Namen** und einen **Link** (z. B. `https://meine-seite.de/mosel-tag-1.html`); jeder weitere Track hat in seiner Zeile ebenfalls ein Link-Feld. In der exportierten Karte zeigt das **Überfahren** eines Tracks mit Link seinen Namen und hebt ihn hervor, ein **Klick öffnet die Seite** — wahlweise **im selben Fenster** (Standard: die Seite, in die du die Karte eingebettet hast, wechselt zur Tourseite) oder **in einem neuen Tab**. Erlaubt sind normale Webadressen, `mailto:` und relative Adressen wie `tour.html`. Tracks ohne Link bleiben wie bisher.
+
+**Viele Touren auf einmal hinzufügen:** Im Auswahlfenster „Touren aus dem Archiv hinzufügen" hakt **„Alle"** jede Tour der Liste an (nach Suche, Sammlung, Jahr, Art und Länge gefiltert), **„Keine"** nimmt alle Häkchen weg. **Bereich:** erste Tour anklicken, mit **Shift** die letzte. **Strg+A** (Mac: **⌘A**) wählt alle — im Suchfeld nur, solange es leer ist. Die Liste zeigt bis zu 5000 Treffer. Das gilt überall, wo Touren aus dem Archiv gewählt werden (Web-Karte, Animator, Projekte).
 
 ### DSGVO-Button (optional)
 Mit der Checkbox **„DSGVO-Zustimmungs-Button"** bekommt die Karte einen vorgeschalteten Zustimmungs-Layer — die externen Kartenkacheln (und damit die IP-Übertragung an OpenStreetMap) werden **erst nach Klick** geladen. Zustimmungs-Text und Button-Beschriftung sind frei editierbar und sinnvoll vorbefüllt. Hinter dem Text liegt ein **geblurrtes Vorschaubild deiner Karte**, das **fest in die HTML eingebettet** ist (kein Nachladen von außen) — so wirkt das Gate nicht leer und ist trotzdem DSGVO-konform. *(Der Export mit aktivem Consent dauert ein paar Sekunden länger, weil die Karte dafür einmal gerendert wird.)*
@@ -4113,6 +4131,15 @@ Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem L
 
 **Häufige Fragen aus euren Mails (seit 26.10.2026):** die Fragen, die mir am häufigsten geschrieben werden — jeweils mit
 der kurzen Antwort zuerst. Danach folgen die technischen Fragen.
+
+### Wie markiere ich viele oder alle Touren auf einmal (z. B. für die Web-Karte)?
+Im Fenster „Touren aus dem Archiv hinzufügen" mit **„Alle"** — das hakt jede Tour der Liste an, so wie du sie gerade gefiltert hast
+(Suche, Sammlung, Jahr, Art, Länge). **„Keine"** nimmt alle Häkchen wieder weg. Einen **Bereich** markierst du, indem du die
+erste Tour anklickst und die letzte mit **Shift**. **Strg+A** (Mac: **⌘A**) wählt ebenfalls alle aus.
+
+### Kann ein Klick auf einen Track in der Web-Karte meine eigene Seite öffnen?
+Ja. In der Web-Karte gibst du jedem Track unter **„Links zu deinen Seiten"** bzw. in seiner Zeile einen Link. In der
+exportierten Karte zeigt das Überfahren den Namen, ein Klick öffnet die Seite — im selben Fenster oder in einem neuen Tab.
 
 ### Ich habe keine GPX-Datei, nur Fotos – geht das trotzdem?
 Ja, aus Fotos mit GPS-Position macht GPS Studio eine Tour, und mit der geht dann alles andere. Gedacht ist GPS Studio für

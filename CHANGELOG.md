@@ -15,6 +15,24 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- **Web map: clickable tracks with a link to your own page**: every track of the web map gets a link field (the loaded
+  track a name and a link too). In the exported map, hovering a track shows its name and highlights it, a click opens the
+  page — in the same window (the page the map is embedded in) or in a new tab. Only web, mailto and relative addresses.
+- **Picking many tours at once** in the “Add tours from the archive” window (web map, animator, projects): “All” and “None”
+  for the filtered list, shift-click for a range, Ctrl+A / ⌘A; the list shows up to 5000 tours instead of 300.
+- **Moving dot as a 3D model**: the new vehicle look “3D model” turns the moving dot into a real 3D vehicle for all 20
+  ways of travelling (car, motorbike, camper van, bus, bikes, hiker, runner, rider, ski, train, boats, kayak, SUP, plane,
+  helicopter, paraglider, hot-air balloon). It stands on the map, turns with the direction of travel and tilts on slopes;
+  legs, pedals, paddles and wheels move with the distance covered (no walking on the spot during a pause in the recording),
+  and when the dot stops (photo stop, end, intro) the figure glides into a resting pose — standing upright, pedals level,
+  paddle still, the horse standing — and back into its stride just before it moves on. The helicopter's rotor and the
+  balloon's burner flame keep going while the dot stands. “Motion speed (3D models)” (0.25–3×) in the track editor sets
+  the pace; the colour setting is now called “Vehicle colours” (symbols and 3D models: line colour or two fixed colours).
+  “Car shape” picks one of nine 3D cars: estate, small car, saloon, SUV, sports car, convertible, pick-up, minibus, off-roader.
+  The moving dot's shapes are split into two tabs, 2D (ball, arrow, vehicle pictures and symbols, own picture, vehicle look)
+  and 3D (3D models; with the tube also comet arrow, comet, 3D arrow, 3D puck). The same in the preview, after
+  jumping and in the video. Coloured like the symbols (line colour or fixed colours). Also in the air and on the 3D tube with the
+  head “Like the moving dot”. Needs the free maps; with Mapbox and for further tours the symbol is shown.
 - **Track as a 3D tube with a comet head and afterglow**: under the track's appearance (pencil next to the tour),
   “Display” switches between the flat line and a 3D tube that floats just above the terrain. At the front runs a glowing
   comet ball the tube comes out of; the comet arrow is a glowing arrow with the tube coming out of its notch and the glow behind it like an engine (3D arrow and 3D puck are also available). Right at the head the tube has the head's own colour and then turns into the glow colour. The freshly covered stretch glows behind
@@ -23,7 +41,9 @@ Bei jeder neuen Version:
   in video time, so it looks the same in the preview, after jumping and in the video, at 25, 30 or 60 fps, and stops
   keep cooling down. Gloss, tube thickness and height above ground are adjustable. The video assistant (tab Line) has
   the same choices. New projects start with the tube, the comet arrow and 1.5 s afterglow; existing projects stay flat.
-  The tube needs the free maps — with Mapbox the line is drawn flat and a note explains why.
+  The tube needs the free maps — with Mapbox the line is drawn flat and a note explains why. What runs at the front is
+  chosen in one place, the moving dot's shape: with the tube on, Comet arrow, Comet, 3D arrow and 3D puck are the first
+  tiles there; any other shape (ball, arrow, vehicle, own picture) runs on the tube itself — also in the video assistant.
 
 ### Changed
 - **“Afterglow (s)” replaces the old trail (% of the route)** for the flat line as well: the glowing stretch now follows
@@ -34,6 +54,8 @@ Bei jeder neuen Version:
   “Switch sides at the edge” (now off by default; existing signs slide out too).
 
 ### Fixed
+- **Web map export without a saved view**: with the north arrow switched on, the exported map stayed empty when no map
+  section had been passed; it now fits all tracks.
 - **Camera rotation with Mapbox maps now changes smoothly every frame**: between the camera's support points (15 per
   second) the Mapbox camera orientation was joined in straight pieces, so at 30 fps its turning speed changed only every
   second frame — the same pairwise stutter that was fixed for the camera position in October. The orientation now follows

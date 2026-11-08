@@ -4713,6 +4713,43 @@ Vertex-Shader gibt `v_kopfRel` (Lage zum Kopf in Schnitt-Radien) weiter, der Fra
 Bodenhöhen neu gerechnet hat; der Animator setzt dann den 3D-Kopf neu (`_flugPunktNeu`), dessen Höhe aus denselben
 `_boden`-Werten kommt — sonst schwebte er in der Vorschau bis zum nächsten Bewegen neben der Röhre (gemessen ~10 m nach
 Zoom 13,6 → 17). Prüfstand `layer._aglMin`.
+**Web-Karte: Track-Links (08.11.2026):** je Track `link` (Projektfeld `webkarte.tracks[].link`, Haupt-Track `main_link`/
+`main_name`, Ziel `link_ziel` `_top`|`_blank`); mit Link/Name geht immer die Track-Liste in den Export. `core/tourmap_leaflet.py`
+`sicherer_link()` lässt nur http(s), mailto und relative Adressen durch; im Template `rzLinkTrack`: unsichtbare breite
+Klickfläche (`.rz-link`, weight ≥ 16) über der Linie, Tooltip mit Namen, Klick über ein `<a target>` (aus dem iframe heraus
+nach `_top`). Fix: `fitBounds` hing am Nordpfeil-`else`. Test `test_webkarte_track_link.py`.
+**Tour-Auswahl mehrfach (08.11.2026):** `rzArchivTourenWaehlen` (ui/js/util.js) — Alle/Keine (`alleSetzen`), Shift-Klick
+(`_letzterKlick`, Klick an der Zeile, preventDefault), Strg/⌘+A am Dokument solange offen (`_tasteA`, im Textfeld nur leer),
+Limit 5000 (einzel: 300). Test `test_touren_mehrfachauswahl.py`.
+**Laufpunkt als 3D-Modell (08.11.2026):** Fahrzeug-Aussehen `3d` (`FZ_STILE`, Projektfeld `marker_dot_fz_stil`). Modelle in
+`ui/js/rz-modelle.js` (aus dem Prototyp der Web-Fassung, dort gleiche Datei — beide pflegen): 20 Arten aus Grundkörpern in
+Metern, normiert auf Länge 1, Rollen je Dreieck (`farbe`, `farbe2`, `glas` …), `mesh(art, phase)` (48 Bewegungsstufen je
+Zyklus, `ZYKLUS` in Sekunden), `vorschau(art, px, p)` malt die Kacheln (Maler-Verfahren). Gezeichnet von `rz-figur3d`
+mit Form `modell` (`_modellGeometrie`: Modell x/y/z → three −x/z/y, vorn = +z wie der Pfeil; Geometrie je Stufe in einer
+WeakMap, Farben sRGB → linear bei Farbwechsel; `obenauf` schaltet den Tiefentest ab). Eigene Ebene `anim-dot-3d`
+(`_modell3dSetzen`), am Boden aus `_bodenPunktSetzen`, in der Luft/auf der Röhre aus `_flugPunkt` (`_dotLuft.modell`);
+`_bodenPunktHeben` hebt sie mit. three.js lädt beim ersten Modell nach und zählt solange in `_fzLaedt` (Video wartet über
+`__rzAnimBereit().fzBilder`). Bewegung `_modellBewegung(art, frac)` → `{ phase, ruhe }`: Phase an der STRECKE (Weg bis frac / mittleres Videotempo
+`vRef` = Weg zwischen Fahrtbeginn und -ende / Animationsdauer, / ZYKLUS) — stehende Punkte der Aufzeichnung bringen keinen
+Weg, keine Bewegung. `ruhe` aus der Zeitachse (`_fracBeiZeit(t)` = trackFracAusAnkerHaupt(_sgAnkerAusZeit(t))): wie lange der
+Punkt an `__rzVideoSek` schon steht und noch steht (Schritte 0,1 s, max. 0,8 s, Toleranz max(5 cm, 0,3 × m/px)),
+`min(smooth(zurück), smooth(voraus))` — deterministisch beim Springen, geht vor dem Losfahren wieder in den Schritt.
+Hubschrauber und Ballon (`_MODELL_UHR`): Phase an der Videozeit, keine Ruhe — Rotor/Flamme laufen im Stand weiter.
+rz-modelle: `mesh(art, phase, ruhe)` (8 Ruhestufen im Cache), Modelle mischen ihre Pose zur Ruhe (`bein`, `mix`); Prüfstand
+`__rzModellBewegung`; Neigung aus dem Gelände über ±max(15 m, halbe Modelllänge). Wo nur ein Bild geht (weitere
+Touren, Etappen-Editor, Mapbox) gilt `3d` wie `symbol` (`_fzAlsSymbol`). Test: `test_laufpunkt_modell3d.py`.
+**Reiter 2D/3D (08.11.2026):** `_dotKacheln` zeigt bei der Haupt-Tour (`mitKopf`) die Reiter `data-reiter` 2d/3d; der Reiter
+folgt der Wahl (`_dotIst3d`: Kopf ≠ punkt oder Aussehen `3d` + Fahrzeug), `_dotReiter` merkt einen Reiterklick bis zur
+nächsten Kachel. 3D-Kacheln `m:<fahrzeug>` (setzen Aussehen `3d` + Form) und `k:<kopf>`; 2D-Fahrzeug bei Aussehen `3d` → zurück
+auf `_fz2dZuletzt`. „Fahrzeug-Aussehen“ zeigt nur `_FZ_STILE_2D` und verschwindet im Reiter 3D.
+**Kopf in der Laufpunkt-Form (08.11.2026):** kein eigenes Feld „Kopf“ mehr; `_dotKacheln(…, mitKopf)` stellt bei der Röhre
+`k:kometpfeil|komet|pfeil|puk` vor die Formen (setzen `anim-kopf-3d`), jede andere Form setzt `punkt`; `_dotKachelnAlle()`
+zieht Seitenleiste und offene Panels nach (Röhre an/aus, `_roehreGeaendert`). Assistent: dieselben Köpfe vorn in `va-lp`
+(`k:`-Knöpfe, nur bei Röhre sichtbar); die alte Kopf-Wahl hatte dieselbe id wie die Reiterleiste (`#va-kopf`) und war tot.
+3D-Modelle: `dotModellTempo()` (`anim-dot-modell-tempo`, `marker_dot_modell_tempo`, Zeile `data-nur-3d` im Track-Editor)
+teilt ZYKLUS in `_modellBewegung`. Auto-Form: `dotModellAuto()` (`anim-dot-modell-auto`, `marker_dot_modell_auto`, neun
+`AUTO_FORMEN` = rz-modelle `VARIANTEN.auto`), `_modellArt(art)` setzt sie beim Auto ein; Kacheln `_autoKacheln` (Zeile
+`data-nur-auto3d`, nur 3D + Form Auto).
 **Röhre ist kein Flug:** `_flug.an` heißt nur „Flug-Ebene steht“. Alles, was den echten Flug meint (feste Blickrichtung `_flugKameraRuhig`, kein Kamera-Ausweichen, Bildmitte in Flughöhe `_flugKameraPlus`/`__rzFlugMitte`, Boden = GPX − Höhe über Grund, Hochflug, Wartesprüche „Flug“, IGC-Automatik, Zeile „Strecke“) fragt `_luftFlug()` (Schalter) bzw. `_flugLuftAn()` (Schalter + Ebene an). Sonst bekam jede Röhre eine starre Blickrichtung (test_schnellvideo_fotostopps).
 
 **Farben je Segment (15.10.2026):** `segColors: [[rgbaAnfang, rgbaEnde]…]` je Segment (0..1, Vorrang vor `colors` je Punkt) — jedes Segment hat eigene vier Eckpunkte, ein harter Farbwechsel an einem Punkt braucht so keine Zusatzpunkte (die Bereiche `setRanges` hängen an den Punktindizes). Die Fluglinie im Animator (`_flugSegFarben`) wertet dafür den line-gradient-Ausdruck der Bodenlinie aus (`_verlaufAusdruck`/`_maskeAusdruck`, dieselben Bausteine wie `applyPreviewColorGradient`) — je Segment am Anfang (`_ausdruckBei(expr, p, false)`) und Ende (von links), `p` aus der Bodenstrecke `_cumGeoM` wie MapLibres `line-progress`. `applyPreviewColorGradient` ruft `_flugFarbenPruefen`: ändert sich `_flugFarbSchluessel` (Quelle, Modus, Stops, Farben, Etappen, Farbe je Tag), wird die Fluglinie neu aufgebaut. Test: `tests/test_flug_farbwechsel.py`.

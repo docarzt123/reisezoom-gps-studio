@@ -444,12 +444,24 @@ list) that opens the editor of **this** track: colour, width,
 line style (solid, dashed, dotted, dash-dot, tube) with spacing, shadow, glow, the point
 reduction in percent and the **running dot** (show, ball, arrow in travel direction or a
 vehicle, size; "arrow smoothing" applies to all arrows). You pick the shape as a picture tile; below it,
-**"Vehicle look (all vehicles)"** offers twelve tiles: badge (the drawn symbol), **symbol** (since v0.9.792, see below) or photorealistic, pencil &
+**Two tabs, 2D and 3D (since 2026-11-08):** above the tiles you choose **2D** (ball, glowing dot, arrow, the vehicles as picture
+or symbol, your own picture — with the vehicle look below) or **3D** (the 20 vehicles as 3D models; with the 3D tube also comet
+arrow, comet, 3D arrow and 3D puck first; car shape and motion speed in the track editor). Clicking a tab only shows its tiles;
+a tile makes the choice.
+**"Vehicle look (all vehicles)"** offers twelve tiles (2D tab only): badge (the drawn symbol), **symbol** (since v0.9.792, see below) or photorealistic, pencil &
 watercolour, comic, pictogram, engraving, neon, pixel art, blueprint, paper, clay. These pictures are drawn
 from above, lie flat on the map and turn with the direction of travel — on planned stages too. **Symbols for every way of
 travelling (since v0.9.792):** 20 simple top-down symbols — car, motorbike, camper van, bus, bike, mountain bike, hiker,
 runner, horse rider, ski, train, boat, sailboat, ferry, kayak, SUP, plane, helicopter, paraglider, hot-air balloon. They
-lie flat on the map and turn with the route. Below you choose the **symbol colours** (for all of them): **Line colour**
+lie flat on the map and turn with the route. **3D model (new, 3D tab):** the same 20 kinds as real 3D vehicles that stand on the
+map, turn with the camera and tilt on slopes; hikers, runners, cyclists, riders, paddlers and wheels move with the ride
+(along the distance covered; when the dot stops — photo stop, end — the figures settle into a resting pose: the hiker
+stands upright, pedals level, paddle still; the helicopter rotor and the balloon's burner keep going). **Motion speed (3D models)** in the track editor (0.25–3×) sets
+the base pace. Two colours of your own come from **"Vehicle colours" → Fixed colours** (body and accent), the size from
+**Size**. For the car, **"Car shape"** offers nine: estate, small car, saloon, SUV, sports car, convertible (with driver),
+pick-up, minibus, off-roader. They are coloured like the symbols (line colour or fixed colours). Also in
+the air and on the 3D tube (head “Like the moving dot”). Needs the free maps — with Mapbox and for further tours the
+symbol is shown. Below you choose the **symbol colours** (for all of them): **Line colour**
 uses the tour's colour with a matching accent, **Fixed colours** two colours of your choice (body and accent, “Default”
 = slate and mint). The new ones from camper van on exist only as symbols — with another look they still show their
 symbol. **Own picture (since
@@ -2472,8 +2484,11 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Line look and trail (new)** — in the track's appearance panel (✎ next to the tour): **Line look** *Classic*, *Ember* or *Neon*. Ember and Neon make the line glow by itself — a soft halo outside, a bright, almost white core inside; a matching colour is preselected when you switch (change it freely afterwards), and the dark outline is dropped. Looks best on aerial imagery and at dusk. **Trail** (0–15 % of the route): the last stretch behind the head shines brighter and fades out towards the back — the same in the preview, the test run and the video.
 - **3D tube, comet and afterglow (new, 06.11.2026)** — in the track's appearance panel (✎ next to the tour), **Display**
   switches between *Flat* (the line lies on the map) and *3D tube*: the track floats as a glossy tube just above the
-  terrain. At the front, the **Head** is a glowing **comet** — a white ball the tube comes out of; the *Comet arrow* (default) glows the same way, with the tube coming out of its notch and the glow behind it like an engine. Right at the head the tube has the head's colour and then turns into the glow; alternatively *3D arrow*,
-  *3D puck* or *Like the moving dot*. **Gloss**, **Tube thickness** (in metres; from far away the tube stays at least as
+  terrain. At the front, the **Head** is a glowing **comet** — a white ball the tube comes out of; the *Comet arrow* (default) glows the same way, with the tube coming out of its notch and the glow behind it like an engine. Right at the head the tube has the head's colour and then turns into the glow; alternatively *3D arrow*
+  or *3D puck*. **What runs at the front is chosen in one place — the moving dot's shape:** with the tube on, the tiles
+  Comet arrow, Comet, 3D arrow and 3D puck come first there; pick ball, arrow, a vehicle or your picture instead and exactly
+  that runs on the tube (the video assistant does the same in the Line tab under "Moving dot"). Back to flat, your moving
+  dot choice applies again. **Gloss**, **Tube thickness** (in metres; from far away the tube stays at least as
   wide as the track width) and **Height above ground** are adjustable. **Afterglow** (0–5 s): the freshly covered stretch
   glows behind the head and cools down to the line colour in the set time — measured in video time, so it looks the same
   in the preview, after a jump and in the video, at 25, 30 or 60 frames per second, and it keeps cooling during a stop.
@@ -3102,6 +3117,11 @@ A dedicated, deliberately **lean** tab for **interactive maps for the web/blog**
 
 ### Multiple tracks (since v0.9.432) ⭐
 You can show several GPX tracks on **one** map — e.g. multiple stages of a tour or the outbound and return legs. The **first track comes from the loaded GPX** (global GPX bar). Add more in the sidebar section **"More tracks"** via **"＋ Add track"** and pick a GPX per file. For each track you set **name, colour, width** and **start/finish pins**; remove it again with 🗑. The map automatically fits to **all** tracks together, and the preview is, as always, **exactly** the export.
+
+### Clickable tracks — link to your page (new)
+Under **"Links to your pages"** you give the loaded track a **name** and a **link** (e.g. `https://my-site.com/mosel-day-1.html`); every further track has a link field in its row too. In the exported map, **hovering** a track with a link shows its name and highlights it, a **click opens the page** — either **in the same window** (default: the page you embedded the map in switches to the tour page) or **in a new tab**. Normal web addresses, `mailto:` and relative addresses such as `tour.html` are allowed. Tracks without a link stay as before.
+
+**Adding many tours at once:** in the "Add tours from the archive" window, **"All"** ticks every tour in the list (after search, collection, year, type and length filters), **"None"** removes all ticks. **Range:** click the first tour, **shift-click** the last. **Ctrl+A** (Mac: **⌘A**) selects all — in the search field only while it is empty. The list shows up to 5000 results. This applies wherever tours are picked from the archive (web map, animator, projects).
 
 ### GDPR button (optional)
 With the **"GDPR consent button"** checkbox the map gets a preceding consent layer — the external map tiles (and thus the IP transfer to OpenStreetMap) are **loaded only after a click**. The consent text and button label are freely editable and pre-filled sensibly. Behind the text lies a **blurred preview image of your map**, which is **embedded firmly in the HTML** (no external loading) — so the gate doesn't look empty and is still GDPR-compliant. *(Exporting with active consent takes a few seconds longer, because the map is rendered once for it.)*
@@ -3862,6 +3882,15 @@ On render errors an error modal opens automatically with an expandable log excer
 
 **Frequent questions from your emails (since 26 Oct 2026):** the questions people write to me most often — each with the
 short answer first. The technical questions follow below.
+
+### How do I select many or all tours at once (e.g. for the web map)?
+In the "Add tours from the archive" window with **"All"** — it ticks every tour in the list as you have filtered it (search,
+collection, year, type, length). **"None"** removes all ticks. For a **range**, click the first tour and **shift-click**
+the last. **Ctrl+A** (Mac: **⌘A**) selects all as well.
+
+### Can a click on a track in the web map open my own page?
+Yes. In the web map you give each track a link under **"Links to your pages"** or in its row. In the exported map,
+hovering shows the name and a click opens the page — in the same window or in a new tab.
 
 ### I have no GPX file, only photos – does it still work?
 Yes, GPS Studio turns photos with a GPS position into a tour, and with that everything else works. GPS Studio is meant for

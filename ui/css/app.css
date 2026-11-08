@@ -3135,6 +3135,7 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .rz-tw-filter .lib-select { max-width: 180px; }
 .rz-tw-fav { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; }
 .rz-tw-zahl { font-size: 11px; margin-left: auto; }
+.rz-tw-alle { display: inline-flex; gap: 4px; }   /* 08.11.2026 Mehrfachauswahl: Alle / Keine */
 .rz-tw-liste { max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .rz-tw-zeile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
 .rz-tw-zeile:hover { background: var(--bg-3); }

@@ -451,12 +451,22 @@ estilo de línea (continua, discontinua, punteada, raya-punto, tubo) con separac
 sombra, brillo, la reducción de puntos en porcentaje y el **punto en movimiento** (mostrar,
 bola, flecha en el sentido de la marcha o un vehículo, tamaño; la «calma de la flecha» vale para todas
 las flechas). La forma se elige como mosaico de imagen; debajo, **«Aspecto del vehículo (todos los
-vehículos)»** ofrece doce mosaicos: insignia (el símbolo dibujado), **símbolo** (desde v0.9.792, ver abajo) o fotorrealista, lápiz y acuarela, cómic,
+vehículos)»** ofrece doce mosaicos (**dos pestañas, 2D y 3D, desde el 08.11.2026:** en 2D bola, punto luminoso, flecha, los
+vehículos como imagen o símbolo y tu imagen, con el aspecto del vehículo debajo; en 3D los 20 vehículos como modelo 3D y, con el
+tubo 3D, delante flecha cometa, cometa, flecha 3D y disco 3D — la pestaña solo muestra las fichas, se elige con una ficha): insignia (el símbolo dibujado), **símbolo** (desde v0.9.792, ver abajo) o fotorrealista, lápiz y acuarela, cómic,
 pictograma, grabado, neón, pixel art, plano, papel, plastilina. Estas imágenes están dibujadas desde arriba,
 quedan planas sobre el mapa y giran con el sentido de la marcha — también en etapas planificadas. **Símbolos para cada
 forma de moverse (desde v0.9.792):** 20 símbolos sencillos vistos desde arriba — coche, moto, autocaravana, autobús, bici,
 bicicleta de montaña, senderista, corredor, jinete, esquí, tren, barco, velero, ferri, kayak, SUP, avión, helicóptero,
-parapente, globo aerostático. Quedan planos sobre el mapa y giran con la ruta. Debajo eliges el **color de los símbolos**
+parapente, globo aerostático. Quedan planos sobre el mapa y giran con la ruta. **Modelo 3D (nuevo, pestaña 3D):** los mismos 20 tipos
+como vehículos 3D de verdad que están sobre el mapa, giran con la cámara y se inclinan en las cuestas; senderistas,
+corredores, ciclistas, jinetes, palistas y ruedas se mueven con el recorrido (según la distancia recorrida; cuando el punto se para — parada de foto, final — las figuras pasan a una postura de
+reposo: el senderista de pie, los pedales horizontales, el remo quieto; el rotor del helicóptero y la llama del globo siguen). **Ritmo del movimiento (modelos 3D)** en el editor del track
+(0,25–3×) ajusta el ritmo base. Dos colores propios en **«Colores de los vehículos» → Colores fijos** (cuerpo y acento), el
+tamaño en **Tamaño**. Para el coche, **«Forma del coche»** ofrece nueve: familiar, utilitario, berlina, SUV, deportivo,
+descapotable (con conductor), pick-up, minibús, todoterreno.
+Se colorean como los símbolos (color de la línea o colores fijos). También en el aire y sobre el tubo 3D (cabeza «Como el
+punto móvil»). Necesita los mapas libres — con Mapbox y en los demás recorridos se ve el símbolo. Debajo eliges el **color de los símbolos**
 (para todos): **Color de la línea** usa el color del recorrido con un acento a juego, **Colores fijos** dos colores a tu
 elección (cuerpo y acento, «Predeterminado» = pizarra y menta). Los nuevos a partir de la autocaravana solo existen como
 símbolo — con otro aspecto siguen mostrando su símbolo. **Imagen propia
@@ -2527,7 +2537,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 - **Tubo 3D, cometa y resplandor (nuevo, 06.11.2026)** — en el panel de aspecto del track (✎ junto a la ruta),
   **Representación** cambia entre *Plana* (la línea está sobre el mapa) y *Tubo 3D*: la ruta flota como un tubo brillante
   justo por encima del terreno. Delante, la **Cabeza** es un **cometa** incandescente — una bola blanca de la que sale el
-  tubo; la *Flecha cometa* (predeterminada) brilla igual, el tubo sale de su muesca y el resplandor queda detrás como un motor. Junto a la cabeza el tubo tiene el color de esta y luego pasa al resplandor; también *Flecha 3D*, *Disco 3D* o *Como el punto móvil*. Se pueden ajustar **Brillo**, **Grosor del tubo** (en
+  tubo; la *Flecha cometa* (predeterminada) brilla igual, el tubo sale de su muesca y el resplandor queda detrás como un motor. Junto a la cabeza el tubo tiene el color de esta y luego pasa al resplandor; también *Flecha 3D* o *Disco 3D*. **Lo que va delante se elige en un solo sitio — la forma del punto móvil:** con el tubo activo, las primeras fichas son Flecha cometa, Cometa, Flecha 3D y Disco 3D; si eliges bola, flecha, un vehículo o tu imagen, eso es lo que recorre el tubo (en el asistente de vídeo igual, en la pestaña Línea bajo «Punto móvil»). Al volver a plano vale de nuevo tu elección del punto móvil. Se pueden ajustar **Brillo**, **Grosor del tubo** (en
   metros; de lejos el tubo sigue siendo al menos tan ancho como el grosor de la ruta) y **Altura sobre el suelo**.
   **Resplandor** (0–5 s): el tramo recién recorrido brilla detrás de la cabeza y se enfría hasta el color de la línea en el
   tiempo elegido — medido en tiempo de vídeo, por eso se ve igual en la vista previa, después de un salto y en el vídeo, a
@@ -3160,6 +3170,11 @@ Una pestaña propia, deliberadamente **ligera**, para **mapas interactivos para 
 
 ### Varios tracks (desde v0.9.432) ⭐
 Puedes mostrar varios tracks GPX en **un** mapa — p. ej. varias etapas de una ruta o los tramos de ida y vuelta. El **primer track viene del GPX cargado** (barra GPX global). Los demás los añades en la sección de la barra lateral **«Más tracks»** con **«＋ Añadir track»** y eliges un GPX por archivo. Para cada track ajustas **nombre, color, grosor** y **pines de inicio/fin**; lo quitas de nuevo con 🗑. El mapa se ajusta automáticamente a **todos** los tracks juntos, y la vista previa es, como siempre, **exactamente** la exportación.
+
+### Tracks clicables — enlace a tu página (nuevo)
+En **«Enlaces a tus páginas»** das al track cargado un **nombre** y un **enlace** (p. ej. `https://mi-web.es/mosela-dia-1.html`); cada track adicional también tiene un campo de enlace en su fila. En el mapa exportado, al **pasar por encima** de un track con enlace se ve su nombre y se resalta; un **clic abre la página** — **en la misma ventana** (por defecto: la página donde incrustaste el mapa cambia a la página de la ruta) o **en una pestaña nueva**. Se admiten direcciones web normales, `mailto:` y direcciones relativas como `ruta.html`. Los tracks sin enlace quedan como antes.
+
+**Añadir muchas rutas a la vez:** en la ventana «Añadir rutas del archivo», **«Todas»** marca cada ruta de la lista (tras búsqueda, colección, año, tipo y longitud), **«Ninguna»** quita todas las marcas. **Rango:** clic en la primera, **Mayús+clic** en la última. **Ctrl+A** (Mac: **⌘A**) selecciona todas — en el campo de búsqueda solo mientras está vacío. La lista muestra hasta 5000 resultados. Vale en todos los sitios donde se eligen rutas del archivo (mapa web, animador, proyectos).
 
 ### Botón RGPD (opcional)
 Con la casilla **«Botón de consentimiento RGPD»**, el mapa recibe una capa de consentimiento previa — las teselas externas del mapa (y con ellas la transmisión de la IP a OpenStreetMap) se cargan **solo tras el clic**. El texto de consentimiento y la etiqueta del botón son libremente editables y vienen prellenados de forma sensata. Detrás del texto hay una **imagen de vista previa difuminada de tu mapa**, que está **incrustada de forma fija en el HTML** (sin recarga externa) — así el gate no parece vacío y sigue siendo conforme al RGPD. *(La exportación con el consentimiento activo tarda unos segundos más, porque para ello el mapa se renderiza una vez.)*
@@ -3927,6 +3942,15 @@ Ante errores de render se abre automáticamente un modal de error con un extract
 
 **Preguntas frecuentes de vuestros correos (desde el 26.10.2026):** las preguntas que más me escribís, cada una con la
 respuesta corta primero. Después vienen las preguntas técnicas.
+
+### ¿Cómo marco muchas o todas las rutas a la vez (p. ej. para el mapa web)?
+En la ventana «Añadir rutas del archivo» con **«Todas»** — marca cada ruta de la lista tal como la has filtrado (búsqueda,
+colección, año, tipo, longitud). **«Ninguna»** quita todas las marcas. Para un **rango**, haz clic en la primera ruta y
+**Mayús+clic** en la última. **Ctrl+A** (Mac: **⌘A**) también selecciona todas.
+
+### ¿Puede un clic en un track del mapa web abrir mi propia página?
+Sí. En el mapa web das a cada track un enlace en **«Enlaces a tus páginas»** o en su fila. En el mapa exportado, al pasar
+por encima se ve el nombre y un clic abre la página — en la misma ventana o en una pestaña nueva.
 
 ### No tengo archivo GPX, solo fotos: ¿funciona igualmente?
 Sí, GPS Studio convierte las fotos con posición GPS en una ruta, y con ella funciona todo lo demás. GPS Studio está pensado

@@ -15,6 +15,9 @@ kein 3D — das ist der „Spar"-Export für interaktive Blog-Einbettung.
   show_pins/start_label/end_label
   view_center:  [lat, lon] | None ; view_zoom: float | None  (sonst fitBounds)
   title/width/height
+  tracks[].link / link_ziel (08.11.2026): Track mit Link ist anklickbar — Überfahren zeigt den Namen, ein Klick öffnet die
+                Seite (link_ziel "_top" = Fenster der einbettenden Seite, "_blank" = neuer Tab). Nur http(s)-, mailto- und
+                relative Adressen; alles andere (javascript:, data: …) fällt weg.
 """
 from __future__ import annotations
 
@@ -25,6 +28,19 @@ from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft
 from core import i18n as _i18n  # 29.09.2026 — Exportseite in der App-Sprache
 
 LEAFLET_VERSION = "1.9.4"
+
+
+def sicherer_link(url) -> str:
+    """08.11.2026 — Link eines Tracks für die exportierte Karte: http(s), mailto oder relativ (z. B. „tour.html“);
+    Adressen mit anderem Schema (javascript:, data:, file: …) werden verworfen — die Karte landet auf fremden Seiten."""
+    import re as _re
+    u = str(url or "").strip()
+    if not u or any(c in u for c in "\r\n\t\x00"):
+        return ""
+    m = _re.match(r"^([a-zA-Z][a-zA-Z0-9+.\-]*):", u)
+    if m and m.group(1).lower() not in ("http", "https", "mailto"):
+        return ""
+    return u
 
 
 def render_preview_png(html: str, width: int = 1120, height: int = 640,
@@ -139,6 +155,7 @@ def make_leaflet_html(params: dict) -> str:
                 "w": float(t.get("width", line_width) or line_width),
                 "pins": bool(t.get("show_pins", True)),
                 "name": str(t.get("name") or ""),
+                "link": sicherer_link(t.get("link")),
             })
     if not tracks_norm and track:
         tracks_norm = [{"c": track, "col": line_color, "w": line_width,
@@ -148,6 +165,8 @@ def make_leaflet_html(params: dict) -> str:
         "track": track, "tracks": tracks_norm, "signs": signs, "labels": labels, "view": view,
         "lineColor": line_color, "lineWidth": line_width,
         "showPins": show_pins, "startLabel": start_label, "endLabel": end_label,
+        "linkZiel": "_blank" if params.get("link_ziel") == "_blank" else "_top",
+        "linkText": _i18n.t_aktiv("webkarte.link_oeffnen", "Zur Tour →"),
         # 04.09.2026 — Maßstabsleiste + Nordpfeil (Beta-Tester), Standard an
         "showScale": bool(params.get("show_scale", True)), "showNorth": bool(params.get("show_north", True)),
         "northSvg": north_svg_fuer(params),   # 25.10.2026 — Kompass je Look (sonst der Pfeil)
@@ -231,6 +250,8 @@ LEAFLET_TEMPLATE = """<!DOCTYPE html>
   .rz-sign{background:none;border:0}
   .leaflet-tooltip.rz-tip{background:none;border:0;padding:0;box-shadow:none;white-space:nowrap}
   .leaflet-tooltip.rz-tip:before{display:none}
+  .rz-link{cursor:pointer}
+  .leaflet-tooltip.rz-link-tip{font:600 12px/1.3 -apple-system,system-ui,'Segoe UI',Roboto,sans-serif}
 </style></head><body>
 <div id="rz-map"></div>
 %(credit)s
@@ -278,6 +299,26 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
   } else {
     rzTile(D.tile, D.tile.attr).addTo(map);
   }
+  // 08.11.2026 — Track mit Link: breite unsichtbare Klickfläche (die dünne Linie trifft man schlecht), Überfahren hebt den
+  // Track hervor und zeigt den Namen, Klick öffnet die Seite — eingebettet im Fenster der einbettenden Seite (_top).
+  function rzOeffnen(url){
+    var a = document.createElement('a'); a.href = url; a.target = D.linkZiel || '_top'; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  function rzPopup(t, text){
+    var h = esc(text);
+    if (t.link) h += '<br><a href="' + esc(t.link) + '" target="' + (D.linkZiel || '_top') + '" rel="noopener">' + esc(D.linkText || '→') + '</a>';
+    return h;
+  }
+  function rzLinkTrack(t, line){
+    var w = t.w, hit = L.polyline(t.c, { weight:Math.max(16, w + 10), opacity:0, className:'rz-link' }).addTo(map);
+    if (t.name) hit.bindTooltip(esc(t.name), { sticky:true, direction:'top', className:'rz-link-tip' });
+    // die sichtbare Linie nach vorn, die Klickfläche darüber (sonst finge die Linie den Klick ab)
+    hit.on('mouseover', function(){ line.setStyle({ weight:w + 3 }); line.bringToFront(); hit.bringToFront(); });
+    hit.on('mouseout', function(){ line.setStyle({ weight:w }); });
+    hit.on('click', function(){ rzOeffnen(t.link); });
+    line.on('click', function(){ rzOeffnen(t.link); });
+  }
   // §17 — mehrere Tracks: pro Track eine Polylinie, fitBounds über die Vereinigung.
   var allB = null;
   (D.tracks||[]).forEach(function(t){
@@ -287,24 +328,27 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
         lineJoin:'round', lineCap:'round' }).addTo(map);
       var b = line.getBounds();
       allB = allB ? allB.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
+      if (t.link) rzLinkTrack(t, line);
       if (t.pins) {
-        L.marker(c[0], { icon:pinIcon('#2ecc71') }).bindPopup(esc(t.name || D.startLabel)).addTo(map);
-        L.marker(c[c.length-1], { icon:pinIcon('#e74c3c') }).bindPopup(esc(t.name || D.endLabel)).addTo(map);
+        L.marker(c[0], { icon:pinIcon('#2ecc71') }).bindPopup(rzPopup(t, t.name || D.startLabel)).addTo(map);
+        L.marker(c[c.length-1], { icon:pinIcon('#e74c3c') }).bindPopup(rzPopup(t, t.name || D.endLabel)).addTo(map);
       }
     } else if (c.length === 1) {
       var ll = L.latLng(c[0][0], c[0][1]);
       allB = allB ? allB.extend(ll) : L.latLngBounds(ll, ll);
     }
   });
+  // 08.11.2026 — Ausschnitt: das „else“ hing an „Nordpfeil an“ statt am gespeicherten Ausschnitt — ohne übergebenen
+  // Ausschnitt und mit Nordpfeil blieb die Karte ohne Ansicht (leer). Jetzt: Ausschnitt, sonst alle Tracks, sonst Deutschland.
   if (D.view && D.view.center) { map.setView(D.view.center, D.view.zoom); }
+  else if (allB && allB.isValid()) { map.fitBounds(allB, { padding:[26,26] }); }
+  else { map.setView([51.16, 10.45], 5); }
   // 04.09.2026 — Maßstabsleiste + Nordpfeil (Leaflet: Norden ist immer oben)
   if (D.showScale) { L.control.scale({ imperial:false, metric:true, position:'bottomright' }).addTo(map); }
   if (D.showNorth) {
     var RzNorth = L.Control.extend({ onAdd: function(){ var d = L.DomUtil.create('div','rz-north'); d.innerHTML = D.northSvg; return d; } });
     new RzNorth({ position:'topright' }).addTo(map);
   }
-  else if (allB && allB.isValid()) { map.fitBounds(allB, { padding:[26,26] }); }
-  else { map.setView([51.16, 10.45], 5); }
   (D.signs||[]).forEach(function(s){
     if (!s.img) return;
     L.marker([s.lat, s.lon], { icon:signIcon(s), interactive:false }).addTo(map);

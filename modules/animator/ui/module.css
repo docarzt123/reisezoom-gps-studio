@@ -1726,6 +1726,10 @@ body.is-rendering .anim-transport { pointer-events: none; opacity: 0.4; }
 .dot-bild-kopf { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .dot-bild-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .dot-bild-formen { display: flex; gap: 6px; }
+/* 08.11.2026 — Laufpunkt-Auswahl in Reitern 2D / 3D (über die ganze Breite des Kachelrasters) */
+.dot-wahl .dot-reiter { grid-column: 1 / -1; margin-bottom: 2px; }
+.dot-wahl .dot-reiter .dot-bild-form { flex: 1; font-weight: 600; }
+.dot-wahl .dot-reiter-hinweis { grid-column: 1 / -1; font-size: 11px; line-height: 1.4; margin-top: 2px; }
 .dot-bild-form.ist-an { border-color: var(--accent, #48d6c4); background: color-mix(in srgb, var(--accent, #48d6c4) 18%, transparent); }
 .dot-kachel-bild img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
 /* 29.10.2026 — Laufpunkt hinter dem Gelände: Verdecken / Durchscheinen / Immer obenauf + Deckkraft */

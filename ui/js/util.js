@@ -4562,6 +4562,9 @@ window.rzScaleMapLabels = rzScaleMapLabels;
  *   → Liste gewählter Pfade, leer bei Abbrechen.
  *   Optionen: titel · ausschliessen · einzel (nur EINE Tour, wie „Track öffnen")
  *   · okText (Beschriftung des Bestätigen-Knopfs) · schonText (Text am ausgegrauten Eintrag).
+ * 08.11.2026 (Nutzer mit über 3000 Touren: „keine Möglichkeit gefunden (Shift, CTRL, CTRL-A), mehrere oder alle Tracks zu
+ * markieren“) — Mehrfachauswahl: „Alle“ / „Keine“ (alle sichtbaren Treffer, also nach Filter), Shift-Klick hakt den
+ * Bereich seit dem letzten Klick, Strg/⌘+A wählt alle (im Suchfeld nur, wenn es leer ist). Bis 5000 Treffer statt 300.
  */
 async function rzArchivTourenWaehlen(opts) {
   const o = opts || {};
@@ -4640,6 +4643,19 @@ async function rzArchivTourenWaehlen(opts) {
   const binden = () => {
     const el = document.getElementById("rz-tw-liste"); if (!el) return;
     el.innerHTML = liste();
+    if (!o.einzel) el.onclick = (e) => {   // Shift-Klick: Bereich seit dem letzten Klick wie dieser setzen
+      const zeile = e.target.closest(".rz-tw-zeile"); if (!zeile) return;
+      const cb = zeile.querySelector("[data-tpath]"); if (!cb || cb.disabled) return;
+      const alle = [...el.querySelectorAll("[data-tpath]")], i = alle.indexOf(cb);
+      if (e.shiftKey && _letzterKlick != null && _letzterKlick !== i && alle[_letzterKlick]) {
+        e.preventDefault();
+        const an = !gewaehlt.has(nfc(alle[_letzterKlick].dataset.tpath)) ? false : true;
+        const [a, b] = _letzterKlick < i ? [_letzterKlick, i] : [i, _letzterKlick];
+        for (let k = a; k <= b; k++) { const x = alle[k]; if (x.disabled) continue; x.checked = an; if (an) gewaehlt.add(nfc(x.dataset.tpath)); else gewaehlt.delete(nfc(x.dataset.tpath)); }
+        zaehler();
+      }
+      _letzterKlick = i;
+    };
     el.querySelectorAll("[data-tpath]").forEach(cb => cb.onchange = () => {
       const pf = nfc(cb.dataset.tpath);
       if (o.einzel && cb.checked) {                 // nur eine: die anderen abhaken
@@ -4652,6 +4668,14 @@ async function rzArchivTourenWaehlen(opts) {
     zaehler();
     bilderBeobachten();
   };
+  let _letzterKlick = null;
+  /** alle sichtbaren (gefilterten) Treffer an- bzw. abhaken */
+  const alleSetzen = (an) => {
+    const el = document.getElementById("rz-tw-liste"); if (!el || o.einzel) return;
+    el.querySelectorAll("[data-tpath]").forEach(x => { if (x.disabled) return; x.checked = an; if (an) gewaehlt.add(nfc(x.dataset.tpath)); else gewaehlt.delete(nfc(x.dataset.tpath)); });
+    _letzterKlick = null;
+    zaehler();
+  };
   const zaehler = () => {
     const ok = document.getElementById("rz-tw-ok"); if (!ok) return;
     const n = gewaehlt.size;
@@ -4663,7 +4687,7 @@ async function rzArchivTourenWaehlen(opts) {
   // Sortierung, nur Favoriten. Gilt nur für dieses Modal, wird nicht gemerkt.
   const filter = { search: "", collection_id: 0, year: 0, activity: "", min_km: null, max_km: null, sort: "date_desc", fav_only: false };
   const params = () => {
-    const p = { search: filter.search || "", limit: 300, with_thumbs: false, sort: filter.sort || "date_desc" };
+    const p = { search: filter.search || "", limit: o.einzel ? 300 : 5000, with_thumbs: false, sort: filter.sort || "date_desc" };
     if (filter.collection_id) { p.collection_id = filter.collection_id; p.sort = "collection"; }
     if (filter.year) p.year = filter.year;
     if (filter.activity) p.activity = filter.activity;
@@ -4723,8 +4747,9 @@ async function rzArchivTourenWaehlen(opts) {
     on("rz-tw-kmmin", "oninput", km); on("rz-tw-kmmax", "oninput", km);
   };
   return new Promise((resolve) => {
-    let fertig = false;
-    const ende = (pfade) => { if (fertig) return; fertig = true; try { if (_beobachter) _beobachter.disconnect(); } catch (_) {} try { m.close(); } catch (_) {} resolve(pfade); };
+    let fertig = false, _tasteA = null;
+    const ende = (pfade) => { if (fertig) return; fertig = true; try { if (_beobachter) _beobachter.disconnect(); } catch (_) {}
+      if (_tasteA) document.removeEventListener("keydown", _tasteA, true); try { m.close(); } catch (_) {} resolve(pfade); };
     const m = openModal({
       title: "➕ " + (o.titel || T("library.proj_addtours", "Touren aus dem Archiv hinzufügen")),
       body: `<div class="rz-tw-filter">
@@ -4745,6 +4770,10 @@ async function rzArchivTourenWaehlen(opts) {
                </select>
                <label class="rz-tw-fav" title="${esc(T("archiv.waehlen_fav_tip", "Nur Favoriten"))}"><input type="checkbox" id="rz-tw-fav"> ♥</label>
                <span class="muted rz-tw-zahl" id="rz-tw-zahl"></span>
+               ${o.einzel ? "" : `<span class="rz-tw-alle">
+                 <button type="button" class="btn btn-sm" id="rz-tw-alle" title="${esc(T("archiv.waehlen_alle_tip", "Alle Touren in der Liste anhaken (nach Suche und Filter) — Strg/⌘+A. Bereich: erste anklicken, mit Shift die letzte."))}">${esc(T("archiv.waehlen_alle_an", "Alle"))}</button>
+                 <button type="button" class="btn btn-sm" id="rz-tw-keine" title="${esc(T("archiv.waehlen_keine_tip", "Alle Häkchen in der Liste entfernen"))}">${esc(T("archiv.waehlen_keine", "Keine"))}</button>
+               </span>`}
              </div>
              <div class="rz-tw-liste" id="rz-tw-liste"></div>
              <p class="muted" style="font-size:11px; margin:8px 0 0;">${esc(T("archiv.waehlen_import_hinweis", "Nicht im Archiv? „Datei importieren …“ nimmt die Datei ins Archiv auf und hakt sie gleich an."))}</p>`,
@@ -4759,6 +4788,19 @@ async function rzArchivTourenWaehlen(opts) {
     const such = document.getElementById("rz-tw-such");
     if (such) { such.oninput = debounce(() => laden(such.value.trim()), 300); try { such.focus(); } catch (_) {} }
     const ab = document.getElementById("rz-tw-ab"); if (ab) ab.onclick = () => ende([]);
+    const alleK = document.getElementById("rz-tw-alle"); if (alleK) alleK.onclick = () => alleSetzen(true);
+    const keineK = document.getElementById("rz-tw-keine"); if (keineK) keineK.onclick = () => alleSetzen(false);
+    // Strg/⌘+A: alle — am ganzen Dokument, solange der Dialog offen ist (ein angeklickter Knopf oder ein Häkchen hat in
+    // WebKit keinen Fokus, die Taste käme sonst beim Body an); im Textfeld nur, wenn es leer ist
+    if (!o.einzel) {
+      _tasteA = (e) => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || String(e.key).toLowerCase() !== "a" || !document.getElementById("rz-tw-liste")) return;
+        const z = e.target, text = z && ((z.tagName === "INPUT" && /^(search|text|number|url)$/i.test(z.type || "text")) || z.tagName === "TEXTAREA");
+        if (text && z.value) return;
+        e.preventDefault(); alleSetzen(true);
+      };
+      document.addEventListener("keydown", _tasteA, true);
+    }
     const ok = document.getElementById("rz-tw-ok"); if (ok) ok.onclick = () => {
       if (!gewaehlt.size) { toast(T("library.proj_addtours_leer", "Nichts angehakt — erst Touren auswählen."), "warn", 2600); return; }
       // Reihenfolge wie angezeigt (jüngste zuerst), nicht wie angehakt.

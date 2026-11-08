@@ -52,6 +52,7 @@
       line_color: "#ff6b35", line_width: 4.5, tile_style: "osm", labels: [], tracks: [],
       consent_enabled: false, consent_text: "", consent_button: "", consent_preview: true,
       leaflet_mode: "cdn", leaflet_url: "", attribution_enabled: true, show_scale: true, show_north: true, quellenangabe: "ecke",
+      main_link: "", main_name: "", link_ziel: "_top",   // 08.11.2026 — Track anklickbar mit eigenem Link
     };
     const wkSnapshot = () => {
       const a = wk(), out = {};
@@ -93,6 +94,7 @@
       color: (typeof t.color === "string" && t.color) ? t.color : "#2e86de",
       width: (Number(t.width) > 0) ? Number(t.width) : lineWidth0,
       show_pins: t.show_pins !== false, coords: Array.isArray(t.coords) ? t.coords : [],
+      link: String(t.link || ""),
     })).filter((t) => t.path) : []);
     let tracks = normTracks(get("tracks", null));
 
@@ -130,6 +132,19 @@
         </div>
 
         <div class="section">
+          <!-- 08.11.2026 (Nutzerwunsch: „wenn man auf der Karte auf einen Track klickt, ein Link auf die entsprechende
+               Webseite“) — je Track ein Link; in der exportierten Karte zeigt Überfahren den Namen, ein Klick öffnet die Seite -->
+          <div class="field-label" style="margin-bottom:6px;">${T("webkarte.links", "Links zu deinen Seiten")}</div>
+          <input type="text" id="wk-main-name" value="${esc(get("main_name", ""))}" placeholder="${esc(T("webkarte.main_name_ph", "Name des geladenen Tracks (optional)"))}"
+                 style="width:100%; box-sizing:border-box; font-size:13px; padding:4px 6px; margin-bottom:5px;">
+          <input type="url" id="wk-main-link" value="${esc(get("main_link", ""))}" placeholder="${esc(T("webkarte.link_ph", "Link, z. B. https://meine-seite.de/tour.html"))}"
+                 style="width:100%; box-sizing:border-box; font-size:13px; padding:4px 6px; margin-bottom:5px;">
+          <label class="field-label" for="wk-link-ziel" style="font-size:12px;">${T("webkarte.link_ziel", "Klick auf einen Track öffnet den Link")}</label>
+          <select id="wk-link-ziel" class="select" style="margin-bottom:4px;">
+            <option value="_top"${get("link_ziel", "_top") === "_top" ? " selected" : ""}>${T("webkarte.link_ziel_top", "im selben Fenster (die Seite mit der Karte)")}</option>
+            <option value="_blank"${get("link_ziel", "_top") === "_blank" ? " selected" : ""}>${T("webkarte.link_ziel_blank", "in einem neuen Tab")}</option>
+          </select>
+          <div class="muted" style="font-size:11px; margin-bottom:10px; line-height:1.45;">${T("webkarte.links_hint", "Tracks mit Link sind in der Karte anklickbar: Überfahren zeigt den Namen, ein Klick öffnet die Seite. Ohne Link bleibt der Track wie bisher.")}</div>
           <div class="field-label" style="margin-bottom:6px;">${T("webkarte.tracks", "Weitere Tracks")}</div>
           <button class="btn btn-secondary btn-block" id="wk-add-track">＋ ${T("webkarte.add_track", "Track hinzufügen")}</button>
           <div id="wk-track-list" style="margin-top:8px;"></div>
@@ -360,7 +375,7 @@
 
     // ── §17: weitere Tracks (Liste, analog zur Beschriftungs-Liste) ───────────
     function persistTracks(stetig) {
-      save({ tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins })) }, stetig);
+      save({ tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins, link: t.link || "" })) }, stetig);
     }
     function renderTrackList() {
       const box = el("wk-track-list"); if (!box) return;
@@ -370,6 +385,9 @@
           <input type="text" class="wk-trk-name" data-idx="${i}" value="${esc(t.name)}"
                  placeholder="${esc(T("webkarte.track_name_ph", "Name (z. B. Tag 1)"))}"
                  style="width:100%; box-sizing:border-box; font-size:13px; padding:4px 6px; margin-bottom:5px;">
+          <input type="url" class="wk-trk-link" data-idx="${i}" value="${esc(t.link || "")}"
+                 placeholder="${esc(T("webkarte.link_ph", "Link, z. B. https://meine-seite.de/tour.html"))}"
+                 style="width:100%; box-sizing:border-box; font-size:12px; padding:3px 6px; margin-bottom:5px;">
           <div style="display:flex; gap:6px; align-items:center;">
             <input type="color" class="wk-trk-color" data-idx="${i}" value="${t.color}"
                    title="${esc(T("webkarte.track_color", "Track-Farbe"))}" style="width:34px; height:26px; padding:1px;">
@@ -445,6 +463,9 @@
       if (el("wk-leaflet-url") && typeof a.leaflet_url === "string") el("wk-leaflet-url").value = a.leaflet_url;
       if (el("wk-attribution")) el("wk-attribution").checked = (a.attribution_enabled !== false);
       if (el("wk-attrib")) { el("wk-attrib").value = (a.quellenangabe === "voll") ? "voll" : "ecke"; applyAttrib(); }
+      if (el("wk-main-link")) el("wk-main-link").value = a.main_link || "";   // 08.11.2026 Links
+      if (el("wk-main-name")) el("wk-main-name").value = a.main_name || "";
+      if (el("wk-link-ziel")) el("wk-link-ziel").value = a.link_ziel === "_blank" ? "_blank" : "_top";
       updateLeafletHint();
       // Kachel-Layer an den (evtl. neuen) Stil anpassen
       if (map && tileLayer && el("wk-tile")) {
@@ -565,11 +586,14 @@
       // §17 — nur wenn weitere Tracks da sind: vollständige Track-Liste (globaler
       // GPX als erster Eintrag + Extras). Ohne Extras KEINE `tracks` → Backend nutzt
       // den Single-Fallback = exakt das bisherige Verhalten.
-      if (tracks.length) {
+      // 08.11.2026 — mit Link oder Namen am geladenen Track ebenfalls die Liste (der Einzel-Fallback kennt keinen Link)
+      const mainLink = (el("wk-main-link")?.value || "").trim(), mainName = (el("wk-main-name")?.value || "").trim();
+      if (tracks.length || mainLink || mainName) {
         p.tracks = [];
-        if (gpxPath) p.tracks.push({ path: gpxPath, name: "", color: lineColor, width: lineWidth, show_pins: true });
-        tracks.forEach((t) => { if (t.path) p.tracks.push({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins }); });
+        if (gpxPath) p.tracks.push({ path: gpxPath, name: mainName, color: lineColor, width: lineWidth, show_pins: true, link: mainLink });
+        tracks.forEach((t) => { if (t.path) p.tracks.push({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins, link: t.link || "" }); });
       }
+      p.link_ziel = el("wk-link-ziel")?.value === "_blank" ? "_blank" : "_top";
       return p;
     }
 
@@ -696,6 +720,7 @@
       box.addEventListener("input", (e) => {
         const i = idxOf(e); if (!(i >= 0) || !tracks[i]) return;
         if (e.target.classList.contains("wk-trk-name")) { tracks[i].name = e.target.value; persistTracks(true); }
+        else if (e.target.classList.contains("wk-trk-link")) { tracks[i].link = e.target.value.trim(); persistTracks(true); }
         else if (e.target.classList.contains("wk-trk-color")) { tracks[i].color = e.target.value; persistTracks(true); drawTrack(); }
         else if (e.target.classList.contains("wk-trk-width")) { tracks[i].width = parseFloat(e.target.value) || lineWidth0; persistTracks(true); drawTrack(); }
       });
@@ -723,6 +748,9 @@
     el("wk-attrib")?.addEventListener("change", () => { save({ quellenangabe: el("wk-attrib").value }); applyAttrib(); });
     el("wk-scale")?.addEventListener("change", () => { save({ show_scale: !!el("wk-scale").checked }); try { applyDeco(); } catch (_) {} });
     el("wk-north")?.addEventListener("change", () => { save({ show_north: !!el("wk-north").checked }); try { applyDeco(); } catch (_) {} });
+    el("wk-main-link")?.addEventListener("input", () => save({ main_link: el("wk-main-link").value.trim() }, true));
+    el("wk-main-name")?.addEventListener("input", () => save({ main_name: el("wk-main-name").value }, true));
+    el("wk-link-ziel")?.addEventListener("change", () => save({ link_ziel: el("wk-link-ziel").value }));
     el("wk-export")?.addEventListener("click", doExport);
     // 19.10.2026 (Audit) — wie in Animator und Tour-Map: die Hauptaktion oben rechts. Der Knopf stand nur ganz unten in
     // der Seitenleiste; als Neuling sucht man ihn dort, wo die anderen Module „Exportieren“ haben.
@@ -756,6 +784,9 @@
           if (typeof saveProjectSettings === "function") saveProjectSettings(MODKEY, state);
           if (el("wk-scale")) el("wk-scale").checked = state.show_scale !== false;
           if (el("wk-north")) el("wk-north").checked = state.show_north !== false;
+          if (el("wk-main-link")) el("wk-main-link").value = state.main_link || "";
+          if (el("wk-main-name")) el("wk-main-name").value = state.main_name || "";
+          if (el("wk-link-ziel")) el("wk-link-ziel").value = state.link_ziel === "_blank" ? "_blank" : "_top";
           // 20.10.2026 (Rückgängig-Prüfung) — ohne gespeicherten Text die Standardtexte wie beim Öffnen; vorher waren
           // Datenschutz-Text und Knopf nach jedem ⌘Z leer (und gingen leer in den Export)
           if (el("wk-consent-text")) el("wk-consent-text").value = state.consent_text || DEFAULT_CONSENT;

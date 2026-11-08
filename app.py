@@ -11563,6 +11563,7 @@ class Api:
                         "color": str(t.get("color") or params.get("line_color", "#ff6b35")),
                         "width": float(t.get("width", params.get("line_width", 4.5)) or 4.5),
                         "show_pins": bool(t.get("show_pins", True)),
+                        "link": str(t.get("link") or ""),   # 08.11.2026 — Track anklickbar (core/tourmap_leaflet prüft die Adresse)
                     })
                 except Exception as te:
                     log.warning("webkarte_export: Track '%s' übersprungen: %s", tp, te)
@@ -11613,6 +11614,7 @@ class Api:
                 "show_scale": bool(params.get("show_scale", True)),   # 04.09.2026 Maßstabsleiste
                 "show_north": bool(params.get("show_north", True)),   # 04.09.2026 Nordpfeil
                 "quellenangabe": "voll" if params.get("quellenangabe") == "voll" else "ecke",   # 15.09.2026
+                "link_ziel": "_blank" if params.get("link_ziel") == "_blank" else "_top",   # 08.11.2026 Track-Links
                 "start_label": params.get("start_label") or _ui_t()("webkarte.start", "Start"),
                 "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
                 "view_center": params.get("view_center"),

@@ -9,6 +9,9 @@
  *   f.setFigur({ lng, lat, agl, form: "komet" | "kometpfeil" | "kugel" | "puk" | "pfeil" | "feuer" (Kugel + Schweif), farbe, glanz, groesseM, minPx, drehung, neigung,
  *                leucht: "#rrggbb" (Komet: Farbe des Scheins = heißeste Glutstufe) });
  *   f.setFigur(null);                                // ausblenden
+ *   form "modell" (08.11.2026): 3D-Fahrzeug aus rz-modelle.js — modell: { art, phase (0…1 Bewegung), ruhe (0…1 Ruhepose), farbe, farbe2 },
+ *                groesseM = Länge; Bodenmodelle stehen mit der Unterkante auf agl, Luftmodelle mit der Mitte;
+ *                obenauf: true = nie vom Gelände verdeckt (Laufpunkt „obenauf“)
  *
  *   groesseM  Durchmesser (Kugel, Puk) bzw. Länge (Pfeil) in Metern; minPx = Mindestgröße in CSS-Pixeln (aus der Ferne)
  *   drehung   Fahrtrichtung in Grad im Uhrzeigersinn ab Nord;  neigung = Steigung in Grad (bergauf positiv)
@@ -133,7 +136,10 @@
           kugel,
           puk,
           pfeil: new T.Mesh(_pfeilGeometrie(T), [this._weiss, this._material]),
+          // 08.11.2026 — 3D-Fahrzeuge (rz-modelle.js): ein Körper, die Geometrie wechselt je Art und Bewegungsstufe
+          modell: new T.Mesh(new T.BufferGeometry(), this._modellMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.0, side: T.DoubleSide })),
         };
+        this._modellGeo = new WeakMap();
         this._koerper = new T.Group();
         for (const k in this._formen) { this._formen[k].visible = false; this._koerper.add(this._formen[k]); }
         this._schatten = new T.Mesh(new T.CircleGeometry(0.5, 40),
@@ -150,6 +156,7 @@
           if (this._weiss) this._weiss.dispose();
           if (this._perle) this._perle.dispose();
           if (this._glutRand) this._glutRand.dispose();
+          if (this._modellMat) this._modellMat.dispose();
           if (this._scheinInnen) { this._scheinInnen.geometry.dispose(); this._scheinInnen.material.map.dispose(); this._scheinInnen.material.dispose(); }
           if (this._schein) { this._schein.geometry.dispose(); this._schein.material.map.dispose(); this._schein.material.dispose(); }
           if (this._scheinHinten) { this._scheinHinten.geometry.dispose(); this._scheinHinten.material.map.dispose(); this._scheinHinten.material.dispose(); }
@@ -196,6 +203,41 @@
         const pxProEinheit = groesse / Math.max(1e-6, this._mProPx(f.lng, f.lat)) * ((m.getPixelRatio && m.getPixelRatio()) || 1);
         this._feuer.setzen({ zeit: +f.zeit || 0, auge, spur, kalt: f.kalt || null, pxProEinheit });
         window.__rzFeuerPruef = { groesse, auge: auge.toArray(), spur: spur.slice(0, 12), n: spur.length, pxProEinheit, roh: (f.spur || []).slice(0, 4) };   // Prüfstand
+      },
+      /** Geometrie eines 3D-Fahrzeugs (rz-modelle.js) in den Modellraum der Ebene: Modell x rechts, y vorn, z oben →
+       *  three (−x, z, y), also vorn = +z wie der Pfeil. Je Art und Bewegungsstufe einmal gebaut, Farben bei Wechsel neu. */
+      _modellGeometrie(md) {
+        const R = window.rzModelle, T = this._T;
+        if (!R || !md || !md.art || !R.ARTEN.includes(md.art)) return null;
+        const t = R.mesh(md.art, +md.phase || 0, +md.ruhe || 0);
+        let e = this._modellGeo.get(t);
+        if (!e) {
+          const n = t.pos.length / 3, pos = new Float32Array(3 * n), nor = new Float32Array(3 * n);
+          for (let i = 0; i < n; i++) {
+            pos[3 * i] = -t.pos[3 * i]; pos[3 * i + 1] = t.pos[3 * i + 2]; pos[3 * i + 2] = t.pos[3 * i + 1];
+            nor[3 * i] = -t.nor[3 * i]; nor[3 * i + 1] = t.nor[3 * i + 2]; nor[3 * i + 2] = t.nor[3 * i + 1];
+          }
+          const geo = new T.BufferGeometry();
+          geo.setAttribute("position", new T.BufferAttribute(pos, 3));
+          geo.setAttribute("normal", new T.BufferAttribute(nor, 3));
+          geo.setAttribute("color", new T.BufferAttribute(new Float32Array(3 * n), 3));
+          e = { geo, farbKey: null, rolle: t.rolle };
+          this._modellGeo.set(t, e);
+        }
+        const fk = (md.farbe || "") + "|" + (md.farbe2 || "");
+        if (e.farbKey !== fk) {
+          // rz-modelle liefert sRGB 0…1, three rechnet linear (wie color.set("#…") bei den anderen Formen)
+          const lin = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4), F = {};
+          const col = e.geo.getAttribute("color").array;
+          for (let i = 0; i < e.rolle.length; i++) {
+            const r = e.rolle[i];
+            const c = F[r] || (F[r] = R.farbe(r, md).map((v) => lin(Math.min(1, v * (r === "licht" ? 1.35 : 1)))));
+            col[3 * i] = c[0]; col[3 * i + 1] = c[1]; col[3 * i + 2] = c[2];
+          }
+          e.geo.getAttribute("color").needsUpdate = true;
+          e.farbKey = fk;
+        }
+        return e.geo;
       },
       render(gl, args) {
         const f = this._figur, T = this._T;
@@ -252,7 +294,12 @@
         this._kamera.projectionMatrix = gesamt.multiply(this._kamera.matrixWorld);   // × Ansicht⁻¹ (three) = Gesamtmatrix
         // Körper
         const feuer = f.form === "feuer" && !!this._feuer;
-        const form = (f.form === "pfeil" || f.form === "puk" || f.form === "komet" || f.form === "kometpfeil") ? f.form : "kugel";
+        let form = (f.form === "pfeil" || f.form === "puk" || f.form === "komet" || f.form === "kometpfeil") ? f.form : "kugel";
+        if (f.form === "modell") {
+          const geo = this._modellGeometrie(f.modell);
+          if (geo) { form = "modell"; this._formen.modell.geometry = geo; }
+          this._modellMat.depthTest = !f.obenauf;
+        }
         for (const k in this._formen) this._formen[k].visible = (k === form);   // Feuerkugel = normale Kugel + Schweif
         if (this._feuer) this._feuer.gruppe.visible = feuer;
         if (feuer) this._feuerSetzen(f, groesse, boden, agl, mc);

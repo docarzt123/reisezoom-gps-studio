@@ -1542,7 +1542,8 @@ ${mehrAuf(1)}
       <section data-va="4">
         ${kopf(T("va.w.s8_linie_h", "Wie sieht die Strecke aus?"), T("va.w.s8_linie_erkl", "Farbe und Stil der Linie und was über die Strecke läuft."))}
         ${feldKopf("navigation", T("va.laufpunkt", "Laufpunkt"), "", "laufpunkt")}
-        ${wahl('id="va-lp"', "data-va-lp", [["arrow", "navigation", T("va.w.lp_pfeil", "Pfeil")], ["dot", "", T("va.w.lp_kugel", "Kugel")], ["leucht", "", T("va.lp_leucht", "Leuchtpunkt")], ["fahrzeug", "car", T("va.w.lp_fahrzeug", "Fahrzeug")], ["aus", "x", T("va.w.lp_aus", "Aus")]], w.lp)}
+        ${wahl('id="va-lp"', "data-va-lp", [["k:kometpfeil", "sparkles", T("animator.kopf3d.kometpfeil", "Komet-Pfeil")], ["k:komet", "sparkles", T("animator.kopf3d.komet", "Komet")],
+          ["k:pfeil", "", T("animator.kopf3d.pfeil", "3D-Pfeil")], ["k:puk", "", T("animator.kopf3d.puk", "3D-Puk")], ["arrow", "navigation", T("va.w.lp_pfeil", "Pfeil")], ["dot", "", T("va.w.lp_kugel", "Kugel")], ["leucht", "", T("va.lp_leucht", "Leuchtpunkt")], ["fahrzeug", "car", T("va.w.lp_fahrzeug", "Fahrzeug")], ["aus", "x", T("va.w.lp_aus", "Aus")]], w.lp)}
         <div class="va-lp-fz" id="va-lp-fz-zeile" hidden><select id="va-lp-fz" class="lib-select"></select></div>
         <!-- 06.11.2026 — Röhre + Nachglühen -->
         ${feldKopf("sparkles", T("va.r3_darstellung", "Darstellung"), q(T("va.r3_tip", "3D-Röhre: der Track schwebt als leuchtende Röhre knapp über dem Gelände, vorne läuft ein Komet. Geht nur mit den freien Karten — mit Mapbox wird die Linie flach gezeichnet.")))}
@@ -1550,8 +1551,7 @@ ${mehrAuf(1)}
         ${schalter("va-glut", false, T("animator.nachgluehen", "Nachglühen"), T("va.glut_tip", "Die frisch gelaufene Strecke glüht hinter dem Laufpunkt kurz nach und kühlt dann zur Linienfarbe ab."))}
         ${mehrAuf(4)}
         <div id="va-r3-mehr">
-        ${feldKopf("", T("animator.kopf3d", "Kopf"))}
-        ${wahl('id="va-kopf"', "data-va-kopf", [["kometpfeil", "", T("animator.kopf3d.kometpfeil", "Komet-Pfeil")], ["komet", "", T("animator.kopf3d.komet", "Komet")], ["pfeil", "", T("animator.kopf3d.pfeil", "3D-Pfeil")], ["puk", "", T("animator.kopf3d.puk", "3D-Puk")]], "")}
+        <!-- 08.11.2026 — der Kopf (Komet …) steht jetzt vorn in der Laufpunkt-Wahl -->
         <div class="va-regler-zeile"><span>${esc(T("animator.roehre.glanz", "Glanz"))}</span><input type="range" class="va-regler" id="va-r3-glanz" min="0" max="1" step="0.05" value="0.35"><span class="va-regler-wert" id="va-r3-glanz-v"></span></div>
         </div>
         <div id="va-glut-mehr">
@@ -2326,7 +2326,14 @@ ${mehrAuf(1)}
       setz("va-ls-schatten", ls.schatten != null ? ls.schatten : +(document.getElementById("anim-shadow-strength")?.value || 0) > 0);
       setz("va-ls-leuchten", ls.leuchten != null ? ls.leuchten : +LL.glow_strength > 0);
       setz("va-ghost", typeof w.ghost === "boolean" ? w.ghost : true);
-      box.querySelectorAll("[data-va-lp]").forEach(b => b.classList.toggle("is-on", b.dataset.vaLp === w.lp));
+      // 08.11.2026 (Marc: „mit Röhre kann ich den Laufpunkt nicht mehr ändern“) — bei der Röhre stehen die Köpfe vorn in der
+      // Laufpunkt-Wahl; ein Kopf gewählt → er ist an, sonst der Laufpunkt (Kopf „wie der Laufpunkt“)
+      const r3_ = r3Stand(), kopfAn = r3_.roehre && r3_.kopf !== "punkt";
+      box.querySelectorAll("[data-va-lp]").forEach(b => {
+        const k = b.dataset.vaLp.startsWith("k:") ? b.dataset.vaLp.slice(2) : null;
+        if (k) b.hidden = !r3_.roehre;
+        b.classList.toggle("is-on", k ? (kopfAn && r3_.kopf === k) : (!kopfAn && b.dataset.vaLp === w.lp));
+      });
       const sel = box.querySelector("#va-lp-fz");
       if (sel && !sel.options.length) {   // die Fahrzeuge des Animators (dieselben Namen wie dort)
         const q = document.getElementById("anim-dot-style");
@@ -2339,8 +2346,6 @@ ${mehrAuf(1)}
       const roehre = r3Stand().roehre, glutSek = r3Stand().sek;
       box.querySelectorAll("[data-va-r3]").forEach(b => b.classList.toggle("is-on", b.dataset.vaR3 === (roehre ? "roehre" : "flach")));
       setz("va-glut", glutSek > 0);
-      const kopf = r3Stand().kopf;
-      box.querySelectorAll("[data-va-kopf]").forEach(b => b.classList.toggle("is-on", b.dataset.vaKopf === kopf));
       const gl = r3Stand().glanz, gle = box.querySelector("#va-r3-glanz"); if (gle) gle.value = String(gl);
       const glv = box.querySelector("#va-r3-glanz-v"); if (glv) glv.textContent = Math.round(gl * 100) + " %";
       const look = r3Stand().look;
@@ -2356,7 +2361,7 @@ ${mehrAuf(1)}
       const pSek = parseFloat(wert("anim-nachgluehen", "0")) || 0;
       return { roehre: typeof ls.roehre === "boolean" ? ls.roehre : wert("anim-linie-3d", "flach") === "roehre",
                sek: typeof ls.glut === "boolean" ? (ls.glut ? (+ls.glutSek > 0 ? +ls.glutSek : (pSek > 0 ? pSek : 1.5)) : 0) : pSek,
-               kopf: ls.kopf || (["komet", "kometpfeil", "pfeil", "puk"].includes(wert("anim-kopf-3d", "kometpfeil")) ? wert("anim-kopf-3d", "kometpfeil") : "kometpfeil"),
+               kopf: ls.kopf || (["komet", "kometpfeil", "pfeil", "puk", "punkt"].includes(wert("anim-kopf-3d", "kometpfeil")) ? wert("anim-kopf-3d", "kometpfeil") : "kometpfeil"),
                glanz: ls.glanz != null && isFinite(+ls.glanz) ? +ls.glanz : (parseFloat(wert("anim-roehre-glanz", "0.35")) || 0),
                look: ls.glutLook || wert("anim-glut-look", "linie") };
     }
@@ -3226,7 +3231,8 @@ ${mehrAuf(1)}
         const mu = box.querySelector("#sv-musik"), muText = mu && mu.selectedOptions && mu.selectedOptions[0] ? mu.selectedOptions[0].textContent.trim() : "";
         const kam = { fahrt: T("va.w.k_mitfliegen", "Mitfliegen"), folgen: T("va.w.k_folgen_nord", "Folgen (genordet)"), fest: T("va.w.k_ganze_tour", "Ganze Tour") }[w.kamera] || "";
         const lpText = w.lp === "fahrzeug" ? (box.querySelector("#va-lp-fz")?.selectedOptions?.[0]?.textContent || T("va.w.lp_fahrzeug", "Fahrzeug"))
-          : { arrow: T("va.w.lp_pfeil", "Pfeil"), dot: T("va.w.lp_kugel", "Kugel"), aus: T("va.w.lp_aus", "Aus") }[w.lp] || "";
+          : { arrow: T("va.w.lp_pfeil", "Pfeil"), dot: T("va.w.lp_kugel", "Kugel"), leucht: T("va.lp_leucht", "Leuchtpunkt"), aus: T("va.w.lp_aus", "Aus") }[w.lp] || "";
+        const r3L = r3Stand(), lpText2 = (r3L.roehre && r3L.kopf !== "punkt") ? T("animator.kopf3d." + r3L.kopf, r3L.kopf) : lpText;   // 08.11.2026 Kopf der Röhre
         vaListe = [
           ["tag", T("va.l_titel", "Titel"), [w.titel, w.unter].filter(Boolean).join(" · ") || "—"],
           ["clapperboard", T("va.l_format", "Format und Länge"), `${w.format} · ${laengeS(w)} s`],
@@ -3238,7 +3244,7 @@ ${mehrAuf(1)}
           ["video", T("va.l_kamera", "Kamera"), kam],
           ["music", T("va.l_musik", "Musik"), w.musikAn ? (muText || "✓") : T("va.aus", "aus")],
           ["milestone", T("va.l_schluss", "Schlusskarte"), w.schlussAn ? (w.felder.length + " " + T("va.l_werte", "Werte")) : T("va.aus", "aus")],
-          ["route", T("va.laufpunkt", "Laufpunkt"), lpText],   // 26.10.2026 — hinten anfügen: die Zeilen unten lesen die Liste nach Stelle
+          ["route", T("va.laufpunkt", "Laufpunkt"), lpText2],   // 26.10.2026 — hinten anfügen: die Zeilen unten lesen die Liste nach Stelle
         ];
         // 12.10.2026 (neue Optik) — kurz, je Zeile ein Sprung zurück zum Schritt
         const [wTitel, , wKarte, , wFotos, wSchilder, wHalte, , wMusik] = vaListe.map(x => x[2]);
@@ -3248,7 +3254,7 @@ ${mehrAuf(1)}
           ["video", T("va.l_kamera", "Kamera"), [kam, w.kamera === "fahrt" && FLUGSTIL_TEXT[w.flug] ? T("schnell.flug." + w.flug, FLUGSTIL_TEXT[w.flug][0]) : "",   // 01.11.2026 — mit Flugstil
             w.kamera !== "fest" ? T("va.w.h_" + (w.hoehe || "mittel"), w.hoehe || "") : ""].filter(Boolean).join(" · "), 2],
           ["map", T("va.l_karte", "Karte"), wKarte, 3],
-          ["route", T("va.w.linie_aussehen", "Linie"), lpText, 4],
+          ["route", T("va.w.linie_aussehen", "Linie"), lpText2, 4],
           ["type", T("va.u_texte", "Texte"), w.titelAn === false ? T("va.kein_titel", "ohne Titel") : wTitel, 5],
           ["image", T("va.l_fotos", "Fotos"), [wFotos, w.fotosAn ? wHalte : ""].filter(Boolean).join(" · "), 6],
           ["map-pin", T("va.w.s8_infos", "Infos"), [einbl.length ? einbl.join(", ") : "", wSchilder, w.schlussAn ? T("va.u_schluss", "Schlusskarte mit {n} Werten", { n: w.felder.length }) : ""].filter(Boolean).join(" · "), 7],
@@ -3437,7 +3443,14 @@ ${mehrAuf(1)}
       box.querySelector("#va-beschr")?.addEventListener("change", (e) => { const an_ = !!e.target.checked; w.beschr = Object.fromEntries(VA_BESCHR.map(k => [k, an_])); vaKarte(); vaLive(); });
       box.querySelectorAll("[data-va-beschr]").forEach(c => c.addEventListener("change", () => { w.beschr = Object.assign({}, w.beschr, { [c.dataset.vaBeschr]: !!c.checked }); vaKarte(); vaLive(); }));
       // Linie: Laufpunkt, Farbe, Strich, Breite, Effekte, Vorab-Strecke, „Wie die Karte“
-      box.querySelector("#va-lp")?.addEventListener("click", (e) => { const b = e.target.closest("[data-va-lp]"); if (!b) return; w.lp = b.dataset.vaLp; vaLinie(); vaLive(); });
+      box.querySelector("#va-lp")?.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-va-lp]"); if (!b) return;
+        const v = b.dataset.vaLp;
+        if (v.startsWith("k:")) { w.ls = Object.assign({}, w.ls, { kopf: v.slice(2) }); vaLinie(); vaLive(); return; }   // Kopf der Röhre
+        w.lp = v;
+        if (r3Stand().roehre) w.ls = Object.assign({}, w.ls, { kopf: "punkt" });   // der gewählte Laufpunkt fährt auf der Röhre
+        vaLinie(); vaLive();
+      });
       box.querySelector("#va-lp-fz")?.addEventListener("change", (e) => { w.lpFz = e.target.value; vaLive(); });
       const lsSetz = (patch_) => { w.ls = Object.assign({}, w.ls, patch_); vaLinie(); vaLive(); };
       box.querySelector("#va-ls-farben")?.addEventListener("click", (e) => { const b = e.target.closest("[data-va-farbe]"); if (b) lsSetz({ farbe: b.dataset.vaFarbe }); });
@@ -3451,7 +3464,7 @@ ${mehrAuf(1)}
       // 06.11.2026 — Röhre + Nachglühen
       box.querySelector("#va-r3")?.addEventListener("click", (e) => { const b = e.target.closest("[data-va-r3]"); if (b) lsSetz({ roehre: b.dataset.vaR3 === "roehre" }); });
       box.querySelector("#va-glut")?.addEventListener("change", (e) => lsSetz({ glut: !!e.target.checked }));
-      box.querySelector("#va-kopf")?.addEventListener("click", (e) => { const b = e.target.closest("[data-va-kopf]"); if (b) lsSetz({ kopf: b.dataset.vaKopf }); });
+
       box.querySelector("#va-glut-look")?.addEventListener("click", (e) => { const b = e.target.closest("[data-va-glut-look]"); if (b) lsSetz({ glutLook: b.dataset.vaGlutLook }); });
       box.querySelector("#va-r3-glanz")?.addEventListener("input", (e) => { const v_ = box.querySelector("#va-r3-glanz-v"); if (v_) v_.textContent = Math.round(+e.target.value * 100) + " %"; });
       box.querySelector("#va-r3-glanz")?.addEventListener("change", (e) => lsSetz({ glanz: +e.target.value }));
