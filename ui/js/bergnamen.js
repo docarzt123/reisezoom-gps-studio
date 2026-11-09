@@ -13,7 +13,11 @@
  * Namen stehen also in Vorschau und Video gleich. Ein-/Ausblenden rechnet in Videozeit, wenn sie läuft (Render Bild für
  * Bild), sonst in echter Zeit.
  *
- *   const bn = rzBergnamen.erstellen(map, { einstellungen: () => ({an, schrift, groesse, farbe, schatten, max}), zeit: () => s })
+ *   const bn = rzBergnamen.erstellen(map, { einstellungen: () => ({an, schrift, groesse, farbe, schatten, max}), zeit: () => s,
+ *                                            belegt: (kasten {l, r, o, u}) => true, wenn dort ein Schild steht })
+ *   09.11.2026 (Marc, Teide: „die POIs, also steilste Stelle usw., stehen hinter den Bergnamen — die sollten davor stehen“):
+ *   die Schilder sind eine Kartenebene, die Namen liegen als DOM darüber und gewannen immer. Steht ein Schild auf dem
+ *   Namen (`belegt`), blendet der Name aus — das Schild steht vorn.
  *   bn.aktualisieren()   // nach jeder Kamerabewegung (hängt selbst an map "render")
  *   bn.weg()
  */
@@ -188,6 +192,7 @@
         // ganz im Bild (2 % Rand) — sonst lieber weglassen als abgeschnitten (Render-Probe 01.11.2026: „Montaña Roca Cangre…“)
         if (bx.l + luft < 0.02 * W || bx.r - luft > 0.98 * W || bx.o + luft < 0.02 * H) continue;
         if (kaesten.some(k2 => !(bx.r < k2.l || bx.l > k2.r || bx.u < k2.o || bx.o > k2.u))) continue;
+        if (opt.belegt) { let b = false; try { b = !!opt.belegt({ l: bx.l + luft, r: bx.r - luft, o: bx.o + luft, u: bx.u - luft }); } catch (_) {} if (b) continue; }
         kaesten.push(bx);
         gewaehlt.push(Object.assign(c, { pName, pHoehe, abhebung }));
       }

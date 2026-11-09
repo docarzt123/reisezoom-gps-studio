@@ -4721,6 +4721,26 @@ nach `_top`). Fix: `fitBounds` hing am Nordpfeil-`else`. Test `test_webkarte_tra
 **Tour-Auswahl mehrfach (08.11.2026):** `rzArchivTourenWaehlen` (ui/js/util.js) — Alle/Keine (`alleSetzen`), Shift-Klick
 (`_letzterKlick`, Klick an der Zeile, preventDefault), Strg/⌘+A am Dokument solange offen (`_tasteA`, im Textfeld nur leer),
 Limit 5000 (einzel: 300). Test `test_touren_mehrfachauswahl.py`.
+**Röhre: Gelände-Ausgleich am Kopf (09.11.2026):** `u_tiefeHebM` (Tiefe wie 80 m höher verglichen, gegen gröbere/feinere
+Geländekacheln) fiel hinter dem Kopf über `u_kopf.y` Sekunden Videozeit weg (Teide 1,7 km/s → ~400 m Nachglühen ohne
+Ausgleich, Lücken) und im Umkreis 3–6 Kopfgrößen ganz. Jetzt `hebT = min(u_tiefeHebM, 0,5 × Abstand zum Kopf in m)`:
+vor den Kopf kommt ein Stück nur bei Anhebung > Abstand × tan(Blickhöhe), bei ≤ 63° nie; steiler deckt der Kopf nur,
+was unter ihm liegt (Pfeil-Umriss spart es aus). Teide 7 s/8 s: durchgehend statt zerhackt.
+**Bergnamen hinter Schildern (09.11.2026):** Schilder sind die Symbol-Ebene `anim-signs-lyr`, die Bergnamen eine DOM-Ebene
+darüber. `rzBergnamen.erstellen(map, { belegt })` — `belegt(kasten)` (Animator `_bnSchildDa`: `queryRenderedFeatures` im
+Kasten auf `anim-signs-lyr`, Feature-State `op` > 0,05) → der Name wird nicht gewählt und blendet aus. Test
+`test_bergnamen` A2 (mit Gegenprobe).
+**Röhre nicht im Pfeil (09.11.2026):** Tiefe/Aussparung am 3D-Kopf (`opts.kopfOrt()`) hingen an `kopf` der Spur, den
+es nur mit Nachglühen gab — ohne lief die Röhre bis in die Pfeilmitte und ragte aus dem flachen Pfeil, bei schlängelndem
+GPS-Weg auch quer hindurch (Pfeil zeigt geglättet). Jetzt: Spur-Option `kopfOrtAn: true` (Hauptröhre, Bodenschatten mit
+`kopfAus` 2,5) holt den Kopf-Ort auch ohne `kopf`; `_kopfOrt()` liefert beim Pfeil/Komet-Pfeil `pfeil: { dreh, groesseM }`,
+rz-line3d setzt `u_kopfPfeil` (Richtung in Merkator, Größe) und verwirft im Fragment-Shader die Spur im Pfeil-Umriss
+(Spitze 0,75 · Flügel ±0,54/−0,75 · Kerbe −0,36 in Pfeilgrößen; Rand +0,16 an den Flanken, +0,04 an der Kerbe, vorn bis
+0,87) — nach Mittellinie, egal wie alt; hinter der Kerbe (Röhrenende 0,5) bleibt sie. Prüfstand `window.__rzKopfPfeil`.
+Test `test_roehre_im_pfeil.py` (alter Code: 87 % des Pfeil-Inneren rot).
+**Röhren-Zeiten nachziehen (08.11.2026):** `_flugSpuren` merkt `_flug.glutZ` (die Zeiten, mit denen die Röhre gebaut
+ist); `_flugGlutPruefen()` (am Anfang von `_flugPunkt`) setzt die Spuren neu, sobald `_glutZeiten()` ein anderes Feld liefert
+(Tempo-Tabelle kam später, Dauer/Intro geändert) — sonst lief der Kopf der Röhre davon (Mammut-Tour: +4 %).
 **rz-figur3d im Globus (08.11.2026):** bei `projectionTransition > 0` kommt die Modellmatrix aus
 `map.transform.getMatrixForModel([lng, lat], boden + agl)` (gleiche Achsen x Ost/y oben/z Süd in Metern), sonst wie bisher
 aus MercatorCoordinate — Komet-Kopf und 3D-Modelle erscheinen auch im Globus (Prüfstand `layer._globus`).

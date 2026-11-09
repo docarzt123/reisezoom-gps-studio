@@ -60,6 +60,17 @@ Bei jeder neuen Version:
   “Switch sides at the edge” (now off by default; existing signs slide out too).
 
 ### Fixed
+- **3D tube: short breaks in the glowing part** behind the head: there the tube was compared against the terrain without
+  the usual allowance, over the last quarter second of video — at high video speed hundreds of metres. Finer terrain
+  tiles cut pieces out of it. The allowance now only shrinks right at the head.
+- **Signs stand in front of mountain names**: a mountain name under a sign (highest point, steepest section …) fades out,
+  instead of being drawn across the sign.
+- **3D tube: the tube showed inside the arrow** when the tube had no afterglow: it ran to the middle of the arrow and
+  stuck out on top, and where the GPS track wiggles behind the arrow it ran straight across it. The tube now always
+  leaves the arrow at the notch, with or without afterglow, for the comet arrow and the plain 3D arrow.
+- **3D tube: the head ran ahead of the tube** with an even pace (or after changing the duration): the tube kept the
+  timing it was built with, the moving dot followed the new one — the head pulled away (a few percent, hundreds of
+  metres on long tours). The tube now takes over new timings at once.
 - **Deleted automatic signs stay deleted**: highlight signs (highest point, steepest section, top speed, half distance,
   waypoints) and stage station signs came back after deleting them as long as their kind was ticked. Deleting (also
   “delete all”) is remembered in the project; ticking the kind again brings them back. Undo restores both.

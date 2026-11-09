@@ -28,6 +28,9 @@
  * `kopf: { faktor, sek, farbe, farbSek }` (Komet): die Spur weitet sich zum Kopf auf und endet am Kopfrand
  * (`opts.kopfLuecke()`); mit `farbe` beginnt sie in der Farbe des Kopfs und geht über `farbSek` Sekunden in die Glut über.
  * `kopfAus: k` (08.11.2026, Bodenschatten): unter dem Kopf ganz aussparen, egal wie alt — Radius k × `opts.kopfOrt().schnittM`.
+ * `opts.kopfOrt().pfeil = { dreh, groesseM }` (09.11.2026): beim Pfeil-Kopf die Spur in seinem Umriss aussparen, egal wie
+ *   alt — die Röhre tritt an der Kerbe aus und läuft nie sichtbar durch den Pfeil. `kopfOrtAn: true` holt `opts.kopfOrt()`
+ *   auch für Spuren ohne `kopf` (Röhre ohne Nachglühen); sonst nur mit `kopf`.
  * `opts.nachAufbau()` (08.11.2026): wird gerufen, nachdem die Spur beim Zoomen/Nachladen des Geländes ihre Höhen neu
  * gerechnet hat — wer etwas auf die Spur setzt (3D-Kopf), setzt es danach neu (nicht mitten im Zeichnen: per setTimeout).
  *
@@ -63,6 +66,7 @@ uniform vec2 u_kopf;         // 06.11.2026 Komet: (Faktor der Breite direkt am K
 uniform float u_tiefeHebM;   // 06.11.2026 Tiefe so vergleichen, als läge die Spur so viele Meter höher (gezeichnet am echten Ort)
 uniform vec3 u_kopfOrt;      // 08.11.2026 Kopf (Merkator x, y) und Radius (Merkator) — im Umkreis keine Tiefen-Anhebung; z<=0 = aus
 uniform float u_kopfSchnittR; // 08.11.2026 Radius (Merkator), in dem ältere Stücke unter dem Kopf ausgespart werden; 0 = aus
+uniform vec4 u_kopfPfeil;   // 09.11.2026 Pfeil-Kopf: (Fahrtrichtung Merkator x, y, Größe in Merkator, an > 0)
 out vec3 v_lw;          // (entlang, quer, Segmentlänge) × w
 out float v_w;
 out float v_hw;         // halbe Breite in Bildpunkten × w (je Endpunkt: bei Metern perspektivisch verschieden)
@@ -72,6 +76,7 @@ out vec4 v_color;
 out float v_zeit;
 out float v_kopf;       // 06.11.2026 Komet: Nähe zum Kopf 0…1 (1 = direkt am Kopf)
 out vec2 v_kopfRel;     // 08.11.2026 Lage zum Kopf in Schnitt-Radien (Mittellinie)
+out vec2 v_pfeilLok;    // 09.11.2026 Lage zum Pfeil-Kopf in Pfeilgrößen: (quer, vorwärts) — Mittellinie
 vec4 rzProject(vec3 posMerc, float elevM) {
 #ifdef GLOBE
   // Custom Layer: „Kachel" = ganze Welt (u_projection_tile_mercator_coords = 0,0,1,1)
@@ -125,10 +130,17 @@ void main() {
   // ohne Anhebung. Gemessen: es war ein ÄLTERES Stück derselben Strecke (Hin- und Rückweg auf demselben Weg), voll
   // angehoben — eine Zeitgrenze hilft da nicht. Darum räumlich: im Umkreis u_kopfOrt.z um den Kopf echte Tiefe für jedes
   // Stück, egal wie alt; bis zum doppelten Radius blendet die Anhebung ein.
-  float hebT = u_tiefeHebM * (1.0 - kKopf);
-  if (u_kopfOrt.z > 0.0) hebT *= smoothstep(u_kopfOrt.z, 2.0 * u_kopfOrt.z, distance(a_pos.xy, u_kopfOrt.xy));
+  // 09.11.2026 (Marc, Teide: „die Röhre ist manchmal kurz unterbrochen im Nachglühbereich“) — die Anhebung fehlte hier
+  // auch zeitlich: u_kopf.y Sekunden hinter dem Kopf (0,25 s) — bei 1,7 km je Videosekunde rund 400 m Röhre ohne Ausgleich,
+  // feinere Geländekacheln schnitten Stücke heraus. Die Kopf-Zone ist seit 08.11. räumlich (u_kopfOrt.z), das reicht.
+  float hebT = u_tiefeHebM;
+  // 09.11.2026 (Teide) — statt fester Zone (3–6 Kopfgrößen ganz ohne Ausgleich: dort schnitt feineres Gelände Lücken) wächst
+  // die Anhebung mit dem Abstand zum Kopf: halb so viele Meter wie Abstand. Vor den Kopf kommt ein Stück nur, wenn es um mehr
+  // angehoben ist als Abstand × tan(Blickhöhe) — bei ≤ 63° Blickhöhe nie; steiler deckt der Kopf nur, was direkt unter ihm
+  // liegt, und das spart der Pfeil-Umriss ohnehin aus.
+  float mz = cosh(3.14159265 * (1.0 - 2.0 * a_pos.y)) / 40075016.686;
+  if (u_kopfOrt.z > 0.0) hebT = min(hebT, 0.5 * distance(a_pos.xy, u_kopfOrt.xy) / mz);
   if (hebT > 0.0) {
-    float mz = cosh(3.14159265 * (1.0 - 2.0 * a_pos.y)) / 40075016.686;
     vec4 ph = rzProject(a_pos + vec3(0.0, 0.0, hebT * mz), a_elev + hebT);
     zNdc = clamp(ph.z / ph.w, -1.0, 1.0);
   }
@@ -148,6 +160,10 @@ void main() {
   v_color = a_color;
   v_zeit = a_zeit;
   v_kopfRel = (u_kopfSchnittR > 0.0) ? (a_pos.xy - u_kopfOrt.xy) / u_kopfSchnittR : vec2(99.0);
+  if (u_kopfPfeil.w > 0.0 && u_kopfPfeil.z > 0.0) {
+    vec2 rp = (a_pos.xy - u_kopfOrt.xy) / u_kopfPfeil.z;
+    v_pfeilLok = vec2(dot(rp, vec2(-u_kopfPfeil.y, u_kopfPfeil.x)), dot(rp, u_kopfPfeil.xy));
+  } else v_pfeilLok = vec2(99.0);
 }`;
 
   const FS = `#version 300 es
@@ -161,6 +177,8 @@ in float v_licht;
 in float v_zeit;
 in float v_kopf;
 in vec2 v_kopfRel;
+in vec2 v_pfeilLok;
+uniform vec4 u_kopfPfeil;
 uniform float u_kopfAltSek; // 08.11.2026 Stücke älter als das (s) werden unter dem Kopf ausgespart; 0 = aus
 uniform float u_kopfAus;    // 08.11.2026 > 0: unter dem Kopf ganz aussparen (jedes Alter), Radius = Wert × Schnittradius
 uniform float u_luecke;    // 06.11.2026 Komet: so viele Sekunden vor dem Kopf endet die Spur (= Kugelradius / Tempo)
@@ -260,6 +278,18 @@ void main() {
     if (dS < 0.8) discard;
     a *= smoothstep(0.8, 1.0, dS);
   }
+  // 09.11.2026 (Marc, Teide: „man sieht die Röhre im Laufpfeil drin“) — der Pfeil zeigt geglättet in Fahrtrichtung, der
+  // GPS-Weg dahinter schlängelt sich; die frische Röhre lief quer durch den flachen Pfeil und ragte oben heraus. Im Umriss
+  // des Pfeils (Spitze 0,75 · Flügel ±0,54/−0,75 · Kerbe −0,36, in Pfeilgrößen, plus Fase) ist keine Röhre, egal wie alt.
+  // An der Kerbe nur die Fase als Rand: dort tritt die Röhre aus (sie endet 0,5 hinter der Mitte, u_luecke).
+  if (u_kopfPfeil.w > 0.0) {
+    float ps = abs(v_pfeilLok.x), py = v_pfeilLok.y;
+    float d1 = dot(vec2(ps, py - 0.75), vec2(0.9409, 0.3387)) - 0.16;      // Flanke Spitze → Flügel, nach außen
+    float d2 = dot(vec2(ps, py + 0.36), vec2(-0.5855, -0.8107)) - 0.04;    // Kante Flügel → Kerbe, nach außen
+    float dp = max(max(d1, d2), py - 0.87);                                // vor der Spitze nur knapp
+    if (dp < 0.0) discard;
+    a *= smoothstep(0.0, 0.04, dp);
+  }
   if (a <= 0.002) discard;
   if (v_kopf > 0.0) a *= mix(1.0, exp(-1.6 * (dist / max(0.5, hw)) * (dist / max(0.5, hw))) * 1.25, v_kopf * 0.8);
   if (u_roehre > 0.5) {
@@ -351,7 +381,7 @@ void main() {
                       transition: U("u_projection_transition"),
                       res: U("u_res"), halfw: U("u_halfw"), ucolor: U("u_color"),
                       feather: U("u_feather"), dash: U("u_dash"), pxPerMerc: U("u_pxPerMerc"), pxPerMercRef: U("u_pxPerMercRef"), translate: U("u_translate"),
-                      breiteM: U("u_breiteM"), tiefeHebM: U("u_tiefeHebM"), kopfOrt: U("u_kopfOrt"), kopfSchnittR: U("u_kopfSchnittR"), kopfAltSek: U("u_kopfAltSek"), kopfAus: U("u_kopfAus"), kopf: U("u_kopf"), luecke: U("u_luecke"), roehre: U("u_roehre"), glanz: U("u_glanz"), featherRel: U("u_featherRel"),
+                      breiteM: U("u_breiteM"), tiefeHebM: U("u_tiefeHebM"), kopfOrt: U("u_kopfOrt"), kopfPfeil: U("u_kopfPfeil"), kopfSchnittR: U("u_kopfSchnittR"), kopfAltSek: U("u_kopfAltSek"), kopfAus: U("u_kopfAus"), kopf: U("u_kopf"), luecke: U("u_luecke"), roehre: U("u_roehre"), glanz: U("u_glanz"), featherRel: U("u_featherRel"),
                       zeit: gl.getAttribLocation(p, "a_zeit"), jetzt: U("u_jetzt"), glutSek: U("u_glutSek"), glutN: U("u_glutN"),
                       glutU: U("u_glutU[0]") || U("u_glutU"), glutF: U("u_glutF[0]") || U("u_glutF"), halo: U("u_halo"), kopfFarbe: U("u_kopfFarbe") };
       },
@@ -389,6 +419,8 @@ void main() {
           // Kopffarbe am Röhrenanfang: kopf.farbe "#rrggbb", kopf.farbSek = Übergang in die Glut (s)
           kopfFarbe: (t.kopf && t.kopf.farbe && +t.kopf.farbSek > 0) ? [...hexToRgba(t.kopf.farbe, 1).slice(0, 3), +t.kopf.farbSek] : null,
           kopfAus: (t.kopfAus != null && +t.kopfAus > 0) ? +t.kopfAus : 0,
+          // 09.11.2026 — Kopf-Ort (Tiefe, Aussparung, Pfeil-Umriss) auch ohne Komet/Nachglühen
+          kopfOrtAn: t.kopfOrtAn === true,
         }));
         this._counts = null;
         if (this._gl) this._rebuild();
@@ -524,7 +556,7 @@ void main() {
           const ibo = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
           this._bufs.push({ vbo, ibo, segs, color: t.color, width: t.width, dash: t.dash, feather: t.feather, translate: t.translate,
                            roehre: t.roehre, breiteM: t.breiteM, featherRel: t.featherRel, glut: t.glut, halo: t.halo, tiefeHebM: t.tiefeHebM, kopf: t.kopf, kopfFarbe: t.kopfFarbe,
-                           kopfAus: t.kopfAus, lotCoords: t.lot ? c : null, lotK: 1 });
+                           kopfAus: t.kopfAus, kopfOrtAn: t.kopfOrtAn, lotCoords: t.lot ? c : null, lotK: 1 });
         }
       },
       /** 15.10.2026 (Marc: „dass der Bogen zumindest in der Vorschau flimmert“ — im Video nicht) — die Lotlinien
@@ -647,7 +679,8 @@ void main() {
           // 08.11.2026 — um den Kopf keine Tiefen-Anhebung (opts.kopfOrt() = { lng, lat, rM })
           if (L.kopfOrt) {
             let ko = null;
-            if (b.kopf && typeof opts.kopfOrt === "function") { try { ko = opts.kopfOrt(); } catch (_) { ko = null; } }
+            // 09.11.2026 (Teide ohne Nachglühen: Röhre im Pfeil) — nicht nur beim Komet-Kopf, sondern bei jedem 3D-Kopf
+            if ((b.kopf || b.kopfOrtAn) && typeof opts.kopfOrt === "function") { try { ko = opts.kopfOrt(); } catch (_) { ko = null; } }
             const MCk = window.maplibregl && window.maplibregl.MercatorCoordinate;
             if (ko && +ko.rM > 0 && MCk) {
               const km = MCk.fromLngLat([+ko.lng, +ko.lat], 0), mu = km.meterInMercatorCoordinateUnits();
@@ -656,11 +689,21 @@ void main() {
               if (L.kopfSchnittR) gl.uniform1f(L.kopfSchnittR, schnittR);
               if (L.kopfAltSek) gl.uniform1f(L.kopfAltSek, schnittR > 0 && +ko.altSek > 0 ? +ko.altSek : 0);
               if (L.kopfAus) gl.uniform1f(L.kopfAus, schnittR > 0 ? (b.kopfAus || 0) : 0);
+              // 09.11.2026 Pfeil-Kopf: Umriss aussparen (Richtung im Uhrzeigersinn ab Nord; Merkator-y zeigt nach Süden)
+              const pf = ko.pfeil;
+              if (L.kopfPfeil) {
+                if (pf && +pf.groesseM > 0 && !b.kopfAus) {
+                  const dr = (+pf.dreh || 0) * Math.PI / 180;
+                  gl.uniform4f(L.kopfPfeil, Math.sin(dr), -Math.cos(dr), +pf.groesseM * mu, 1);
+                  window.__rzKopfPfeil = { dreh: +pf.dreh || 0, groesseM: +pf.groesseM, lng: +ko.lng, lat: +ko.lat };   // Prüfstand
+                } else gl.uniform4f(L.kopfPfeil, 0, 0, 0, 0);
+              }
             } else {
               gl.uniform3f(L.kopfOrt, 0, 0, 0);
               if (L.kopfSchnittR) gl.uniform1f(L.kopfSchnittR, 0);
               if (L.kopfAus) gl.uniform1f(L.kopfAus, 0);
               if (L.kopfAltSek) gl.uniform1f(L.kopfAltSek, 0);
+              if (L.kopfPfeil) gl.uniform4f(L.kopfPfeil, 0, 0, 0, 0);
             }
           }
           if (L.kopfFarbe) { const k = b.kopf && b.kopfFarbe; gl.uniform4f(L.kopfFarbe, k ? k[0] : 0, k ? k[1] : 0, k ? k[2] : 0, k ? k[3] : 0); }

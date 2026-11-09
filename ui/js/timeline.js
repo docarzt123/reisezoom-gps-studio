@@ -90,8 +90,10 @@ function mountTimelineBar(opts) {
   host.innerHTML = `
     <div class="timeline-bar">
       <div class="tl-hoehe-griff" title="${tlT("animator.timeline.hoehe_tip", "Ziehen: Spuren höher oder niedriger · Doppelklick: Standard")}"></div>
-      <div class="tl-lbl-griff" title="${tlT("animator.timeline.lbl_tip", "Ziehen: Beschriftungen links breiter oder schmaler · Doppelklick: Standard")}"></div>
       <div class="timeline-track" id="tl-track">
+        <!-- 09.11.2026 — Griff für die Beschriftungsbreite IN der Spurfläche: über die ganze Leiste reichte er bis in die
+             Knopfzeile und fing die Klicks auf „Hier Keyframe“ ab (Nacht-Suite, test_keyframe_klick_setzen) -->
+        <div class="tl-lbl-griff" title="${tlT("animator.timeline.lbl_tip", "Ziehen: Beschriftungen links breiter oder schmaler · Doppelklick: Standard")}"></div>
         <!-- v0.9.4: Cluster-Row über allen Lanes. Ein Marker pro unique-anchor
              der den GANZEN Cluster (alle 4 Properties zusammen) verschiebt.
              Marc-Spec 2026-05-23: „mach doch oben drüber einen marker, um den

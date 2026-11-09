@@ -1951,6 +1951,19 @@ function mountAnimator(body, headerActions, opts) {
     if (p && "bergnamen_an" in p) return !!p.bergnamen_an;
     return !(_activeProject && _activeProject.id);   // schwebend (frische Tour) = wie ein neues Projekt
   };
+  /** 09.11.2026 (Marc, Teide: Schilder stehen hinter den Bergnamen) — steht im Kasten (Bildschirm-px) ein sichtbares Schild?
+   *  Dann lässt bergnamen.js den Namen weg (er blendet aus), das Schild steht vorn. Gleiche Abfrage wie der Klick aufs Schild. */
+  function _bnSchildDa(k) {
+    if (!map || !map.getLayer || !map.getLayer("anim-signs-lyr")) return false;
+    let fs = [];
+    try { fs = map.queryRenderedFeatures([[k.l, k.o], [k.r, k.u]], { layers: ["anim-signs-lyr"] }) || []; } catch (_) { return false; }
+    return fs.some(f => {
+      let op = null;
+      try { const st = map.getFeatureState({ source: "anim-signs-src", id: f.id }); if (st && st.op != null) op = +st.op; } catch (_) {}
+      if (op == null) op = (f.properties && f.properties.op0 != null) ? +f.properties.op0 : 1;
+      return op > 0.05;
+    });
+  }
   function _bnEinst() {
     const v = (id) => document.getElementById(id);
     return { an: !!v("anim-bn-an")?.checked, schrift: v("anim-bn-schrift")?.value || "cormorant", groesse: +(v("anim-bn-groesse")?.value || 100),
@@ -7435,7 +7448,9 @@ function mountAnimator(body, headerActions, opts) {
     const fg = _flug.figur, f = fg && fg._figur;
     if (!f || !(fg._groesseM > 0)) return null;
     const g = fg._groesseM, schnittM = 0.85 * g, v = _kopfTempo();
-    return { lng: f.lng, lat: f.lat, rM: 3 * g, schnittM, altSek: v > 0 ? Math.min(5, 2.5 * schnittM / v) : 0 };
+    // 09.11.2026 Pfeil: Umriss für rz-line3d (dort keine Röhre, egal wie alt — Teide: Röhre schlängelte sich durch den Pfeil)
+    const pfeil = (f.form === "pfeil" || f.form === "kometpfeil") ? { dreh: +f.drehung || 0, groesseM: g } : null;
+    return { lng: f.lng, lat: f.lat, rM: 3 * g, schnittM, altSek: v > 0 ? Math.min(5, 2.5 * schnittM / v) : 0, pfeil };
   }
   /** Videosekunde je Punkt von currentCoords, in der der Kopf ihn passiert (vor dem Schnitt: lange vorbei, danach: nie). */
   function _glutZeiten() {
@@ -7696,6 +7711,7 @@ function mountAnimator(body, headerActions, opts) {
       // Reihenfolge wie im Flug (Schatten, Lot, ggf. Geist, Hauptlinie), damit _flugBereich gleich bleibt; Lot leer
       // 06.11.2026 Komet: Hauptlinie mit Nachglühen, dahinter (zuletzt gezeichnet, additiv) der Lichthof
       const G = _glutDaten(ro.glut), zeiten = G ? _glutZeiten() : null;
+      _flug.glutZ = zeiten;   // 08.11.2026 — womit die Röhre gebaut ist (s. _flugGlutPruefen)
       const hFarbe = G ? G.ende : farbe;
       const glut = G && zeiten ? { sek: G.sek, stufen: G.stufen } : null;
       _flug.mitHalo = !!glut;
@@ -7710,11 +7726,15 @@ function mountAnimator(body, headerActions, opts) {
           // am Kopf echte Tiefe (sonst lag der Schatten durch den Ausgleich VOR der Kugel — dunkler Strich über ihr)
           zeiten: kopf ? zeiten : null, kopf: kopf ? { faktor: 1.0001, sek: kopf.sek } : null,
           // 08.11.2026 (Marc, Schorfheide s 21–22: Pfeil flimmert) — unter dem Kopf ganz weg, dort liegt sein eigener Schatten
-          kopfAus: kopf ? 2.5 : 0 },
+          // 09.11.2026 (Teide ohne Nachglühen) — bei jedem 3D-Kopf, nicht nur beim Komet
+          kopfAus: 2.5, kopfOrtAn: true },
         { coords: [], color: farbe, width: 1 },
         ...(_flug.mitGeist ? [{ coords: currentCoords, agl: nullen, color: currentGhostColor(), opacity: currentGhostOpacity(), width: lw * 0.6, smooth: false }] : []),
         { coords: currentCoords, agl, color: f && !glut ? "#ffffff" : hFarbe, segColors: f && !glut ? f.seg : null, opacity: _hauptDeckkraft(), width: lw * (ro.minFaktor != null ? +ro.minFaktor : 1.4),
-          breiteM: +ro.breiteM, roehre: { glanz: ro.glanz != null ? +ro.glanz : 0.5 }, zeiten, glut, tiefeHebM, kopf },
+          breiteM: +ro.breiteM, roehre: { glanz: ro.glanz != null ? +ro.glanz : 0.5 }, zeiten, glut, tiefeHebM, kopf,
+          // 09.11.2026 (Marc, Teide: „man sieht die Röhre im Laufpfeil drin“) — ohne Nachglühen gab es keinen Komet-Kopf und
+          // damit weder Tiefe noch Aussparung am Pfeil: die Röhre lief bis in die Pfeilmitte und ragte oben heraus
+          kopfOrtAn: true },
         // 08.11.2026 (Marc, Schorfheide s 12: „da scheint die Röhre durch den Pfeil durch“) — der Lichthof ist 3,4× so
         // breit wie die Röhre, lief ohne Lücke bis in die Kopfmitte und verglich die Tiefe 80 m angehoben: zeigte der
         // Pfeil zur Kamera, lag er violett über dem Pfeil. Wie der Schatten: Lücke bis zur Kerbe, am Kopf echte Tiefe.
@@ -7811,12 +7831,25 @@ function mountAnimator(body, headerActions, opts) {
     _flug.ebene.setTracks(_flugSpuren(_flug.agl));
     if (r) _flug.ebene.setRanges(r);
   }
+  /** 08.11.2026 (Marc, Mammut-Video: „der Pfeil rennt der Spur davon“) — die Röhre bekommt beim Aufbau die Videosekunde je
+   *  Punkt (_glutZeiten) und behielt sie. Kam danach die Tempo-Tabelle (_paceMap, z. B. „gleichmäßig“) oder änderten sich
+   *  Dauer/Intro, lief der Laufpunkt nach der neuen Zeit, die Röhre nach der alten: der Kopf zog ihr davon (gemessen 4 %,
+   *  bei 9 s 550 m). Jetzt: andere Zeiten als beim Aufbau → Spuren neu setzen (Bereiche bleiben). */
+  function _flugGlutPruefen() {
+    if (!_flug.an || !_flug.ebene || !_flug.mitHalo || !_flug.agl || !currentCoords || _flug.agl.length !== currentCoords.length) return;
+    const z = _glutZeiten();
+    if (!z || z === _flug.glutZ) return;
+    const r = _flug.ebene._ranges ? _flug.ebene._ranges.map(x => x && x.slice()) : null;
+    _flug.ebene.setTracks(_flugSpuren(_flug.agl));
+    if (r) _flug.ebene.setRanges(r);
+  }
   /** Laufpunkt in der Luft nach einer Änderung des Aussehens neu zeichnen (dotEbenenAufbauen). */
   function _flugPunktNeu() {
     try { if (_flug.an && _flug.letztPos) _flugPunkt(_flug.letztPos, _flug.letztBrg); } catch (e) { applog("warn", "[flug3d] Laufpunkt neu: " + e); }
   }
   function _flugPunkt(pos, brg, sk) {
     if (!_flug.an || !_flug.punkt || !pos || !_flug.agl) return;
+    try { _flugGlutPruefen(); } catch (e) { applog("warn", "[röhre] Zeiten nachziehen: " + e); }
     if (brg != null && isFinite(+brg)) _flug.letztBrg = +brg;
     if (sk != null && isFinite(+sk)) _flug.letztSk = +sk;   // 19.10.2026 — Symbolwechsel nach Logbuch (klein → groß)
     // nächster Track-Index ab dem letzten (Laufpunkt bewegt sich stetig), sonst global
@@ -15219,7 +15252,7 @@ function mountAnimator(body, headerActions, opts) {
     });
     map = made.map;
     try { if (_bn) _bn.weg(); } catch (_) {}
-    try { _bn = window.rzBergnamen ? window.rzBergnamen.erstellen(map, { einstellungen: _bnEinst, zeit: () => _bnZeit }) : null; } catch (e) { applog("warn", "[bergnamen] " + e); }
+    try { _bn = window.rzBergnamen ? window.rzBergnamen.erstellen(map, { einstellungen: _bnEinst, zeit: () => _bnZeit, belegt: _bnSchildDa }) : null; } catch (e) { applog("warn", "[bergnamen] " + e); }
     // 01.11.2026 — Einblendungen am Laufpunkt folgen jeder Kamerabewegung (nach Kamera + Punkt dieses Bildes)
     try { map.on("render", () => { if (document.querySelector("#anim-overlay-preview > .ct.ct-am-lp")) _ctLaufpunktAt(); }); } catch (_) {}
     try { map.on("moveend", _gelaendeNachFahrt); map.on("idle", _gelaendeNachFahrt); } catch (_) {}   // 09.09.2026 Gelände-Kacheln prüfen
