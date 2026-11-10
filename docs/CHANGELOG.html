@@ -117,9 +117,29 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.857</span>
+    <span class="version-date">10. November 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <ul>
+    <li><strong>Track als 3D-Röhre mit Kometenkopf und Nachglühen</strong> &mdash; Unter „Darstellung“ im Aussehen des Tracks (Stift neben der Tour) wechselst du zwischen flacher Linie und einer 3D-Röhre, die knapp über dem Gelände schwebt. Vorne läuft ein leuchtender Komet oder ein Kometenpfeil, aus dem die Röhre kommt; dahinter glüht die frisch gefahrene Strecke nach und kühlt in der eingestellten Zeit („Nachglühen“, Standard 1,5 Sekunden) zur Linienfarbe ab. Glanz, Dicke und Höhe über dem Boden stellst du selbst ein, die Glutfarben kommen aus der Linienfarbe oder aus vier Looks. Vorschau und Video sehen gleich aus. Neue Projekte starten mit der Röhre, bestehende bleiben flach. Die Röhre braucht die freien Karten, mit Mapbox bleibt die Linie flach.</li>
+    <li><strong>Laufpunkt als 3D-Modell</strong> &mdash; Der neue Fahrzeug-Look „3D-Modell“ macht aus dem Laufpunkt ein echtes 3D-Fahrzeug &mdash; für alle 20 Fortbewegungsarten, vom Auto (neun Formen, vom Kombi bis zum Geländewagen) über Wanderer und Fahrrad bis zu Kajak, Flugzeug und Heißluftballon. Es steht auf der Karte, dreht sich mit der Fahrtrichtung, neigt sich am Hang und bewegt Beine, Pedale, Paddel und Räder mit; bei einem Halt gleitet es in eine Ruhepose. Die Formen des Laufpunkts sind dafür auf die Reiter 2D und 3D verteilt.</li>
+    <li><strong>Nachglühen auch für die flache Linie</strong> &mdash; Das leuchtende Stück hinter dem Laufpunkt folgt jetzt genau dem Track und wird in Sekunden gemessen, statt in Prozent der Strecke. Projekte mit dem alten Schweif behalten ihn, bis du das Nachglühen einschaltest.</li>
+    <li><strong>Web-Karte: Tracks mit eigenem Link</strong> &mdash; Jeder Track der Web-Karte bekommt ein Feld für einen Link. In der exportierten Karte zeigt das Überfahren den Namen und hebt den Track hervor, ein Klick öffnet deine Seite &mdash; im selben Fenster oder in einem neuen Tab.</li>
+    <li><strong>Viele Touren auf einmal auswählen</strong> &mdash; Im Fenster „Touren aus dem Archiv hinzufügen“ (Web-Karte, Animator, Projekte) gibt es jetzt „Alle“ und „Keine“, Shift-Klick für einen ganzen Bereich und ⌘A / Strg+A; die Liste zeigt bis zu 5000 Touren statt 300.</li>
+    <li><strong>Schilder verlassen das Bild mit dem Laufpunkt</strong> &mdash; Am Bildrand sprang ein Schild am Laufpunkt bisher auf dessen andere Seite. Jetzt bleibt es auf seiner Seite und gleitet mit dem Laufpunkt aus dem Bild. Das alte Verhalten gibt es weiter als Schalter „Am Rand Seite wechseln“.</li>
+    <li><strong>Zeitleiste</strong> &mdash; Die Beschriftungsspalte lässt sich breiter ziehen (Doppelklick: Standard), die Zeile „Medien“ lässt sich einklappen, und Overlay-Balken zeigen, was sie anzeigen. Ziehst du die Zeitleiste höher, bleibt sie jetzt so hoch. Ein Overlay in der Vorschau beendest du mit „Fertig“ oder Esc.</li>
+    <li><strong>Gelöschte automatische Schilder bleiben gelöscht</strong> &mdash; Schilder wie höchster Punkt, steilste Stelle oder Etappen-Stationen kamen nach dem Löschen wieder. Jetzt merkt sich das Projekt das Löschen; Rückgängig holt sie zurück. Außerdem stehen Schilder jetzt vor den Bergnamen statt dahinter.</li>
+    <li><strong>Mapbox-Kamera dreht gleichmäßiger</strong> &mdash; Die Drehung der Kamera auf Mapbox-Karten ändert sich jetzt in jedem Bild weich, statt in kleinen Stufen.</li>
+    <li><strong>Fremde Videovorlagen werden genau geprüft</strong> &mdash; Eine importierte .rzstyle-Datei wird jetzt Wert für Wert geprüft; ungültige Werte fallen weg, beschädigte Dateien werden gemeldet, und der Import hängt nicht mehr bei sehr langen Vorlagennamen.</li>
+    <li><strong>Web-Karte mit Nordpfeil</strong> &mdash; Ohne gespeicherten Kartenausschnitt blieb die exportierte Karte mit Nordpfeil leer &mdash; jetzt zeigt sie alle Tracks.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.856</span>
     <span class="version-date">5. November 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <ul>
     <li><strong>GPS Studio startet unter Windows wieder, auch wenn der Bilder-Ordner woanders liegt</strong> &mdash; Lag der Windows-Ordner &bdquo;Bilder&ldquo; nicht an seinem gewohnten Platz (zum Beispiel weil OneDrive ihn sichert oder er auf eine andere Platte verschoben wurde), brach der Start mit einer Fehlermeldung zu &bdquo;Reisezoom Tour Maps&ldquo; ab. Jetzt fragt GPS Studio Windows nach dem richtigen Bilder-Ordner; klappt das nicht, landen die Tour-Karten im App-Ordner und die App startet ganz normal.</li>

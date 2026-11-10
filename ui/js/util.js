@@ -4556,7 +4556,7 @@ window.rzScaleMapLabels = rzScaleMapLabels;
  * Touren hinzufügt, wählt sie aus dem Archiv, nicht aus dem Dateisystem. Ist
  * eine Tour noch nicht drin, importiert „Datei importieren …" sie ERST ins
  * Archiv und hakt sie dann an. Gemeinsam für Animator (und alles, was danach
- * kommt); das Archiv-Modul hat seine eigene ältere Fassung bei [data-addtours].
+ * kommt), seit 09.11.2026 auch für ➕ auf der Projekt-Kachel und „Neues Projekt daraus“ im Archiv-Modul.
  *
  *   const pfade = await rzArchivTourenWaehlen({ ausschliessen: [pfad, …] });
  *   → Liste gewählter Pfade, leer bei Abbrechen.

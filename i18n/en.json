@@ -7412,6 +7412,7 @@
   "rzstyle.fehler_schreiben": "Could not write the file.",
   "rzstyle.fehler_ordner": "This folder is not writable.",
   "rzstyle.leer": "no overlays",
+  "rzstyle.kaputt": "file is damaged",
   "vv.kurz.fernweh": "Calm, serif title, lots of space",
   "vv.kurz.klartext": "Just type and one progress line",
   "vv.kurz.randnotiz": "Light paper band on the left, everything in it",

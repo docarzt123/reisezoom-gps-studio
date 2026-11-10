@@ -288,7 +288,7 @@ def _parse_kml_string(data: str) -> List[Point]:
         return pts
 
     # 2) Klassische <coordinates>lon,lat,ele …</coordinates>
-    # 14.10.2026 (Web-Fund F-25, Bugreport: Google-Maps-Route a → b „mit gerader Linie zurück und viel zu großer
+    # 14.10.2026 (Web-Version, Bugreport: Google-Maps-Route a → b „mit gerader Linie zurück und viel zu großer
     # Strecke“) — vorher wurden ALLE <coordinates> hintereinandergehängt, auch die der <Point>-Ortsmarken A und B, die
     # Google Maps / My Maps neben der Route exportiert (7,31 km → 19,95 km). Jetzt: gibt es Linien (LineString), zählen nur
     # sie (in Dateireihenfolge); Punkte und Flächen nur, wenn es gar keine Linie gibt (reine Ortsliste → Weg wie bisher).

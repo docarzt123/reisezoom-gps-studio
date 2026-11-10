@@ -491,7 +491,7 @@ KNOWN_GAPS = [
      "reason": "Der Luftbild-Dienst der Stadt Hamburg ist abgeschaltet (alle bekannten Adressen 404, Stand 04.09.2026)."},
 ]
 
-# 12.10.2026 (Web-Fund F-16, Marc: „weglassen“) — Luftbild-Länder, deren Freigabe für Videos im Quellen-Register nicht
+# 12.10.2026 (Web-Version, Marc: „weglassen“) — Luftbild-Länder, deren Freigabe für Videos im Quellen-Register nicht
 # geklärt („unknown“) oder verneint („false“) ist, benutzt die App nicht: Vorschau und Video zeigen dort den Untergrund
 # (Sentinel-2), der Hinweis nennt den Grund (KNOWN_GAPS). Wird die Freigabe im Register auf „true“ geklärt, sind sie
 # automatisch wieder dabei. Betrifft derzeit Italien (Ortofoto AGEA 2012, Lizenz unbelegt).

@@ -264,6 +264,12 @@ void main() {
     // Lichthof: weicher Saum um die Mitte der Spur (Gauß quer), additiv, verlischt mit dem Alter. Ohne runde Enden —
     // die überlappten an jedem Gelenk und zählten dort doppelt (helle, wandernde Flecken).
     if (along < 0.0 || along > L) discard;
+    // 09.11.2026 (Audit) — auch ohne Komet-Kopf (3D-Pfeil, 3D-Puk, Kugel auf der Röhre) lag der additive Lichthof über
+    // dem Kopf: im Pfeil-Umriss bzw. im Kopfrund keinen Lichthof (wie bei der Röhre selbst)
+    if (u_kopfPfeil.w > 0.0) {
+      float hs = abs(v_pfeilLok.x), hy = v_pfeilLok.y;
+      if (max(max(dot(vec2(hs, hy - 0.75), vec2(0.9409, 0.3387)) - 0.16, dot(vec2(hs, hy + 0.36), vec2(-0.5855, -0.8107)) - 0.04), hy - 0.87) < 0.0) discard;
+    } else if (length(v_kopfRel) < 1.2) discard;   // v_kopfRel = 99 ohne Kopf
     float q = abs(across) / max(0.5, hw);
     float h = exp(-2.6 * q * q) * hitze * u_halo * c.a;
     if (h <= 0.002) discard;

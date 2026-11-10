@@ -288,7 +288,7 @@ async def main():
 
         print("\n━━━ 6d. Tour-Assistent (Fenster, Lauf, Sprung ins Projekt) ━━━")
         # Wie in der App: die Auswahl ist ein Fenster ÜBER dem Assistenten (Marc: „ich kann Los nicht klicken“).
-        await pg.evaluate("window.rzArchivTourenWaehlen = async () => { const mm = openModal({ title: 'Auswahl', body: '<p>…</p>', footer: '' }); await new Promise(r => setTimeout(r, 80)); mm.close(); return ['/mock/t2.gpx']; }")
+        await pg.evaluate("window.__rzAtwEcht = window.__rzAtwEcht || window.rzArchivTourenWaehlen; window.rzArchivTourenWaehlen = async () => { const mm = openModal({ title: 'Auswahl', body: '<p>…</p>', footer: '' }); await new Promise(r => setTimeout(r, 80)); mm.close(); return ['/mock/t2.gpx']; }")
         await pg.keyboard.press("Meta+Shift+N")
         await pg.wait_for_timeout(400)
         sagen(bool(await pg.query_selector("#ass-los")), "⌘⇧N öffnet den Assistenten")
@@ -315,14 +315,16 @@ async def main():
         await pg.click("#lib-seg-vorlagen")
         await pg.wait_for_timeout(400)
         await pg.evaluate("""(() => { window.__loads = []; window.loadGlobalGpx = async (p, o) => { window.__loads.push([p, o || {}]); return true; }; })()""")
+        # „Neues Projekt daraus“ nutzt den echten Archiv-Dialog — den Platzhalter aus 6d zurücknehmen
+        await pg.evaluate("() => { if (window.__rzAtwEcht) window.rzArchivTourenWaehlen = window.__rzAtwEcht; }")
         await pg.click('.lib-vorl-karte[data-vid="v1"] [data-vneu]')
         await pg.wait_for_timeout(400)
-        sagen(bool(await pg.query_selector("#lib-tp-liste")), "zuerst kommt die Touren-Auswahl aus dem Archiv (Marc)")
-        await pg.click('#lib-tp-ok')
+        sagen(bool(await pg.query_selector("#rz-tw-liste")), "zuerst kommt die Touren-Auswahl aus dem Archiv (Marc)")
+        await pg.click('#rz-tw-ok')
         await pg.wait_for_timeout(200)
-        sagen(bool(await pg.query_selector("#lib-tp-liste")), "… ohne Haken geht es nicht weiter")
+        sagen(bool(await pg.query_selector("#rz-tw-liste")), "… ohne Haken geht es nicht weiter")
         await pg.click('[data-tpath="/mock/t1.gpx"]')
-        await pg.click('#lib-tp-ok')
+        await pg.click('#rz-tw-ok')
         await pg.wait_for_timeout(300)
         sagen(bool(await pg.query_selector("#vorl-np-name")) and bool(await pg.query_selector("#vorl-np-vorlage")),
               "dann das Namensfenster mit Vorlagen-Feld")

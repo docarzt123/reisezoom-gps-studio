@@ -2065,7 +2065,7 @@ window.importProject = async function (pfad) {
   try { window.dispatchEvent(new CustomEvent("rz-touren-geaendert")); } catch (_) {}   // offenes Archiv zeigt die neue Tour
   // 05.09.2026 (Audit): Mehr-Touren-Paket → das Projekt wie aus dem Archiv öffnen
   // (lädt alle Touren als Schwarm/Reise), nicht nur die erste Tour.
-  // 07.10.2026 (Web-Fund F-4): Projekt ohne GPS → ebenso über das Archiv öffnen (lädt die Etappe als Haupt-Track)
+  // 07.10.2026 (Web-Version): Projekt ohne GPS → ebenso über das Archiv öffnen (lädt die Etappe als Haupt-Track)
   if ((res.menge || res.frei) && res.project_id && typeof window.rzProjektOeffnen === "function") {
     try { await window.rzProjektOeffnen(res.project_id); applog && applog("info", `[importProject] ${res.frei ? "Projekt ohne GPS" : "Menge"} geöffnet: ${res.project_id}`); }
     catch (e) { applog && applog("error", `[importProject] Menge öffnen wirft: ${e}`); }

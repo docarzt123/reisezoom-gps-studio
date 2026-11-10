@@ -317,6 +317,8 @@ def _vorlage_aus_datei(app, pfad: str, fmt: str | None) -> dict:
         name, daten = crzstyle.als_eigene_vorlage(d, getattr(app, "_ui_sprache", lambda: "en")(), fmt or "")
     except (OSError, UnicodeDecodeError, crzstyle.RzStyleFehler) as e:
         raise CliFehler(f"--template-file {p}: {e}", code=2) from None
+    except (ValueError, TypeError, AttributeError, KeyError, RecursionError):   # 09.11.2026 — kaputte Struktur
+        raise CliFehler(f"--template-file {p}: damaged file", code=2) from None
     return {"art": "eigen", "id": "datei", "format": daten.get("format"), "eintrag": {"id": "datei", "name": name, "daten": daten}}
 
 

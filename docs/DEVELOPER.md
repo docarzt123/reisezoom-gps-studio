@@ -4738,6 +4738,13 @@ rz-line3d setzt `u_kopfPfeil` (Richtung in Merkator, Größe) und verwirft im Fr
 (Spitze 0,75 · Flügel ±0,54/−0,75 · Kerbe −0,36 in Pfeilgrößen; Rand +0,16 an den Flanken, +0,04 an der Kerbe, vorn bis
 0,87) — nach Mittellinie, egal wie alt; hinter der Kerbe (Röhrenende 0,5) bleibt sie. Prüfstand `window.__rzKopfPfeil`.
 Test `test_roehre_im_pfeil.py` (alter Code: 87 % des Pfeil-Inneren rot).
+**Lichthof am 3D-Kopf (09.11.2026):** die Lichthof-Spur (`halo`) bekommt `kopfOrtAn: true` auch ohne Komet-`kopf`; im
+Halo-Zweig des Fragment-Shaders vor dem additiven `return`: im Pfeil-Umriss (`u_kopfPfeil`) bzw. im Kopfrund
+(`length(v_kopfRel) < 1.2` Schnittradien) kein Lichthof — sonst lag er bei 3D-Pfeil/3D-Puk/Kugel mit Nachglühen über dem Kopf.
+**rz-figur3d aufräumen und „obenauf“ (09.11.2026):** `onRemove` gibt alle gebauten Modellnetze (`_modellGeoListe`) und
+den three-Renderer frei (`renderer.dispose()` lässt den geteilten Kontext der Karte stehen). „obenauf“ beim 3D-Modell
+zeichnet MIT Tiefentest, aber mit `gl.depthRange(0, 0.002)` (danach zurück auf 0…1): vor dem Gelände und in sich richtig
+sortiert — ohne Tiefentest malten ferne Räder und Innenflächen über die Karosserie.
 **Röhren-Zeiten nachziehen (08.11.2026):** `_flugSpuren` merkt `_flug.glutZ` (die Zeiten, mit denen die Röhre gebaut
 ist); `_flugGlutPruefen()` (am Anfang von `_flugPunkt`) setzt die Spuren neu, sobald `_glutZeiten()` ein anderes Feld liefert
 (Tempo-Tabelle kam später, Dauer/Intro geändert) — sonst lief der Kopf der Röhre davon (Mammut-Tour: +4 %).
@@ -5626,6 +5633,13 @@ Lichtglas 1:1: unterwegs zwei Werte, Höhenprofil nur unterwegs (`zeit.bis` gese
 **Ändern:** neue Schlüssel nur dazu, nie umdeuten; bricht etwas Bestehendes, `version` hochzählen (Leser lehnen
 höhere Versionen ab).
 
+
+**Werte prüfen (09.11.2026):** `core/rzstyle.animator_saeubern()` lässt von den Linien-/Laufpunkt-Werten nur gültige
+durch — Farben `#hex` (3–8 Stellen), Zahlen endlich und begrenzt (`_ANIM_ZAHLEN`), Auswahlwerte als einfache Wörter,
+Schalter als bool; benutzt beim Lesen, Vervollständigen und in `videovorlage_eigen_speichern`. `lesen()` lehnt
+`NaN`/`Infinity` ab (`parse_constant`). Die Stil-Kachel des Video-Assistenten setzt zusätzlich nur `#hex`-Farben ins HTML.
+Kaputte Strukturen melden Import und Kommandozeile als „beschädigt“ (Exit 2), statt abzubrechen. Doppelte Namen beim
+Import: „ 2“, „ 3“ … hinter die gekürzte Basis (max. 60 Zeichen).
 ## Vorläufer im Szenen-Render (30.09.2026, v0.9.746)
 
 - `szene._vorlaeufer(p, cfg, api, projekt_id, params, modul, zustand, is_cancelled)`: zweite Seite über
@@ -7555,7 +7569,7 @@ Abschnitt], abschnitte:[{art, von, bis}], km}`. Sie läuft durch dieselbe Reise 
   Ausrichtung `map`, `pixelRatio: 4`. Einstellung `marker_dot_fz_stil` (global, verstecktes `#anim-dot-fz-stil`); die Kacheln
   (`_dotKacheln`) stehen im Aussehen-Editor je Tour und setzen die versteckten Listen. `__rzAnimBereit().fzBilder`, core/szene.py
   wartet darauf.
-- **App-only-Markierung in `ui/index.html` (13.10.2026, Web-Fund F-24):** `<script>`/`<link>` mit `data-nur-app` braucht nur die
+- **App-only-Markierung in `ui/index.html` (13.10.2026, Web-Version):** `<script>`/`<link>` mit `data-nur-app` braucht nur die
   Desktop-App (Mapbox, Leaflet, Geotagger, Höhen-Animator, GPX-Inspektor, Bibliothek). Das Web entfernt diese Zeilen beim Erzeugen
   seiner `web.html` (gps-studio-web `scripts/build_engine.py`). `tests/test_web_schlank.py` lädt die Seite ohne sie (MapLibre,
   Animator, Laufpunkt, Abspielen). **Neue Dateien, die nur die App braucht, ebenso markieren** — nie etwas aus `ui/js/`, MapLibre
@@ -8249,7 +8263,7 @@ Test: `tests/test_linie_ecken.py`.
 - Archiv `reload()` zeichnet vor der ersten Abfrage („Touren werden geladen …“ mit `.spinner`), solange `_tourenGeladen` falsch ist.
 - Assistent-Raster: `.sv-alle-bild` setzt `opacity`/`filter` der Vorschlags-Kachel zurück (sah wie abgewählt aus).
 
-## Weltumrundung und Import freier Web-Projekte (12.10.2026, Web-Funde F-14/F-15)
+## Weltumrundung und Import freier Web-Projekte (12.10.2026, Web-Version)
 - `kamerafahrt(bbox, animS, regie, opt, linie)` (schnellvideo.js): umspannt die Box ≥ 300° Länge, liegen die Übersichts-
   Keyframes am Anfang über `linie[0]`, am Ende über `linie[-1]` (Breite: Mitte der Box). Vorher Mitte der Box = Gegenseite
   (abgewickelt −166,6° bei Berlin westwärts) bzw. irgendwo (roh −180…180). Bereits gespeicherte Projekte behalten ihre
@@ -8299,7 +8313,7 @@ Test: `tests/test_linie_ecken.py`.
   `/* rz-patch taskqueue */` — `TaskQueue.run` mit try/finally: ein Fehler in einer Render-Aufgabe ließ `_currentlyRunning`
   stehen, jedes weitere Bild warf „Attempting to run(), but is already running.“ (Vorschau stand). Ausgelöst beim
   Neuaufbau des Animators nach Modulwechsel (9:16/Nachtkarte/Gelände), ~2 von 3 Läufen; danach 0 von 3.
-  `/* rz-patch datumsgrenze */` (14.10.2026, Web-Fund F-15) — in `coveringTiles` (`xe`) wird der Kamerapunkt `a` auf die
+  `/* rz-patch datumsgrenze */` (14.10.2026, Web-Version) — in `coveringTiles` (`xe`) wird der Kamerapunkt `a` auf die
   Weltkopie der Mitte `s` gelegt (`a.x-=Math.round(a.x-s.x)`). An −180° lag er sonst eine Erdbreite daneben; der Abstand
   Kamera↔Mitte (Nenner der LOD-Formel) war ~1 Welt, jede Kachel galt als nah → feinste Stufe überall (gemessen 54 633
   Gelände-, 10 350 und 8 461 Kacheln für ein Bild), `_updateRetainedTiles` lief minutenlang (Stapel per CDP-Pause). Kein
@@ -8491,7 +8505,7 @@ Test: `tests/test_linie_ecken.py`.
 - Kommandozeile: wartet auf `window.__rzSchnellGeladen()` (Fotos/Clips gefunden) und setzt `#sv-fotos-an` ausdrücklich
   (sonst erbte sie „Fotos aus“ vom letzten Mal in der App).
 
-## Schilder: nahe Highlights, Zeit = Pfeil, im Bild halten (13.10.2026, Web-Funde F-21/F-19/F-20)
+## Schilder: nahe Highlights, Zeit = Pfeil, im Bild halten (13.10.2026, Web-Version)
 - `_hlBerechnen`: die 6-%-Regel dünnt nur noch GPX-Wegpunkte aus; ausdrücklich gewählte Arten bleiben.
   `_hlZeitlichTrennen(neu)` (in `_hlSchilderAbgleichen`): überlappen zwei Auto-Schilder zeitlich, geht das frühere in der
   Mitte (`after`), das spätere kommt dann (`before`); Fingerabdruck danach neu. Anker über `window.__rzSignAnkerAusOrt`.
@@ -9149,7 +9163,7 @@ kann es verfeinern und dann direkt rendern oder als Projekt übernehmen“ — V
 - **Fußleiste:** `#sv-uebernehmen` („Ins Projekt übernehmen“, `va.ins_projekt`) und `#va-erstellen` auf jedem Reiter
   sichtbar; `#va-weiter` ist kein Hauptknopf mehr (CTA = „Video erstellen …“).
 - **Kamera-Reiter:** `#va-k-fahrt` (nur bei Mitfliegen) mit vier `[data-va-flug]`-Karten (`VA_FLUGSTILE` = begleiter, falke,
-  orbit, karussell — Marc: „zu viele Kamerapositionen … nur ein Video“; Web-Fund F-28: von zehn sind nur wenige klar
+  orbit, karussell — Marc: „zu viele Kamerapositionen … nur ein Video“; Web-Version: von zehn sind nur wenige klar
   verschieden), je Clip `media/kamera/flug_<stil>.mp4` (Klasse `va-clip-hover`, spielt nur unter der Maus) und 3–4 Stichpunkte
   `.va-flug-punkte` (`VA_FLUG_PUNKTE`, i18n `va.flug.<stil>_<n>`). Ein gemerkter anderer Stil wird im Assistenten Begleiter;
   die Kommandozeile kennt weiter alle zehn. `kamOptSetzen` setzt `w.flugFahrt` = Reiseflughöhe bei Begleiter + „Hoch“ (wie

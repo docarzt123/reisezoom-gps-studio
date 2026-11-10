@@ -7412,6 +7412,7 @@
   "rzstyle.fehler_schreiben": "No se pudo escribir el archivo.",
   "rzstyle.fehler_ordner": "No se puede escribir en esta carpeta.",
   "rzstyle.leer": "sin rótulos",
+  "rzstyle.kaputt": "archivo dañado",
   "vv.kurz.fernweh": "Tranquilo, título con serifa, mucho aire",
   "vv.kurz.klartext": "Solo texto y una línea de progreso",
   "vv.kurz.randnotiz": "Banda de papel clara a la izquierda, todo dentro",

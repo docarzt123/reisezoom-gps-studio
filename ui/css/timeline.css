@@ -1190,7 +1190,7 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-gruppe .tl-gruppe-name, .tl-gruppe .tl-gruppe-zahlen { position: relative; z-index: 1; }
 /* 02.10.2026 (Marc: „am oberen Ende der Timeline den Bereich größer oder kleiner ziehen, dann werden die Spuren
    höher oder niedriger") — Griff an der Oberkante */
-.tl-lbl-griff { position: absolute; top: 0; bottom: 0; left: calc(var(--tl-lbl, 84px) - 3px); width: 6px; cursor: col-resize; z-index: 29; }
+.tl-lbl-griff { position: absolute; top: 0; bottom: 0; left: calc(var(--tl-lbl, 84px) - 6px); width: 5px; cursor: col-resize; z-index: 29; }   /* ganz in der Beschriftungsspalte — darf den linken Balkenrand (Zeit 0) nicht überdecken */
 .tl-lbl-griff:hover, .tl-lbl-griff.zieht { background: rgba(255,255,255,.18); }   /* 08.11.2026 — Beschriftungsspalte breiter ziehen */
 .tl-hoehe-griff { position: absolute; left: 0; right: 0; top: 0; height: 7px; cursor: ns-resize; z-index: 30; }
 .tl-hoehe-griff::after { content: ""; position: absolute; left: 50%; top: 3px; width: 36px; height: 3px; margin-left: -18px;

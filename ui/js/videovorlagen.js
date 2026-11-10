@@ -6,7 +6,7 @@
  * Animator anbietet (Gestaltung je Zeile, Akzentkante, Formen, Drehung, Fortschritt, Ring, am Laufpunkt …). Nach dem
  * Anwenden gehört alles dem Projekt und ist einzeln änderbar.
  *
- * Drei Filmphasen wie in den Entwurfsbildern: Titel (Anfang), Unterwegs, Abschluss — als Zeiträume der Einblendungen.
+ * Drei Filmphasen: Titel (Anfang), Unterwegs, Abschluss — als Zeiträume der Einblendungen.
  * Maße stammen aus einer Referenz von 1600 × 900; umgerechnet über die kurze Bildseite, damit Hoch- und Querformat
  * dieselben Proportionen haben. Fehlende Daten werden nicht erfunden: ohne Höhen zeigt das Profil den Fortschritt der
  * Strecke, Höhenwerte haben ein Ersatzfeld.

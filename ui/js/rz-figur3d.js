@@ -141,6 +141,7 @@
           modell: new T.Mesh(new T.BufferGeometry(), this._modellMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.0, side: T.DoubleSide })),
         };
         this._modellGeo = new WeakMap();
+        this._modellGeoListe = [];   // 09.11.2026 (Audit) — alle gebauten Modellnetze, damit onRemove sie freigeben kann
         this._koerper = new T.Group();
         for (const k in this._formen) { this._formen[k].visible = false; this._koerper.add(this._formen[k]); }
         this._schatten = new T.Mesh(new T.CircleGeometry(0.5, 40),
@@ -163,6 +164,13 @@
           if (this._scheinHinten) { this._scheinHinten.geometry.dispose(); this._scheinHinten.material.map.dispose(); this._scheinHinten.material.dispose(); }
           if (this._feuer) this._feuer.entsorgen();
           if (this._schatten) { this._schatten.geometry.dispose(); this._schatten.material.map.dispose(); this._schatten.material.dispose(); }
+          // 09.11.2026 (Audit) — Modellnetze je Art/Bewegungsstufe und der Renderer selbst blieben nach jedem Stil-,
+          // Röhren- oder Kopfwechsel im Speicher (der Renderer hängt Listener an die Karten-Leinwand). dispose() gibt den
+          // geteilten WebGL-Kontext der Karte NICHT auf.
+          for (const g of (this._modellGeoListe || [])) g.dispose();
+          this._modellGeoListe = [];
+          this._modellGeo = new WeakMap();
+          if (this._renderer) this._renderer.dispose();
         } catch (_) {}
         this._renderer = null;
       },
@@ -224,6 +232,7 @@
           geo.setAttribute("color", new T.BufferAttribute(new Float32Array(3 * n), 3));
           e = { geo, farbKey: null, rolle: t.rolle };
           this._modellGeo.set(t, e);
+          this._modellGeoListe.push(geo);
         }
         const fk = (md.farbe || "") + "|" + (md.farbe2 || "");
         if (e.farbKey !== fk) {
@@ -307,7 +316,10 @@
         if (f.form === "modell") {
           const geo = this._modellGeometrie(f.modell);
           if (geo) { form = "modell"; this._formen.modell.geometry = geo; }
-          this._modellMat.depthTest = !f.obenauf;
+          // 09.11.2026 (Audit) — „obenauf“ schaltete hier den Tiefentest ab: dann malte jedes spätere Dreieck über die
+          // früheren (ferne Räder und Innenflächen über der Karosserie). Jetzt mit Tiefentest, aber in den vordersten
+          // Tiefenbereich gedrückt (gl.depthRange beim Zeichnen, unten) — vor dem Gelände, in sich richtig sortiert.
+          this._modellMat.depthTest = true;
         }
         for (const k in this._formen) this._formen[k].visible = (k === form);   // Feuerkugel = normale Kugel + Schweif
         if (this._feuer) this._feuer.gruppe.visible = feuer;
@@ -368,7 +380,11 @@
         this._sonne.position.set(ost, 1.3, -nord);
         this._sonne.target.position.set(0, 0, 0);
         this._renderer.resetState();
-        this._renderer.render(this._scene, this._kamera);
+        const vorn = form === "modell" && !!f.obenauf;
+        const glv = vorn ? this._renderer.getContext() : null;
+        if (glv) glv.depthRange(0, 0.002);
+        try { this._renderer.render(this._scene, this._kamera); }
+        finally { if (glv) glv.depthRange(0, 1); }
       },
     };
     return layer;

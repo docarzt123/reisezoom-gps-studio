@@ -209,7 +209,7 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
     orte = [f for f in feats if _ist_ort_namens(f, q)]
     if orte:
         if hat_bias:
-            # 21.10.2026 (Web-Fund F-34: „Bali“ nach Frankfurt → Kamerun, Indien, Taiwan vor der Insel) — die Nähe zählt nur
+            # 21.10.2026 (Web-Version: „Bali“ nach Frankfurt → Kamerun, Indien, Taiwan vor der Insel) — die Nähe zählt nur
             # bis ~500 km (gleichnamige Dörfer in der Gegend: der nächste gewinnt); weiter weg entscheidet die Größe:
             # Stadt, dann Land/Region/Insel, dann Kleinstadt, dann der Rest
             orte.sort(key=lambda f: (0, _abstand_grob(f, bias)) if _abstand_grob(f, bias) <= _BIAS_NAH_GRAD2

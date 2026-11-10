@@ -16,6 +16,7 @@ Formatbeschreibung: docs/DEVELOPER.md, Abschnitt „rzstyle file format“.
 from __future__ import annotations
 
 import json
+import math
 import re
 from typing import Callable
 
@@ -31,12 +32,57 @@ ANIMATOR_SCHLUESSEL = ("line_color", "line_width", "kontur_breite", "kontur_farb
                        "marker_dot_style", "bergnamen_an",
                        # 06.11.2026 — Röhre, Kopf, Nachglühen
                        "linie_3d", "roehre_glanz", "roehre_breite_m", "roehre_abstand_m", "kopf_3d", "nachgluehen_sek", "glut_look")
+# 09.11.2026 (Audit) — Werte einer fremden Datei prüfen, nicht nur ihre Schlüssel: eine Farbe wie
+# `"\"/><img onerror=…>"` landete sonst ungeprüft im HTML des Video-Assistenten (Code-Ausführung), NaN/Infinity in
+# settings.json brachten das Einlesen der Einstellungen zum Scheitern.
+_FARBE = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+_WORT = re.compile(r"^[A-Za-z0-9_:\-]{1,40}$")
+_ANIM_FARBEN = ("line_color", "kontur_farbe", "ghost_track_color", "highlights_farbe")
+_ANIM_JA_NEIN = ("ghost_track_enabled", "bergnamen_an")
+_ANIM_ZAHLEN = {"line_width": (0, 100), "kontur_breite": (0, 50), "ghost_track_opacity_pct": (0, 100), "schweif_pct": (0, 100),
+                "roehre_glanz": (0, 1), "roehre_breite_m": (0, 200), "roehre_abstand_m": (0, 500), "nachgluehen_sek": (0, 30)}
+_ANIM_WOERTER = ("linien_look", "highlights_stil", "marker_dot_style", "linie_3d", "kopf_3d", "glut_look")
 _PLATZHALTER = re.compile(r"\{(t:[A-Za-z0-9_.\-]+|title|subtitle|kicker)\}", re.IGNORECASE)
 _KEY = re.compile(r"^[a-z0-9_.\-]{1,120}$")
 
 
 class RzStyleFehler(ValueError):
     """Datei ist kein (lesbares) .rzstyle."""
+
+
+def animator_saeubern(a) -> dict:
+    """Linien-/Laufpunkt-Werte einer Vorlage auf erlaubte Schlüssel UND gültige Werte bringen: Farben nur als #hex,
+    Zahlen endlich und begrenzt, Auswahlwerte nur als einfache Wörter, Schalter als bool. Ungültiges fällt weg
+    (dann gilt beim Anwenden der Wert des Projekts)."""
+    aus = {}
+    if not isinstance(a, dict):
+        return aus
+    for k, v in a.items():
+        if k not in ANIMATOR_SCHLUESSEL:
+            continue
+        if k in _ANIM_FARBEN:
+            if isinstance(v, str) and _FARBE.match(v):
+                aus[k] = v
+        elif k in _ANIM_JA_NEIN:
+            if isinstance(v, bool):
+                aus[k] = v
+        elif k in _ANIM_ZAHLEN:
+            if isinstance(v, str):   # Zahl als Text (Eingabefeld) gilt auch
+                try:
+                    v = float(v.strip())
+                except ValueError:
+                    continue
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                lo, hi = _ANIM_ZAHLEN[k]
+                aus[k] = min(hi, max(lo, v))
+        elif k in _ANIM_WOERTER:
+            if isinstance(v, str) and _WORT.match(v):
+                aus[k] = v
+    return aus
+
+
+def _keine_sonderzahl(wert: str):
+    raise RzStyleFehler("ungültige Zahl " + str(wert))
 
 
 def dateiname(name: str, standard: str = "Style") -> str:
@@ -77,7 +123,7 @@ def vervollstaendigen(stil: dict, schluessel: dict, uebersetzer: Callable[[str],
         "builtin": eingebaut,
         "app_version": str(app_version or ""),
         "palette": stil.get("palette") if eingebaut and isinstance(stil.get("palette"), dict) else None,
-        "animator": {k: v for k, v in (stil.get("animator") or {}).items() if k in ANIMATOR_SCHLUESSEL},
+        "animator": animator_saeubern(stil.get("animator")),
         "formats": formats,
         "strings": strings,
         "fonts": sorted({str(x) for x in (stil.get("fonts") or []) if isinstance(x, str)}),
@@ -92,8 +138,10 @@ def lesen(roh: bytes | str) -> dict:
             raise RzStyleFehler("zu groß")
         roh = roh.decode("utf-8-sig", errors="strict")
     try:
-        d = json.loads(roh)
-    except (ValueError, TypeError) as e:
+        d = json.loads(roh, parse_constant=_keine_sonderzahl)   # NaN/Infinity ablehnen (09.11.2026, Audit)
+    except RzStyleFehler:
+        raise
+    except (ValueError, TypeError, RecursionError) as e:
         raise RzStyleFehler("kein JSON") from e
     if not isinstance(d, dict) or d.get("type") != TYP:
         raise RzStyleFehler("kein rzstyle")
@@ -168,7 +216,7 @@ def als_eigene_vorlage(d: dict, sprache: str, format_wunsch: str = "") -> tuple[
         container.append(neu)
     names = d.get("names") if isinstance(d.get("names"), dict) else {}
     name = str(names.get(sprache) or d.get("name") or "Style").strip()[:60]
-    anim = {k: v for k, v in (d.get("animator") or {}).items() if k in ANIMATOR_SCHLUESSEL}
+    anim = animator_saeubern(d.get("animator"))
     verlauf = formats[f].get("verlauf")
     return name, {"container": container, "verlauf": verlauf if isinstance(verlauf, dict) else None,
                   "animator": anim, "titel_alt": "{title}", "format": f}

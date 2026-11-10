@@ -755,7 +755,7 @@ def fotos_zuordnen(points: List[dict], fotos: List[dict], tz_off_min: int = 0) -
             if k > 0 and abs(ts[k - 1] - ep) < abs(ts[k] - ep):
                 k -= 1
             g.update(idx=k, frac=cum[k] / ges, abstand_m=0.0, per_zeit=True)
-        # 21.10.2026 (Web-Fund F-30, Rundreise mit geplanter Route ohne Uhrzeiten) — ein GPS-Foto 400 m … 1,5 km neben der
+        # 21.10.2026 (Web-Version, Rundreise mit geplanter Route ohne Uhrzeiten) — ein GPS-Foto 400 m … 1,5 km neben der
         # Straße blieb ohne Platz. Danach: an den nächsten Trackpunkt, wenn er innerhalb 2 % der Strecke liegt (1–10 km)
         if g["idx"] is None and f.get("lat") is not None and f.get("lon") is not None:
             i, d = _naechster_index(points, float(f["lat"]), float(f["lon"]))

@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.857] – 2026-11-10
+
 ### Added
 - **Web map: clickable tracks with a link to your own page**: every track of the web map gets a link field (the loaded
   track a name and a link too). In the exported map, hovering a track shows its name and highlights it, a click opens the
@@ -60,6 +62,20 @@ Bei jeder neuen Version:
   “Switch sides at the edge” (now off by default; existing signs slide out too).
 
 ### Fixed
+- **Imported video templates (.rzstyle) are checked value by value**: colours are only taken as colour values, numbers
+  only within their limits, choices only as plain names — a template file shared by someone else could otherwise put
+  arbitrary content into the video assistant's template tiles. Files with invalid numbers (NaN, Infinity) are refused
+  instead of ending up in the settings, a damaged file is reported instead of stopping an import of several files, and
+  importing a template whose name already existed with 60 characters no longer hangs (nor silently replaces one with 59).
+- **Afterglow over the 3D arrow and 3D puck**: with afterglow switched on, the soft glow around the tube was drawn over
+  these heads (only the comet heads left it out). It now leaves out the arrow's outline and the round head, like the tube.
+- **3D vehicle models with “On top”** looked broken (far wheels and inner faces over the body): they are now drawn in
+  front of the terrain but in the right order.
+- **Memory**: switching map style, tube or head with a 3D head or model no longer keeps the old 3D renderer and all
+  vehicle meshes in memory.
+- **“Add tours from the archive” on a project tile** (and “New project from it” in templates) now has the same window as
+  the animator and the web map: search and filters, “All”/“None”, shift-click for a range, Ctrl+A / ⌘A and up to 5000
+  tours (it showed at most 300).
 - **3D tube: short breaks in the glowing part** behind the head: there the tube was compared against the terrain without
   the usual allowance, over the last quarter second of video — at high video speed hundreds of metres. Finer terrain
   tiles cut pieces out of it. The allowance now only shrinks right at the head.

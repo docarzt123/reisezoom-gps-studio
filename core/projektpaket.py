@@ -131,7 +131,7 @@ def _etappen_einpacken(schreiben, kopie: dict) -> None:
     schon: dict = {}
     for proj in ((kopie or {}).get("projects") or {}).values():
         anim = proj.get("animator") if isinstance(proj, dict) else None
-        # 07.10.2026 (Web-Fund F-4) — auch die Etappe als Haupt-Track (Kartenanimation ohne GPS)
+        # 07.10.2026 (Web-Version) — auch die Etappe als Haupt-Track (Kartenanimation ohne GPS)
         haupt = (anim or {}).get("haupt_etappe")
         for t in ((anim or {}).get("extra_tours") or []) + ([haupt] if isinstance(haupt, dict) else []):
             if not (isinstance(t, dict) and isinstance(t.get("etappe"), dict)):

@@ -117,9 +117,29 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.857</span>
+    <span class="version-date">10 November 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>Track as a 3D tube with a comet head and afterglow</strong> &mdash; Under “Display” in the track's appearance (pencil next to the tour) you switch between the flat line and a 3D tube that floats just above the terrain. At the front runs a glowing comet or comet arrow the tube comes out of; behind it the freshly covered stretch glows and cools down to the line colour over the set time (“Afterglow”, 1.5 seconds by default). Gloss, thickness and height above ground are up to you, the glow colours come from the line colour or one of four looks. Preview and video look the same. New projects start with the tube, existing ones stay flat. The tube needs the free maps; with Mapbox the line stays flat.</li>
+    <li><strong>Moving dot as a 3D model</strong> &mdash; The new vehicle look “3D model” turns the moving dot into a real 3D vehicle &mdash; for all 20 ways of travelling, from the car (nine shapes, from estate to off-roader) to hiker and bike, kayak, plane and hot-air balloon. It stands on the map, turns with the direction of travel, tilts on slopes and moves legs, pedals, paddles and wheels; when it stops it glides into a resting pose. The moving dot's shapes are now split into the tabs 2D and 3D.</li>
+    <li><strong>Afterglow for the flat line too</strong> &mdash; The glowing stretch behind the moving dot now follows the track exactly and is measured in seconds instead of a percentage of the route. Projects using the old trail keep it until you switch on the afterglow.</li>
+    <li><strong>Web map: tracks with your own link</strong> &mdash; Every track of the web map gets a link field. In the exported map, hovering a track shows its name and highlights it, a click opens your page &mdash; in the same window or a new tab.</li>
+    <li><strong>Picking many tours at once</strong> &mdash; The window “Add tours from the archive” (web map, animator, projects) now has “All” and “None”, shift-click for a whole range and ⌘A / Ctrl+A; the list shows up to 5000 tours instead of 300.</li>
+    <li><strong>Signs leave the picture with the moving dot</strong> &mdash; At the edge of the picture, a sign attached to the moving dot used to jump to its other side. Now it stays on its side and slides out of the picture with the dot. The old behaviour is still there as the switch “Switch sides at the edge”.</li>
+    <li><strong>Timeline</strong> &mdash; The label column can be dragged wider (double-click: default), the “Media” row can be collapsed and overlay bars show what they display. Drag the timeline higher and it now stays that high. Finish editing an overlay in the preview with “Done” or Esc.</li>
+    <li><strong>Deleted automatic signs stay deleted</strong> &mdash; Signs such as highest point, steepest section or stage stations came back after deleting them. The project now remembers the deletion; Undo brings them back. Signs also stand in front of mountain names now instead of behind them.</li>
+    <li><strong>Smoother Mapbox camera rotation</strong> &mdash; The camera rotation on Mapbox maps now changes smoothly every frame instead of in small steps.</li>
+    <li><strong>Templates from others are checked closely</strong> &mdash; An imported .rzstyle file is now checked value by value; invalid values are dropped, damaged files are reported, and the import no longer hangs on very long template names.</li>
+    <li><strong>Web map with north arrow</strong> &mdash; Without a saved map section the exported map with a north arrow stayed empty &mdash; it now shows all tracks.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.856</span>
     <span class="version-date">5 November 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <ul>
     <li><strong>GPS Studio starts on Windows again, even if the Pictures folder lives elsewhere</strong> &mdash; If the Windows &ldquo;Pictures&rdquo; folder wasn&rsquo;t in its usual place (for example because OneDrive backs it up or it was moved to another drive), the start failed with an error about &ldquo;Reisezoom Tour Maps&rdquo;. GPS Studio now asks Windows for the real Pictures folder; if that doesn&rsquo;t work, tour maps go into the app folder and the app starts normally.</li>

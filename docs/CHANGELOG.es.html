@@ -117,9 +117,29 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.857</span>
+    <span class="version-date">10 de noviembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>Track como tubo 3D con cabeza de cometa y resplandor</strong> &mdash; En «Representación», dentro del aspecto del track (lápiz junto a la ruta), cambias entre la línea plana y un tubo 3D que flota justo encima del terreno. Delante va un cometa luminoso o una flecha cometa de la que sale el tubo; detrás, el tramo recién recorrido brilla y se enfría hasta el color de la línea en el tiempo elegido («Resplandor», 1,5 segundos por defecto). Brillo, grosor y altura sobre el suelo los ajustas tú; los colores del brillo salen del color de la línea o de cuatro looks. La vista previa y el vídeo se ven igual. Los proyectos nuevos empiezan con el tubo, los existentes siguen planos. El tubo necesita los mapas libres; con Mapbox la línea sigue plana.</li>
+    <li><strong>Punto móvil como modelo 3D</strong> &mdash; El nuevo look de vehículo «Modelo 3D» convierte el punto móvil en un vehículo 3D de verdad &mdash; para las 20 formas de viajar, desde el coche (nueve formas, del familiar al todoterreno) hasta senderista y bici, kayak, avión y globo aerostático. Se apoya en el mapa, gira con la dirección de la marcha, se inclina en las pendientes y mueve piernas, pedales, remos y ruedas; al detenerse pasa suavemente a una pose de reposo. Las formas del punto móvil se reparten ahora en las pestañas 2D y 3D.</li>
+    <li><strong>Resplandor también para la línea plana</strong> &mdash; El tramo luminoso detrás del punto móvil sigue ahora exactamente el track y se mide en segundos en lugar de en porcentaje de la ruta. Los proyectos con la estela antigua la conservan hasta que activas el resplandor.</li>
+    <li><strong>Mapa web: tracks con enlace propio</strong> &mdash; Cada track del mapa web tiene un campo para un enlace. En el mapa exportado, al pasar por encima se ve su nombre y se resalta; un clic abre tu página &mdash; en la misma ventana o en una pestaña nueva.</li>
+    <li><strong>Elegir muchas rutas a la vez</strong> &mdash; La ventana «Añadir rutas del archivo» (mapa web, animador, proyectos) tiene ahora «Todas» y «Ninguna», mayúsculas+clic para un rango y ⌘A / Ctrl+A; la lista muestra hasta 5000 rutas en lugar de 300.</li>
+    <li><strong>Los letreros salen de la imagen con el punto móvil</strong> &mdash; En el borde de la imagen, un letrero unido al punto móvil saltaba al otro lado. Ahora se queda en su lado y sale de la imagen con el punto. El comportamiento anterior sigue disponible con el interruptor «Cambiar de lado en el borde».</li>
+    <li><strong>Línea de tiempo</strong> &mdash; La columna de nombres se puede ensanchar arrastrando (doble clic: estándar), la fila «Medios» se puede plegar y las barras de overlay muestran lo que enseñan. Si haces la línea de tiempo más alta, ahora se queda así. La edición de un overlay en la vista previa termina con «Listo» o Esc.</li>
+    <li><strong>Los letreros automáticos borrados siguen borrados</strong> &mdash; Letreros como punto más alto, tramo más empinado o estaciones de etapa volvían después de borrarlos. Ahora el proyecto recuerda el borrado; Deshacer los recupera. Además, los letreros quedan ahora delante de los nombres de montañas, no detrás.</li>
+    <li><strong>Giro más suave de la cámara en Mapbox</strong> &mdash; El giro de la cámara en los mapas de Mapbox cambia ahora suavemente en cada fotograma en lugar de a pequeños saltos.</li>
+    <li><strong>Las plantillas de otros se revisan a fondo</strong> &mdash; Un archivo .rzstyle importado se revisa ahora valor por valor; los valores no válidos se descartan, los archivos dañados se notifican y la importación ya no se bloquea con nombres de plantilla muy largos.</li>
+    <li><strong>Mapa web con flecha del norte</strong> &mdash; Sin un encuadre guardado, el mapa exportado con flecha del norte quedaba vacío &mdash; ahora muestra todos los tracks.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.856</span>
     <span class="version-date">5 de noviembre de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <ul>
     <li><strong>GPS Studio vuelve a arrancar en Windows aunque la carpeta Im&aacute;genes est&eacute; en otro sitio</strong> &mdash; Si la carpeta &laquo;Im&aacute;genes&raquo; de Windows no estaba en su sitio habitual (por ejemplo porque OneDrive la respalda o se movi&oacute; a otro disco), el arranque fallaba con un error sobre &laquo;Reisezoom Tour Maps&raquo;. Ahora GPS Studio pregunta a Windows por la carpeta Im&aacute;genes real; si no funciona, los mapas de ruta se guardan en la carpeta de la app y la app arranca con normalidad.</li>

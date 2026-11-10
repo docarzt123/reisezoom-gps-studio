@@ -7412,6 +7412,7 @@
   "rzstyle.fehler_schreiben": "Konnte die Datei nicht schreiben.",
   "rzstyle.fehler_ordner": "In diesen Ordner kann nicht geschrieben werden.",
   "rzstyle.leer": "keine Einblendungen",
+  "rzstyle.kaputt": "Datei ist beschädigt",
   "vv.kurz.fernweh": "Ruhig, Serifentitel, viel Luft",
   "vv.kurz.klartext": "Nur Schrift und eine Fortschrittslinie",
   "vv.kurz.randnotiz": "Helles Papierband links, alles darin",

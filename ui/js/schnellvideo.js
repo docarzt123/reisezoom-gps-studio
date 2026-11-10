@@ -49,7 +49,7 @@
   const SCHLUSS_STANDARD = ["dist_total", "elev_gain", "moving_time"];
   const INTRO_S = 3, HOLD_S = 4, FPS = 30;
   const QUALI_FAKTOR = { "1080": 1, "1440": 4 / 3, "4k": 2 }, FPS_WAHL = [25, 30, 60];   // 01.11.2026 — Auflösung/Bildrate im Assistenten
-  // 21.10.2026 (Web-Funde F-32/F-35) — Halt am Ende nur mit Schlusskarte voll (sonst „das Bild am Ende sollte auch das
+  // 21.10.2026 (Web-Version) — Halt am Ende nur mit Schlusskarte voll (sonst „das Bild am Ende sollte auch das
   // Ende sein“: 1 s); die Kamera fliegt in RUECK_S zurück in die Gesamtsicht, erst dann kommt die Schlusskarte — vorher
   // lag die km-Zahl 1,8 s lang auf Ziel und Laufpunkt
   const HOLD_OHNE_S = 1, RUECK_S = 1.2;
@@ -119,9 +119,11 @@
     for (const E of (Array.isArray(liste) ? liste : [])) {
       if (!E || !E.id || !E.daten || !Array.isArray(E.daten.container)) continue;
       const A = E.daten.animator || {};
-      VA_STILE["eigen:" + E.id] = { eigen: E, vorlage: "weite", einbl: null, hl: A.highlights_stil || "hl_editorial", hlFarbe: A.highlights_farbe || "#ffc21a",
+      // 09.11.2026 (Audit) — Werte eigener (auch importierter) Vorlagen landen im HTML der Stil-Kachel: nur #hex-Farben
+      const hex = (x, std) => (typeof x === "string" && /^#[0-9a-f]{3,8}$/i.test(x)) ? x : std;
+      VA_STILE["eigen:" + E.id] = { eigen: E, vorlage: "weite", einbl: null, hl: A.highlights_stil || "hl_editorial", hlFarbe: hex(A.highlights_farbe, "#ffc21a"),
         bergnamen: A.bergnamen_an !== false, zahlen: true, profil: true, profilFein: true, lp: A.marker_dot_style || "leucht",
-        probe: { titel: "manrope", gew: 650, farbe: "#f4f1e9", route: A.line_color, akzent: A.highlights_farbe } };
+        probe: { titel: "manrope", gew: 650, farbe: "#f4f1e9", route: hex(A.line_color, "#ff6b35"), akzent: hex(A.highlights_farbe, "#ffc21a") } };
     }
     VA_STIL_NAMEN = Object.keys(VA_STILE);
   }
@@ -144,7 +146,7 @@
     karussell:      { dz: 0.2,  p: 52, glatt: 1.2, kurs: { modus: "kreisen", grad_s: 18 } },
   };
   const FLUGSTIL_NAMEN = Object.keys(FLUGSTILE);
-  // 01.11.2026 (Marc: „zu viele Kamerapositionen … nur ein Video dazu“; Web-Fund F-28: klar verschieden sind nur wenige) —
+  // 01.11.2026 (Marc: „zu viele Kamerapositionen … nur ein Video dazu“; Web-Version: klar verschieden sind nur wenige) —
   // der Assistent zeigt vier, jeder mit Stichpunkten. Die übrigen kennt weiter die Kommandozeile (`--camera …`).
   const VA_FLUGSTILE = ["begleiter", "falke", "orbit", "karussell"];
   const VA_FLUG_PUNKTE = {
@@ -262,7 +264,7 @@
     const anker = (s) => s < intro ? -(intro - s) / animS
       : (s <= intro + animS ? (s - intro) / animS : 1 + (s - intro - animS) / animS);
     const mitte = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2];
-    // 12.10.2026 (Web-Fund F-14: Weltumrundung „zoomt raus, die Weltkugel dreht sich komisch hin und her“) — umspannt die
+    // 12.10.2026 (Web-Version: Weltumrundung „zoomt raus, die Weltkugel dreht sich komisch hin und her“) — umspannt die
     // Route ≥ 300° Länge, liegt die Mitte der Box auf der Gegenseite (oder irgendwo, bei −180…180): die Kugel dreht halb
     // herum. Dann Übersicht am Anfang über dem Start, am Ende über dem Ziel (Breite: Mitte der Box).
     const welt = (bbox[2] - bbox[0]) >= 300 && Array.isArray(linie) && linie.length > 1;
@@ -435,7 +437,7 @@
     }
     const y2 = w.format === "16:9" ? 13 : w.format === "1:1" ? 12 : 9;   // unter der Plakette
     const vl = VORLAGEN[w.vorlage] ? w.vorlage : "weite";
-    // 12.10.2026 (Web-Fund F-17, Marc: „Zahlen nach unten“) — Weite: frei unten mittig (über der Profil-Kopfzeile, wie Puls)
+    // 12.10.2026 (Web-Version, Marc: „Zahlen nach unten“) — Weite: frei unten mittig (über der Profil-Kopfzeile, wie Puls)
     // statt oben: dort tauchen die Highlight-Schilder der nächsten Höhepunkte auf und lagen auf den Zahlen
     if (w.zahlen && vl === "weite") liste.push(C.normalisieren(Object.assign({}, S.frei, {
       stil: "frei", vorlage: "live", name: T("container.v.live", "Live-Werte"), anker: "bc", x: 0,
@@ -766,7 +768,7 @@
     kand.sort((a, b) => b.wert - a.wert || a.bei - b.bei);
     let summe = 0;
     const wahl = [];
-    // 21.10.2026 (Web-Fund F-31) — von Hand gesetzte Fotos kommen zuerst ins Budget; bei „Kurz“ fiel ein selbst ans Ende
+    // 21.10.2026 (Web-Version) — von Hand gesetzte Fotos kommen zuerst ins Budget; bei „Kurz“ fiel ein selbst ans Ende
     // gesetztes Foto sonst gegen wertvollere weg
     for (const k of manuellZuerst(kapitelZuerst(kand, opt && opt.kapitel))) {
       if (summe + k.kosten > budget + 1e-6) continue;
@@ -794,7 +796,7 @@
     return wahl.sort((a, b) => a.bei - b.bei).map(k => ({ f: k.f, bei: k.bei, von: Math.max(0, k.bei - 0.004), bis: Math.min(1, k.bei + spanne) }));
   }
   /** Sofortbild-Schild an der Strecke (wie ein neues Foto-Schild im Animator: aufpoppen, kurz groß, zum Mini schrumpfen). */
-  // 07.10.2026 (Web-Fund F-5) — Größe des Sofortbilds wählbar (Standard 24: die Route bleibt sichtbar, Demo 05.10.)
+  // 07.10.2026 (Web-Version) — Größe des Sofortbilds wählbar (Standard 24: die Route bleibt sichtbar, Demo 05.10.)
   const SOFORT_GROESSE = { std: 24, min: 16, max: 80 };
   const sofortGroesse = (x) => { const n = +x; return isFinite(n) && n > 0 ? Math.max(SOFORT_GROESSE.min, Math.min(SOFORT_GROESSE.max, Math.round(n))) : SOFORT_GROESSE.std; };
   function sofortbildSchild(k, groesse) {
@@ -1189,7 +1191,8 @@
   function vaStilKarte(k, an) {
     const S = VA_STILE[k], P = S.probe || {};
     const V = S.vv && window.rzVideoVorlagen ? window.rzVideoVorlagen.LISTE.find(x => x.id === S.vv) : null;
-    const ak = V ? V.palette.akzent : (P.akzent || "#ffc21a"), route = V ? V.palette.route : (P.route || "#ff6b35");
+    const hex = (x, std) => (typeof x === "string" && /^#[0-9a-f]{3,8}$/i.test(x)) ? x : std;   // 09.11.2026 — nie Fremdtext ins HTML
+    const ak = hex(V ? V.palette.akzent : P.akzent, "#ffc21a"), route = hex(V ? V.palette.route : P.route, "#ff6b35");
     const fam = (x) => ({ cormorant: "'Cormorant Garamond', Georgia, serif", manrope: "Manrope, system-ui, sans-serif", plex: "'IBM Plex Sans', system-ui, sans-serif" })[x] || "system-ui";
     const kurz = T("vv.kurz." + (S.vv || k), V ? "" : T("va.stil_klassisch_k", "Zahlen im Kasten, Pillen-Schilder"));
     const titelSt = `font-family:${fam(P.titel)};font-weight:${P.gew || 600};color:${P.farbe};${P.kursiv ? "font-style:italic;" : ""}${P.versal ? "text-transform:uppercase;letter-spacing:-0.02em;" : ""}`;
@@ -1307,7 +1310,7 @@
         if (a_.pace_mode === "real" || a_.pace_mode === "even") w.pace = a_.pace_mode;
       } catch (e) { if (window.rzSwallow) rzSwallow(e, "assistent:format"); }
     }
-    // 07.10.2026 (Web-Fund F-5) — offizielle Parameter beim Aufruf (Web, Skripte): Fotoart, Größe des Sofortbilds,
+    // 07.10.2026 (Web-Version) — offizielle Parameter beim Aufruf (Web, Skripte): Fotoart, Größe des Sofortbilds,
     // Fotopause ohne Heranfahren. Der Dialog bleibt schlank (F-14: die Fotoart kommt sonst aus der Vorlage).
     if (ASS) vaStilWerte(w, w.stilId);
     // 03.11.2026 (Nutzer-Meldung: die Kommandozeile kannte nur die alten Schnell-Video-Vorlagen) — Videovorlage von außen
@@ -2964,7 +2967,7 @@ ${mehrAuf(1)}
       const voll = animatorPatch(w, v);
       // Reise: Übergänge kommen zur Dauer dazu → abziehen, damit die gewählte Gesamtlänge stimmt
       if (P.uebergangS > 0) voll.duration_s = Math.max(8, Math.round((voll.duration_s - P.uebergangS) * 100) / 100);
-      // 07.10.2026 (Web-Fund F-1) — neue Länge → die gespeicherte Raffung des vorigen Schnell-Videos verwerfen; sonst
+      // 07.10.2026 (Web-Version) — neue Länge → die gespeicherte Raffung des vorigen Schnell-Videos verwerfen; sonst
       // rechnete die Tempo-Kurve mit ihr weiter und schrieb die alte Dauer zurück ins Feld (12,8 statt 33 s)
       voll.tempo_rate = null; voll.tempo_basis = null;
       if (ASS) vaPatch(voll);

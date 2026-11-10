@@ -10260,7 +10260,7 @@ class Api:
         sicher = "".join(c for c in str(pid or "import") if c.isalnum() or c in "-_")[:60] or "import"
         ordner = Path(DATEN_ORT) / "etappen" / sicher
         umbiegen: dict = {}
-        haupt = anim.get("haupt_etappe")   # 07.10.2026 (Web-Fund F-4): Etappe als Haupt-Track
+        haupt = anim.get("haupt_etappe")   # 07.10.2026 (Web-Version): Etappe als Haupt-Track
         for t in (anim.get("extra_tours") or []) + ([haupt] if isinstance(haupt, dict) else []):
             zname = t.get("etappe_zip") if isinstance(t, dict) else None
             if not zname:
@@ -12874,9 +12874,9 @@ class Api:
         namen = set(z.namelist())
         if "menge.json" in namen:            # 05.09.2026 — Mehr-Touren-Paket (Schwarm/Reise)
             return self._menge_einspielen(z, namen, quelle)
-        if "frei.json" in namen:             # 07.10.2026 (Web-Fund F-4) — Projekt ohne GPS
+        if "frei.json" in namen:             # 07.10.2026 (Web-Version) — Projekt ohne GPS
             return self._frei_einspielen(z, namen, quelle)
-        # 12.10.2026 (Web-Fund F-15, Projekt „Berlin–Erwin“) — das Web legt einem Projekt ohne Tour (Etappe als Haupt-Track)
+        # 12.10.2026 (Web-Version, Projekt „Berlin–Erwin“) — das Web legt einem Projekt ohne Tour (Etappe als Haupt-Track)
         # zusätzlich track.gpx + tour.json bei, aber kein frei.json. Als Tour eingespielt, hing an ihm dann eine Archiv-Tour,
         # die Haupt-Etappe zeigte auf eine andere Datei — Öffnen/Render warteten endlos auf „Routen-GPX lädt“.
         if "projekte.json" in namen:
@@ -13195,7 +13195,7 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     def _frei_exportieren(self, kontext: str, ziel: str = "") -> dict:
-        """07.10.2026 (Web-Fund F-4) — Projekt ohne GPS (Kontext `frei:…`, „Kartenanimation ohne GPS“) als .rzproj.
+        """07.10.2026 (Web-Version) — Projekt ohne GPS (Kontext `frei:…`, „Kartenanimation ohne GPS“) als .rzproj.
         Vorher suchte der Export die Projekte über den Geo-Hash des Tracks und fand keine — es ging nur die Etappe als
         Track mit, Punkte/Kurven/Verkehrsmittel waren weg. Jetzt: alle Projekte des Kontexts, die Haupt-Etappe als
         `track.gpx` (ältere Stände öffnen das Paket so wenigstens als Tour) und als `etappen/…`, dazu `frei.json`
@@ -16456,11 +16456,8 @@ class Api:
         name = str(name or "").strip()[:60]
         if not name or not isinstance(daten, dict) or not isinstance(daten.get("container"), list):
             return {"ok": False, "error": _ui_t()("error.vorlage_name", "Bitte einen Namen angeben")}
-        erlaubt_anim = {"line_color", "line_width", "kontur_breite", "kontur_farbe", "ghost_track_enabled", "ghost_track_color",
-                        "ghost_track_opacity_pct", "linien_look", "schweif_pct", "highlights_farbe", "highlights_stil",
-                        "marker_dot_style", "bergnamen_an",
-                        "linie_3d", "roehre_glanz", "roehre_breite_m", "roehre_abstand_m", "kopf_3d", "nachgluehen_sek", "glut_look"}
-        anim = {k: v for k, v in (daten.get("animator") or {}).items() if k in erlaubt_anim}
+        # 09.11.2026 (Audit) — Schlüssel UND Werte prüfen (Farben nur #hex, Zahlen endlich …), Liste in core/rzstyle.py
+        anim = crzstyle.animator_saeubern(daten.get("animator"))
         eintrag_daten = {"container": daten["container"][:60], "verlauf": daten.get("verlauf") if isinstance(daten.get("verlauf"), dict) else None,
                          "animator": anim, "titel_alt": str(daten.get("titel_alt") or "")[:200]}
         if daten.get("format") in crzstyle.FORMATE:   # 02.11.2026 — für den .rzstyle-Export: in welchem Format gebaut
@@ -16551,13 +16548,21 @@ class Api:
             except (OSError, UnicodeDecodeError, crzstyle.RzStyleFehler) as e:
                 fehler.append({"datei": os.path.basename(pfad), "grund": str(e)})
                 continue
+            except (ValueError, TypeError, AttributeError, KeyError, RecursionError) as e:   # kaputte Struktur
+                log.warning("rzstyle_importieren %s: %s", pfad, e)
+                fehler.append({"datei": os.path.basename(pfad), "grund": t("rzstyle.kaputt", "Datei ist beschädigt")})
+                continue
             if not daten["container"]:
                 fehler.append({"datei": os.path.basename(pfad), "grund": t("rzstyle.leer", "keine Einblendungen")})
                 continue
             vorhanden = {str(x.get("name", "")).strip().lower() for x in (_load_settings().get("videovorlagen_eigen") or []) if isinstance(x, dict)}
-            basis, n = name, 2
+            # 09.11.2026 (Audit) — Zusatz „ 2“, „ 3“ … hinter eine gekürzte Basis: vorher schnitt [:60] den Zusatz bei
+            # 60 Zeichen wieder ab (Endlosschleife), bei 59 blieb ein Leerzeichen, das beim Speichern wegfiel (ersetzte still)
+            basis, n = name.strip(), 2
+            name = basis
             while name.lower() in vorhanden:
-                name = f"{basis} {n}"[:60]
+                zusatz = f" {n}"
+                name = basis[:60 - len(zusatz)].rstrip() + zusatz
                 n += 1
             r = self.videovorlage_eigen_speichern(name, daten)
             if r.get("ok"):
@@ -16685,7 +16690,7 @@ class Api:
             fotos = []
             n_fehlt = 0
             tz_tour = 0
-            # 07.10.2026 (Web-Fund F-5) — ein Eintrag in `quellen` darf ein Objekt sein: {path, bei?, text?}.
+            # 07.10.2026 (Web-Version) — ein Eintrag in `quellen` darf ein Objekt sein: {path, bei?, text?}.
             # `bei` (0…1, Streckenanteil wie unten) legt das Foto FEST an diese Stelle — für Fotos ohne GPS/Zeit, die
             # jemand von Hand platziert hat (Web: „Fotos platzieren“); `text` ist die eigene Bildunterschrift.
             fest: dict = {}
@@ -16785,7 +16790,7 @@ class Api:
                 bei = f["idx"] / (n - 1)
                 # 13.10.2026 (Web-Feedback „das letzte Bild ist nur ganz kurz zu sehen … am Endpunkt länger stehen lassen“,
                 # wie die Web-Fassung) — Fotos bis zum Ziel; nur am Start bleibt die 3-%-Regel (dort läuft der Titel)
-                # 21.10.2026 (Web-Fund F-29, Nutzer: „das erste Foto wurde immer weggelassen“) — ein Foto am Start (GPS dort
+                # 21.10.2026 (Web-Version, Nutzer: „das erste Foto wurde immer weggelassen“) — ein Foto am Start (GPS dort
                 # oder kurz vor Beginn der Aufzeichnung) nicht verwerfen, sondern gleich hinter den Titel legen (3,5 %)
                 if not (alle or f.get("manuell")) and 0 <= bei <= 0.03:
                     bei = 0.035
@@ -17230,7 +17235,7 @@ class Api:
             vorher = json.loads(json.dumps(ziel))
             patch = json.loads(json.dumps(animator or {}))
             ziel.update(patch)
-            if "duration_s" in patch:   # 07.10.2026 (Web-Fund F-1): neue Länge → Raffung neu aus ihr ableiten
+            if "duration_s" in patch:   # 07.10.2026 (Web-Version): neue Länge → Raffung neu aus ihr ableiten
                 ziel["tempo_rate"] = None
                 ziel["tempo_basis"] = None
             if "container" in patch:

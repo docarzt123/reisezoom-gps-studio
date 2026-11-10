@@ -840,7 +840,7 @@ function mountAnimator(body, headerActions, opts) {
               <div class="dot-wahl dot-fzs-wahl" id="anim-dot-fzs-wahl"></div>
               <!-- 08.11.2026 (Marc: „eine Grundgeschwindigkeit einstellen“) — Bewegungstempo der 3D-Modelle (bedient im Track-Editor) -->
               <input type="range" id="anim-dot-modell-tempo" min="0.25" max="3" step="0.25" value="1" hidden>
-              <!-- 08.11.2026 (Marc: „hatte der Webchat nicht mehrere Autos?“) — Form des 3D-Autos (rz-modelle VARIANTEN.auto) -->
+              <!-- 08.11.2026 (Marc: „hatte die Web-Version nicht mehrere Autos?“) — Form des 3D-Autos (rz-modelle VARIANTEN.auto) -->
               <input type="hidden" id="anim-dot-modell-auto" value="auto">
               <select id="anim-dot-fz-stil" class="select" hidden>
                 ${FZ_STILE.map(s => `<option value="${s}">${t("animator.dot.fzs_" + s, FZ_STIL_NAMEN[s])}</option>`).join("")}
@@ -5597,7 +5597,7 @@ function mountAnimator(body, headerActions, opts) {
              pin: _fsZahl(s.stopp_pin_s, FS_PIN_VORLAUF, 0, 30),   // 06.10.2026 — wie früh der Foto-Pin vor dem Anflug erscheint (linker Rand in der Spur)
              zoom: _fsZahl(s.stopp_zoom, FS_STD.zoom, 0, 4),
              schwenk: _fsZahl(s.stopp_schwenk, FS_STD.schwenk, 0, 10), ken: c ? 0 : _fsZahl(s.stopp_ken, FS_STD.ken, 0, 30),
-             // 07.10.2026 (Web-Fund F-5) — „Pause ohne Heranfahren“ (wie MapAnimator): Kamera bleibt, wo sie ist
+             // 07.10.2026 (Web-Version) — „Pause ohne Heranfahren“ (wie MapAnimator): Kamera bleibt, wo sie ist
              kamera: !(s && s.stopp_kamera === false) };
   }
   function _fsSchilderAlle() {
@@ -7381,13 +7381,13 @@ function mountAnimator(body, headerActions, opts) {
                                     figur: !!_flug.figur,
                                     kopfFarbe: (() => { try { const t = (_flug.ebene && _flug.ebene._tracks || []).find(x => x && x.glut && x.kopfFarbe); return t ? Array.from(t.kopfFarbe) : null; } catch (_) { return null; } })(),
                                     glutSek: (() => { try { const t = (_flug.ebene && _flug.ebene._tracks || []).find(x => x && x.glut); return t ? t.glut.sek : 0; } catch (_) { return 0; } })() });   // Prüfstand
-  // ── 06.11.2026 Komet + Nachglühen (Marcs Design-Paket „Trackröhre und Komet“, Prototyp) ─────────────────────────────
+  // ── 06.11.2026 Komet + Nachglühen (Entwurf „Trackröhre und Komet“) ─────────────────────────────
   // Jeder Trackpunkt bekommt die Videosekunde, in der der Kopf ihn passiert (aus Tempo-Tabelle, Schnitt und Phasen —
   // dieselbe Rechnung wie Laufpunkt und Schilder). Die Ebenen färben nach dem ALTER = Videozeit − Passage: frisch = heiß,
   // nach `sek` Sekunden die Linienfarbe. Nach Zeit, nicht nach Strecke: Stopps kühlen weiter ab, eine Schleife heizt
   // eine frühere Stelle nicht wieder auf, 25/30/60 fps und Sprünge zeigen dasselbe.
   // Looks: Stufen [u, Farbe] mit u = Alter/sek; nach der letzten Stufe weich bis u = 1 in die Endfarbe.
-  // „linie“ leitet die Stufen aus der Linienfarbe ab, die anderen bringen ihre Endfarbe mit (wie Mockups 01/02/04/05).
+  // „linie“ leitet die Stufen aus der Linienfarbe ab, die anderen bringen ihre Endfarbe mit.
   // 06.11.2026 (Marc: „der Schweif flimmert“) — der weiße Kern dauerte nur ~0,075 s (zwei Bilder): jede Unregelmäßigkeit
   // der GPS-Punktabstände machte ihn Bild für Bild länger oder kürzer. Kern jetzt ~0,3 s (Briefing: „wenige Zehntelsekunden“),
   // sanfte Stufen — so mittelt er über rund neun Bilder.
@@ -7740,6 +7740,8 @@ function mountAnimator(body, headerActions, opts) {
         // Pfeil zur Kamera, lag er violett über dem Pfeil. Wie der Schatten: Lücke bis zur Kerbe, am Kopf echte Tiefe.
         ...(glut ? [{ coords: currentCoords, agl, color: hFarbe, width: lw * 5, breiteM: +ro.breiteM * 3.4, zeiten, glut, tiefeHebM,
                       kopf: kopf ? { faktor: 1.0001, sek: kopf.sek } : null,
+                      // 09.11.2026 (Audit) — Kopflage bei jedem 3D-Kopf: am Kopf echte Tiefe, Pfeil/Kopfrund ausgespart
+                      kopfOrtAn: true,
                       halo: { stark: ro.glut.halo != null ? +ro.glut.halo : 0.45 } }] : []),
       ];
     }
@@ -9729,7 +9731,7 @@ function mountAnimator(body, headerActions, opts) {
                    "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2,
                    "circle-pitch-alignment": "map" } });
       } else if (FAHRZEUGE.includes(dst.style) && _fz3d(dst.style)) {
-        // 08.11.2026 (Marc: „die 3D-Fahrzeuge vom Web-Chat einbauen“) — 3D-Modell je Verkehrsart; gezeichnet von der
+        // 08.11.2026 (Marc: „die 3D-Fahrzeuge aus der Web-Version einbauen“) — 3D-Modell je Verkehrsart; gezeichnet von der
         // Ebene anim-dot-3d (rz-figur3d). Das Symbol bleibt als Bild der GeoJSON-Ebene (Ersatz, falls WebGL fehlt).
         const sf = _symFarben(farbe) || { dunkel: farbe, akzent: "#ffffff" };
         try {
@@ -12752,7 +12754,7 @@ function mountAnimator(body, headerActions, opts) {
     const p = currentCoords[idx];
     return (p && p.length >= 2) ? [p[0], p[1]] : null;
   }
-  /** 14.10.2026 (Weltumrundung, Web-Fund F-14 Nachtrag) — ein auf den Track aufgelöster Endpunkt trägt die Erdumrundungen
+  /** 14.10.2026 (Weltumrundung, Web-Version) — ein auf den Track aufgelöster Endpunkt trägt die Erdumrundungen
    *  der abgewickelten Tour (Ziel nach einer Runde um die Welt: −346,6° statt 13,4°). Gegen einen festen Kamerapunkt
    *  flog die Kamera diese 360° ab (die Kugel drehte sich beim Heraus- und Hineinzoomen einmal ganz). Darum den Track-Punkt
    *  auf die Umrundung des festen Punkts legen — derselbe Ort. Gewollte Drehungen zwischen zwei FESTEN Keyframes bleiben.
@@ -13690,7 +13692,7 @@ function mountAnimator(body, headerActions, opts) {
               if (e === 0) { const g0 = _gpxEleAt(a); if (g0 != null && Math.abs(g0) > 50) e = null; }
               if (e != null && isFinite(e)) { ez = _MC().fromLngLat(ll, e).z; eM = e; _letztEM = e; }
             } catch (_) {}
-            // 21.10.2026 (Web-Fund F-33: Teide ohne 3D-Gelände → Kachelflecken, schräge Keile, Route weg) — ohne Gelände
+            // 21.10.2026 (Web-Version: Teide ohne 3D-Gelände → Kachelflecken, schräge Keile, Route weg) — ohne Gelände
             // ist die Karte flach: die Mitte liegt auf Höhe 0, nicht auf der GPX-Höhe (2–3 km über der Karte)
             if (eM == null && !(map.getTerrain && map.getTerrain()) && !_flugLuftAn()) {
               eM = 0; _letztEM = 0; try { ez = _MC().fromLngLat(ll, 0).z; } catch (_) {}
@@ -13710,7 +13712,7 @@ function mountAnimator(body, headerActions, opts) {
             _out.push({ t: tz, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez, eM: (eM != null ? eM : _letztEM), z: zm });
           }
           _faithCams = _out;
-          // 14.10.2026 (Weltumrundung, Web-Fund F-15: Kamera sprang an der Datumsgrenze −178° → −162° → +16° und MapLibre
+          // 14.10.2026 (Weltumrundung, Web-Version: Kamera sprang an der Datumsgrenze −178° → −162° → +16° und MapLibre
           // hing danach mit Globus + Gelände) — die Stützstellen liegen in Mercator-x (0…1 = einmal um die Erde). An −180°
           // springt x von ~0 auf ~1; dazwischen gemischt landete die Kamera bei x ≈ 0,5, der Gegenseite. Darum x hier
           // fortlaufend abwickeln (wie die Längen der Tour); _faithSeek faltet beim Setzen zurück auf 0…1.
@@ -16352,7 +16354,7 @@ function mountAnimator(body, headerActions, opts) {
       return _animSignsMeterBei(_animSignsNearestIdx(lng, lat, altM, isFinite(luft) ? luft * 3 + 300 : 0));
     }
     window.__rzSignStelleNachZiehen = (alt, lng, lat) => _animSignsStelleNachZiehen(alt, lng, lat);   // Prüfstand
-    // 13.10.2026 (Web-Fund F-19: „Höchster Punkt“ stand am Bildrand, während der Pfeil noch ein gutes Stück davor war) —
+    // 13.10.2026 (Web-Version: „Höchster Punkt“ stand am Bildrand, während der Pfeil noch ein gutes Stück davor war) —
     // der Anker ist der ZEITPUNKT, an dem der Pfeil die Stelle erreicht (Umkehrung der Tempo-Kurve), nicht der Punktanteil.
     // Bei ungleich dicht aufgezeichneten Punkten liefen beide sonst auseinander; ohne Tempo-Kurve ist beides gleich.
     function _animSignAnchorForLngLat(lng, lat, m) {
@@ -18976,7 +18978,7 @@ function mountAnimator(body, headerActions, opts) {
         toast(t("photos.toast_load_error", "Fotos konnten nicht geladen werden."), "err", 3500);
       }
     }
-    /** 07.10.2026 (Web-Fund F-5) — Fotos ohne GPS nicht still überspringen: fragen und auf die Strecke legen.
+    /** 07.10.2026 (Web-Version) — Fotos ohne GPS nicht still überspringen: fragen und auf die Strecke legen.
      *  Mit Aufnahmezeit innerhalb der Tour → an diese Stelle (photos_time_anchors); die übrigen gleichmäßig in die
      *  Lücken, in Reihenfolge der Dateinamen. Als Sofortbild an der Strecke; jedes lässt sich danach in der
      *  Schilder-Spur oder mit „↔ Verschieben“ an seinen Platz ziehen. */
@@ -22738,7 +22740,7 @@ function mountAnimator(body, headerActions, opts) {
         if (name && !rand(bi)) aus.push({ art: "wegpunkte", i: bi, wert: name.length > 28 ? name.slice(0, 27) + "…" : name });
       }
     }
-    // Zu dicht beieinander (< 6 % der Strecke): GPX-Wegpunkte werden ausgedünnt. 13.10.2026 (Web-Fund F-21, Marc: „Man kann
+    // Zu dicht beieinander (< 6 % der Strecke): GPX-Wegpunkte werden ausgedünnt. 13.10.2026 (Web-Version, Marc: „Man kann
     // nicht Steilste Stelle und gleichzeitig Halbzeit angeben — beides wird nicht gleichzeitig angezeigt“) — ausdrücklich
     // gewählte Arten fallen nie mehr still weg; nahe Paare trennt _hlZeitlichTrennen beim Anlegen der Schilder zeitlich.
     const bleibt = [];
@@ -22791,7 +22793,7 @@ function mountAnimator(body, headerActions, opts) {
     const sr = _ovSeries, co = currentCoords;
     if (_hlEin() && (!sr || !co)) return 0;   // Track noch nicht geladen → später
     const alt = (sg.list() || []).slice();
-    // 29.10.2026 (Web-Fund F-53) — ein Look-Wechsel stellte Highlight-Pillen auf den Schildstil des Looks um (Kasten ohne
+    // 29.10.2026 (Web-Version) — ein Look-Wechsel stellte Highlight-Pillen auf den Schildstil des Looks um (Kasten ohne
     // Icon), danach passte ihr Fingerabdruck nicht mehr: der Highlight-Schalter ließ sie stehen. looks.js lässt sie jetzt
     // aus; schon umgestellte holt das hier zurück — nur wenn außer dem Stil alles wie angelegt ist UND mindestens zwei
     // Highlight-Schilder denselben fremden Stil tragen (so hat es der Look gemacht; ein einzeln von Hand umgestelltes
@@ -22878,7 +22880,7 @@ function mountAnimator(body, headerActions, opts) {
     try { applog("info", `[hl] Schilder abgeglichen: ${neu.length} automatisch, ${bleiben.length} weitere`); } catch (_) {}
     return neu.length;
   }
-  /** 13.10.2026 (Web-Fund F-21) — zwei automatische Schilder dicht hintereinander überdeckten sich auf der Karte, und die Karte
+  /** 13.10.2026 (Web-Version) — zwei automatische Schilder dicht hintereinander überdeckten sich auf der Karte, und die Karte
    *  blendete eines aus (Teide: „Halbe Strecke“ stand nur ~0,8 s neben „Steilste Stelle“). Jetzt teilen sie sich die Zeit
    *  dazwischen: das frühere geht in der Mitte, das spätere kommt erst dann — jedes steht für sich. Der Fingerabdruck wird
    *  danach neu gebildet (die Zeiten gehören dazu). */
@@ -25900,7 +25902,7 @@ function mountAnimator(body, headerActions, opts) {
 
   function fitTrackPreview(animated = true) {
     if (!map || !currentBbox) return;
-    // 07.10.2026 (Web-Fund F-3) — im Schritt-/Render-Modus nie animiert: eine 500-ms-Fahrt, die ein seek() mittendrin
+    // 07.10.2026 (Web-Version) — im Schritt-/Render-Modus nie animiert: eine 500-ms-Fahrt, die ein seek() mittendrin
     // abbricht, ließ MapLibres Bildschleife hängen (~120× „_onEaseFrame is not a function“ / „already running“), und
     // der Grund-Zoom wurde mitten in der Fahrt abgelesen (Reiseroute aus Orten: Wiederherstellen fittet animiert).
     if (window.__rzStepMode || window.__rzRenderMode) animated = false;
@@ -31893,7 +31895,7 @@ function mountAnimator(body, headerActions, opts) {
 
   let pollTimer = null;
   let _lastPreviewB64 = "";
-  // 29.10.2026 (Marc: „beim Rendern hat der Webchat so eine coole Animation gebaut. Übernimm die.“) — Fortschritt als
+  // 29.10.2026 (Marc: „beim Rendern hat die Web-Version so eine coole Animation gebaut. Übernimm die.“) — Fortschritt als
   // kleine Wanderung wie in der Web-Version: Pfad füllt sich, der Laufpunkt läuft mit, Sprüche in einer Sprechblase über
   // ihm passen zur Lage (Start, 4K, Karte/Gelände lädt, Bergfest, Gipfel), dazwischen die Wartesprüche der App
   // (wartespruch.01–30). Ob die Karte gerade wartet, steht in der Statuszeile der Szene (szene.m_karte/m_gelaende).

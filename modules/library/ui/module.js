@@ -1602,7 +1602,7 @@ function mountLibrary(body, headerActions) {
       // die auswahl der touren kommen" — erst Touren, dann Name (vorbelegt mit der
       // ersten Tour), dann mit Track im Animator landen. Abbrechen = kein Projekt.
       const pfade = await tourenWaehlenModal({
-        titel: "🧩 " + T("vorlagen.neu_projekt", "Neues Projekt daraus") + " — " + T("vorlagen.touren_waehlen", "Touren wählen"),
+        titel: T("vorlagen.neu_projekt", "Neues Projekt daraus") + " — " + T("vorlagen.touren_waehlen", "Touren wählen"),
         okLabel: T("common.next", "Weiter") });
       if (!pfade) return;
       const vorschlag = String(pfade[0] || "").split("/").pop().replace(/\.[^.]+$/, "") || v.name || "";
@@ -1729,53 +1729,13 @@ function mountLibrary(body, headerActions) {
    *  daraus" bei den Vorlagen (11.09.2026, Marc: „muss direkt die auswahl der
    *  touren kommen"). */
   function tourenWaehlenModal(opts) {
+    // 09.11.2026 (Klicktest) — dieselbe Auswahl wie im Animator und in der Web-Karte (ui/js/util.js
+    // rzArchivTourenWaehlen): Filter, „Alle“/„Keine“, Shift-Bereich, Strg/⌘+A, bis 5000 Touren. Die eigene ältere
+    // Fassung hier konnte das nicht und zeigte höchstens 300 Touren. Abbrechen → null wie bisher.
     opts = opts || {};
-    return new Promise(async (resolve) => {
-      let fertig = false;
-      const gewaehlt = new Set();
-      let items = [];
-      const liste = () => (items.map((it) => `
-        <label class="lib-fassung" style="cursor:pointer;">
-          <input type="checkbox" data-tpath="${esc(it.path)}"${gewaehlt.has(it.path) ? " checked" : ""}>
-          <span class="lib-fassung-info">${esc(it.name || it.filename || it.path)}</span>
-        </label>`).join("")
-        || `<p>${T("library.keine_treffer", "Keine Treffer.")}</p>`);
-      const laden = async (q) => {
-        const res = await api().library_query({ search: q || "", limit: 300, with_thumbs: false });
-        items = (res && res.items) || [];
-        const el = document.getElementById("lib-tp-liste");
-        if (el) {
-          el.innerHTML = liste();
-          el.querySelectorAll("[data-tpath]").forEach(cb => cb.onchange = () => {
-            if (cb.checked) gewaehlt.add(cb.dataset.tpath);
-            else gewaehlt.delete(cb.dataset.tpath);
-          });
-        }
-      };
-      const m = openModal({
-        title: opts.titel || ("➕ " + T("library.proj_addtours", "Touren aus dem Archiv hinzufügen")),
-        body: `<input type="search" id="lib-tp-such" class="lib-input" placeholder="${esc(T("library.search_ph", "Suchen — Name, Ort, Schlagwort …"))}" style="margin-bottom:8px;">
-               <div style="max-height:50vh;overflow-y:auto;" id="lib-tp-liste"></div>`,
-        footer: `<button class="btn" id="lib-tp-ab">${T("common.cancel", "Abbrechen")}</button>
-                 <button class="btn btn-primary" id="lib-tp-ok">${opts.okLabel || T("library.proj_addtours_ok", "Hinzufügen")}</button>`,
-        onClose: () => { if (!fertig) { fertig = true; resolve(null); } },
-      });
-      await laden("");
-      const such = document.getElementById("lib-tp-such");
-      if (such) such.oninput = debounce(() => { laden(such.value.trim()); }, 300);
-      const ok = document.getElementById("lib-tp-ok");
-      if (ok) ok.onclick = () => {
-        const pfade = [...gewaehlt];
-        if (!pfade.length) {
-          // Abnahme 29.08.2026: leeres Bestätigen endete STUMM.
-          toast(T("library.proj_addtours_leer", "Nichts angehakt — erst Touren auswählen."), "warn", 2600);
-          return;
-        }
-        fertig = true; m.close(); resolve(pfade);
-      };
-      const ab = document.getElementById("lib-tp-ab");
-      if (ab) ab.onclick = () => { fertig = true; m.close(); resolve(null); };
-    });
+    if (typeof window.rzArchivTourenWaehlen !== "function") return Promise.resolve(null);
+    return window.rzArchivTourenWaehlen({ titel: opts.titel, okText: opts.okLabel })
+      .then((pfade) => (pfade && pfade.length) ? pfade : null);
   }
 
   // 26.09.2026 (Klicktest ER-08) — `opts.stumm`: Fortsetzen nach dem Start. Fehlt dort

@@ -681,7 +681,7 @@ def load_photos_with_gps(paths_or_folder,
             gps = positionen[path]
         if gps is None:
             skipped += 1
-            if len(ohne_gps) < 2000:   # 07.10.2026 (Web-Fund F-5): der Animator fragt, ob er sie auf die Strecke legt
+            if len(ohne_gps) < 2000:   # 07.10.2026 (Web-Version): der Animator fragt, ob er sie auf die Strecke legt
                 ohne_gps.append(path)
             continue
 
