@@ -345,6 +345,7 @@ function mountLibrary(body, headerActions) {
                  title="${T("library.range_to", "bis")}">
         </span>
         <select id="lib-tags" class="lib-select" title="${T("library.tags_filter_tip", "Nur Touren mit diesem Schlagwort")}"></select>
+        <button type="button" id="lib-tags-sort" class="lib-tagsort" aria-pressed="false"></button>
         <span class="lib-km" title="${T("library.km_range_tip", "Nur Touren in diesem Längenbereich")}">
           <input type="number" id="lib-kmmin" class="lib-kmfield" min="0" step="1"
                  placeholder="${T("library.km_from", "ab km")}">
@@ -442,6 +443,14 @@ function mountLibrary(body, headerActions) {
     catch (_) { loc = null; }
     return Math.round(n || 0).toLocaleString(loc || undefined);
   };
+  // 11.11.2026 (Klickrunde: „1 Touren hier“) — Tour/Touren nach einer Zahl; `einMehr` für Texte „Einzahl|Mehrzahl“.
+  const tourenWort = (n) => (Math.round(+n || 0) === 1 ? T("library.tour_n", "Tour") : T("library.tours", "Touren"));
+  // 11.11.2026 (Nutzer-Meldung, Marc: „mach den Strich, wenn keine Höhendaten da sind“) — Tour ohne Höhen
+  // (z. B. aus einem Routenplaner): Aufstieg/Abstieg „—“ statt „0 m“, sonst wirkt sie wie eine flache Tour.
+  // Nur wenn die Abfrage ele_max überhaupt mitliefert (null = keine Höhe), nie bei fehlendem Feld.
+  const ohneHoehe = (it) => !!it && Object.prototype.hasOwnProperty.call(it, "ele_max") && it.ele_max == null;
+  const hm = (it, wert, vor) => ohneHoehe(it) ? "—" : (vor || "") + num(wert) + " m";
+  const einMehr = (txt, n) => { const t2 = String(txt).split("|"); return (Math.round(+n || 0) === 1 ? t2[0] : (t2[1] || t2[0])); };
 
   /** Der Bereich links entscheidet, WELCHE Touren überhaupt gemeint sind. */
   function scopeFilters() {
@@ -787,7 +796,7 @@ function mountLibrary(body, headerActions) {
   // ── Seitenleiste ──────────────────────────────────────────────────────
   function renderScopes() {
     const b = _base || _stats || {};
-    { const z = $("lib-nav-zahl"); if (z && b.n_tracks != null) z.textContent = T("library.nav_zahl", "{n} Touren · {km} km").replace("{n}", num(b.n_tracks)).replace("{km}", num(b.total_km)); }
+    { const z = $("lib-nav-zahl"); if (z && b.n_tracks != null) z.textContent = einMehr(T("library.nav_zahl", "{n} Tour · {km} km|{n} Touren · {km} km"), b.n_tracks).replace("{n}", num(b.n_tracks)).replace("{km}", num(b.total_km)); }
     const items = [
       ["all", "library", T("library.scope_all", "Alle Touren")],
       ["done", "circle-check", T("library.scope_done", "Gemachte")],
@@ -888,13 +897,13 @@ function mountLibrary(body, headerActions) {
     // Modulwechsel — dann gibt es die Kopfzeile nicht mehr.
     if (_unmounted || !$("lib-head")) return;
     $("lib-head").innerHTML = `
-      <span class="lib-head-count">${_total} ${T("library.tours", "Touren")}</span>
+      <span class="lib-head-count">${_total} ${tourenWort(_total)}</span>
       <span class="lib-head-title">${esc(scopeTitle())}</span>
       ${(state.collection_id && window.rzTourSeite && _items.length > 1) ? `<button type="button" class="btn btn-sm lib-head-reise" id="lib-reise-seite" title="${esc(T("reise.seite_tip", "Alle Touren dieser Sammlung auf einer Karte, mit allen Fotos und Clips"))}">🗺 ${T("reise.seite", "Reise-Seite")} ▸</button>` : ""}
       ${s.total_km ? `<span class="lib-head-sub">${num(s.total_km)} km · ${num(s.total_ascent_m)} ${T("library.ascent", "Höhenmeter")} · ${num(s.total_hours)} ${T("library.hours_moving_kurz", "Std. in Bewegung")}</span>` : ""}
       ${(scope === "all" && s.planned && s.planned.n) ? `<span class="lib-head-mix">${s.done.n} ${T("library.done_short", "gemacht")} · ${s.planned.n} ${T("library.planned_n", "geplant")}</span>` : ""}
       ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
-      ${_ortAktiv ? `<button class="lib-head-ort is-on" id="lib-ort-aus" type="button" title="${T("library.area_off", "Nur Treffer im Text zeigen")}">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortAktiv.name.split(",")[0])}</b> — ${_total} ${T("library.tours_here", "Touren hier")}${_ortAktiv.textTreffer ? ` · ${_ortAktiv.textTreffer} ${T("library.by_name", "über den Namen")}` : ""} ✕</button>` : ""}
+      ${_ortAktiv ? `<button class="lib-head-ort is-on" id="lib-ort-aus" type="button" title="${T("library.area_off", "Nur Treffer im Text zeigen")}">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortAktiv.name.split(",")[0])}</b> — ${_total} ${einMehr(T("library.tours_here", "Tour hier|Touren hier"), _total)}${_ortAktiv.textTreffer ? ` · ${_ortAktiv.textTreffer} ${T("library.by_name", "über den Namen")}` : ""} ✕</button>` : ""}
       ${_autoPlaces ? `<span class="lib-head-auto">📍 ${T("library.places_auto", "Gegenden werden benannt")} ${_autoPlaces.done || 0}/${_autoPlaces.total || "?"}</span>` : ""}
       ${_checkLauf ? `<span class="lib-head-check">${T("trackcheck.progress", "🩺 Track-Check: prüfe {done} von {total}")
           .replace("{done}", _checkLauf.done || 0).replace("{total}", _checkLauf.total || "?")}
@@ -919,14 +928,36 @@ function mountLibrary(body, headerActions) {
     if (cs) cs.onclick = () => { api().library_track_check_stop().catch(() => {}); };
   }
 
-  /** 09.10.2026 — Schlagwörter aus der Statistik (häufigste zuerst); das gewählte bleibt immer in der Liste. */
+  /** 09.10.2026 — Schlagwörter aus der Statistik; das gewählte bleibt immer in der Liste.
+   *  11.11.2026 (Nutzer-Meldung: „alphabetisch sortiert … bei vielen Stichworten“; Marc: „wählen, wie sortiert wird“):
+   *  Knopf daneben schaltet A–Z (Standard, natürlich: OA8 < OA10, Groß/klein und Akzente egal) ↔ Häufigste zuerst,
+   *  gemerkt. Die frühere Grenze von 80 Einträgen ist weg — bei vielen Stichworten fehlten die seltenen ganz. */
+  const _tagVergleich = (() => {
+    try { const c = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }); return (a, b) => c.compare(a, b); }
+    catch (_) { return (a, b) => String(a).localeCompare(String(b)); }
+  })();
+  const _tagSortHaeufig = () => store.get("tag_sort", "az") === "haeufig";
+  // Nach dem Vergeben eines Schlagworts die Statistik nachladen, damit der Filter es gleich anbietet.
+  const _statsBald = debounce(() => { reloadStats().catch(() => {}); }, 600);
   function fillTagOptions() {
     const sel = $("lib-tags"); if (!sel) return;
-    const liste = ((_base && _base.tags) || (_stats && _stats.tags) || []).slice(0, 80);
-    if (state.tags && !liste.some(([t]) => t === state.tags)) liste.unshift([state.tags, 0]);
+    const liste = ((_base && _base.tags) || (_stats && _stats.tags) || []).slice();
+    if (state.tags && !liste.some(([t]) => t === state.tags)) liste.push([state.tags, 0]);
+    if (_tagSortHaeufig()) liste.sort((a, b) => (b[1] - a[1]) || _tagVergleich(a[0], b[0]));
+    else liste.sort((a, b) => _tagVergleich(a[0], b[0]));
     sel.innerHTML = `<option value="">${T("library.all_tags", "Alle Schlagwörter")}</option>` +
       liste.map(([t, n]) => `<option value="${esc(t)}"${state.tags === t ? " selected" : ""}>${esc(t)}${n ? ` (${n})` : ""}</option>`).join("");
     sel.disabled = !liste.length;
+    const k = $("lib-tags-sort");
+    if (k) {
+      const h = _tagSortHaeufig();
+      const titel = h ? T("library.tags_sort_haeufig", "Häufigste zuerst — klicken: A–Z")
+                      : T("library.tags_sort_az", "Schlagwörter A–Z — klicken: häufigste zuerst");
+      k.innerHTML = SI(h ? "arrow-down-wide-narrow" : "arrow-down-a-z", 15);
+      k.title = titel; k.setAttribute("aria-label", titel);
+      k.setAttribute("aria-pressed", h ? "true" : "false");
+      k.disabled = sel.disabled;
+    }
   }
   function fillYearOptions() {
     const sel = $("lib-year");
@@ -1163,9 +1194,9 @@ function mountLibrary(body, headerActions) {
         : p.frei
         ? `🆕 ${T("library.proj_frei", "Noch keine Touren — mit ➕ hinzufügen oder leer öffnen (Reiseroute, Kartenflug)")}`
         : p.ablauf === "schwarm"
-        ? `🌊 ${T("schwarm.name", "Schwarm")} · ${p.n_touren} ${T("library.tours", "Touren")}`
+        ? `🌊 ${T("schwarm.name", "Schwarm")} · ${p.n_touren} ${tourenWort(p.n_touren)}`
         : p.ablauf === "reise"
-          ? `🧵 ${T("library.proj_reise", "Reise")} · ${p.n_touren} ${T("library.tours", "Touren")}`
+          ? `🧵 ${T("library.proj_reise", "Reise")} · ${p.n_touren} ${tourenWort(p.n_touren)}`
           : esc((p.tour_namen || [])[0] || "");
       // 02.09.2026 (Marc: „wenn unten im Projekt zusätzlich die ganzen Icons
       // für Animator, Tour-Map usw. sind, damit man das Projekt schnell darin
@@ -1950,7 +1981,7 @@ function mountLibrary(body, headerActions) {
         </span>
         <span class="lib-card-name">${esc(it.name)}</span>
         <span class="lib-card-meta">
-          <span>${fmtTourDate(it)}</span><span>${fmtKmVal(it.distance_m || 0)}</span><span>↑ ${num(it.ascent_m)} m</span>
+          <span>${fmtTourDate(it)}</span><span>${fmtKmVal(it.distance_m || 0)}</span><span>↑ ${hm(it, it.ascent_m)}</span>
         </span>
       </button>`;
   }
@@ -2002,7 +2033,7 @@ function mountLibrary(body, headerActions) {
             ${it.has_session ? `<i class="lib-row-tag lib-row-tag-proj">●</i>` : ""}</span>
           <span>${fmtTourDate(it)}</span>
           <span>${fmtKmVal(it.distance_m || 0)}</span>
-          <span>↑ ${num(it.ascent_m)} m</span>
+          <span>↑ ${hm(it, it.ascent_m)}</span>
           <span>${it.duration_s ? fmtDurVal(it.duration_s) : "—"}</span>
           <span>${it.avg_speed_kmh ? it.avg_speed_kmh.toFixed(1) + " km/h" : "—"}</span>
           <span>${esc(ACT_LABELS[it.activity] || it.activity || "—")}</span>
@@ -2032,7 +2063,7 @@ function mountLibrary(body, headerActions) {
             <div class="lz-sub">${fmtTourDate(it)}${act ? ` <span class="lz-trenner"></span> ${act}` : ""}</div>
             <div class="lz-werte">
               <span><b>${fmtKmVal(it.distance_m || 0)}</b><i>${esc(T("library.zeile_distanz", "Distanz"))}</i></span>
-              <span><b>+${num(it.ascent_m)} m</b><i>${esc(T("library.zeile_aufstieg", "Aufstieg"))}</i></span>
+              <span><b>${hm(it, it.ascent_m, "+")}</b><i>${esc(T("library.zeile_aufstieg", "Aufstieg"))}</i></span>
               <span><b>${it.duration_s ? fmtDurVal(it.duration_s) : "—"}</b><i>${esc(T("library.zeile_dauer", "Dauer"))}</i></span>
             </div>
           </div>
@@ -2120,6 +2151,7 @@ function mountLibrary(body, headerActions) {
             if (r && r.ok && r.track) { it.tags = r.track.tags; it.tag_list = r.track.tag_list || alle; }
           }
           renderRows();
+          _statsBald();   // 11.11.2026 — neues Schlagwort gleich im Filter (vorher erst nach erneutem Öffnen)
         };
         inp.onkeydown = (ev) => { ev.stopPropagation(); if (ev.key === "Enter") zu(true); else if (ev.key === "Escape") zu(false); };
         inp.onblur = () => zu(true);
@@ -2718,6 +2750,8 @@ function mountLibrary(body, headerActions) {
     window.rzTourSeite.oeffnen({ geo_hash: it.geo_hash || "", path: it.path, name: it.name || "" }, beiFoto || "");
   }
   window.__rzLibDetailNeu = () => { try { renderDetail(); } catch (_) {} };
+  // 11.11.2026 — nach „Höhen ergänzen“ auf der Tour-Seite: Liste neu, neue Version gewählt
+  window.__rzLibNeuLaden = async (gh) => { try { await reload(); const neu = gh && _items.find(i => i.geo_hash === gh); if (neu) { _sel = neu; store.set("sel", neu.path); } } catch (e) { if (window.rzSwallow) rzSwallow(e, "library:neu-laden"); } };
   // Reise-Seite: „Als Reise-Video“ = derselbe Dialog wie „Zu einem Video zusammenführen“ (Touren aus der Liste)
   window.__rzLibZusammenfuehren = (pfade) => { const its = _items.filter(i => (pfade || []).includes(i.path)); if (its.length > 1) openMergeDialog(its); };
 
@@ -2926,7 +2960,7 @@ function mountLibrary(body, headerActions) {
     const letzte = reihe.length - 1;
     const balken = reihe.map((r, i) => {
       const h = Math.max(1, (H - U) - yKm(r.km)), bb = Math.min(46, bw * 0.62);
-      return `<g><title>${esc(r.lbl)}: ${num(Math.round(r.km))} km · ${num(r.n)} ${esc(T("library.tours", "Touren"))}</title>
+      return `<g><title>${esc(r.lbl)}: ${num(Math.round(r.km))} km · ${num(r.n)} ${esc(tourenWort(r.n))}</title>
         <rect x="${x(i) - bb / 2}" y="${yKm(r.km)}" width="${bb}" height="${h}" rx="3" class="st-balken${i === letzte && _stKurve !== "gesamt" ? " ist-jetzt" : ""}"/>
         ${reihe.length <= 14 ? `<text x="${x(i)}" y="${yKm(r.km) - 6}" class="st-wert" text-anchor="middle">${num(Math.round(r.km))}</text>` : ""}
         ${reihe.length <= 14 || i % Math.ceil(reihe.length / 12) === 0 ? `<text x="${x(i)}" y="${H - 8}" class="st-achse" text-anchor="middle">${esc(r.lbl)}</text>` : ""}</g>`;
@@ -2952,7 +2986,7 @@ function mountLibrary(body, headerActions) {
         <span></span>${MONTHS.map(x => `<span class="st-heat-m">${esc(x)}</span>`).join("")}
         ${jahre.map(j => `<span class="st-heat-j">${j}</span>${MONTHS.map((mn, i) => {
           const v = m.get(`${j}-${String(i + 1).padStart(2, "0")}`) || { n: 0, km: 0 };
-          return `<span class="st-heat-z st-s${stufe(v.n)}" title="${esc(mn + " " + j)}: ${num(v.n)} ${esc(T("library.tours", "Touren"))}${v.km ? " · " + num(Math.round(v.km)) + " km" : ""}"></span>`;
+          return `<span class="st-heat-z st-s${stufe(v.n)}" title="${esc(mn + " " + j)}: ${num(v.n)} ${esc(tourenWort(v.n))}${v.km ? " · " + num(Math.round(v.km)) + " km" : ""}"></span>`;
         }).join("")}`).join("")}
       </div>
       <div class="st-heat-leg"><span class="muted">${esc(T("library.stat_weniger", "Weniger Touren"))}</span>${[1, 2, 3, 4, 5].map(i => `<span class="st-heat-z st-s${i}"></span>`).join("")}<span class="muted">${esc(T("library.stat_mehr", "Mehr Touren"))}</span></div>`;
@@ -2987,7 +3021,7 @@ function mountLibrary(body, headerActions) {
         </div>
 
         <div class="st-kpis">
-          ${kpi("map-pinned", num(s.n_tracks), "", T("library.tours", "Touren"),
+          ${kpi("map-pinned", num(s.n_tracks), "", tourenWort(s.n_tracks),
                done + plan ? `${num(done)} ${esc(T("library.done_short", "gemacht"))} · ${num(plan)} ${esc(T("library.planned_n", "geplant"))}` : "", done && plan ? ring : "")}
           ${kpi("route", num(s.total_km), "km", T("library.distance", "Strecke"),
                `Ø ${num(s.avg_km)} km · ${esc(T("library.stat_longest", "Längste"))} ${num(s.longest_km)} km`)}
@@ -3005,7 +3039,7 @@ function mountLibrary(body, headerActions) {
           </div>
           <div class="st-karte">
             <div class="st-k-kopf"><h3>${esc(T("library.stat_bewegungsarten", "Bewegungsarten"))}</h3></div>
-            <div class="st-arten">${acts.map(a => `<div class="st-art" title="${num(a.n)} ${esc(T("library.tours", "Touren"))}">
+            <div class="st-arten">${acts.map(a => `<div class="st-art" title="${num(a.n)} ${esc(tourenWort(a.n))}">
                 <span class="st-art-sym">${SI(a.activity ? (ACT_SYMBOL[a.activity] || "route") : "ellipsis", 18)}</span>
                 <span class="st-art-name">${esc(a.activity ? (ACT_LABELS[a.activity] || a.activity) : T("library.act_ohne_art", "ohne Art"))}</span>
                 <span class="st-bar"><i style="width:${Math.max(1.5, ((a.km || 0) / maxAkm) * 100)}%"></i></span>
@@ -3022,7 +3056,7 @@ function mountLibrary(body, headerActions) {
             <div class="st-k-kopf"><h3>${esc(T("library.stat_startpoints", "Häufigste Startpunkte"))}</h3>
               ${(s.startorte || []).length > 5 ? `<button type="button" class="st-alle" id="st-orte-alle">${esc(_stOrteAlle ? T("library.stat_weniger_zeigen", "Weniger zeigen") : T("library.stat_alle", "Alle anzeigen"))} ${SI(_stOrteAlle ? "chevron-down" : "arrow-right", 13)}</button>` : ""}</div>
             ${orte.length ? `<div class="st-orte${mitLage.length ? " mit-karte" : ""}">
-              <div class="st-orte-liste">${orte.map((o, i) => `<div class="st-ort" title="${num(o.n)} ${esc(T("library.tours", "Touren"))}">
+              <div class="st-orte-liste">${orte.map((o, i) => `<div class="st-ort" title="${num(o.n)} ${esc(tourenWort(o.n))}">
                   <span class="st-rang">${i + 1}</span><span class="st-ort-name">${esc(o.ort)}</span>
                   <span class="st-bar"><i style="width:${Math.max(2, ((o.km || 0) / maxOkm) * 100)}%"></i></span><b>${num(Math.round(o.km || 0))} km</b></div>`).join("")}</div>
               ${mitLage.length ? `<div class="st-orte-map" id="st-orte-map"></div>` : ""}
@@ -3401,7 +3435,7 @@ function mountLibrary(body, headerActions) {
     closeMapPopup();
     const rows = [
       [T("library.distance", "Strecke"), fmtKmVal(it.distance_m || 0)],
-      [T("library.ascent", "Höhenmeter"), "↑ " + num(it.ascent_m) + " m"],
+      [T("library.ascent", "Höhenmeter"), "↑ " + hm(it, it.ascent_m)],
       [T("library.duration", "Dauer"), it.duration_s ? fmtDurVal(it.duration_s) : "—"],
     ];
     _mapPopup = new _mapLib.Popup({
@@ -3982,12 +4016,14 @@ function mountLibrary(body, headerActions) {
         ${it.kartenbild ? `<span class="ld-quelle">© OpenStreetMap · OpenFreeMap</span>` : ""}</div>
       <div class="ld-werte">
         ${wert("route", fmtKmVal(it.distance_m || 0), T("library.zeile_distanz", "Distanz"))}
-        ${wert("trending-up", "+" + num(it.ascent_m) + " m", T("library.zeile_aufstieg", "Aufstieg"))}
+        ${wert("trending-up", hm(it, it.ascent_m, "+"), T("library.zeile_aufstieg", "Aufstieg"))}
         ${wert("clock", it.duration_s ? fmtDurVal(it.duration_s) : "—", T("library.zeile_dauer", "Dauer"))}
         ${wert("mountain", it.ele_max != null ? num(it.ele_max) + " m" : "—", T("library.d_hoechster", "Höchster Punkt"))}
-        ${wert("trending-down", it.descent_m != null ? num(it.descent_m) + " m" : "—", T("library.d_abstieg", "Abstieg"))}
+        ${wert("trending-down", it.descent_m != null ? hm(it, it.descent_m) : "—", T("library.d_abstieg", "Abstieg"))}
         ${wert("repeat", esc(strecke), T("library.d_strecke", "Strecke"))}
       </div>
+      ${ohneHoehe(it) && !_ghostModus() ? `<div class="ld-hoehe-fehlt"><span>${esc(T("library.hoehen_fehlen", "Diese Tour hat keine Höhendaten."))}</span>
+        <button type="button" class="btn btn-sm" id="ld-hoehen" title="${esc(T("library.hoehen_tip", "Holt die Höhen aus dem Geländemodell der Karte und speichert sie als neue Version der Tour. Das Original bleibt erhalten. Brücken und Tunnel kennt das Geländemodell nicht."))}">${SI("mountain", 15)} ${esc(T("library.hoehen_ergaenzen", "Höhen aus dem Gelände ergänzen"))}</button></div>` : ""}
       ${checkBoxHtml(it)}
       <div class="ld-abschnitt">${T("library.d_beschreibung", "Beschreibung")}</div>
       <textarea id="lib-d-note" class="lib-input ld-notiz" rows="3" placeholder="${esc(T("library.d_beschreibung_ph", "Was war besonders an dieser Tour?"))}">${esc(it.note || "")}</textarea>
@@ -4090,6 +4126,14 @@ function mountLibrary(body, headerActions) {
     { const m = $("ld-mehr"); if (m) m.onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); itemKontextmenu(it, r.left, r.bottom + 4); }; }
     { const g = $("ld-gross"); if (g) g.onclick = () => tourSeiteOeffnen(it); }
     { const t = $("ld-tourseite"); if (t) t.onclick = () => tourSeiteOeffnen(it); }
+    // 11.11.2026 — Höhen aus dem Gelände ergänzen (neue Version), danach die neue Version wählen
+    { const b = $("ld-hoehen"); if (b) b.onclick = async () => {
+        const res = window.rzHoehenErgaenzen ? await window.rzHoehenErgaenzen(it.path, b) : null;
+        if (!res || !res.ok || _unmounted) return;
+        await reload();
+        const neu = _items.find(i => i.geo_hash === res.geo_hash) || _items.find(i => i.path === res.neu_pfad);
+        if (neu) { _sel = neu; store.set("sel", neu.path); renderView(); renderDetail(); }
+      }; }
     { const d = $("ld-mehr-details"); if (d) d.ontoggle = () => store.set("detail_mehr", d.open ? "1" : "0"); }
     const tagsSchreiben = async (liste) => {
       const r = await api().library_set_fields(it.path, null, liste, null).catch(() => null);   // warte-ok: ein Feld
@@ -4416,6 +4460,7 @@ function mountLibrary(body, headerActions) {
       const tags = $("lib-d-tags").value.split(",").map(s => s.trim()).filter(Boolean);
       await api().library_set_fields(it.path, null, tags, null);
       it.tag_list = tags;
+      _statsBald();
     }, 500);
     $("lib-d-tags").oninput = saveTags;
     const saveNote = debounce(async () => {
@@ -4613,7 +4658,7 @@ function mountLibrary(body, headerActions) {
       [T("library.date", "Datum"), fmtTourDate(q)],
       [T("library.distance", "Strecke"), fmtKmVal(q.distance_m || 0)],
       [T("library.duration", "Dauer"), q.duration_s ? fmtDurVal(q.duration_s) : "—"],
-      [T("library.ascent", "Höhenmeter"), `↑ ${num(q.ascent_m)} m · ↓ ${num(q.descent_m)} m`],
+      [T("library.ascent", "Höhenmeter"), ohneHoehe(q) ? "—" : `↑ ${num(q.ascent_m)} m · ↓ ${num(q.descent_m)} m`],
       [T("library.speed", "Schnitt"), q.avg_speed_kmh ? (+q.avg_speed_kmh).toFixed(1) + " km/h" : "—"],
       [T("library.maxspeed", "Max. Tempo"), q.max_speed_kmh ? (+q.max_speed_kmh).toFixed(1) + " km/h" : "—"],
       // 11.10.2026 — für Läufer: Pace (min/km) zusätzlich
@@ -4795,7 +4840,7 @@ function mountLibrary(body, headerActions) {
       body: `<div class="lib-fmodal">
         <label class="field-label" for="lib-cm-name">${T("library.name", "Name")}</label>
         <input type="text" id="lib-cm-name" class="lib-input" value="${esc(c.name)}">
-        <div class="lib-hint" style="margin-top:6px;">${c.n} ${T("library.tours", "Touren")} · ${num(c.total_km)} km · ↑ ${num(c.total_ascent_m)} m</div>
+        <div class="lib-hint" style="margin-top:6px;">${c.n} ${tourenWort(c.n)} · ${num(c.total_km)} km · ↑ ${num(c.total_ascent_m)} m</div>
         <div class="lib-actions" style="margin-top:12px;">
           <button class="btn btn-primary btn-sm" id="lib-cm-show">${T("library.col_open", "Anzeigen")}</button>
           <button class="btn btn-sm" id="lib-cm-anim">${T("library.col_animator", "Alle im Animator")}</button>
@@ -6213,6 +6258,7 @@ function mountLibrary(body, headerActions) {
   $("lib-year").onchange = () => { setFilter("year", parseInt($("lib-year").value, 10) || 0); zuerstGeoWeg(); reload(); };
   $("lib-act").onchange = () => { setFilter("activity", $("lib-act").value); zuerstGeoWeg(); reload(); };
   $("lib-tags").onchange = () => { setFilter("tags", $("lib-tags").value || null); zuerstGeoWeg(); reload(); };
+  $("lib-tags-sort").onclick = () => { store.set("tag_sort", _tagSortHaeufig() ? "az" : "haeufig"); fillTagOptions(); };
   $("lib-sort").onchange = () => { setFilter("sort", $("lib-sort").value); zuerstGeoWeg(); reload(); };
   const kmLesen = (id) => {
     const v = parseFloat($(id).value);

@@ -1859,7 +1859,9 @@ GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
 Ansehen und werden gemerkt), Name, Datum · Fortbewegung, Distanz/Aufstieg/Dauer, Schlagwörter mit **＋** zum Ergänzen,
 die Zahl der Fotos und Clips und **⋯** für alle Aktionen. Das **Kästchen** links markiert wie ⌘-Klick; oben steht dann
 „2 von 36 ausgewählt“ mit Schlagwörter, Zu Sammlung, Exportieren und ⋯. In der Filterzeile darunter: Suche,
-Fortbewegung, Jahr, Zeitraum, **Schlagwort**, Länge und Sortierung.
+Fortbewegung, Jahr, Zeitraum, **Schlagwort**, Länge und Sortierung. Die Schlagwörter stehen alphabetisch (OA8 vor OA10,
+Groß-/Kleinschreibung egal); der kleine Knopf rechts daneben schaltet auf **häufigste zuerst** und zurück, GPS Studio
+merkt sich deine Wahl.
 
 **Rechts die Tour** (ein Klick auf eine Zeile): Titel (zum Umbenennen anklicken), ★ Favorit, ⋯, großes Kartenbild
 (⤢ öffnet die Tour-Seite), sechs Werte (Distanz, Aufstieg, Dauer, höchster Punkt, Abstieg, Rundweg oder Punkt zu Punkt),
@@ -3397,6 +3399,8 @@ Getrennte Achsen sind Absicht: Höhe (m) und Puls (bpm) haben keinen gemeinsamen
 ### Sachliche Info-Leiste (seit v0.9.394) ⭐
 Über dem Profil blendest du eine **Werte-Leiste** ein — in der Sektion **„Info-Leiste"** an-/abschaltbar und pro Feld wählbar: **Distanz, Höhenmeter ↑/↓, Ø-Steigung, max. Steigung (↑/↓), Höhe (max/min/Ø)**. Zusätzlich zeigt der **Marker-Callout** die **aktuelle Steigung** (z. B. „↗ +6.2 %" / „↘ −4.7 %") neben Höhe und Distanz — abschaltbar über „Steigung % am Marker zeigen".
 
+**Die Info-Leiste zeigt dieselben Zahlen wie Animator, Tour-Karte und Archiv.** Höhenmeter ↑/↓, Höhe max/min, Tempo max und Ø Tempo werden aus allen aufgezeichneten Punkten gerechnet, nicht aus der vereinfachten Kurve. Tempo max ist das Spitzentempo: Einzelne GPS-Sprünge fallen heraus, ein echter Sprint über mehrere Sekunden zählt. Ø Tempo ist Strecke geteilt durch Bewegungszeit, Pausen zählen also nicht. Das Gipfel- und das Tiefpunkt-Schild (⛰ / ▼) tragen dieselbe Höhe wie „Höhe max/min“. Die Kurve selbst bleibt vereinfacht und geglättet und kann deshalb etwas unter einer Spitze liegen. Schneidest du die Tour zu, gelten die Werte des gewählten Stücks.
+
 ### Punkte auf der Strecke (seit v0.9.394) ⭐
 In der Sektion **„Punkte auf der Strecke"** setzt du beschriftete Marker ins Profil — aus vier Quellen, einzeln zuschaltbar:
 - **Selbst setzen:** **„Punkt aufs Profil setzen"** klicken, dann in die Kurve klicken. Name eingeben, Farbe wählen, später umbenennen oder löschen.
@@ -3405,13 +3409,13 @@ In der Sektion **„Punkte auf der Strecke"** setzt du beschriftete Marker ins P
 - **GPX-Wegpunkte:** `<wpt>`-POIs aus der GPX-Datei (z. B. von Komoot/Garmin) werden übernommen.
 - **Auto-Marker:** höchster/tiefster Punkt sowie steilster An- und Abstieg werden automatisch erkannt und beschriftet.
 
-Jeder Punkt **taucht animiert auf, sobald die Linie ihn erreicht**. Einzelne Punkte aus einer Quelle kannst du in der Liste per 👁 aus-/einblenden. Deine manuellen Punkte + alle Einstellungen werden **pro Projekt** gespeichert.
+Jeder Punkt **taucht animiert auf, sobald die Linie ihn erreicht**. Einzelne Punkte aus einer Quelle kannst du in der Liste per 👁 aus-/einblenden. **Viele Punkte dicht beieinander** (z. B. eine lange Reise mit Hunderten GPX-Wegpunkten): Die Schilder weichen sich aus, aber höchstens drei Zeilen weit — was dann keinen Platz mehr findet, bleibt als Punkt ohne Schild stehen, damit die Kurve frei bleibt. Deine selbst gesetzten Punkte bekommen zuerst einen Platz, dann Fotos, GPX-Wegpunkte und Auto-Marker. Deine manuellen Punkte + alle Einstellungen werden **pro Projekt** gespeichert.
 
 **Achsen komplett konfigurierbar (seit v0.9.447):** Unter dem Schalter „Achsen-Beschriftung zeigen" liegt jetzt ein Detail-Block. Dort schaltest du **X-Achse**, **linke Y-Achse** und **rechte Y-Achse** (zweite Datenreihe) einzeln an und aus, wählst die **Schriftgröße** (8–60 px) und legst fest, **wie viele Werte** je Achse beschriftet werden (1–12). Ist eine Achse aus, fällt ihr Rand auf ein Minimum — die Kurve bekommt den freien Platz. Der Haupt-Schalter darüber schaltet weiterhin alles auf einmal ab.
 
 **Farben (seit v0.9.395):** In der „Optik"-Sektion wählst du neben Hintergrund und Linienfarbe jetzt auch **Gitterfarbe** (Hilfsgitter) und **Beschriftungsfarbe** (Achsen, Info-Leiste, Marker-Callout).
 
-**Glättung (seit v0.9.400):** Der Regler **„Glättung"** in der Optik-Sektion (0–20) macht zackige Profile weicher — hilfreich bei Tracks mit vielen GPS-Punkten und kleinen Höhensprüngen. Er legt einen gleitenden Mittelwert über die Höhendaten; 0 = Rohdaten, höhere Werte = glatter. Die Glättung wirkt WYSIWYG auf alles: Linie, Fläche, Info-Leiste, die Steigung am Marker und die Punkt-Höhen — in Vorschau, Video-Render und HTML-Export gleich.
+**Glättung (seit v0.9.400):** Der Regler **„Glättung"** in der Optik-Sektion (0–20) macht zackige Profile weicher — hilfreich bei Tracks mit vielen GPS-Punkten und kleinen Höhensprüngen. Er legt einen gleitenden Mittelwert über die Höhendaten; 0 = Rohdaten, höhere Werte = glatter. Die Glättung wirkt WYSIWYG auf Linie, Fläche, die Steigungs-Felder der Info-Leiste, die Steigung am Marker und die Punkt-Höhen — in Vorschau, Video-Render und HTML-Export gleich. Höhenmeter und Höhe max/min in der Info-Leiste bleiben die Werte der Tour.
 
 **Fläche unter der Linie (seit v0.9.402):** In der Sektion **„Fläche unter der Linie"** legst du fest, **ob** die Fläche unter der Kurve gefüllt wird, in welcher **Füllfarbe** und mit welcher **Deckkraft** (0–100 %).
 Darunter kannst du **Farbzonen nach Höhe** anlegen: Mit „**Höhe hinzufügen**" definierst du eine Höhe (in Metern) plus Farbe — **ab dieser Höhe** wechselt die Füllfarbe. So entsteht der klassische Reliefkarten-Look (z. B. Grün im Tal, Braun in mittleren Lagen, Weiß am Gipfel). Unterhalb der niedrigsten Zone gilt die normale Füllfarbe. Über **Farbübergang** wählst du zwischen **weichem Verlauf** (die Farben blenden ineinander) und **harten Bändern** (die Farbe springt an jeder Höhe um). Ohne Zonen wird einfach die Füllfarbe für die ganze Fläche verwendet.
@@ -3788,6 +3792,9 @@ Punkten (Grenze 30 km/h)“ oder „Sprung 480 m bei 12 m üblichem Punktabstand
 unterwegs warst: **Automatisch** misst am üblichen Tempo der Tour; **Zu Fuß** (30 km/h), **Laufen** (40), **Fahrrad**
 (90) und **Auto/Motorrad** (250) setzen zusätzlich eine feste Obergrenze, **Fliegen/Gleitschirm** erlaubt hohes Tempo.
 Fähren und Flüge über 10 km zählen nie als Ausreißer. Die Wahl gilt auch für die Befunde oben und wird gemerkt.
+**Touren aus dem Archiv** bringen ihre Art mit: Eine Motorradtour öffnet mit „Auto/Motorrad“, eine Wanderung mit „Zu Fuß“,
+ein Drohnenflug mit „Fliegen“ — die gemerkte Wahl gilt nur für Dateien ohne Art. Stellst du für die geöffnete Tour selbst
+um, bleibt deine Wahl.
 
 **Lücken füllen als** (Profil): **Luftlinie** = gerade Verbindung (sicher, fasst nur die Lücke an). **Wandern/Fahrrad/Auto** = sucht die echte Route auf dem Wegenetz (Mapbox). ⚠️ **Schutz seit v0.9.315:** Falls die Straßen-Route einen großen **Umweg/eine Schleife** ergibt (Mapbox routet an Kreuzungen manchmal über Ausfahrt + Kreisel zurück), wird sie **automatisch verworfen und die Lücke gerade gefüllt** — so wird eine saubere Spur nicht mehr verbogen. Im Toast steht dann „… Umwege verworfen".
 
@@ -3813,6 +3820,8 @@ Danach ist es **ein** Track: heilen, beschneiden, Höhe korrigieren, speichern �
 **Sensordaten** (Puls, Leistung, Trittfrequenz, Temperatur) bleiben pro Abschnitt bei ihrer eigenen Aufzeichnung — der Puls aus Track 1 wird nicht in Track 2 hineingerechnet.
 
 ### ⛰ Höhe korrigieren (Karte statt GPS) — seit v0.9.292
+
+**Tour ganz ohne Höhen?** Dafür gibt es im Archiv (Detailspalte) und auf der Tour-Seite den Knopf „Höhen aus dem Gelände ergänzen“ — ein Klick, neue Version, fertig. Der Inspektor ist für das Mischen und Korrigieren vorhandener Höhen da.
 GPS-Höhenwerte sind oft verrauscht — gerade bei wenig Empfang springt die Höhe um ein paar Meter hin und her, und am Ende stehen viel zu viele **Höhenmeter** in den Stats (z. B. 1800 statt 1400). Hier kannst du die **glatte Gelände-Höhe aus der Mapbox-Karte** (digitales Höhenmodell) mit deiner GPS-Höhe mischen — und siehst dabei **genau, was passiert**:
 
 1. **🗺 Höhenprofil aus Karte laden** — die App fährt einmal kurz auf den ganzen Track (lädt die Höhen-Kacheln) und liest für jeden Punkt die Karten-Höhe aus.
@@ -4164,6 +4173,24 @@ eine eigene Etappe. Für Strecken über Meere und Kontinente nimm **„gerade Li
 Wegen“**. Die Tour landet als GPX im Archiv. Mehrere Tagestouren markierst du und wählst **„Als Reise ansehen“** — dort
 gibt es **„Reise-Video …“**. Dieser Weg ist weniger erprobt als der mit einem echten Track; schreib mir, wenn etwas hakt.
 
+### Meine Tour zeigt keine Höhenmeter – kann GPS Studio die Höhen aus der Karte holen?
+
+Ja. Manche Geräte und Routenplaner speichern keine Höhe. Dann zeigt das Archiv bei Aufstieg und Abstieg einen Strich „—“
+und darunter den Knopf **„Höhen aus dem Gelände ergänzen“** (auch auf der Tour-Seite). Ein Klick holt die Höhen aus dem
+Geländemodell der Karte und speichert sie als neue Version der Tour; das Original bleibt erhalten. Steht an jedem Punkt
+genau 0 m, gilt die Tour ebenfalls als „ohne Höhe“ — manche Geräte schreiben das, wenn sie keine Höhe kennen. Hat die
+Tour eigene Höhen, erscheint der Knopf nicht.
+
+Von Hand, mit mehr Kontrolle (z. B. GPS und Karte mischen), geht es im **GPX-Inspektor**:
+
+1. Tour im **GPX-Inspektor** öffnen.
+2. **„Höhe korrigieren“** aufklappen und **„Höhenprofil aus Karte laden“** klicken (braucht einmal Internet).
+3. Den Regler **„GPS ⟷ Karte“** ganz nach rechts auf **100 %** stellen und **„Diese Höhe übernehmen“** klicken.
+4. **„Geheilten Track speichern …“** → **„Im Archiv ersetzen“**. Archiv, Tourseite und Videos zeigen danach die
+   Höhenmeter; das Original bleibt als Version erhalten.
+
+Gut zu wissen: Das Geländemodell kennt keine Brücken und Tunnel, dort liegt die Höhe auf dem Boden bzw. über dem Berg.
+
 ### Wie bekomme ich einen eigenen Videoclip in die Animation?
 Als **Clip-Stopp**: Der Track hält an dieser Stelle an, der Clip erscheint groß über der Karte und läuft ab. Im Animator
 wählst du unter „Fotos hinzufügen“ **„🎞 Videoclips hinzufügen“**; GPS Studio setzt jeden Clip an die Stelle, an der er
@@ -4171,6 +4198,16 @@ aufgenommen wurde (nach GPS, sonst nach Aufnahmezeit). Passt ein Clip weder nach
 legt ihn an den **Abspielkopf** — stell ihn also vorher an die gewünschte Stelle; verschieben kannst du den Clip danach in
 der Schilder-Spur. Im Schild stellst du ein, ab welcher Sekunde er läuft, wie lange (so lange hält der Track) und ob der
 Originalton mitläuft.
+
+### Wo finde ich meine gespeicherten Vorlagen – und wie lösche ich welche?
+Was du mit **„Als Vorlage speichern“** angelegt hast, steht im **Archiv im Reiter „Vorlagen“** (oben neben
+*Projekte* und *Touren-Archiv*). Jede Vorlage ist dort eine Kachel; der **Papierkorb** an der Kachel löscht sie, **⌘Z**
+(Windows: Strg+Z) holt sie zurück. Bestehende Projekte behalten ihren Look. *Reisezoom-Standard* ist mitgeliefert und
+lässt sich nicht löschen.
+
+Daneben gibt es zwei kleinere Arten von Vorlagen: Eigene **Videovorlagen** (der ☆ unter den Einblendungen bzw. „Als
+Vorlage merken“ im Video-Assistenten) löschst du im **Video-Assistenten**: Rechtsklick auf die Vorlage. Eigene
+**Export-Vorlagen** im Export-Dialog löschst du mit dem **✕** an der Vorlage (zweimal klicken).
 
 ### Wie ändere ich den Titel im Video?
 Im Animator unter **„Einblendungen“**: Im Editor stehen die Textzeilen ganz oben, „Name in der Liste“ ist nur der Name

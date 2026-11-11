@@ -14,6 +14,49 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.859] – 2026-11-11
+
+### Added
+- **Add elevation from terrain with one click**: tours without elevation data (for example routes from a route planner)
+  now show “—” for climb and descent in the archive instead of “0 m”, which looked like a flat tour. Next to it — in the
+  archive's detail column and on the tour page — the button “Add elevation from terrain” takes the elevation from the
+  map's terrain model and saves it as a new version of the tour; the original is kept. Before, this was only possible by
+  hand in the GPX Inspector. Tours where every point says exactly 0 m — some devices write that when they know no
+  elevation — now count as tours without elevation too, including tours already in the archive.
+
+### Changed
+- **Tag filter in the archive sorted alphabetically, with a choice**: the “All tags” list was sorted by how often a tag is
+  used, which made it hard to find one among many. It is now alphabetical (natural order: OA8 before OA10, upper/lower
+  case and accents don't matter); a small button next to it switches to “most used first” and back, and the choice is
+  remembered.
+
+### Fixed
+- **Inspector checked a motorbike tour with the limits for walking**: the „Getting around“ choice was remembered from the
+  last tour and applied to every tour — after a hike set to „On foot“, a motorbike tour got the 30 km/h ceiling, many
+  normal stretches were reported as jumps and „Repair“ would have cut real riding. Tours from the archive now open with
+  the choice matching their type (motorbike/car, walking, running, bicycle, flying); the remembered choice is only used
+  for files without a type, and changing it by hand for the open tour still wins.
+- **Data animator showed different numbers than the animator and the archive**: the info bar calculated on the
+  simplified curve — for the same motorbike trip „Speed max“ was 101.5 km/h in the preview, 131.0 km/h in the rendered
+  video and 111.7 km/h in the animator; „Ø speed“ 49.0 instead of 35.5 km/h (breaks counted); on other tours elevation
+  gain was 775 instead of 809 m and „Elevation max“ 3744 instead of 3746 m. Elevation gain/loss, elevation max/min,
+  speed max and Ø speed (distance / moving time) now come from all recorded points, exactly as in the animator, tour
+  map and archive — in preview, video and web export alike; with a trimmed tour, the values of the selected part. The
+  summit and low point signs carry the same elevation as „Elevation max/min“.
+- **Data animator: waypoint labels covered the whole chart**: on a long trip with many GPX waypoints the labels stacked
+  up over the full height of the chart and hid the curve, and when no room was left they overlapped again. A label now
+  moves at most three rows away from its point; if there is no room, only the point is shown. Your own points get a
+  place first, then photos, GPX waypoints and auto markers. Preview and video use the same rule.
+- **„1 tours“ in the archive**: with exactly one result the archive said „1 tours“ (heading, sidebar, area hint,
+  collections, statistics). It says „1 tour“ now.
+- **Rare tags missing from the tag filter**: the list only showed the 80 most used tags, so with many tags the rare ones
+  could not be picked at all. All tags are listed now.
+- **New tag not offered in the tag filter right away**: a tag added with ＋ in the list or in the tour details only
+  showed up in the filter after reopening the archive. It is there immediately now.
+
+### Documentation
+- FAQ: where your saved templates are and how to delete the ones you no longer need (project templates, video templates, export presets).
+
 ## [0.9.858] – 2026-11-11
 
 ### Added

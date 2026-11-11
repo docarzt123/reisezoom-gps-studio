@@ -938,8 +938,36 @@ function mountHeightAnim(body, headerActions) {
     for (let k = 1; k < sm.length; k++) { const dz = sm[k] - ref; if (Math.abs(dz) >= 3) { if (dz > 0) asc += dz; else desc += -dz; ref = sm[k]; } }
     let gUpMax = 0, gDnMax = 0, gUpSum = 0, gUpW = 0, gDnSum = 0, gDnW = 0;
     for (let i = i0 + 1; i <= i1; i++) { const w = Math.max(0, ds[i] - ds[i - 1]); const g = _rzWindowGrad(ds, es, i, 60, i0, i1); if (g > 0.3) { if (g > gUpMax) gUpMax = g; gUpSum += g * w; gUpW += w; } else if (g < -0.3) { if (g < -gDnMax) gDnMax = -g; gDnSum += (-g) * w; gDnW += w; } }
-    return { distM: Math.max(0, ds[i1] - ds[i0]), eleMin: eCnt ? eMin : 0, eleMax: eCnt ? eMax : 0, eleAvg: eCnt ? eSum / eCnt : 0, ascent: asc, descent: desc, gradAvgUp: gUpW ? gUpSum / gUpW : 0, gradAvgDown: gDnW ? gDnSum / gDnW : 0, gradMaxUp: gUpMax, gradMaxDown: gDnMax };
+    const st = { distM: Math.max(0, ds[i1] - ds[i0]), eleMin: eCnt ? eMin : 0, eleMax: eCnt ? eMax : 0, eleAvg: eCnt ? eSum / eCnt : 0, ascent: asc, descent: desc, gradAvgUp: gUpW ? gUpSum / gUpW : 0, gradAvgDown: gDnW ? gDnSum / gDnW : 0, gradMaxUp: gUpMax, gradMaxDown: gDnMax };
+    _rzTourKopf(st, (_currentData && _currentData.tour) || null, ds, i0, i1, _haIsEle(), _seriesA === "speed", es.length);
+    return st;
   }
+  // 11.11.2026 (Marc: „alles angleichen“) — Info-Leiste mit den Tourwerten der vollen Spur (tour_werte): Höhenmeter,
+  // Höhe max/min, Tempo max (Spitzentempo) und Ø Tempo (Strecke/Bewegungszeit) wie Animator und Archiv.
+  // SYNCHRON zu rzTourKopf in core/heightanim.py — beide Funktionen sind wortgleich.
+  function _rzTourKopf(st, T, ds, i0, i1, isEle, isSpeed, n) {
+    const ok = (k) => T && Array.isArray(T[k]) && T[k].length === n;
+    if (isEle && ok("hoch") && ok("runter")) { st.ascent = T.hoch[i1] - T.hoch[i0]; st.descent = T.runter[i1] - T.runter[i0]; }
+    if (isEle && ok("emax") && ok("emin") && ok("ele")) {
+      let hi = T.ele[i0], lo = T.ele[i0];
+      for (let i = i0 + 1; i <= i1; i++) {
+        if (T.emax[i] != null && (hi == null || T.emax[i] > hi)) hi = T.emax[i];
+        if (T.emin[i] != null && (lo == null || T.emin[i] < lo)) lo = T.emin[i];
+      }
+      if (hi != null) st.eleMax = hi;
+      if (lo != null) st.eleMin = lo;
+    }
+    if (isSpeed && ok("spitze")) {
+      let m = 0;
+      for (let i = i0 + 1; i <= i1; i++) if (T.spitze[i] > m) m = T.spitze[i];
+      if (m > 0) st.eleMax = m;
+    }
+    if (isSpeed && ok("bewegt")) {
+      const s = T.bewegt[i1] - T.bewegt[i0];
+      if (s > 0) st.eleAvg = (ds[i1] - ds[i0]) / s * 3.6;
+    }
+  }
+  try { window.__rzTourKopf = _rzTourKopf; } catch (_) {}
   function _rzFieldLabel(id) {
     // Bei Nicht-Höhen-Serien tragen die Min/Max/Ø-Felder deren Namen
     // („Herzfrequenz max" statt „Höhe max") — SYNCHRON zu rzFieldLabel() in
@@ -984,8 +1012,13 @@ function mountHeightAnim(body, headerActions) {
   // 25.09.2026 (Klicktest DA-04) — Wegpunkt-Fahnen ohne Überdeckung legen.
   // `fahnen` = [{x, y, w, h}] mit Wunsch-y (in Reihenfolge = Vorrang). Jede Fahne
   // nimmt die erste freie Zeile: Wunschhöhe, dann schrittweise darüber, zuletzt
-  // darunter; nichts frei → Wunschhöhe. Gibt die y-Werte zurück.
+  // darunter. Gibt die y-Werte zurück.
+  // 11.11.2026 (Klickrunde, Mehrwochen-Reise mit 200 GPX-Wegpunkten) — höchstens
+  // FAHNE_ZEILEN Zeilen von der Wunschhöhe weg; sonst null = keine Fahne, nur der
+  // Punkt. Vorher stapelten sich die Fahnen über die ganze Höhe des Diagramms und
+  // verdeckten die Kurve; ganz voll lagen sie doch wieder übereinander.
   // SYNCHRON zu _wpFahnenLegen in core/heightanim.py.
+  const FAHNE_ZEILEN = 3;
   function _haFahnenLegen(fahnen, oben, unten, luecke) {
     const belegt = [];
     return fahnen.map((f) => {
@@ -993,9 +1026,9 @@ function mountHeightAnim(body, headerActions) {
       const frei = (y) => y >= oben - 0.5 && y + f.h <= unten + 0.5 && !belegt.some(b =>
         f.x < b.x + b.w + luecke && b.x < f.x + f.w + luecke && y < b.y + b.h + luecke && b.y < y + f.h + luecke);
       let y = null;
-      for (let k = 0; k < 60 && y == null; k++) if (frei(f.y - k * schritt)) y = f.y - k * schritt;
-      for (let k = 1; k < 60 && y == null; k++) if (frei(f.y + k * schritt)) y = f.y + k * schritt;
-      if (y == null) y = f.y;
+      for (let k = 0; k <= FAHNE_ZEILEN && y == null; k++) if (frei(f.y - k * schritt)) y = f.y - k * schritt;
+      for (let k = 1; k <= FAHNE_ZEILEN && y == null; k++) if (frei(f.y + k * schritt)) y = f.y + k * schritt;
+      if (y == null) return null;
       belegt.push({ x: f.x, y, w: f.w, h: f.h });
       return y;
     });
@@ -1474,12 +1507,13 @@ function mountHeightAnim(body, headerActions) {
       // dann nur die schon passierten zeichnen. Synchron zu core/heightanim.py.
       const fs = 12, fh = 17;
       const liste = [];
-      for (const wp of _wps) {
+      for (let idx = 0; idx < _wps.length; idx++) {
+        const wp = _wps[idx];
         const wd = +wp.dist_m;
         if (!isFinite(wd) || wd < dTrimStart - 1 || wd > dTrimEnd + 1) continue;
         const wx = px(wd), wy = py(wp.ele != null ? +wp.ele : _eleAtDist(wd));
         const label = (wp.label || "").toString();
-        const e = { wp, wd, wx, wy, label, stemTop: wy - 18 };
+        const e = { wp, wd, wx, wy, label, stemTop: wy - 18, idx };
         if (label) {
           e.tw = Math.round(label.length * fs * 0.62 + 14);
           e.bx = Math.max(padL, Math.min(w - padR - e.tw, wx - e.tw / 2));
@@ -1488,9 +1522,10 @@ function mountHeightAnim(body, headerActions) {
         liste.push(e);
       }
       liste.sort((a, b) => a.wd - b.wd);
-      const mitText = liste.filter(e => e.label);
+      // Vorrang beim Platz: Reihenfolge der Quellen (eigene Punkte, Fotos, GPX-Wegpunkte, Auto-Marker).
+      const mitText = liste.filter(e => e.label).sort((a, b) => a.idx - b.idx);
       const ys = _haFahnenLegen(mitText.map(e => ({ x: e.bx, y: e.by, w: e.tw, h: fh })), headH + 6, h - padB, 3);
-      mitText.forEach((e, i) => { e.by = ys[i]; });
+      mitText.forEach((e, i) => { if (ys[i] == null) e.label = ""; else e.by = ys[i]; });   // kein Platz → nur Punkt
       for (const e of liste) {
         if (_progress < 1 && dCurrent < e.wd) continue;
         const col = e.wp.color || "#ffb37a";

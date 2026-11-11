@@ -130,6 +130,22 @@ SPORTARTEN: Dict[str, dict] = {
 }
 DECKE_BIS_M = 10000.0
 
+# 11.11.2026 (Klickrunde) — Archiv-Art der Tour → Grenzen im Inspektor. Vorher galt dort die zuletzt gewählte
+# Sportart für jede Tour: „Zu Fuß“ von einer Wanderung blieb stehen, eine Motorradtour bekam die 30-km/h-Decke und
+# „Reparieren“ hätte echte Fahrt als Sprünge gekappt. Arten ohne passende Grenze (Boot, Ski) bleiben „auto“.
+SPORT_AUS_ART: Dict[str, str] = {
+    "wandern": "fuss", "spaziergang": "fuss",
+    "laufen": "laufen",
+    "rad": "rad", "mtb": "rad", "rennrad": "rad", "ebike": "rad", "gravel": "rad",
+    "motorrad": "fahrzeug", "auto": "fahrzeug",
+    "drohne": "flug",
+}
+
+
+def sportart_aus_art(art: Optional[str]) -> str:
+    """Sportart für die Ausreißer-Grenzen aus der Archiv-Art; leer, wenn keine passt."""
+    return SPORT_AUS_ART.get(str(art or "").strip().lower(), "")
+
 
 # ── Hilfen ───────────────────────────────────────────────────────────────────
 

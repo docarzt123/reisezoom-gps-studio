@@ -117,9 +117,23 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.858</span>
+    <span class="version-num">v0.9.859</span>
     <span class="version-date">11. November 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <ul>
+    <li><strong>Höhen aus dem Gelände ergänzen</strong> &mdash; Touren ohne Höhendaten, zum Beispiel geplante Routen aus einem Routenplaner, zeigen im Archiv jetzt „—“ statt „0 m“, das sah nach einer flachen Tour aus. Daneben, in der Detailspalte des Archivs und auf der Tour-Seite, holt der Knopf „Höhen aus dem Gelände ergänzen“ die Höhen aus dem Geländemodell der Karte und speichert sie als neue Version der Tour. Das Original bleibt. Touren, in denen an jedem Punkt genau 0 m steht (so schreiben manche Geräte „Höhe unbekannt“), zählen jetzt auch als Touren ohne Höhe, auch die schon im Archiv.</li>
+    <li><strong>Daten-Animator zeigt dieselben Zahlen wie Animator und Archiv</strong> &mdash; Höhenmeter, höchster und tiefster Punkt, Spitzentempo und Ø Tempo kommen jetzt aus allen aufgezeichneten Punkten, in Vorschau, Video und Web-Export gleich. Vorher konnte dieselbe Motorradtour im Daten-Animator ein anderes Höchsttempo haben als im Animator.</li>
+    <li><strong>Schlagwort-Filter alphabetisch</strong> &mdash; Die Liste „Alle Schlagwörter“ im Archiv ist jetzt von A bis Z sortiert (OA8 vor OA10). Ein kleiner Knopf daneben schaltet auf „häufigste zuerst“ und zurück. Es stehen jetzt alle Schlagwörter drin, auch seltene, und ein neu vergebenes ist sofort da.</li>
+    <li><strong>Track-Check mit der richtigen Fortbewegung</strong> &mdash; Der GPX-Inspektor nahm für jede Tour die zuletzt gewählte Fortbewegung. Nach einer Wanderung wurde eine Motorradtour deshalb mit den Grenzen fürs Gehen geprüft und meldete viele falsche Sprünge. Touren aus dem Archiv öffnen jetzt mit ihrer eigenen Art.</li>
+    <li><strong>Kleinere Korrekturen</strong> &mdash; Im Daten-Animator decken viele GPX-Wegpunkte nicht mehr das ganze Diagramm zu, das Archiv schreibt „1 Tour“ statt „1 Touren“, und das Handbuch erklärt, wo deine gespeicherten Vorlagen liegen und wie du sie löschst.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.858</span>
+    <span class="version-date">11. November 2026</span>
   </div>
   <ul>
     <li><strong>Drohne als Fortbewegung</strong> &mdash; Der Laufpunkt kann jetzt eine Drohne sein, mit sechs 3D-Formen zur Auswahl: Faltdrohne, Mini mit Schutzkäfig, FPV mit Ringen, FPV-Racer, 360°-Drohne und Profi-Kameradrohne. Die Rotoren drehen paarweise gegenläufig, auch im Schwebeflug. Du findest sie im Track-Editor unter Laufpunkt &rarr; 3D &rarr; Drohne, die Zeile „Drohnen-Form“ darunter wählt die Bauform. Für den flachen Laufpunkt gibt es ein Drohnen-Symbol, geplante Etappen lassen sich als Drohnenflug in gerader Linie anlegen, und das Archiv kennt „Drohne“ als Fortbewegung.</li>

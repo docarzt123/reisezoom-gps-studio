@@ -1766,7 +1766,9 @@ un viaje veinte. Como colección van juntos:
 (desde 09.10.2026): una imagen de mapa por ruta en el estilo del archivo (por defecto el mapa nocturno), nombre, fecha ·
 actividad, distancia/ascenso/duración, etiquetas con **＋**, el número de fotos y clips y **⋯**. La **casilla** marca
 como ⌘-clic; arriba aparece «2 de 36 seleccionadas» con Etiquetas, A colección, Exportar y ⋯. En la fila de filtros:
-búsqueda, actividad, año, periodo, **etiqueta**, longitud y orden. **A la derecha**: título, ★, ⋯, imagen de mapa grande
+búsqueda, actividad, año, periodo, **etiqueta**, longitud y orden. Las etiquetas aparecen por orden alfabético (OA8 antes
+que OA10, sin distinguir mayúsculas); el pequeño botón de al lado cambia a **las más usadas primero** y vuelta, y GPS Studio
+recuerda tu elección. **A la derecha**: título, ★, ⋯, imagen de mapa grande
 (⤢ abre la página de la ruta), seis cifras (distancia, ascenso, duración, punto más alto, descenso, circular o de punto a
 punto), descripción, etiquetas, fecha, actividad, dispositivo y carpeta, fotos y clips y botones para **todos los
 módulos** y **Exportar**; el resto, en **«Más datos y ajustes»**. **Estilo de mapa del archivo:** arriba a la izquierda en
@@ -3242,6 +3244,8 @@ Los ejes separados son intencionados: la altitud (m) y el pulso (bpm) no compart
 ### Barra de información objetiva (desde v0.9.394) ⭐
 Sobre el perfil muestras una **barra de valores** — en la sección **«Barra de información»** activable/desactivable y seleccionable por campo: **distancia, metros de desnivel ↑/↓, Ø pendiente, pendiente máx. (↑/↓), altitud (máx/mín/Ø)**. Además, el **callout del marcador** muestra la **pendiente actual** (p. ej. «↗ +6.2 %» / «↘ −4.7 %») junto a altitud y distancia — desactivable con «Mostrar pendiente % en el marcador».
 
+**La barra de información muestra las mismas cifras que el animador, el mapa de ruta y el archivo.** El desnivel ↑/↓, la altitud máx./mín., la velocidad max y la velocidad Ø se calculan con todos los puntos grabados, no con la curva simplificada. La velocidad max es la velocidad punta: los saltos de GPS aislados no cuentan, un esprint real de varios segundos sí. La velocidad Ø es la distancia dividida entre el tiempo en movimiento, así que las pausas no cuentan. Los carteles de cima y punto más bajo (⛰ / ▼) llevan la misma altitud que «altitud máx./mín.». La curva sigue simplificada y suavizada y por eso puede quedar algo por debajo de una punta. Si recortas la ruta, valen los valores del tramo elegido.
+
 ### Puntos en el recorrido (desde v0.9.394) ⭐
 En la sección **«Puntos en el recorrido»** colocas marcadores etiquetados en el perfil — de cuatro fuentes, activables por separado:
 - **Colocar tú mismo:** haz clic en **«Colocar punto en el perfil»**, luego clic en la curva. Introduce el nombre, elige color, y luego renombra o elimina.
@@ -3250,13 +3254,13 @@ En la sección **«Puntos en el recorrido»** colocas marcadores etiquetados en 
 - **Waypoints GPX:** los POI `<wpt>` del archivo GPX (p. ej. de Komoot/Garmin) se adoptan.
 - **Marcadores automáticos:** el punto más alto/más bajo, así como el ascenso y el descenso más empinados, se detectan y etiquetan automáticamente.
 
-Cada punto **aparece animado en cuanto la línea lo alcanza**. Puedes ocultar/mostrar puntos individuales de una fuente en la lista con 👁. Tus puntos manuales + todos los ajustes se guardan **por proyecto**.
+Cada punto **aparece animado en cuanto la línea lo alcanza**. Puedes ocultar/mostrar puntos individuales de una fuente en la lista con 👁. **Muchos puntos muy juntos** (p. ej. un viaje largo con cientos de waypoints GPX): las etiquetas se apartan unas de otras, pero como mucho tres filas — lo que no encuentra sitio se queda como punto sin etiqueta, para que la curva siga visible. Tus propios puntos tienen sitio primero, luego fotos, waypoints GPX y marcadores automáticos. Tus puntos manuales + todos los ajustes se guardan **por proyecto**.
 
 **Ejes totalmente configurables (desde v0.9.447):** debajo del interruptor «Mostrar etiquetas de ejes» hay ahora un bloque de detalle. Allí activas o desactivas por separado el **eje X**, el **eje Y izquierdo** y el **eje Y derecho** (segunda serie de datos), eliges el **tamaño de fuente** (8–60 px) y defines **cuántos valores** se etiquetan por eje (1–12). Si un eje está desactivado, su margen se reduce al mínimo y la curva gana ese espacio. El interruptor principal de arriba sigue apagándolo todo de una vez.
 
 **Colores (desde v0.9.395):** en la sección «Aspecto» eliges ahora, además del fondo y el color de línea, también el **color de la cuadrícula** (rejilla auxiliar) y el **color de las etiquetas** (ejes, barra de información, callout del marcador).
 
-**Suavizado (desde v0.9.400):** el regulador **«Suavizado»** en la sección de aspecto (0–20) hace más suaves los perfiles dentados — útil en tracks con muchos puntos GPS y pequeños saltos de altitud. Aplica una media móvil sobre los datos de altitud; 0 = datos en bruto, valores más altos = más suave. El suavizado actúa WYSIWYG sobre todo: línea, área, barra de información, la pendiente en el marcador y las altitudes de los puntos — igual en la vista previa, el render de vídeo y la exportación HTML.
+**Suavizado (desde v0.9.400):** el regulador **«Suavizado»** en la sección de aspecto (0–20) hace más suaves los perfiles dentados — útil en tracks con muchos puntos GPS y pequeños saltos de altitud. Aplica una media móvil sobre los datos de altitud; 0 = datos en bruto, valores más altos = más suave. El suavizado actúa WYSIWYG sobre la línea, el área, los campos de pendiente de la barra de información, la pendiente en el marcador y las altitudes de los puntos — igual en la vista previa, el render de vídeo y la exportación HTML. El desnivel y la altitud máx./mín. de la barra de información siguen siendo los valores de la ruta.
 
 **Área bajo la línea (desde v0.9.402):** en la sección **«Área bajo la línea»** determinas **si** el área bajo la curva se rellena, con qué **color de relleno** y con qué **opacidad** (0–100 %).
 Debajo puedes crear **zonas de color por altitud**: con «**Añadir altitud**» defines una altitud (en metros) más un color — **a partir de esa altitud** cambia el color de relleno. Así surge el clásico aspecto de mapa de relieve (p. ej. verde en el valle, marrón en cotas medias, blanco en la cumbre). Por debajo de la zona más baja rige el color de relleno normal. Con **transición de color** eliges entre **degradado suave** (los colores se funden entre sí) y **bandas duras** (el color salta en cada altitud). Sin zonas se usa simplemente el color de relleno para toda el área.
@@ -3633,7 +3637,9 @@ entre dos puntos (límite 30 km/h)» o «Salto de 480 m con una distancia habitu
 **Desplazamiento** eliges cómo te moviste: **Automático** mide según el ritmo habitual de la ruta; **A pie** (30 km/h),
 **Correr** (40), **Bicicleta** (90) y **Coche/moto** (250) añaden un límite fijo, **Volar/parapente** permite velocidades
 altas. Los ferris y vuelos de más de 10 km nunca cuentan. La elección vale también para los hallazgos de arriba y se
-recuerda.
+recuerda. **Las rutas del archivo** traen su tipo: una ruta en moto se abre con «Coche/moto», una caminata con «A pie», un vuelo
+de dron con «Volar» — la elección recordada solo vale para archivos sin tipo. Si lo cambias tú para la ruta abierta, se
+queda tu elección.
 
 **Rellenar huecos como** (perfil): **Línea recta** = conexión directa (segura, solo toca el hueco). **Senderismo/Bicicleta/Coche** = busca la ruta real en la red de caminos (Mapbox). ⚠️ **Protección desde v0.9.315:** si la ruta por carretera da un gran **rodeo/bucle** (Mapbox enruta a veces en los cruces por una salida + rotonda de vuelta), se **descarta automáticamente y el hueco se rellena recto** — así una traza limpia ya no se retuerce. En el toast pone entonces «… rodeos descartados».
 
@@ -3659,6 +3665,8 @@ Después es **un solo** track: reparar, recortar, corregir la altitud, guardar, 
 **Los datos de sensores** (pulso, potencia, cadencia, temperatura) se quedan en cada tramo con su propia grabación: el pulso del track 1 no se mezcla en el track 2.
 
 ### ⛰ Corregir la altitud (mapa en lugar de GPS) — desde v0.9.292
+
+**¿Ruta sin ninguna altitud?** En el archivo (columna de detalle) y en la página de la ruta está el botón «Añadir altitud del terreno»: un clic, versión nueva, listo. El Inspector sirve para mezclar y corregir altitudes existentes.
 Los valores de altitud del GPS suelen ser ruidosos — sobre todo con poca cobertura, la altitud salta unos metros de un lado a otro, y al final hay demasiados **metros de desnivel** en las estadísticas (p. ej. 1800 en lugar de 1400). Aquí puedes mezclar la **altitud lisa del terreno del mapa de Mapbox** (modelo digital de elevación) con tu altitud de GPS — y ves mientras tanto **exactamente qué ocurre**:
 
 1. **🗺 Cargar el perfil de altitud del mapa** — la app recorre una vez brevemente todo el track (carga las teselas de altitud) y lee para cada punto la altitud del mapa.
@@ -3975,6 +3983,24 @@ día **„por caminos“**. La ruta queda como GPX en el archivo. Selecciona var
 viaje“**: ahí está **„Vídeo del viaje …“**. Este camino está menos probado que el de un track de verdad; escríbeme si algo
 falla.
 
+### Mi ruta no muestra desnivel: ¿puede GPS Studio tomar la altitud del mapa?
+
+Sí. Algunos dispositivos y planificadores de rutas no guardan la altitud. El archivo muestra entonces un guion «—» en
+subida y bajada y debajo el botón **«Añadir altitud del terreno»** (también en la página de la ruta). Un clic toma la
+altitud del modelo de terreno del mapa y la guarda como versión nueva de la ruta; el original se conserva. Si todos los
+puntos dicen exactamente 0 m, la ruta también cuenta como «sin altitud»: algunos dispositivos lo escriben cuando no
+conocen la altitud. Si la ruta tiene altitud propia, el botón no aparece.
+
+A mano, con más control (p. ej. mezclar GPS y mapa), se hace en el **Inspector GPX**:
+
+1. Abre la ruta en el **Inspector GPX**.
+2. Despliega **«Corregir altitud»** y pulsa **«Cargar perfil de altitud del mapa»** (necesita internet una vez).
+3. Lleva el regulador **«GPS ⟷ Mapa»** del todo a la derecha, al **100 %**, y pulsa **«Aplicar esta altitud»**.
+4. **«Guardar pista corregida …»** → **«Guardar como versión nueva»**. El archivo, la página de la ruta y los vídeos
+   muestran entonces el desnivel; el original se conserva como versión.
+
+Bueno saberlo: el modelo de terreno no conoce puentes ni túneles; ahí la altitud queda sobre el suelo o sobre la montaña.
+
 ### ¿Cómo meto un videoclip propio en la animación?
 Como **parada de clip**: el track se detiene en ese punto, el clip aparece grande sobre el mapa y se reproduce. En el
 Animator elige **„🎞 Añadir clips de vídeo“** en „Añadir fotos“; GPS Studio coloca cada clip donde se grabó (por GPS o, si no,
@@ -3982,6 +4008,17 @@ por la hora de grabación). Si un clip no encaja con la ruta ni por lugar ni por
 **cabezal** — así que coloca antes el cabezal en el sitio deseado; después puedes mover el clip en la pista de carteles. En
 el cartel ajustas desde qué segundo se reproduce, cuánto dura (lo mismo que se detiene el track) y si suena el audio
 original.
+
+### ¿Dónde encuentro mis plantillas guardadas y cómo borro algunas?
+Lo que creaste con **«Guardar como plantilla»** está en el **archivo, en la pestaña «Plantillas»** (arriba, junto a
+*Proyectos* y el archivo de rutas). Cada plantilla es una tarjeta; la **papelera** de la tarjeta la borra y **⌘Z**
+(Windows: Ctrl+Z) la recupera. Los proyectos existentes conservan su aspecto. *Predeterminado de Reisezoom* viene con la app y
+no se puede borrar.
+
+Hay además dos tipos más pequeños de plantillas: tus **plantillas de vídeo** propias (la ☆ bajo los rótulos, o
+«Guardar como plantilla» en el asistente de vídeo) se borran en el **asistente de vídeo**: clic derecho sobre la
+plantilla. Tus **plantillas de exportación** propias, en el diálogo de exportación, se borran con la **✕** de la
+plantilla (dos clics).
 
 ### ¿Cómo cambio el título del vídeo?
 En el Animator, en **„Rótulos“**: el editor muestra arriba las líneas de texto; „Nombre en la lista“ es solo el nombre

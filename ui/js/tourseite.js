@@ -246,11 +246,14 @@
   function _linksZeichnen() {
     if (Z.tour.reise) return _linksZeichnenReise();
     const d = Z.daten, tr = d.tour;
+    // 11.11.2026 (Marc: „mach den Strich, wenn keine Höhendaten da sind“ + Knopf) — Tour ohne Höhen: „—“ statt
+    // nichts, damit man sieht, dass sie fehlen, und daneben der Knopf „Höhen aus dem Gelände ergänzen“
+    const ohneHoehe = Object.prototype.hasOwnProperty.call(tr, "ele_max") && tr.ele_max == null;
     const werte = [
       [T("tourseite.w_distanz", "Distanz"), tr.distance_m ? _zahl(tr.distance_m / 1000, 1) + " km" : ""],
       [T("tourseite.w_dauer", "Dauer"), tr.duration_s ? _dauer(tr.duration_s) : ""],
-      [T("tourseite.w_aufstieg", "Aufstieg"), tr.ascent_m ? "↑ " + _zahl(tr.ascent_m) + " m" : ""],
-      [T("tourseite.w_hoechster", "Höchster Punkt"), tr.ele_max != null ? _zahl(tr.ele_max) + " m" : ""],
+      [T("tourseite.w_aufstieg", "Aufstieg"), ohneHoehe ? "—" : (tr.ascent_m ? "↑ " + _zahl(tr.ascent_m) + " m" : "")],
+      [T("tourseite.w_hoechster", "Höchster Punkt"), ohneHoehe ? "—" : (tr.ele_max != null ? _zahl(tr.ele_max) + " m" : "")],
     ].filter(x => x[1]);
     const zeit = tr.started_at ? `${_uhr(tr.started_at, tr.tz_minuten)}${tr.ended_at ? "–" + _uhr(tr.ended_at, tr.tz_minuten) : ""}` : "";
     Z.links.innerHTML = `
@@ -264,6 +267,7 @@
         <button type="button" class="btn btn-primary btn-sm" id="ts-video">${I("clapperboard")} ${esc(T("tourseite.video", "Video"))} ▾</button>
         <button type="button" class="btn btn-sm" id="ts-karte-knopf">${I("map")} ${esc(T("tourseite.karte", "Karte als Bild"))}</button>
         <button type="button" class="btn btn-sm" id="ts-inspektor">${I("search")} ${esc(T("tourseite.inspektor", "Im Inspektor"))}</button>
+        ${ohneHoehe ? `<button type="button" class="btn btn-sm" id="ts-hoehen" title="${esc(T("library.hoehen_tip", "Holt die Höhen aus dem Geländemodell der Karte und speichert sie als neue Version der Tour. Das Original bleibt erhalten. Brücken und Tunnel kennt das Geländemodell nicht."))}">${I("mountain")} ${esc(T("library.hoehen_ergaenzen", "Höhen aus dem Gelände ergänzen"))}</button>` : ""}
         <button type="button" class="btn btn-sm" id="ts-oeffnen-in">${I("external-link")} ${esc(T("tourseite.oeffnen_in", "Öffnen in"))} ▾</button>
         <button type="button" class="btn btn-sm" id="ts-export">${I("share")} ${esc(T("tourseite.export", "Exportieren …"))}</button>
         <button type="button" class="btn btn-sm" id="ts-plus">＋ ${esc(T("tourseite.plus_tag", "Medien vom selben Tag …"))}</button>
@@ -276,6 +280,12 @@
     // 24.10.2026 (Marc: „auf der Tourseite fehlt die Möglichkeit, die Tour im Inspektor zu öffnen usw.“) — dieselben
     // Werkzeuge wie in der Detailspalte des Archivs
     Z.links.querySelector("#ts-inspektor").onclick = () => _oeffnenIn("gpxinspect");
+    { const b = Z.links.querySelector("#ts-hoehen"); if (b) b.onclick = async () => {
+        const res = await window.rzHoehenErgaenzen(tr.path || Z.tour.path, b);
+        if (!res || !res.ok) return;
+        try { if (window.__rzLibNeuLaden) window.__rzLibNeuLaden(res.geo_hash); } catch (e) { if (window.rzSwallow) rzSwallow(e, "tourseite:hoehen-archiv"); }
+        oeffnen({ geo_hash: res.geo_hash, path: res.neu_pfad || Z.tour.path, name: Z.tour.name });
+      }; }
     Z.links.querySelector("#ts-oeffnen-in").onclick = (e) => _menue(e.currentTarget, [
       { text: "🔍 " + T("library.open_inspect", "Inspektor"), tun: () => _oeffnenIn("gpxinspect") },
       { text: "🎞 " + T("library.d_animator", "Animator"), tun: () => _oeffnenIn("animator") },
@@ -839,6 +849,21 @@
   });
   // Modulwechsel ersetzt das Archiv samt Seite — dann die Karte freigeben (sonst hängt sie im Speicher)
   setInterval(() => { if (Z && !Z.seite.isConnected) schliessen(true); }, 1500);
+
+  // 11.11.2026 — Höhen aus dem Gelände in eine Archiv-Tour ohne Höhen schreiben (Brücke library_hoehen_ergaenzen,
+  // neue Version). Von der Detailspalte des Archivs und der Tour-Seite benutzt. Knopf zeigt „arbeitet“, dazu das
+  // Wartefenster; Ergebnis als Meldung. Gibt die Antwort der Brücke zurück (ok, geo_hash, neu_pfad, …).
+  window.rzHoehenErgaenzen = async function (pfad, knopf) {
+    if (!pfad || !window.pywebview || !window.pywebview.api || !window.pywebview.api.library_hoehen_ergaenzen) return null;
+    if (knopf) { knopf.disabled = true; knopf.dataset.text = knopf.innerHTML; knopf.innerHTML = `<span class="spinner"></span> ${esc(T("library.hoehen_laeuft", "Höhen werden geholt …"))}`; }
+    let res = null;
+    try { res = await rzWarten("library_hoehen_ergaenzen", () => window.pywebview.api.library_hoehen_ergaenzen(pfad)); }
+    catch (e) { res = { ok: false, error: String(e) }; }
+    if (knopf && knopf.isConnected) { knopf.disabled = false; knopf.innerHTML = knopf.dataset.text || knopf.innerHTML; }
+    if (!res || !res.ok) { toast((res && res.error) || T("library.hoehen_fehler", "Die Höhen konnten nicht ergänzt werden."), "error", 6000); return res; }
+    toast(T("library.hoehen_fertig", "Höhen ergänzt — die Tour hat jetzt Höhenmeter. Das Original bleibt als Version erhalten."), "success", 5000);
+    return res;
+  };
 
   window.rzTourSeite = { oeffnen, oeffnenReise, schliessen: () => schliessen(), offen, neuLaden, waehlen, korrigieren, plusTag,
                          zustand: () => (Z ? { tour: Z.tour, auswahl: Z.auswahl, n: (Z.daten && Z.daten.medien || []).length } : null) };

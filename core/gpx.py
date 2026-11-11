@@ -80,7 +80,7 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * R * atan2(sqrt(a), sqrt(1 - a))
 
 
-def _compute_ascent_descent(eles, smooth_window: int = 5, threshold_m: float = 3.0):
+def _compute_ascent_descent(eles, smooth_window: int = 5, threshold_m: float = 3.0, schritte: list | None = None):
     """Bergauf/Bergab in Metern aus einer Liste von Höhenwerten.
 
     Naive Methode (jeder positive dz wird summiert) überzählt bei GPS-Tracks
@@ -99,7 +99,8 @@ def _compute_ascent_descent(eles, smooth_window: int = 5, threshold_m: float = 3
     None-Werte in `eles` (= Punkte ohne Höhe) werden mit dem letzten
     gültigen Wert vor-/zurück-gefüllt.
 
-    Liefert `(ascent_m, descent_m)`.
+    Liefert `(ascent_m, descent_m)`. `schritte` (Liste) bekommt jede übernommene Änderung als (Index, auf, ab) —
+    für die laufenden Summen in `tour_kumuliert`.
     """
     if not eles:
         return 0.0, 0.0
@@ -130,18 +131,81 @@ def _compute_ascent_descent(eles, smooth_window: int = 5, threshold_m: float = 3
     descent = 0.0
     th = float(threshold_m)
     ref = smoothed[0]
-    for cur in smoothed[1:]:
+    for k in range(1, len(smoothed)):
+        cur = smoothed[k]
         dz = cur - ref
         if dz >= th:
             ascent += dz
             ref = cur
+            if schritte is not None:
+                schritte.append((k, dz, 0.0))
         elif dz <= -th:
             descent += -dz
             ref = cur
+            if schritte is not None:
+                schritte.append((k, 0.0, -dz))
         # sonst: cur ist „im Rauschband" um ref → nichts machen,
         # ref bleibt stehen. Wenn die Bewegung weitergeht, übersteigt
         # cur irgendwann zwingend das Threshold + wird übernommen.
     return ascent, descent
+
+
+def _hoehen_null_als_fehlend(pts) -> bool:
+    """Steht an allen Punkten mit Höhe genau 0 m, sind das keine Messwerte,
+    sondern ein Platzhalter des Geräts. Dann werden alle Höhen auf None gesetzt.
+    Gibt True zurück, wenn umgestellt wurde."""
+    hat_null = False
+    for p in pts:
+        if p.ele is None:
+            continue
+        if p.ele != 0:
+            return False
+        hat_null = True
+    if not hat_null:
+        return False
+    for p in pts:
+        p.ele = None
+    return True
+
+
+def _hoehen_laeufe(pts):
+    """Indizes der Punkte, über die Auf-/Abstieg gerechnet wird: je Etappe getrennt, Punkte mit `rz_flach` trennen
+    wie eine Etappengrenze und zählen nicht (s. `parse_gpx`). Läufe mit nur einem Punkt fallen weg."""
+    seg_start = 0
+    for i in range(1, len(pts) + 1):
+        if i == len(pts) or pts[i].seg != pts[seg_start].seg:
+            lauf: list = []
+            for j in list(range(seg_start, i)) + [None]:
+                if j is None or pts[j].extra.get("rz_flach"):
+                    if len(lauf) > 1:
+                        yield lauf
+                    lauf = []
+                else:
+                    lauf.append(j)
+            seg_start = i
+
+
+def tour_kumuliert(pts) -> dict:
+    """Laufende Summen je Punkt — genau die Rechnungen der Tourwerte (`parse_gpx`/`compute_moving_and_max`):
+    `hoch`/`runter` (m) und `bewegt` (s) bis einschließlich Punkt k. Der letzte Wert ist ascent_m / descent_m /
+    moving_time_s der Tour; die Differenz zweier Stellen ist der Wert dazwischen. 11.11.2026 (Marc: „alles
+    angleichen“) — der Daten-Animator liest daraus seine Info-Leiste, statt auf der ausgedünnten Kurve zu rechnen."""
+    n = len(pts)
+    hoch = [0.0] * n
+    runter = [0.0] * n
+    for lauf in _hoehen_laeufe(pts):
+        schritte: list = []
+        _compute_ascent_descent([pts[j].ele for j in lauf], smooth_window=5, threshold_m=3.0, schritte=schritte)
+        for k, a, d in schritte:
+            hoch[lauf[k]] += a
+            runter[lauf[k]] += d
+    bew = _bewegt_segmente(pts)
+    bewegt = [0.0] * n
+    sh = sr = sb = 0.0
+    for k in range(n):
+        sh += hoch[k]; sr += runter[k]; sb += bew[k]
+        hoch[k], runter[k], bewegt[k] = sh, sr, sb
+    return {"hoch": hoch, "runter": runter, "bewegt": bewegt}
 
 
 def _tempo_gefiltert(cum_time: list, cum_dist: list) -> list:
@@ -210,10 +274,25 @@ def compute_moving_and_max(pts: List[TrackPoint]) -> tuple[float, float]:
     gefiltert = _tempo_gefiltert(cum_time, cum_dist)
     max_ms = max(gefiltert) if gefiltert else 0.0
 
-    # --- Bewegungszeit: 60s-Gleitfenster, Netto-Verschiebung ---
+    # --- Bewegungszeit: 60s-Gleitfenster, Netto-Verschiebung (s. _bewegt_segmente) ---
+    moving_s = 0.0
+    for dt_seg in _bewegt_segmente(pts):
+        if dt_seg:
+            moving_s += dt_seg
+    return moving_s, max_ms * 3.6
+
+
+def _bewegt_segmente(pts) -> list:
+    """Je Punkt i die Dauer des Segments i-1 → i, wenn es als Bewegung zählt, sonst 0 (Index 0 immer 0) — die
+    Rechnung der Bewegungszeit aus `compute_moving_and_max` (60-s-Gleitfenster, Netto-Verschiebung ≥ 0,6 km/h).
+    Eigene Funktion seit 11.11.2026, damit `tour_kumuliert` dieselbe Zeit je Stelle liefert."""
+    n = len(pts)
+    out = [0.0] * n
+    if n < 2 or not (bool(pts[-1].elapsed_s) and any(p.time for p in pts)):
+        return out
+    cum_time = [p.elapsed_s for p in pts]
     HW = 60.0
     FLOOR_MS = 0.6 / 3.6
-    moving_s = 0.0
     for i in range(1, n):
         dt_seg = cum_time[i] - cum_time[i - 1]
         if dt_seg <= 0:
@@ -226,8 +305,8 @@ def compute_moving_and_max(pts: List[TrackPoint]) -> tuple[float, float]:
             continue
         net = _haversine_m(pts[aa].lat, pts[aa].lon, pts[bb].lat, pts[bb].lon)
         if (net / wdt) >= FLOOR_MS:
-            moving_s += dt_seg
-    return moving_s, max_ms * 3.6
+            out[i] = dt_seg
+    return out
 
 
 def _ext_localname(tag) -> str:
@@ -836,6 +915,12 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
     _seen_fields -= {k for k in _seen_fields if str(k).startswith("rz_uebergang") or k == "rz_flach"}
     sensor_fields = _sensors.describe_fields(_seen_fields)
 
+    # Manche Geräte und Apps schreiben „0 m“ an jeden Punkt, wenn sie keine
+    # Höhe kennen. Steht überall genau 0, ist das keine Höhe — die Tour gilt
+    # als „ohne Höhe“ (Strich statt „0 m“, Knopf „Höhen aus dem Gelände
+    # ergänzen“). Ein einziger echter Wert genügt, dann bleibt alles, wie es ist.
+    _hoehen_null_als_fehlend(pts)
+
     # Kumulierte Distanz/Zeit + Auf-/Abstieg
     eles_raw = [p.ele for p in pts if p.ele is not None]
     ele_min = min(eles_raw) if eles_raw else None
@@ -879,20 +964,10 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
     # 07.10.2026 — Punkte mit `rz_flach` (Flug/Schiff/Bahn einer geplanten Etappe) zählen gar nicht: Läufe aus
     # „normalen“ Punkten werden einzeln gerechnet, ein flacher Abschnitt dazwischen trennt sie wie eine Etappengrenze.
     ascent = descent = 0.0
-    _seg_start = 0
-    for _i in range(1, len(pts) + 1):
-        if _i == len(pts) or pts[_i].seg != pts[_seg_start].seg:
-            _lauf: list = []
-            for p in pts[_seg_start:_i] + [None]:
-                if p is None or p.extra.get("rz_flach"):
-                    if len(_lauf) > 1:
-                        _a, _d = _compute_ascent_descent(_lauf, smooth_window=5, threshold_m=3.0)
-                        ascent += _a
-                        descent += _d
-                    _lauf = []
-                else:
-                    _lauf.append(p.ele)
-            _seg_start = _i
+    for _lauf in _hoehen_laeufe(pts):   # 11.11.2026 — Läufe als eigene Funktion (auch für tour_kumuliert)
+        _a, _d = _compute_ascent_descent([pts[_j].ele for _j in _lauf], smooth_window=5, threshold_m=3.0)
+        ascent += _a
+        descent += _d
 
     # Bewegungszeit + Spitzentempo auf voller Auflösung (siehe Helper-Docstring).
     moving_time_s, max_speed_kmh = compute_moving_and_max(pts)

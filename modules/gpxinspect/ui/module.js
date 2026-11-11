@@ -684,6 +684,7 @@ function mountGpxInspect(body, headerActions) {
     _hasTime = !!res.has_time; _hasEle = !!res.has_ele; _hasSensors = !!res.has_sensors;
     _localTimeN = res.local_time_n || 0;   // 10.09.2026 — Zeiten ohne Zeitzone (Track-Check, grau)
     _tcArchivNeu = null;                   // 16.10.2026 — Hinweis gehört zur vorigen Tour
+    _sportManuell = false;                 // 11.11.2026 — Sportart folgt wieder der Art dieser Tour
     // 05.10.2026 (Klickrunde: DJI-Datei ohne Hinweis „Zeit ohne Zone“) — der Track-Check erst NACH den Zuweisungen:
     // vorher lief er mit _localTimeN = 0, leerem _origPath (keine Archiv-Abwahlen, keine Aktivität) und altem _hasTime.
     try { analyseTrack(); } catch (_) {}
@@ -974,6 +975,9 @@ function mountGpxInspect(body, headerActions) {
    * über flottem Radfahren und unter Landstraße. Wer selbst wählt, behält
    * seine Wahl — der Vorschlag kommt nur beim Laden eines Tracks. */
   let _profilManuell = false;
+  // 11.11.2026 (Klickrunde) — true, sobald für DIESE Tour von Hand gewählt wurde. Sonst nimmt der Track-Check die
+  // Art der Tour aus dem Archiv (Motorrad → Auto/Motorrad); vorher galt die zuletzt gewählte Sportart für jede Tour.
+  let _sportManuell = false;
   function profilVorschlagen() {
     const sel = document.getElementById("gpxi-profile");
     const hin = document.getElementById("gpxi-profil-hinweis");
@@ -2302,8 +2306,14 @@ function mountGpxInspect(body, headerActions) {
     if (!box) return;
     if (!_points || _points.length < 3) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     let r = null;
-    try { r = await rzWarten("gpxinspect_track_check", () => api().gpxinspect_track_check(_points, _origPath || "", _localTimeN || 0, _sportart())); } catch (e) { r = null; }
+    try { r = await rzWarten("gpxinspect_track_check", () => api().gpxinspect_track_check(_points, _origPath || "", _localTimeN || 0, _sportart(), _sportManuell)); } catch (e) { r = null; }
     if (isUnmounted) return;
+    // Die Brücke nennt die Sportart, mit der sie geprüft hat (bei Archiv-Touren aus deren Art) — die Auswahl zeigt
+    // sie an, damit Grenzen-Zeile und Heil-Vorschau dieselbe nehmen. Nicht speichern: das ist keine Wahl.
+    if (r && r.ok && r.sportart && !_sportManuell) {
+      const so = document.getElementById("gpxi-sport");
+      if (so && SPORT_GRENZEN[r.sportart] && so.value !== r.sportart) so.value = r.sportart;
+    }
     try { _grenzenZeigen(); } catch (e) { applog("warn", `[gpxinspect] Grenzen: ${e}`); }
     if (!r || !r.ok) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     _tc = r;
@@ -3851,6 +3861,7 @@ function mountGpxInspect(body, headerActions) {
         if (merk && SPORT_GRENZEN[merk]) so.value = merk;
       } catch (_) {}
       so.addEventListener("change", () => {
+        _sportManuell = true;
         analyseTrack();
         try { saveSettings({ gpxi_sportart: so.value }); } catch (_) {}
       });

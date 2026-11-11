@@ -5212,6 +5212,50 @@ alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/t
   Track-Editor bleibt `.tred-route`.
 - Test `tests/test_etappe_bedienung.py` (Netz; Ortssuche ohne Netz nachgestellt).
 
+## Daten-Animator: Wegpunkt-Fahnen bei vielen Punkten (11.11.2026)
+
+`_haFahnenLegen` (Vorschau, `modules/heightanim/ui/module.js`) und `_wpFahnenLegen` (Render-Vorlage in
+`core/heightanim.py`) sind wortgleich: Jede Fahne sucht höchstens `FAHNE_ZEILEN` (3) Zeilen über, dann unter ihrer
+Wunschhöhe einen freien Platz; findet sie keinen, liefert die Funktion `null` und die Fahne entfällt (Punkt und Stiel
+bleiben). Gelegt wird in Quellen-Reihenfolge (`idx` aus `buildWaypoints`: eigene Punkte, Fotos, GPX, Auto-Marker),
+gezeichnet weiter nach Distanz. Test: `test_fahnen_dichte` (vergleicht auch beide Funktionen).
+
+## Archiv: Tour ohne Höhen — Strich und „Höhen aus dem Gelände ergänzen“ (11.11.2026)
+
+- Anzeige: `ohneHoehe(it)` / `hm(it, wert, vor)` in `modules/library/ui/module.js` — „—“ statt „0 m“, wenn die Abfrage
+  `ele_max` mitliefert und es `null` ist (Zeile, Karte, Liste, Kartenpopup, Detailspalte, Kennzahlen einer Version);
+  Tour-Seite (`ui/js/tourseite.js` `_linksZeichnen`) zeigt Aufstieg/Höchster Punkt „—“.
+- Knopf `#ld-hoehen` (Detailspalte, mit Hinweis `.ld-hoehe-fehlt`) und `#ts-hoehen` (Tour-Seite) → `window.rzHoehenErgaenzen(pfad,
+  knopf)` (tourseite.js: Spinner im Knopf, `rzWarten`, Meldung) → Brücke `library_hoehen_ergaenzen(path)`:
+  `gpxinspect_load` → `demsample.hoehen` (Stufe `_dem_zoom_fuer`, synchron zu `_demZoomFuerTrack` im Inspektor) →
+  Punkte ohne Höhe füllen (alle, wenn die Datei nur None/0 trägt) → `library_track_ersetzen` (neue Version, Original
+  bleibt). Antwort + `neu_pfad`, `n_hoehen`. Danach wählt das Archiv die neue Version (`geo_hash`), die Tour-Seite öffnet
+  sie (`__rzLibNeuLaden`). Test: `test_hoehen_ergaenzen` (Geländehöhen im Test ersetzt).
+- „Überall 0 m“ = keine Höhe: `gpx._hoehen_null_als_fehlend(pts)` in `parse_gpx` (vor `eles_raw`) setzt alle Höhen auf
+  `None`, wenn jeder Punkt mit Höhe genau 0 trägt; ein einziger anderer Wert → unverändert. Damit wird `ele_max` `null`
+  und Strich/Knopf greifen überall (auch Animator/Inspektor sehen „keine Höhe“). Bestehende Archive: Schema 3 → 4,
+  `library._migrate_hoehe_null` setzt bei `ele_max = 0 AND ele_min = 0` sofort `ele_max/ele_min = NULL` (die App liest beim Start nicht selbst ein — nur vormerken ließ „+0 m“ stehen) und zusätzlich `mtime = 0` fürs nächste Einlesen.
+
+## Daten-Animator: Info-Leiste mit den Tourwerten (11.11.2026)
+
+Die Info-Leiste rechnete auf der ausgedünnten Kurve (Vorschau 800, Render/Export 1000 Punkte) — andere Zahlen als
+Animator/Archiv und sogar Vorschau ≠ Video. Jetzt:
+- `gpx.tour_kumuliert(pts)` → laufende Summen `hoch`/`runter`/`bewegt` je Punkt, aus genau den Rechnungen der
+  Tourwerte: `_hoehen_laeufe` (Läufe je Etappe ohne `rz_flach`, auch von `parse_gpx` benutzt),
+  `_compute_ascent_descent(..., schritte=[])` (meldet jede übernommene Änderung), `_bewegt_segmente` (Bewegungszeit je
+  Segment, auch von `compute_moving_and_max` benutzt). Tourwerte vor/nach dem Umbau bitgleich.
+- `heightanim.tour_werte(voll, ds)` → je Kurvenpunkt `hoch/runter/bewegt` (Summe an dieser Stelle), `spitze`
+  (Spitzentempo der Segmente seit dem vorigen Kurvenpunkt, Medianfilter `_tempo_gefiltert`), `emax/emin` (Höhe der
+  vollen Punkte seit dem vorigen Kurvenpunkt), `ele`. Zuordnung über Objekt-Identität (`ds` aus `downsample(voll)`),
+  sonst `{}`. Über die ganze Kurve = `ascent_m/descent_m/moving_time_s/max_speed_kmh/ele_max/ele_min`.
+- `rzTourKopf` (Vorlage, `core/heightanim.py`) und `_rzTourKopf` (Vorschau, module.js) sind wortgleich und
+  überschreiben in den Kopfwerten: Höhe → ascent/descent/eleMax/eleMin; Tempo → eleMax (Spitze), eleAvg
+  (Strecke/Bewegungszeit). Steigungen, Ø-Höhe und andere Reihen bleiben auf der Kurve.
+- Wege: Vorschau — `heightanim_load_gpx` liefert `tour`; Video — `render()` setzt `cfg.tour_werte` → `TOUR` in der
+  Vorlage; Web-Export — `heightanim_export_html` ebenso. Diagramm-Overlays im Animator setzen nichts (alte Rechnung).
+- `detect_auto_markers(ds, voll=pts)`: Gipfel/Tiefpunkt aus der vollen Spur (Steigungen weiter auf `ds`).
+Test: `test_tourwerte_gleich`.
+
 ## Ausreißer: Grund und Schwellen je Sportart (05.10.2026, v0.9.782)
 
 - **Eine Tabelle, zwei Orte:** `SPORT_GRENZEN` in `modules/gpxinspect/ui/module.js` und `SPORTARTEN` in
@@ -5223,6 +5267,12 @@ alle 2 s `fotos_ordner`); Klassen `.foto-lw-da|weg|haengt|anders`. Test `tests/t
   dem await — vorher hat `loadTrack` `_hasTime` noch nicht gesetzt.
 - Backend: `sprung_gruppen(..., sportart)` → `sprung_gefiltert` → `pruefen(sportart=…)`; Brücke
   `gpxinspect_track_check(points, path, local_time_n, sportart)`. Archiv-Prüfung bleibt „auto".
+- **Sportart aus der Archiv-Art (11.11.2026):** `trackcheck.SPORT_AUS_ART` / `sportart_aus_art(art)` (motorrad/auto →
+  fahrzeug, wandern/spaziergang → fuss, laufen, Rad-Arten → rad, drohne → flug; boot/ski → keine). Die Brücke hat
+  `sportart_fest` (Standard True = altes Verhalten); der Inspektor schickt `_sportManuell` — False, solange für die
+  geöffnete Tour nichts von Hand gewählt wurde, dann gilt die Art der Archiv-Tour. Die Antwort nennt die genutzte
+  `sportart`, die Auswahl `#gpxi-sport` zeigt sie an (ohne `gpxi_sportart` zu speichern). `_sportManuell` wird in
+  `loadTrack` zurückgesetzt und beim `change` gesetzt. Test: `test_ausreisser_sportart` Teile D/E.
 
 ## Foto-Pfade umbiegen, wenn das Laufwerk anders heißt (05.10.2026, v0.9.782)
 

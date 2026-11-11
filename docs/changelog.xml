@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 11 Nov 2026 06:58:05 +0000</lastBuildDate>
+<lastBuildDate>Wed, 11 Nov 2026 22:51:33 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.859</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-859</link>
+<guid isPermaLink="false">gps-studio-v0.9.859</guid>
+<pubDate>Wed, 11 Nov 2026 12:00:00 +0000</pubDate>
+<description>Höhen aus dem Gelände ergänzen — Touren ohne Höhendaten, zum Beispiel geplante Routen aus einem Routenplaner, zeigen im Archiv jetzt „—“ statt „0 m“, das sah nach einer flachen Tour aus. Daneben, in der Detailspalte des Archivs und auf der Tour-Seite, holt der Knopf „Höhen aus dem Gelände ergänzen“ die Höhen aus dem Geländemodell der Karte und speichert sie als neue Version der Tour. Das Original bleibt. Touren, in denen an jedem Punkt genau 0 m steht (so schreiben manche Geräte „Höhe unbekannt“), zählen jetzt auch als Touren ohne Höhe, auch die schon im Archiv.
+
+Daten-Animator zeigt dieselben Zahlen wie Animator und Archiv — Höhenmeter, höchster und tiefster Punkt, Spitzentempo und Ø Tempo kommen jetzt aus allen aufgezeichneten Punkten, in Vorschau, Video und Web-Export gleich. Vorher konnte dieselbe Motorradtour im Daten-Animator ein anderes Höchsttempo haben als im Animator.
+
+Schlagwort-Filter alphabetisch — Die Liste „Alle Schlagwörter“ im Archiv ist jetzt von A bis Z sortiert (OA8 vor OA10). Ein kleiner Knopf daneben schaltet auf „häufigste zuerst“ und zurück. Es stehen jetzt alle Schlagwörter drin, auch seltene, und ein neu vergebenes ist sofort da.
+
+Track-Check mit der richtigen Fortbewegung — Der GPX-Inspektor nahm für jede Tour die zuletzt gewählte Fortbewegung. Nach einer Wanderung wurde eine Motorradtour deshalb mit den Grenzen fürs Gehen geprüft und meldete viele falsche Sprünge. Touren aus dem Archiv öffnen jetzt mit ihrer eigenen Art.</description>
+</item>
 <item>
 <title>v0.9.858</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-858</link>
@@ -229,19 +242,6 @@ Blättern ohne Warten — Was du im Raster siehst und gleich sehen könntest, be
 Besseres Auto — „Auto“ hellt die Tiefen nicht mehr flau auf, der Weißabgleich lässt Sonnenuntergänge in Ruhe, und die Regler zeigen, was Auto eingestellt hat.
 
 Doppelte Zeile für Zeile — Beim Wegräumen von Doppelten entscheidest du je Gruppe, ob sie angefasst wird. Danke für die Idee aus der Community!</description>
-</item>
-<item>
-<title>v0.9.803</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-803</link>
-<guid isPermaLink="false">gps-studio-v0.9.803</guid>
-<pubDate>Wed, 21 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotos in den Papierkorb — Rechtsklick, Leiste oder Entf-Taste: Fotos und Clips landen im Papierkorb deines Systems — mit Rückfrage, auf Wunsch samt passender RAW-Datei, und von dort zurückholbar. Danke für die Idee aus der Community!
-
-Kamerafahrt neu erzeugen — In der Zeitleiste „Fahrt neu erzeugen …“: anderen Flugstil ausprobieren, nur die Kamera wird ersetzt, ⌘Z holt die alte zurück.
-
-Orts- und Pass-Schilder — Deckkraft und Größe für alle auf einmal einstellen — und ein klarer Hinweis mit „Erneut versuchen“, wenn OpenStreetMap die Orte gerade nicht liefert.
-
-Lange Videos — Der Render räumt seinen Speicher regelmäßig auf, und ein voller Kachelspeicher legt keinen Fehlerschirm mehr ins Video. Danke an @kaennchenstruggle für diese Beiträge!</description>
 </item>
 </channel>
 </rss>

@@ -94,7 +94,8 @@ log = logging.getLogger(__name__)
 # 2 (v0.9.501): FIT-Tour-Ebene. Der Sprung von 1 loest ein einmaliges
 # Neu-Einlesen aller FIT-Dateien aus - siehe `_migrate_fit_neu_lesen`.
 # 3 (10.11.2026): Fortbewegung „drohne“ - siehe `_migrate_drohne`.
-SCHEMA_VERSION = 3
+# 4 (11.11.2026): „überall 0 m“ gilt als keine Höhe - siehe `_migrate_hoehe_null`.
+SCHEMA_VERSION = 4
 
 # Welche Dateien eingelesen werden. GPX direkt, der Rest über die
 # Import-Schicht (FIT/NMEA/KML/KMZ/TCX/GeoJSON → GPX im Cache).
@@ -607,6 +608,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     _migrate_error_kind(conn)
     _migrate_fit_neu_lesen(conn, schema_alt)
     _migrate_drohne(conn, schema_alt)
+    _migrate_hoehe_null(conn, schema_alt)
     _migrate_tag_lokal(conn)
     _migrate_status_anhang(conn)
     if "speicher" not in have:
@@ -778,6 +780,23 @@ def _migrate_drohne(conn: sqlite3.Connection, schema_alt: int) -> None:
                 "WHERE m.geo_hash = tracks.geo_hash AND COALESCE(m.activity_user, '') != '')", (r["path"],)).rowcount or 0
     if n1 or n2:
         log.info("library: Drohne — %d SRT/KML zum Neu-Einlesen vorgemerkt, %d Flüge aus Drohnen-Apps umgestellt", n1, n2)
+
+
+def _migrate_hoehe_null(conn: sqlite3.Connection, schema_alt: int) -> None:
+    """Einmalig (11.11.2026, Schema 3 → 4): Touren, deren Höhe überall genau 0 m ist, neu einlesen.
+
+    Manche Geräte schreiben „0 m“ an jeden Punkt, wenn sie keine Höhe kennen. Das Einlesen wertet das jetzt als
+    „keine Höhe“ (Strich statt „0 m“, Knopf „Höhen aus dem Gelände ergänzen“). Schon eingelesene Touren stünden
+    sonst weiter mit „0 m“ im Archiv — der Scan öffnet unveränderte Dateien nicht, und beim Start liest die App
+    nicht von selbst neu ein (Klicktest 11.11.: nur vormerken ließ „+0 m“ stehen). Deshalb die Höhenwerte gleich
+    hier auf „keine Höhe“ setzen (Auf-/Abstieg sind bei lauter 0 ohnehin 0) und zusätzlich vormerken, damit das
+    nächste Einlesen den Rest der Zeile auffrischt. Betroffen sind nur Zeilen mit Höchst- UND Tiefstwert 0."""
+    if schema_alt <= 0 or schema_alt >= 4:
+        return      # frische Datenbank oder schon migriert
+    n = conn.execute("UPDATE tracks SET ele_max = NULL, ele_min = NULL, mtime = 0 "
+                     "WHERE ele_max = 0 AND ele_min = 0").rowcount or 0
+    if n:
+        log.info("library: %d Touren mit Höhe überall 0 m zum Neu-Einlesen vorgemerkt", n)
 
 
 # 19.10.2026 — Der Tourtag (Datumsbaum, Zeitraum, Monats-/Wochen-Statistik) kommt

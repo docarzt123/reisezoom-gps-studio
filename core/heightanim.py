@@ -148,6 +148,9 @@ class HeightConfig:
     # Wegpunkte auf der Strecke: [{dist_m, ele, label, icon, color}]. Bereits
     # auf dist_m aufgelöst (Projektion/Anchor passiert in der Bridge/UI).
     waypoints: list = field(default_factory=list)
+    # 11.11.2026 (Marc: „alles angleichen“) — Tourwerte je Kurvenpunkt aus `tour_werte()`: die Info-Leiste zeigt
+    # damit dieselben Zahlen wie Animator und Archiv (leer = alte Rechnung auf der Kurve, z. B. Diagramm-Overlays).
+    tour_werte: dict = field(default_factory=dict)
     # Trim
     trim_start: float = 0.0        # 0..1
     trim_end: float = 1.0          # 0..1
@@ -287,6 +290,8 @@ const S_LABEL = {series_label_json};
 const S_UNIT = {series_unit_json};
 const S_DEC = {series_dec_json};
 const S_IS_ELE = {series_is_ele_js};
+// 11.11.2026 — Tourwerte je Kurvenpunkt (wie Animator/Archiv, s. tour_werte); leer = aus der Kurve.
+const TOUR = {json.dumps(getattr(cfg, 'tour_werte', None) or {})};
 // Wert + Einheit der Serie einheitlich formatieren.
 function sFmt(v) {{ return v.toFixed(S_DEC) + (S_UNIT ? " " + S_UNIT : ""); }}
 // v0.9.438 — optionale zweite Reihe auf eigener rechter Achse.
@@ -553,7 +558,7 @@ function rzHeaderStats(ds, es, i0, i1) {{
     if (g > 0.3) {{ if (g > gUpMax) gUpMax = g; gUpSum += g * w; gUpW += w; }}
     else if (g < -0.3) {{ if (g < -gDnMax) gDnMax = -g; gDnSum += (-g) * w; gDnW += w; }}
   }}
-  return {{
+  const _st = {{
     distM: Math.max(0, ds[i1] - ds[i0]),
     eleMin: eCnt ? eMin : 0, eleMax: eCnt ? eMax : 0,
     eleAvg: eCnt ? eSum / eCnt : 0,
@@ -561,6 +566,33 @@ function rzHeaderStats(ds, es, i0, i1) {{
     gradAvgUp: gUpW ? gUpSum / gUpW : 0, gradAvgDown: gDnW ? gDnSum / gDnW : 0,
     gradMaxUp: gUpMax, gradMaxDown: gDnMax,
   }};
+  rzTourKopf(_st, TOUR, ds, i0, i1, S_IS_ELE, S_ID === "speed", es.length);
+  return _st;
+}}
+// 11.11.2026 (Marc: „alles angleichen“) — Info-Leiste mit den Tourwerten der vollen Spur (tour_werte): Höhenmeter,
+// Höhe max/min, Tempo max (Spitzentempo) und Ø Tempo (Strecke/Bewegungszeit) wie Animator und Archiv.
+// SYNCHRON zu _rzTourKopf in modules/heightanim/ui/module.js — beide Funktionen sind wortgleich.
+function rzTourKopf(st, T, ds, i0, i1, isEle, isSpeed, n) {{
+  const ok = (k) => T && Array.isArray(T[k]) && T[k].length === n;
+  if (isEle && ok("hoch") && ok("runter")) {{ st.ascent = T.hoch[i1] - T.hoch[i0]; st.descent = T.runter[i1] - T.runter[i0]; }}
+  if (isEle && ok("emax") && ok("emin") && ok("ele")) {{
+    let hi = T.ele[i0], lo = T.ele[i0];
+    for (let i = i0 + 1; i <= i1; i++) {{
+      if (T.emax[i] != null && (hi == null || T.emax[i] > hi)) hi = T.emax[i];
+      if (T.emin[i] != null && (lo == null || T.emin[i] < lo)) lo = T.emin[i];
+    }}
+    if (hi != null) st.eleMax = hi;
+    if (lo != null) st.eleMin = lo;
+  }}
+  if (isSpeed && ok("spitze")) {{
+    let m = 0;
+    for (let i = i0 + 1; i <= i1; i++) if (T.spitze[i] > m) m = T.spitze[i];
+    if (m > 0) st.eleMax = m;
+  }}
+  if (isSpeed && ok("bewegt")) {{
+    const s = T.bewegt[i1] - T.bewegt[i0];
+    if (s > 0) st.eleAvg = (ds[i1] - ds[i0]) / s * 3.6;
+  }}
 }}
 const RZ_FIELD_LABELS_DE = {{
   distance: "Distanz", updown: "Höhe ↑ / ↓", avg_grad: "Ø-Steigung",
@@ -605,8 +637,10 @@ const RZ_WP_KIND_LABEL_DE = {{
 
 // 25.09.2026 (Klicktest DA-04) — Wegpunkt-Fahnen ohne Überdeckung legen.
 // `fahnen` = [{{x, y, w, h}}] mit Wunsch-y (Reihenfolge = Vorrang). Jede Fahne nimmt
-// die erste freie Zeile: Wunschhöhe, dann schrittweise darüber, zuletzt darunter;
-// nichts frei → Wunschhöhe. SYNCHRON zu _haFahnenLegen in modules/heightanim/ui/module.js.
+// die erste freie Zeile: Wunschhöhe, dann schrittweise darüber, zuletzt darunter.
+// 11.11.2026 — höchstens FAHNE_ZEILEN Zeilen weg, sonst null = keine Fahne, nur Punkt.
+// SYNCHRON zu _haFahnenLegen in modules/heightanim/ui/module.js.
+const FAHNE_ZEILEN = 3;
 function _wpFahnenLegen(fahnen, oben, unten, luecke) {{
   const belegt = [];
   return fahnen.map((f) => {{
@@ -614,9 +648,9 @@ function _wpFahnenLegen(fahnen, oben, unten, luecke) {{
     const frei = (y) => y >= oben - 0.5 && y + f.h <= unten + 0.5 && !belegt.some(b =>
       f.x < b.x + b.w + luecke && b.x < f.x + f.w + luecke && y < b.y + b.h + luecke && b.y < y + f.h + luecke);
     let y = null;
-    for (let k = 0; k < 60 && y == null; k++) if (frei(f.y - k * schritt)) y = f.y - k * schritt;
-    for (let k = 1; k < 60 && y == null; k++) if (frei(f.y + k * schritt)) y = f.y + k * schritt;
-    if (y == null) y = f.y;
+    for (let k = 0; k <= FAHNE_ZEILEN && y == null; k++) if (frei(f.y - k * schritt)) y = f.y - k * schritt;
+    for (let k = 1; k <= FAHNE_ZEILEN && y == null; k++) if (frei(f.y + k * schritt)) y = f.y + k * schritt;
+    if (y == null) return null;
     belegt.push({{ x: f.x, y, w: f.w, h: f.h }});
     return y;
   }});
@@ -797,14 +831,15 @@ function draw(progress) {{
     // Geometrie und hängen weiter an SCALE).
     const fs = Math.round(13 * TEXT_SCALE), fh = Math.round(18 * TEXT_SCALE);
     const liste = [];
-    for (const wp of WAYPOINTS) {{
+    for (let idx = 0; idx < WAYPOINTS.length; idx++) {{
+      const wp = WAYPOINTS[idx];
       const wd = +wp.dist_m;
       if (!isFinite(wd) || wd < dTrimStart - 1 || wd > dTrimEnd + 1) continue;
       const wx = px(wd);
       const we = (wp.ele != null) ? +wp.ele : eleAtDist(wd);
       const wy = py(we);
       const label = (wp.label || "").toString();
-      const e = {{ wp, wd, wx, wy, label, stemTop: wy - Math.round(20 * SCALE) }};
+      const e = {{ wp, wd, wx, wy, label, stemTop: wy - Math.round(20 * SCALE), idx }};
       if (label) {{
         e.tw = Math.round(label.length * fs * 0.62 + 16 * TEXT_SCALE);
         e.bx = Math.max(PAD_L, Math.min(W - PAD_R - e.tw, wx - e.tw / 2));
@@ -813,10 +848,11 @@ function draw(progress) {{
       liste.push(e);
     }}
     liste.sort((a, b) => a.wd - b.wd);
-    const mitText = liste.filter(e => e.label);
+    // Vorrang beim Platz: Reihenfolge der Quellen (eigene Punkte, Fotos, GPX-Wegpunkte, Auto-Marker).
+    const mitText = liste.filter(e => e.label).sort((a, b) => a.idx - b.idx);
     const ys = _wpFahnenLegen(mitText.map(e => ({{ x: e.bx, y: e.by, w: e.tw, h: fh }})),
                               HEAD_H + Math.round(8 * TEXT_SCALE), H - PAD_B, Math.round(3 * TEXT_SCALE));
-    mitText.forEach((e, i) => {{ e.by = ys[i]; }});
+    mitText.forEach((e, i) => {{ if (ys[i] == null) e.label = ""; else e.by = ys[i]; }});   // kein Platz → nur Punkt
     for (const e of liste) {{
       if (progress < 1 && dCurrent < e.wd) continue;   // erst zeigen wenn passiert
       const col = e.wp.color || "#ffb37a";
@@ -998,6 +1034,7 @@ async def render(cfg: HeightConfig,
     elif _sid_b:
         cfg.series_b = ""  # B == A ergibt keine zweite Achse
 
+    cfg.tour_werte = tour_werte(pts, ds)
     html = _make_html(cfg, distances_m, elevations, values_b)
 
     # Frames
@@ -1259,6 +1296,53 @@ def _series_speed(points: list) -> list[float]:
         if s[-1] > deckel:
             out = [min(v, deckel) for v in out]
     return out
+
+
+def tour_werte(voll: list, ds: list) -> dict:
+    """Tourwerte je Punkt der ausgedünnten Kurve `ds`, gerechnet auf der VOLLEN Spur `voll` — damit die Info-Leiste
+    dieselben Zahlen zeigt wie Animator, Tour-Karte und Archiv.
+
+    11.11.2026 (Marc: „Es müssen beide dieselbe Zahl zeigen … alles angleichen“) — die Info-Leiste rechnete auf den
+    800 (Vorschau) bzw. 1000 (Video/Export) Kurvenpunkten: Tempo max 101,5 / 131,0 statt 111,7 km/h, Ø Tempo als
+    Mittel der Kurve (mit Pausen) statt Strecke/Bewegungszeit, Höhenmeter und Höhe max/min aus ausgedünnten Punkten.
+
+    Je Kurvenpunkt j (Zuordnung über die Objekt-Identität, `ds` muss aus `voll` stammen — sonst leeres dict):
+      hoch/runter/bewegt  laufende Summen aus `gpx.tour_kumuliert` an dieser Stelle → Wert zwischen i0 und i1 = Differenz
+      spitze              höchstes Spitzentempo (km/h, Medianfilter `gpx._tempo_gefiltert`) der Segmente seit Punkt j-1
+      emax/emin           höchste/tiefste Höhe der vollen Punkte seit Punkt j-1 (bis einschließlich j), None ohne Höhe
+      ele                 Höhe des Kurvenpunkts selbst (Anfang eines Trimbereichs)
+    Über die ganze Kurve ergibt das genau max_speed_kmh, ascent_m, descent_m, moving_time_s, ele_max, ele_min."""
+    import bisect
+    from core import gpx as _gpx
+    n = len(ds)
+    if n < 2 or len(voll) < 2:
+        return {}
+    pos = {id(p): i for i, p in enumerate(voll)}
+    idx = [pos.get(id(p)) for p in ds]
+    if any(i is None for i in idx) or any(b < a for a, b in zip(idx, idx[1:])):
+        return {}   # ds stammt nicht aus `voll` — lieber die alte Anzeige als eine falsche Zuordnung
+    kum = _gpx.tour_kumuliert(voll)
+    spitze = [0.0] * n
+    if voll[-1].elapsed_s and any(getattr(p, "time", None) for p in voll):
+        seg = _gpx._tempo_gefiltert([p.elapsed_s for p in voll], [p.dist_m for p in voll])
+        for k, v in enumerate(seg):          # Segment k = Punkt k → k+1
+            j = bisect.bisect_left(idx, k + 1)
+            if j < n and v * 3.6 > spitze[j]:
+                spitze[j] = v * 3.6
+    emax: list = [None] * n
+    emin: list = [None] * n
+    for j in range(n):
+        for p in voll[(idx[j - 1] + 1 if j else 0):idx[j] + 1]:
+            if p.ele is None:
+                continue
+            if emax[j] is None or p.ele > emax[j]:
+                emax[j] = p.ele
+            if emin[j] is None or p.ele < emin[j]:
+                emin[j] = p.ele
+    r = lambda v, d=3: None if v is None else round(float(v), d)  # noqa: E731
+    return {"hoch": [r(kum["hoch"][i]) for i in idx], "runter": [r(kum["runter"][i]) for i in idx],
+            "bewegt": [r(kum["bewegt"][i]) for i in idx], "spitze": [r(v) for v in spitze],
+            "emax": [r(v) for v in emax], "emin": [r(v) for v in emin], "ele": [r(p.ele) for p in ds]}
 
 
 def _series_grade(points: list) -> list[float]:
@@ -1622,10 +1706,14 @@ def make_embed_snippet(standalone_html: str, cfg: "HeightConfig") -> str:
             'srcdoc="' + esc + '"></iframe>')
 
 
-def detect_auto_markers(track_pts: list) -> list:
+def detect_auto_markers(track_pts: list, voll: list | None = None) -> list:
     """Erkennt markante Punkte: höchster + tiefster Punkt, steilster An- und
     Abstieg. Rückgabe [{dist_m, ele, kind, label_key}] — die UI beschriftet.
     `kind`: 'peak' | 'valley' | 'steep_up' | 'steep_down'.
+
+    11.11.2026 (Marc: „alles angleichen“) — mit `voll` (alle Punkte) kommen Gipfel und Tiefpunkt aus der vollen
+    Spur: „⛰ 3746 m“ = „Höhe max“ der Info-Leiste und des Archivs (vorher der höchste der 800 Kurvenpunkte, 3744 m).
+    Die Steigungen bleiben auf `track_pts` (gefensterte Rechnung, auf 100 000 Punkten zu teuer).
     """
     pts = [p for p in track_pts if p.ele is not None]
     if len(pts) < 2:
@@ -1654,4 +1742,10 @@ def detect_auto_markers(track_pts: list) -> list:
             "kind": kind,
             "grad": round(grads[i], 1),
         })
+    if voll and any(p.ele is not None for p in voll):
+        mit = [p for p in voll if p.ele is not None]
+        genau = {"peak": max(mit, key=lambda p: p.ele), "valley": min(mit, key=lambda p: p.ele)}
+        for m in out:
+            if m["kind"] in genau:
+                m["dist_m"], m["ele"] = genau[m["kind"]].dist_m, genau[m["kind"]].ele
     return out

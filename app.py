@@ -189,7 +189,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.858"
+APP_VERSION = "0.9.859"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -11086,7 +11086,7 @@ class Api:
             #   • GPX-<wpt>-POIs, auf die Strecke projiziert (dist_m + ele)
             # Fotos + manuelle Punkte baut das Frontend aus dem Projekt-State.
             try:
-                auto_markers = cheight.detect_auto_markers(ds)
+                auto_markers = cheight.detect_auto_markers(ds, voll=pts)   # 11.11.2026 — Gipfel/Tiefpunkt aus allen Punkten
             except Exception as e:
                 log.warning("auto_markers fehlgeschlagen: %s", e); auto_markers = []
             try:
@@ -11101,12 +11101,19 @@ class Api:
                 series = cheight.available_series(ds, t=_ui_t())
             except Exception as e:
                 log.warning("available_series fehlgeschlagen: %s", e); series = []
+            # 11.11.2026 (Marc: „alles angleichen“) — Tourwerte je Kurvenpunkt aus der vollen Spur: die Info-Leiste
+            # zeigt damit Höhenmeter, Höhe max/min, Tempo max und Ø Tempo wie Animator und Archiv
+            try:
+                tour = cheight.tour_werte(pts, ds)
+            except Exception as e:
+                log.warning("tour_werte fehlgeschlagen: %s", e); tour = {}
             return {
                 "ok": True,
                 "elevations": elevations,
                 "distances_m": distances_m,
                 "latlon": latlon,
                 "series": series,
+                "tour": tour,
                 "auto_markers": auto_markers,
                 "gpx_waypoints": gpx_waypoints,
                 "stats": {
@@ -11299,6 +11306,7 @@ class Api:
             # sonst driften Web-Export und Render auseinander. Effektive ID
             # zurückschreiben, damit die Achse korrekt beschriftet wird.
             cfg.series_a, elevations = cheight.resolve_series(ds, cfg.series_a)
+            cfg.tour_werte = cheight.tour_werte(pts, ds)   # 11.11.2026 — Info-Leiste mit Tourwerten, wie im Render
             # v0.9.438 — zweite Reihe wie im Render: ohne Rückfall, fehlt sie,
             # bleibt der Export einreihig.
             values_b = None
@@ -15395,9 +15403,13 @@ class Api:
                 "quelle": "datei", "ms": r["ms"]}
 
     def gpxinspect_track_check(self, points: list, path: str = "", local_time_n: int = 0,
-                               sportart: str = "auto") -> dict:
+                               sportart: str = "auto", sportart_fest: bool = True) -> dict:
         """10.09.2026 — Track-Check auf den Punkten im Inspektor (core/trackcheck), dazu
-        die abgewählten Arten dieser Tour aus dem Archiv (leer bei Dateien außerhalb)."""
+        die abgewählten Arten dieser Tour aus dem Archiv (leer bei Dateien außerhalb).
+
+        11.11.2026 — `sportart_fest=False` (die Oberfläche hat für DIESE Tour nichts von Hand gewählt): Hat die
+        Tour im Archiv eine Art, bestimmt sie die Grenzen (`trackcheck.sportart_aus_art`), nicht die zuletzt
+        gewählte Sportart einer anderen Tour. Die genutzte steht in `sportart` der Antwort."""
         from core import trackcheck
         ok_liste, im_archiv, geplant, activity = [], False, False, ""
         archiv_neu = None
@@ -15424,17 +15436,19 @@ class Api:
                     activity = str(t.get("activity") or "")
             except Exception:  # noqa: BLE001
                 pass
+        sportart = sportart if sportart in trackcheck.SPORTARTEN else "auto"
+        if not sportart_fest and activity:
+            sportart = trackcheck.sportart_aus_art(activity) or sportart
         try:
             r = trackcheck.pruefen(list(points or []), local_time_n=int(local_time_n or 0), geplant=geplant,
-                                   aktivitaet=activity or None,
-                                   sportart=sportart if sportart in trackcheck.SPORTARTEN else "auto")
+                                   aktivitaet=activity or None, sportart=sportart)
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
         f = trackcheck.filtern(r["befunde"], ok_liste)
         return {"ok": True, "befunde": f["befunde"], "abgewaehlt": f["abgewaehlt"],
                 "hoechste": f["hoechste"], "marke": f["marke"], "ok_liste": ok_liste,
                 "im_archiv": im_archiv, "activity": activity, "n_points": r["n_points"], "ms": r["ms"],
-                "archiv_neu": archiv_neu}
+                "archiv_neu": archiv_neu, "sportart": sportart}
 
     def gpxinspect_werkzeug(self, action: str, points: list, params: dict = None) -> dict:
         """10.09.2026 (Marc: „die App muss alles können, was auch im Web geht") — die
@@ -15771,6 +15785,69 @@ class Api:
                     "fmt": "gpx", "count": res.get("count", 0)}
         except Exception as e:
             log.error("library_track_ersetzen: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e)}
+
+    @staticmethod
+    def _dem_zoom_fuer(points: list) -> int:
+        """Kachelstufe fürs Geländemodell nach Tourlänge — SYNCHRON zu `_demZoomFuerTrack` im Inspektor:
+        z13, bei langen Touren gröber (höchstens 120 Kachelbreiten), nie unter z10."""
+        import math as _m
+        lang = 0.0
+        for a, b in zip(points, points[1:]):
+            lang += croute._haversine_m(a["lat"], a["lon"], b["lat"], b["lon"])
+        lat = sum(q["lat"] for q in points) / max(1, len(points))
+        kachel_m = lambda z: 40075016 * max(0.2, _m.cos(lat * _m.pi / 180)) / (2 ** z)  # noqa: E731
+        z = 13
+        while z > 10 and lang / kachel_m(z) > 120:
+            z -= 1
+        return z
+
+    def library_hoehen_ergaenzen(self, path: str) -> dict:
+        """Höhen aus dem Geländemodell in eine Archiv-Tour ohne Höhendaten schreiben — als neue Version.
+
+        11.11.2026 (Nutzer-Meldung: Dolomiten-Tour aus einem Routenplaner, „warum sehe ich keine Höhenmeter?“;
+        Marc: „mach's als Knopf auf der Tour-Seite“). Bisher nur von Hand im Inspektor („Höhe korrigieren“). Gleiche
+        Quelle wie dort (`dem_hoehen`: Terrarium-Kacheln fester Stufe, gecacht), gespeichert wie „Im Archiv
+        ersetzen“ (`library_track_ersetzen`: neue Version, Original bleibt, Projekte bleiben gepinnt).
+        Gefüllt werden Punkte ohne Höhe; trägt die Datei überall 0 m bzw. gar keine Höhe, alle Punkte.
+        Rückgabe wie `library_track_ersetzen` + `neu_pfad` (Archivzeile der neuen Version) und `n_hoehen`."""
+        from core import demsample
+        try:
+            pfad = str(path or "")
+            r = self.gpxinspect_load(pfad)
+            if not r.get("ok"):
+                return r
+            pts = list(r.get("points") or [])
+            if len(pts) < 2:
+                return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "GPX hat zu wenig Punkte (< 2)")}
+            z = self._dem_zoom_fuer(pts)
+            # eigene Meldung fürs Wartefenster — sonst zeigt es, was ein anderer Vorgang zuletzt gemeldet hat
+            _vm("hoehen_holen", "Geländehöhen für {punkte} Punkte werden geholt …", punkte=len(pts))
+            h = demsample.hoehen([[q["lon"], q["lat"]] for q in pts], z=z, cache_dir=canim.TILE_CACHE_DIR)
+            n_ok = sum(1 for v in h if v is not None)
+            if not n_ok:
+                return {"ok": False, "error": _ui_t()("library.hoehen_keine",
+                        "Keine Geländehöhen gefunden — besteht eine Internetverbindung?")}
+            alle = all(q.get("ele") in (None, 0, 0.0) for q in pts)
+            neu = []
+            for q, v in zip(pts, h):
+                ele = q.get("ele")
+                if v is not None and (alle or ele is None):
+                    ele = round(float(v), 1)
+                neu.append({"lat": q["lat"], "lon": q["lon"], "ele": ele, "time": q.get("time"),
+                            "oi": q.get("i"), "si": 0})
+            _vm("hoehen_speichern", "Neue Version der Tour wird gespeichert …")
+            res = self.library_track_ersetzen(neu, r.get("src") or pfad, pfad)
+            if res.get("ok") and res.get("geo_hash"):
+                row = self._lib().execute("SELECT path FROM tracks WHERE geo_hash = ? ORDER BY rowid DESC",
+                                          (res["geo_hash"],)).fetchone()
+                res["neu_pfad"] = row["path"] if row else pfad
+            res["n_hoehen"] = n_ok
+            log.info("Höhen aus dem Gelände ergänzt: %s · %d/%d Punkte · z%d · %s", pfad, n_ok, len(pts), z,
+                     "ok" if res.get("ok") else res.get("error"))
+            return res
+        except Exception as e:  # noqa: BLE001
+            log.error("library_hoehen_ergaenzen: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
     # ── 18.10.2026: Stände mit gleichen Koordinaten (Höhe/Zeiten korrigiert) ──

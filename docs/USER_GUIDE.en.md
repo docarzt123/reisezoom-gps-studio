@@ -1735,7 +1735,9 @@ trip of twenty. As a collection they belong together:
 (since 09.10.2026): a map image per tour in the archive style (default: the night map; images are drawn the first time
 you see them and kept), name, date · activity, distance/ascent/duration, tags with **＋** to add one, the number of
 photos and clips and **⋯** for all actions. The **checkbox** selects like ⌘-click; a bar „2 of 36 selected“ then offers
-Tags, Add to collection, Export and ⋯. The filter row: search, activity, year, period, **tag**, length and sort order.
+Tags, Add to collection, Export and ⋯. The filter row: search, activity, year, period, **tag**, length and sort order. Tags are listed alphabetically (OA8 before
+OA10, upper/lower case doesn't matter); the small button next to them switches to **most used first** and back, and GPS
+Studio remembers your choice.
 **On the right** (click a row): title (click to rename), ★ favourite, ⋯, a large map image (⤢ opens the tour page), six
 figures (distance, ascent, duration, highest point, descent, loop or point to point), description, tags as chips, date,
 activity, device/app and folder, the tour's photos and clips and buttons for **all modules** plus **Export**; everything
@@ -3190,6 +3192,8 @@ Separate axes are deliberate: elevation (m) and heart rate (bpm) share no common
 ### Factual info bar (since v0.9.394) ⭐
 Above the profile you show a **value bar** — toggle it on/off in the **"Info bar"** section and select it per field: **distance, elevation gain ↑/↓, Ø gradient, max. gradient (↑/↓), elevation (max/min/Ø)**. In addition, the **marker callout** shows the **current gradient** (e.g. "↗ +6.2 %" / "↘ −4.7 %") next to elevation and distance — can be turned off via "Show gradient % at the marker".
 
+**The info bar shows the same numbers as the animator, tour map and archive.** Elevation gain ↑/↓, elevation max/min, speed max and Ø speed are calculated from all recorded points, not from the simplified curve. Speed max is the top speed: single GPS jumps are left out, a real sprint lasting several seconds counts. Ø speed is distance divided by moving time, so breaks don't count. The summit and low point signs (⛰ / ▼) carry the same elevation as “elevation max/min”. The curve itself stays simplified and smoothed and can therefore stay a little below a peak. If you trim the tour, the values of the selected part apply.
+
 ### Points along the route (since v0.9.394) ⭐
 In the **"Points along the route"** section you place labeled markers into the profile — from four sources, individually toggleable:
 - **Set yourself:** click **"Place a point on the profile"**, then click into the curve. Enter a name, choose a color, rename or delete it later.
@@ -3198,13 +3202,13 @@ In the **"Points along the route"** section you place labeled markers into the p
 - **GPX waypoints:** `<wpt>` POIs from the GPX file (e.g. from Komoot/Garmin) are taken over.
 - **Auto markers:** the highest/lowest point as well as the steepest ascent and descent are detected and labeled automatically.
 
-Each point **appears animated as soon as the line reaches it**. You can hide/show individual points from a source in the list via 👁. Your manual points + all settings are stored **per project**.
+Each point **appears animated as soon as the line reaches it**. You can hide/show individual points from a source in the list via 👁. **Many points close together** (e.g. a long trip with hundreds of GPX waypoints): the labels move out of each other's way, but at most three rows — whatever finds no room then stays as a point without a label, so the curve stays visible. Your own points get a place first, then photos, GPX waypoints and auto markers. Your manual points + all settings are stored **per project**.
 
 **Fully configurable axes (since v0.9.447):** Below the "Show axis labels" switch there is now a detail block. It lets you toggle the **X axis**, the **left Y axis** and the **right Y axis** (second data series) individually, pick the **font size** (8–60 px) and set **how many values** each axis labels (1–12). When an axis is off its margin drops to a minimum — the curve gets the free space. The main switch above still turns everything off at once.
 
 **Colors (since v0.9.395):** In the "Look" section, alongside background and line color you now also choose the **grid color** (helper grid) and **label color** (axes, info bar, marker callout).
 
-**Smoothing (since v0.9.400):** The **"Smoothing"** slider in the Look section (0–20) softens jagged profiles — helpful with tracks that have many GPS points and small elevation jumps. It applies a moving average over the elevation data; 0 = raw data, higher values = smoother. The smoothing takes effect WYSIWYG on everything: line, area, info bar, the gradient at the marker and the point elevations — the same in preview, video render and HTML export.
+**Smoothing (since v0.9.400):** The **"Smoothing"** slider in the Look section (0–20) softens jagged profiles — helpful with tracks that have many GPS points and small elevation jumps. It applies a moving average over the elevation data; 0 = raw data, higher values = smoother. The smoothing takes effect WYSIWYG on line, area, the gradient fields of the info bar, the gradient at the marker and the point elevations — the same in preview, video render and HTML export. Elevation gain and elevation max/min in the info bar stay the values of the tour.
 
 **Area under the line (since v0.9.402):** In the **"Area under the line"** section you set **whether** the area under the curve is filled, in which **fill color** and with what **opacity** (0–100 %).
 Below that you can create **color zones by elevation:** with "**Add elevation**" you define an elevation (in meters) plus a color — **from this elevation up** the fill color changes. This creates the classic relief-map look (e.g. green in the valley, brown at mid-altitudes, white at the summit). Below the lowest zone the normal fill color applies. Via **color transition** you choose between a **soft gradient** (the colors blend into each other) and **hard bands** (the color jumps at each elevation). Without zones, the fill color is simply used for the whole area.
@@ -3571,6 +3575,9 @@ points (limit 30 km/h)“ or „Jump of 480 m at a usual point spacing of 12 m�
 travelled: **Automatic** measures against the usual pace of the tour; **On foot** (30 km/h), **Running** (40),
 **Bicycle** (90) and **Car/motorbike** (250) add a fixed upper limit, **Flying/paragliding** allows high speeds. Ferries
 and flights over 10 km never count as outliers. The choice also applies to the findings above and is remembered.
+**Tours from the archive** bring their type along: a motorbike tour opens with „Car/motorbike“, a hike with „On foot“, a
+drone flight with „Flying“ — the remembered choice only applies to files without a type. If you change it for the open
+tour yourself, your choice stays.
 
 **Fill gaps as** (profile): **Straight line** = a straight connection (safe, touches only the gap). **Hiking/Bicycle/Car** = finds the real route on the path network (Mapbox). ⚠️ **Protection since v0.9.315:** If the road route results in a big **detour/loop** (at junctions Mapbox sometimes routes via an exit + roundabout back), it's **automatically discarded and the gap filled straight** — so a clean trace is no longer bent. The toast then says "… detours discarded".
 
@@ -3596,6 +3603,8 @@ After that it is **one** track: heal, trim, correct the elevation, save — ever
 **Sensor data** (heart rate, power, cadence, temperature) stays with its own recording per section — the heart rate from track 1 is not blended into track 2.
 
 ### ⛰ Correct elevation (map instead of GPS) — since v0.9.292
+
+**Tour with no elevation at all?** The archive (detail column) and the tour page have the button “Add elevation from terrain” — one click, new version, done. The Inspector is for mixing and correcting existing elevation.
 GPS elevation values are often noisy — especially with poor reception the elevation jumps a few meters back and forth, and in the end there are far too many **elevation meters** in the stats (e.g. 1800 instead of 1400). Here you can blend the **smooth terrain elevation from the Mapbox map** (digital elevation model) with your GPS elevation — and see **exactly what happens**:
 
 1. **🗺 Load the elevation profile from the map** — the app briefly runs over the whole track once (loading the elevation tiles) and reads the map elevation for each point.
@@ -3915,12 +3924,40 @@ becomes its own stage. For legs across seas and continents choose **„straight 
 The tour ends up as a GPX file in the archive. Select several day tours and choose **„View as a trip“** — there you find
 **„Trip video …“**. This way is less tried than the one with a real track; write to me if something goes wrong.
 
+### My tour shows no elevation gain – can GPS Studio take the elevation from the map?
+
+Yes. Some devices and route planners don't save elevation. The archive then shows a dash “—” for climb and descent and
+below it the button **“Add elevation from terrain”** (also on the tour page). One click takes the elevation from the
+map's terrain model and saves it as a new version of the tour; the original is kept. If every point says exactly 0 m,
+the tour also counts as having no elevation — some devices write that when they know no elevation. If the tour has its
+own elevation, the button does not appear.
+
+By hand, with more control (e.g. mixing GPS and map), it works in the **GPX Inspector**:
+
+1. Open the tour in the **GPX Inspector**.
+2. Expand **“Correct elevation”** and click **“Load elevation profile from map”** (needs internet once).
+3. Move the **“GPS ⟷ Map”** slider all the way to **100 %** and click **“Apply this elevation”**.
+4. **“Save healed track …”** → **“Take as new version”**. Archive, tour page and videos then show the elevation gain;
+   the original is kept as a version.
+
+Good to know: the terrain model knows no bridges or tunnels — there the elevation lies on the ground or over the mountain.
+
 ### How do I get my own video clip into the animation?
 As a **clip stop**: the track pauses at that spot, the clip appears large over the map and plays. In the Animator choose
 **„🎞 Add video clips“** under „Add photos“; GPS Studio puts every clip where it was recorded (by GPS, otherwise by
 recording time). If a clip fits the tour neither by place nor by time, the app asks and puts it at the **playhead** — so
 move the playhead to the right spot first; you can move the clip afterwards in the „Signs“ lane. In the sign you set from
 which second it plays, for how long (that is how long the track pauses) and whether the original sound plays along.
+
+### Where do I find my saved templates – and how do I delete some?
+Everything you created with **„Save as template“** is in the **archive, on the „Templates“ tab** (at the top next to
+*Projects* and the tour archive). Each template is a tile there; the **bin** on the tile deletes it, **⌘Z**
+(Windows: Ctrl+Z) brings it back. Existing projects keep their look. *Reisezoom default* ships with the app and cannot
+be deleted.
+
+There are two smaller kinds of templates as well: your own **video templates** (the ☆ below the overlays, or „Save as
+template“ in the video assistant) are deleted in the **video assistant**: right-click the template. Your own **export
+presets** in the export dialog are deleted with the **✕** on the preset (click twice).
 
 ### How do I change the title in the video?
 In the Animator under **„Overlays“**: the editor shows the text lines at the top; „Name in the list“ is only the overlay's
