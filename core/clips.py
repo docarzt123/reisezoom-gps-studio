@@ -17,6 +17,7 @@ import os
 import time
 import re
 import subprocess
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -149,6 +150,55 @@ def bilder(pfad: str, ab: float, dauer: float, fps: float, hoehe: int) -> dict:
     return {"ok": True, "ordner": str(d), "n": n, "fps": fps}
 
 
+_ABSPIEL_LOCKS: dict = {}
+_ABSPIEL_LOCK = threading.Lock()
+
+
+def abspielkopie(pfad: str, hoehe: int = 720) -> dict:
+    """Abspielbare Kopie eines Videos (H.264 + AAC, 8 Bit, höchstens `hoehe` px hoch) für die Großansicht (10.11.2026).
+
+    Nutzer-Meldung: unter Windows lief ein 4K-Video einer DJI-Kamera in der Großansicht nur mit Ton — das WebView
+    kann HEVC (H.265) ohne die Store-Erweiterung nicht dekodieren und meldet dabei nicht einmal einen Fehler. Dieselbe
+    Kopie hilft bei allen Formaten, die das WebView nicht spielt (AVI, MKV, 10-Bit-HEVC …). Gecacht wie die
+    Bildfolgen (Ordner `f_abspiel_*`, damit `aufraeumen` sie mit begrenzt)."""
+    if not pfad or not os.path.isfile(pfad):
+        return {"ok": False, "error": "Datei fehlt"}
+    hoehe = int(max(240, min(2160, int(hoehe or 720))))
+    hoehe -= hoehe % 2
+    d = ordner(pfad) / f"f_abspiel_{hoehe}"
+    z, fertig = d / "abspiel.mp4", d / "fertig"
+    with _ABSPIEL_LOCK:
+        lock = _ABSPIEL_LOCKS.setdefault(str(d), threading.Lock())
+    with lock:                                       # zweimal dieselbe Datei angefragt → einmal umwandeln
+        if fertig.is_file() and z.is_file() and z.stat().st_size > 0:
+            try:
+                os.utime(fertig, None)
+            except OSError:
+                pass
+            return {"ok": True, "datei": str(z), "neu": False}
+        d.mkdir(parents=True, exist_ok=True)
+        if z.exists():                               # halbfertiger Lauf von vorher — Cache, neu erzeugbar
+            try: _ds.loeschen(z, "clip_cache", art=_ds.ART_CACHE)
+            except Exception as e:  # noqa: BLE001
+                log.warning("Abspielkopie: %s", e)
+        dauer = (info(pfad) or {}).get("dauer") or 0
+        cmd = [_ffmpeg(), "-y", "-v", "error", "-i", pfad, "-map", "0:v:0", "-map", "0:a:0?",
+               "-vf", f"scale=-2:'min({hoehe},ih)',format=yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+               "-c:a", "aac", "-b:a", "128k", "-ac", "2", "-movflags", "+faststart", str(z)]
+        t0 = time.time()
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=max(600, int(dauer * 6)), **_kw())
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+        if r.returncode != 0 or not z.is_file() or z.stat().st_size == 0:
+            return {"ok": False, "error": (r.stderr or "ffmpeg")[-300:]}
+        fertig.write_text("1")
+        log.info("Abspielkopie: %s · %.0f s Video · %.1f s umgewandelt · %.1f MB", Path(pfad).name, dauer,
+                 time.time() - t0, z.stat().st_size / 1e6)
+    aufraeumen_gedrosselt()
+    return {"ok": True, "datei": str(z), "neu": True}
+
+
 # 05.10.2026 (Audit E-1: „clip_cache wächst ohne Grenze" — je Startsekunde/Länge/fps/Höhe ein neuer Ordner, 4K ≈ 30 MB je
 # Clip, nichts räumte auf; am 01.10. lief die Platte voll). Grenzen wie beim Kachelspeicher: Bildfolgen älter als
 # CACHE_MAX_TAGE (zuletzt benutzt) weg, halbfertige nach einem Tag, und über CACHE_MAX_BYTES das zuletzt am längsten
@@ -166,7 +216,7 @@ def _groesse(d: Path) -> int:
 
 
 def aufraeumen(max_bytes: int = CACHE_MAX_BYTES, max_tage: float = CACHE_MAX_TAGE) -> dict:
-    """Bildfolgen im Clip-Speicher begrenzen. {"weg": n, "frei": bytes, "bleibt": bytes}."""
+    """Bildfolgen und Abspielkopien (`f_*`) im Clip-Speicher begrenzen. {"weg": n, "frei": bytes, "bleibt": bytes}."""
     base = CACHE_DIR or (Path.home() / ".rz_clip_cache")
     if not base.is_dir():
         return {"weg": 0, "frei": 0, "bleibt": 0}

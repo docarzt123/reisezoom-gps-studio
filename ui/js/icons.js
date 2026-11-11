@@ -194,6 +194,8 @@ const RZ_ICONS = {
 
 // Eigene Symbole im selben Stil (Lucide hat keins dafür) — 24er-Raster, Strich, rund
 Object.assign(RZ_ICONS, {
+  // 10.11.2026 — Drohne (Draufsicht): Rumpf, vier Arme, vier Rotorkreise
+  "rz-drohne": '<rect x="9.5" y="9" width="5" height="6" rx="2"/><path d="m9.5 9.5-3-3M14.5 9.5l3-3M9.5 14.5l-3 3M14.5 14.5l3 3"/><circle cx="5" cy="5" r="3"/><circle cx="19" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/>',
   "rz-motorrad": '<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 12h5.5l4 4.5"/><path d="M14.5 12 13 8h3.5"/><path d="M9 12 7.5 9.5H5"/>',
 });
 

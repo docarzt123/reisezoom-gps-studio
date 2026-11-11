@@ -14,6 +14,37 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.858] – 2026-11-11
+
+### Added
+- **Drone as a mode of travel**, with six 3D drone types to pick from: folding drone (folding arms), mini with prop
+  guards, FPV with ducted props, FPV racer, 360° drone (one lens on top, one below) and pro camera drone. Rotors spin in
+  pairs, also while the drone hovers. Track editor → Moving dot → 3D → Drone; the “Drone type” row below picks the
+  shape. There is also a flat drone symbol for the 2D moving dot, planned stages can be flown as a drone (straight
+  line like the helicopter), and the archive knows “Drone” as a mode of travel (filter, statistics, import assistant).
+- **Drone flights are recognised automatically**: DJI subtitle files (.srt next to the drone video), GPX/KML from drone
+  apps (AirData, Litchi, DroneLink, DroneDeploy, UgCS, DJI, Antigravity …) and DJI waypoint missions are filed in the
+  archive as “Drone”. Opening such a flight in a project makes the moving dot a 3D drone once (with a note; ⌘Z undoes
+  it, and if you pick something else it stays that way). Flights from Antigravity get the 360° drone. The video assistant
+  keeps the drone as the moving dot for drone flights, whichever style you choose (unless you switch the dot off).
+- **Logbook entry type “Flight”**: in a tour filed as a drone, all moving parts are called flight instead of drive or
+  hike, with the flight time in the summary (tour page, inspector, archive). It can also be set by hand under
+  “Change type”, and “Symbol by activity” shows the drone there.
+
+### Fixed
+- **“Show me” for fields in the track editor** (moving dot, line, tube …): the search jumped to the animator but found
+  nothing, because the track editor only exists while it is open. It now opens the editor itself; a moving-dot field
+  that is hidden right now (e.g. “Drone type” while the dot isn't a drone) highlights the moving-dot shape instead.
+- **Moving dot by activity with 3D models**: kayak, ferry and the other symbol-only types showed a boat badge instead
+  of their 3D model.
+- **Pace for runs from FIT files**: the animator looked up the mode of travel under the converted copy of the file and
+  never found it, so runs recorded as FIT showed speed instead of pace.
+- **Videos that only played with sound in the large view** (Windows, e.g. 4K HEVC from DJI cameras): the built-in
+  player can't decode HEVC without the Store extension and didn't even report an error, so only the sound ran and no
+  hint appeared. GPS Studio now notices the missing picture, converts the video once into a playable copy (H.264, 720p,
+  with sound; kept in the clip cache, the original stays untouched) and plays that. The same helps with other formats the
+  player can't show (AVI, MKV, 10-bit video). Only if the conversion fails does the hint about the extension appear.
+
 ## [0.9.857] – 2026-11-10
 
 ### Added

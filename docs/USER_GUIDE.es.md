@@ -452,19 +452,21 @@ sombra, brillo, la reducción de puntos en porcentaje y el **punto en movimiento
 bola, flecha en el sentido de la marcha o un vehículo, tamaño; la «calma de la flecha» vale para todas
 las flechas). La forma se elige como mosaico de imagen; debajo, **«Aspecto del vehículo (todos los
 vehículos)»** ofrece doce mosaicos (**dos pestañas, 2D y 3D, desde el 08.11.2026:** en 2D bola, punto luminoso, flecha, los
-vehículos como imagen o símbolo y tu imagen, con el aspecto del vehículo debajo; en 3D los 20 vehículos como modelo 3D y, con el
+vehículos como imagen o símbolo y tu imagen, con el aspecto del vehículo debajo; en 3D los 21 vehículos como modelo 3D y, con el
 tubo 3D, delante flecha cometa, cometa, flecha 3D y disco 3D — la pestaña solo muestra las fichas, se elige con una ficha): insignia (el símbolo dibujado), **símbolo** (desde v0.9.792, ver abajo) o fotorrealista, lápiz y acuarela, cómic,
 pictograma, grabado, neón, pixel art, plano, papel, plastilina. Estas imágenes están dibujadas desde arriba,
 quedan planas sobre el mapa y giran con el sentido de la marcha — también en etapas planificadas. **Símbolos para cada
-forma de moverse (desde v0.9.792):** 20 símbolos sencillos vistos desde arriba — coche, moto, autocaravana, autobús, bici,
+forma de moverse (desde v0.9.792):** 21 símbolos sencillos vistos desde arriba — coche, moto, autocaravana, autobús, bici,
 bicicleta de montaña, senderista, corredor, jinete, esquí, tren, barco, velero, ferri, kayak, SUP, avión, helicóptero,
-parapente, globo aerostático. Quedan planos sobre el mapa y giran con la ruta. **Modelo 3D (nuevo, pestaña 3D):** los mismos 20 tipos
+dron, parapente, globo aerostático. Quedan planos sobre el mapa y giran con la ruta. **Modelo 3D (nuevo, pestaña 3D):** los mismos 21 tipos
 como vehículos 3D de verdad que están sobre el mapa, giran con la cámara y se inclinan en las cuestas; senderistas,
 corredores, ciclistas, jinetes, palistas y ruedas se mueven con el recorrido (según la distancia recorrida; cuando el punto se para — parada de foto, final — las figuras pasan a una postura de
-reposo: el senderista de pie, los pedales horizontales, el remo quieto; el rotor del helicóptero y la llama del globo siguen). **Ritmo del movimiento (modelos 3D)** en el editor del track
+reposo: el senderista de pie, los pedales horizontales, el remo quieto; el rotor del helicóptero, los rotores del dron y la llama del globo siguen). **Ritmo del movimiento (modelos 3D)** en el editor del track
 (0,25–3×) ajusta el ritmo base. Dos colores propios en **«Colores de los vehículos» → Colores fijos** (cuerpo y acento), el
 tamaño en **Tamaño**. Para el coche, **«Forma del coche»** ofrece nueve: familiar, utilitario, berlina, SUV, deportivo,
-descapotable (con conductor), pick-up, minibús, todoterreno.
+descapotable (con conductor), pick-up, minibús, todoterreno. Para el **dron** (desde el 10.11.2026) la misma fila se llama
+**«Tipo de dron»** con seis formas: dron de viaje (brazos plegables), mini con protectores, FPV con aros alrededor de los
+rotores, FPV de carreras, dron 360° (una lente arriba y otra abajo) y dron de cámara profesional.
 Se colorean como los símbolos (color de la línea o colores fijos). También en el aire y sobre el tubo 3D (cabeza «Como el
 punto móvil»). Necesita los mapas libres — con Mapbox y en los demás recorridos se ve el símbolo. Debajo eliges el **color de los símbolos**
 (para todos): **Color de la línea** usa el color del recorrido con un acento a juego, **Colores fijos** dos colores a tu
@@ -755,7 +757,7 @@ Mapbox permite **publicar vídeos** con su cartografía **solo con derechos de v
 ### Pregunta a GPS Studio — buscar en el manual y en los botones (⌘K)
 ¿Buscas un interruptor o no sabes cómo se llama algo? Pulsa **⌘K** (Windows/Linux: **Ctrl+K**) o haz clic arriba a la derecha en **Pregunta a GPS Studio …** (también en **Ayuda → Pregunta a GPS Studio …** y en la ventana **Primeros pasos**). Escribe tu pregunta tal como la harías: «cómo cambio la fecha de muchas fotos», «la cámara sigue el track», «vídeo en 9:16». GPS Studio busca en este manual y en las etiquetas de todos los botones y muestra los lugares que encajan, con las palabras encontradas resaltadas. Funciona en tu ordenador, sin internet y sin ningún servicio de IA.
 
-- **Muéstrame** salta directamente allí: GPS Studio cambia al módulo correcto, abre la sección (o «Más») y resalta el control un momento. Si el lugar necesita antes un recorrido cargado o fotos marcadas, el resultado te lo dice; por ejemplo «Cambiar hora de captura …», que solo aparece cuando hay fotos marcadas.
+- **Muéstrame** salta directamente allí: GPS Studio cambia al módulo correcto, abre la sección (o «Más») y resalta el control un momento. Los campos del editor del track (punto en movimiento, línea, tubo …) los abre por ti (desde el 11.11.2026); si un campo del punto en movimiento está oculto en ese momento, por ejemplo «Tipo de dron» mientras el punto no es un dron, se resalta la forma del punto, donde lo haces aparecer. Si el lugar necesita antes un recorrido cargado o fotos marcadas, el resultado te lo dice; por ejemplo «Cambiar hora de captura …», que solo aparece cuando hay fotos marcadas.
 - Un **resultado del manual** (clic o **↵**) abre el manual justo en esa sección.
 - Con **↑ ↓** eliges un resultado, **Esc** cierra la búsqueda.
 
@@ -1500,9 +1502,9 @@ salida y el destino ya vienen con el final de la ruta anterior y el inicio de la
 fila (🗺, con ✎ la vuelves a editar) y va como cualquier ruta; el punto muestra el vehículo del tramo actual. La etapa
 pertenece al proyecto (también viaja en el `.rzproj`) y no tiene hora.
 
-**Medio de transporte.** Arriba del todo en el editor está la fila **«Viajando en»** con 20 símbolos (desde v0.9.792): coche,
+**Medio de transporte.** Arriba del todo en el editor está la fila **«Viajando en»** con 21 símbolos (desde v0.9.792, dron desde el 10.11.2026): coche,
 moto, autocaravana, autobús, bici, bicicleta de montaña, senderista, corredor y jinete siguen carreteras y caminos; esquí,
-tren, barco, velero, ferri, kayak, SUP, avión, helicóptero, parapente y globo van en arco (el esquí con alturas del
+tren, barco, velero, ferri, kayak, SUP, avión, helicóptero, dron, parapente y globo van en arco (el esquí con alturas del
 terreno, agua y aire planos). Un clic vale para todos los tramos — o, con un punto seleccionado, desde ese punto. Cada
 tramo se cambia en la lista entre dos paradas; ahí también desactivas «Carretera» («Arco» en los de arco) y el tramo pasa a ser
 una curva libre. La pequeña barra del punto seleccionado siempre queda dentro del mapa; arrástrala por el asa ⠿.
@@ -2124,9 +2126,11 @@ estaban.
 **Ver en grande:** doble clic en una miniatura, clic en la imagen de la derecha o **espacio** abre la foto en toda la
 ventana. **← / →** pasa de una a otra en el orden de la cuadrícula, **Esc** cierra. Los vídeos se reproducen ahí con
 sonido y los controles habituales; **📸 Guardar fotograma** guarda la imagen mostrada como JPEG (eliges dónde; la hora
-y el lugar del vídeo se incluyen). Abajo: **Mostrar en el Finder** y **Abrir con la app predeterminada**. *Windows:* si
-un vídeo no se reproduce, suele faltar la extensión gratuita «Extensiones de vídeo HEVC»; la app muestra una guía breve
-y abre la página de Microsoft Store.
+y el lugar del vídeo se incluyen). Abajo: **Mostrar en el Finder** y **Abrir con la app predeterminada**. Si la vista
+grande no puede reproducir un vídeo (en Windows a menudo HEVC/H.265, p. ej. de cámaras DJI, GoPro o móviles; si no, AVI
+o MKV), GPS Studio lo convierte una vez en una copia reproducible: unos segundos con indicador de carga y después se
+reproduce enseguida. La copia queda en la memoria de clips; tu original no se toca. *Windows:* si tampoco funciona, la
+app muestra una guía breve sobre las «Extensiones de vídeo HEVC» de Microsoft Store.
 
 **Ubicar:** el mapa pequeño de la derecha siempre está. Sin lugar, haces clic en el mapa; con lugar, arrastras el
 punto. Antes de escribir puedes indicar altitud y dirección y aceptar la dirección postal sugerida.
@@ -2817,6 +2821,8 @@ varias). Si falta algo, la app lo dice al activarlo. Vale también para el víde
 **Colores por altura, velocidad … también en el aire (desde v0.9.793):** la línea en el aire se colorea igual que la línea en el suelo — **Track → Varios colores de track**: por distancia, altura, velocidad, pendiente o un sensor, con cambios de color nítidos o degradado, además de **color por día** y los colores de las etapas. En parapente, «por altura» muestra de un vistazo dónde sube el parapente en la térmica y dónde planea. Las líneas de plomada toman el color de su punto. Cada cambio en los tramos de color se ve al instante, también en el vídeo.
 
 **Los tracks IGC suben solos al aire (desde v0.9.793):** si cargas un vuelo de parapente, planeador o ala delta como archivo IGC en un proyecto, la app activa sola el relieve y «Vuelo en el aire»; no hay que ajustar nada. Si lo desactivas, se queda desactivado en ese proyecto. En los vuelos de dron DJI, un aviso recuerda el interruptor, porque los vuelos de cámara bajos suelen verse mejor en el suelo. El interruptor está en **Mapa → 3D en el mapa → Ruta**; aparece en los vuelos (IGC, dron) y siempre que esté activado. 
+
+**Los vuelos de dron se reconocen (desde el 10.11.2026):** el archivo de subtítulos de un dron DJI (`.srt` junto al vídeo), los archivos GPX y KML de apps de dron (AirData, Litchi, DroneLink, DroneDeploy, UgCS, DJI, Antigravity …) y las misiones de waypoints de DJI se guardan en el archivo con el medio de transporte **Dron**; el asistente de importación también lo propone. Si abres un vuelo así en un proyecto, el punto en movimiento se convierte una vez por sí solo en un **dron 3D**; un aviso te lo dice y **⌘Z** lo deshace. Si después eliges otra cosa, se queda así en ese proyecto. Los vuelos de la app de Antigravity reciben directamente el dron 360°. El asistente de vídeo también mantiene el dron como punto en movimiento en un vuelo de dron, elijas el estilo que elijas (salvo que apagues el punto). Una ruta a pie en la que también volaste («Ruta con dron») sigue siendo una ruta a pie.
 
 **Punto móvil según la actividad (desde 19.10.2026):** En el editor de track, bajo el punto móvil, activa **«Símbolo según la actividad (del cuaderno de ruta)»**. El punto muestra entonces lo que el cuaderno de ruta detectó en ese lugar: **coche** en un trayecto en coche (la **moto** si la ruta figura en el archivo como ruta en moto), **barco** en un ferri (el ferri con el aspecto de vehículo «Símbolo»), **senderista** en caminatas y paseos, **bicicleta**, **corredor** y **kayak** en deportes acuáticos. Las pausas y las noches mantienen el símbolo anterior. En cada cambio el punto se encoge un instante y vuelve a crecer; la línea sigue siendo una sola. Los tramos que se verían menos de un segundo en el vídeo (el minuto del aparcamiento al mirador) mantienen el símbolo anterior para que el punto no parpadee; la nota bajo el interruptor dice qué símbolos faltan por eso, y con un vídeo más largo aparecen. Vale en la vista previa, al desplazar, en el vídeo y para el punto en el aire. Siguen teniendo prioridad el vehículo de una etapa planificada, tu imagen propia y «Mostrar el punto» desactivado. Sin cuaderno de ruta (ruta fuera del archivo, sin marcas de tiempo, varias rutas seguidas) el interruptor aparece gris, con el motivo al lado.
 
@@ -3722,6 +3728,7 @@ Al abrir una ruta del archivo, el cuaderno aparece **debajo del mapa**: a la izq
 - **Acoplado al mapa:** clic en una entrada (lista o línea de tiempo) resalta ese tramo en el track y hace zoom. Clic en el track selecciona la entrada a la que pertenece el punto. Al mover el ratón sobre el track o el perfil de altura, una marca con la hora lo sigue en la línea de tiempo. **Esc** quita la selección.
 - **«mostrar todo»** recupera las paradas cortas y los tramos en bruto de la detección; **↻** vuelve a detectar el cuaderno; **▾** lo pliega (se recuerda).
 - **Deporte acuático:** si la ruta está en el archivo como barco/kayak/SUP, sus tramos lentos se llaman deporte acuático en vez de caminata.
+- **Vuelo (desde el 11.11.2026):** si la ruta está en el archivo como dron (los vuelos de dron se reconocen), todos los tramos en movimiento se llaman vuelo en vez de trayecto o caminata, con la duración del vuelo en el resumen. Con «Símbolo según la actividad», el punto en movimiento muestra ahí el dron.
 - **«supuesto»** marca las entradas en las que la detección tuvo que suponer, por ejemplo conducción lenta por pueblos que parece ir en bici.
 - La cabecera lo resume: «99 h 5 min trayecto · 2 ferris · 47 paseos · 214 pausas · 37 pernoctas».
 
@@ -3986,6 +3993,13 @@ Casi siempre un cortafuegos, una VPN, un proxy de empresa o una protección web 
 mapas. Desde la v0.9.804 la exportación arranca igualmente y te avisa si faltan partes del mapa. Si aun así falla, inicia
 la exportación sin VPN o con la protección web desactivada un momento, o elige otro estilo de mapa (p. ej. Satélite). Más
 abajo, en el aviso „El servicio de mapas … no responde“.
+
+### Un vídeo se reproduce en la vista grande solo con sonido, sin imagen: ¿qué hago?
+No hay que ajustar nada: desde la v0.9.858 GPS Studio lo detecta y convierte el vídeo una vez en una copia reproducible
+(unos segundos, según la duración); después se reproduce con imagen. Ocurre sobre todo en Windows con vídeos en HEVC
+(H.265), como los que graban en 4K las cámaras DJI (p. ej. Osmo Pocket 3), GoPro y muchos móviles: Windows no puede
+mostrar HEVC sin las «Extensiones de vídeo HEVC» de Microsoft Store. Tu original no se toca; para la animación y la
+exportación de vídeo GPS Studio usa sus propios fotogramas, así que ahí no ocurre.
 
 ### ¿Qué archivos puedo importar?
 Además de GPX, también FIT (Garmin, Wahoo, Coros, Suunto), TCX, KML/KMZ, GeoJSON, NMEA, IGC (registradores de vuelo), los

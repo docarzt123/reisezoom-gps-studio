@@ -52,13 +52,13 @@ FAHRT_ZU_FUSS_M = 1000.0    # „Fahrt“ unter 1 km mit Schritttempo, ohne Fahr
 HOECHSTER_HUB_M = 150.0            # „Höchster Punkt“ nur ab so viel Höhe über dem tiefsten Punkt des Tages (wie highlights.HUB_MIN_M)
 HOECHSTER_FAHRT_AB_M = 1000.0      # „Höchster Punkt“ auf einer Fahrt nur ab dieser Höhe (Pass) — 600 m auf der Autobahn sagen nichts
 PUNKT_ARTEN = ("hoechster_punkt", "start", "ziel", "punkt", "poi")
-HAND_ARTEN = ("fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause")   # Q12: Art ändern
+HAND_ARTEN = ("fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "flug", "pause")   # Q12: Art ändern (11.11.2026 + Flug)
 BEWEGT = ("gehen", "laufen", "rad", "fahrt", "uebersetzen")
 STILL = ("halt", "pause")
 # Von Hand gesetzte Arten (Q12) und ihre Familie für die Nachbarschaft (Q8): Neben einer
 # bestätigten „Wanderung" ist ein „unsicher" genauso Gehen wie neben rohem „gehen".
 # Wassersport ist eine eigene Familie — er kommt nur von Hand oder über den Hinweis der Tour.
-FAMILIE = {"wanderung": "gehen", "spaziergang": "gehen", "wassersport": "wassersport"}
+FAMILIE = {"wanderung": "gehen", "spaziergang": "gehen", "wassersport": "wassersport", "flug": "flug"}
 
 
 # ── Zeit ────────────────────────────────────────────────────────────────────
@@ -211,6 +211,9 @@ def punkte_erzeugen(points, tage: Optional[List[dict]] = None) -> List[dict]:
 
 def _prior(aktivitaet: Optional[str]) -> str:
     a = (aktivitaet or "").lower()
+    # 11.11.2026 (Klicktest: ein Drohnenflug hieß „Fahrt“) — sagt die Tour Drohne/Flug, ist alles Bewegte ein Flug
+    if any(w in a for w in ("drohne", "drone", "gleitschirm", "paraglid", "flug", "flight")):
+        return "flug"
     # Marc, 13.09.2026 (Kajak-Tour als „Wanderung"): „Wanderung auf dem Wasser ist
     # sehr unwahrscheinlich" — sagt die Tour Boot/Kajak/SUP, ist alles Langsame
     # Wassersport. Die Art je Eintrag ändern kommt mit Stufe 2.
@@ -227,6 +230,8 @@ def _prior(aktivitaet: Optional[str]) -> str:
 def _anzeige_art(e: dict, prior: str, einst: dict) -> str:
     if prior == "wassersport" and e["art"] in ("gehen", "laufen", "rad", "unsicher"):
         return "wassersport"
+    if prior == "flug" and e["art"] in ("gehen", "laufen", "rad", "fahrt", "unsicher"):
+        return "flug"
     if e["art"] != "gehen":
         return e["art"]
     if prior:
@@ -418,7 +423,7 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
         m = k + schritt
         while 0 <= m < len(folge):
             art = FAMILIE.get(folge[m]["art"], folge[m]["art"])   # Hand-Arten → Familie
-            if art in BEWEGT or art == "wassersport":
+            if art in BEWEGT or art in ("wassersport", "flug"):
                 return art
             if art == "unsicher":
                 return None
@@ -452,7 +457,7 @@ def eintraege(bereiche: List[dict], points=None, aktivitaet: Optional[str] = Non
             neu = (anders[0] if anders else None) if schnell else (zu_fuss[0] if zu_fuss else None)
         if neu == "gehen" and schnell:
             neu = "laufen" if lauf_tour else "rad"
-        if neu is None and schnell and not links and not rechts and prior != "wassersport":
+        if neu is None and schnell and not links and not rechts and prior not in ("wassersport", "flug"):
             neu = "laufen" if lauf_tour else "rad"
         if neu and neu != "uebersetzen":
             e["art"] = neu

@@ -3972,13 +3972,13 @@ function mountGpxInspect(body, headerActions) {
   // → Eintrag gewählt · Hover → Marke im Zeitstrahl · Esc hebt auf.
   const _LB_FARBE = { fahrt: "#3b82f6", uebersetzen: "#14b8a6", gehen: "#22c55e", wanderung: "#22c55e",
                       spaziergang: "#4ade80", rad: "#f97316", laufen: "#eab308", pause: "#6b7280",
-                      uebernachtung: "#4b5563", halt: "#9ca3af", unsicher: "#8b8fa3", wassersport: "#0ea5e9" };
+                      uebernachtung: "#4b5563", halt: "#9ca3af", unsicher: "#8b8fa3", wassersport: "#0ea5e9", flug: "#e879f9" };
   const _LB_ICON = { fahrt: "🚗", uebersetzen: "⛴", gehen: "🚶", wanderung: "🥾", spaziergang: "🚶", rad: "🚴",
-                     laufen: "🏃", pause: "☕", uebernachtung: "🌙", halt: "⏸", unsicher: "❓", wassersport: "🛶", punkt: "📍", poi: "⭐",
+                     laufen: "🏃", pause: "☕", uebernachtung: "🌙", halt: "⏸", unsicher: "❓", wassersport: "🛶", flug: "✈", punkt: "📍", poi: "⭐",
                      hoechster_punkt: "⛰", start: "🏁", ziel: "🏁" };
   const _LB_ARTEN_DE = { fahrt: "Fahrt", uebersetzen: "Fähre", gehen: "Gehen", wanderung: "Wanderung",
                          spaziergang: "Spaziergang", rad: "Rad", laufen: "Laufen", pause: "Pause",
-                         uebernachtung: "Übernachtung", halt: "Halt", unsicher: "Rad oder Laufen?", wassersport: "Wassersport",
+                         uebernachtung: "Übernachtung", halt: "Halt", unsicher: "Rad oder Laufen?", wassersport: "Wassersport", flug: "Flug",
                          hoechster_punkt: "Höchster Punkt", start: "Start", ziel: "Ziel", punkt: "Eigener Punkt", poi: "Sehenswürdigkeit" };
   let _LB_H_AKTIV = 156;                   // Höhe des Zeitstrahls (px) — je nach sichtbaren Spuren (Stufe 4)
   let _LB_ZEILEN_AKTIV = { tage: [3, 17], bewegung: [23, 87], punkte: [91, 109], pois: [113, 131], achse: [135, 153] };
@@ -4220,7 +4220,7 @@ function mountGpxInspect(body, headerActions) {
     if (!_lb) { el.innerHTML = ""; return; }
     const z = _lb.zusammenfassung || {};
     const teile = [];
-    const mitDauer = ["fahrt", "rad", "laufen"], mitZahl = ["uebersetzen", "wanderung", "spaziergang", "gehen", "wassersport", "pause", "uebernachtung", "unsicher"];
+    const mitDauer = ["fahrt", "flug", "rad", "laufen"], mitZahl = ["uebersetzen", "wanderung", "spaziergang", "gehen", "wassersport", "pause", "uebernachtung", "unsicher"];
     for (const art of mitDauer) if (z[art]) teile.push(`<span class="gpxi-lb-chip" style="--c:${_lbFarbe(art)}">${_lbSym(art, 13)} ${_lbDauer(z[art].dauer_s)} ${_lbArt(art)}</span>`);
     for (const art of mitZahl) if (z[art]) {
       const n = z[art].anzahl;
@@ -4518,7 +4518,7 @@ function mountGpxInspect(body, headerActions) {
   // Änderung geht über `einteilung_aktion` (Handarbeit überlebt jede Neuberechnung);
   // der Stand der Einteilung steckt im Undo-Schnappschuss des Inspektors, ⌘Z
   // schreibt ihn über `einteilung_stand_setzen` zurück.
-  const _LB_HAND_ARTEN = ["fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause"];
+  const _LB_HAND_ARTEN = ["fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "flug", "pause"];   // 11.11.2026 + Flug
   let _lbStand = null;       // vollständiger Stand der Einteilung „Bewegung" (für ⌘Z)
   let _lbEinst = null;       // { global, tour } — Einstellungen (für ⌘Z)
   let _lbPunktModus = false; // nächster Kartenklick setzt einen eigenen Punkt

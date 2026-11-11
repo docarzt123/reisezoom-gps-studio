@@ -93,7 +93,8 @@ log = logging.getLogger(__name__)
 
 # 2 (v0.9.501): FIT-Tour-Ebene. Der Sprung von 1 loest ein einmaliges
 # Neu-Einlesen aller FIT-Dateien aus - siehe `_migrate_fit_neu_lesen`.
-SCHEMA_VERSION = 2
+# 3 (10.11.2026): Fortbewegung „drohne“ - siehe `_migrate_drohne`.
+SCHEMA_VERSION = 3
 
 # Welche Dateien eingelesen werden. GPX direkt, der Rest über die
 # Import-Schicht (FIT/NMEA/KML/KMZ/TCX/GeoJSON → GPX im Cache).
@@ -605,6 +606,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     _migrate_collection_items(conn)
     _migrate_error_kind(conn)
     _migrate_fit_neu_lesen(conn, schema_alt)
+    _migrate_drohne(conn, schema_alt)
     _migrate_tag_lokal(conn)
     _migrate_status_anhang(conn)
     if "speicher" not in have:
@@ -755,6 +757,27 @@ def _migrate_fit_neu_lesen(conn: sqlite3.Connection, schema_alt: int) -> None:
     if cur.rowcount:
         log.info("library: %d FIT-Touren zum Neu-Einlesen vorgemerkt "
                  "(Tour-Ebene, v0.9.501)", cur.rowcount)
+
+
+def _migrate_drohne(conn: sqlite3.Connection, schema_alt: int) -> None:
+    """Einmalig (10.11.2026, Schema 2 → 3): Drohnenflüge in bestehenden Archiven als „drohne“ einordnen.
+
+    Der Scan öffnet unveränderte Dateien nicht — ohne diesen Schritt blieben schon eingelesene Flüge bei der alten
+    Schätzung (meist „motorrad“ oder „auto“ nach dem Tempo). DJI-Untertitel und KML (DJI-Mission) werden einmal neu
+    gelesen (wenige, kleine Dateien); bei GPX steht der Ersteller schon in `source` — dort reicht ein Umstellen. Von Hand
+    gewählte Fortbewegungen (`track_meta.activity_user`) bleiben, wie sie sind."""
+    if schema_alt <= 0 or schema_alt >= 3:
+        return      # frische Datenbank oder schon migriert
+    n1 = conn.execute("UPDATE tracks SET mtime = 0 WHERE lower(filename) LIKE '%.srt' "
+                      "OR lower(filename) LIKE '%.kml'").rowcount or 0
+    n2 = 0
+    for r in conn.execute("SELECT path, source FROM tracks WHERE source != '' AND activity != 'drohne'").fetchall():
+        if _drohnen_quelle(r["source"] or "", ""):
+            n2 += conn.execute(
+                "UPDATE tracks SET activity = 'drohne' WHERE path = ? AND NOT EXISTS (SELECT 1 FROM track_meta m "
+                "WHERE m.geo_hash = tracks.geo_hash AND COALESCE(m.activity_user, '') != '')", (r["path"],)).rowcount or 0
+    if n1 or n2:
+        log.info("library: Drohne — %d SRT/KML zum Neu-Einlesen vorgemerkt, %d Flüge aus Drohnen-Apps umgestellt", n1, n2)
 
 
 # 19.10.2026 — Der Tourtag (Datumsbaum, Zeitraum, Monats-/Wochen-Statistik) kommt
@@ -1086,6 +1109,18 @@ def _iter_files(folder: str, recursive: bool) -> Iterable[Path]:
 
 _KOMOOT_RE = re.compile(r"komoot\.[a-z]{2,3}/tour/(\d+)", re.I)
 _CREATOR_RE = re.compile(r'creator="([^"]{1,60})"', re.I)
+# 10.11.2026 (Marc: „DJI-Erkennung und Anti-Gravity-Erkennung“) — Drohnenflüge an der Datei erkennen: Ersteller einer
+# Drohnen-App (AirData, Litchi, DroneLink, DroneDeploy, UgCS, DJI, Antigravity …) oder DJI-Missionsdatei (`wpml:`).
+_DROHNEN_APP_RE = re.compile(r"\b(airdata|litchi|dronelink|drone ?deploy|ugcs|dji|antigravity|dronelogbook|open ?dronelog|"
+                             r"drone ?harmony|pix4d ?capture|map ?pilot)\b", re.I)
+
+
+def _drohnen_quelle(src: str, head: Optional[str]) -> bool:
+    """Stammt die Datei aus einer Drohnen-App oder ist sie eine DJI-Drohnenmission?"""
+    if src and _DROHNEN_APP_RE.search(src):
+        return True
+    h = head or ""
+    return "xmlns:wpml" in h or "drone-dji:" in h
 
 
 def _peek_source(path: Path, head: "str | None" = None) -> tuple:
@@ -1134,6 +1169,11 @@ _ACT_WORDS = [
     ("auto",        ("autofahrt", "roadtrip", "road trip", "wohnmobil", "camper")),
     ("boot",        ("kajak", "kanu", "paddel", "boot", "kayak", "sup ", "segeln")),
     ("ski",         ("ski", "langlauf", "skitour", "schneeschuh", "snowboard")),
+    # 10.11.2026 (Marc: „DJI-Erkennung und Anti-Gravity-Erkennung“) — Drohnenflüge. Erkannt wird vor allem an der
+    # Datei (DJI-Untertitel, Flugprotokolle, Drohnen-Apps → `geraet` in der Tour-Ebene, fitmeta.aktivitaet); der Name
+    # ist nur der letzte Hinweis. Steht ganz hinten: „Wanderung mit Drohne“ bleibt eine Wanderung.
+    ("drohne",      ("drohne", "drohnenflug", "drone flight", "dji flight", "quadrokopter", "quadcopter",
+                     "antigravity", "vuelo de dron")),
 ]
 
 # Die Arten, die von Hand wählbar sind — dieselbe Liste, die auch geschätzt wird.
@@ -1154,6 +1194,43 @@ ACT_GROUPS = {
 # Im Filter kommen sie als `grp:rad` / `grp:fuss` an — ein eigenes Präfix, damit
 # sie sich nie mit einer echten Art verwechseln lassen (es GIBT eine Art „rad").
 GROUP_PREFIX = "grp:"
+
+
+def _kopf_lesen(path) -> str:
+    """Die ersten 4 KB einer Fremdformat-Datei (KML/KMZ-Text), für die Drohnen-Erkennung; Fehler → leer."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            return fh.read(4096)
+    except OSError:
+        return ""
+
+
+def aktivitaet_erkennen(path, name: str, distance_m: float, moving_s: float, tour_meta=None, head: Optional[str] = None) -> str:
+    """Fortbewegung einer Datei, Rangfolge: Tour-Ebene der Datei (FIT-Sportart, Gerät „Drohne“ aus DJI-Untertiteln) →
+    Drohnen-App/-Mission (Ersteller, `wpml:`) → Name und Tempo. Dieselbe Regel im Archiv und im Import-Assistenten
+    (10.11.2026). `head` = Dateianfang, falls schon gelesen."""
+    a = _fitmeta.aktivitaet(tour_meta)
+    if a:
+        return a
+    p = Path(path)
+    if head is None:
+        head = _kopf_lesen(p) if p.suffix.lower() in (".gpx", ".kml") else ""
+    c = _CREATOR_RE.search(head or "")
+    if _drohnen_quelle(c.group(1).strip() if c else "", head):
+        return "drohne"
+    return _guess_activity(name, distance_m, moving_s)
+
+
+def drohnen_datei(path) -> dict:
+    """Ist die Datei selbst als Drohnenflug erkennbar (Ersteller einer Drohnen-App, DJI-Mission)? Für Tracks außerhalb
+    des Archivs (Animator, 10.11.2026). Liest höchstens 4 KB, nur GPX/KML. → {drohne, ersteller}"""
+    p = Path(path)
+    if p.suffix.lower() not in (".gpx", ".kml"):
+        return {"drohne": False, "ersteller": ""}
+    head = _kopf_lesen(p)
+    c = _CREATOR_RE.search(head or "")
+    ersteller = c.group(1).strip() if c else ""
+    return {"drohne": _drohnen_quelle(ersteller, head), "ersteller": ersteller[:80]}
 
 
 def _guess_activity(name: str, distance_m: float, moving_s: float) -> str:
@@ -1398,6 +1475,8 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     moving = float(stats.moving_time_s or 0.0) or dur
     dist = float(stats.distance_m or 0.0)
     src, src_url = _peek_source(path, head=(text[:4096] if text is not None else None))
+    # KML ist Text (DJI-Mission `wpml:`); andere Fremdformate nicht extra öffnen (NAS: jede Öffnung ein Netz-Roundtrip)
+    _kopf_fuer_drohne = text[:4096] if text is not None else (_kopf_lesen(path) if path.suffix.lower() == ".kml" else "")
     name = (stats.name or path.stem).strip()
     _rec, _rec_src = _recorded_guess(pts, stats, name)
     name = name_ohne_status(name)   # 19.10.2026 — erst nach der Erkennung gemacht/geplant, die den Anhang braucht
@@ -1443,6 +1522,7 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         # lesen können. Die Hand-Korrektur kommt später in `_apply_meta` obendrauf
         # und schlägt beide — sonst überschriebe jeder Neu-Scan die Korrektur.
         "activity": _fitmeta.aktivitaet(getattr(stats, "tour_meta", None))
+                    or ("drohne" if _drohnen_quelle(src, _kopf_fuer_drohne) else "")   # 10.11.2026
                     or _guess_activity(name, dist, moving),
         "fitmeta": (json.dumps(stats.tour_meta, separators=(",", ":"))
                     if getattr(stats, "tour_meta", None) else ""),

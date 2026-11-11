@@ -185,6 +185,10 @@ def aktivitaet(meta: Optional[dict]) -> str:
     """
     if not meta:
         return ""
+    # 10.11.2026 — Drohnenflüge: andere Formate (DJI-Untertitel …) legen das Gerät in die Tour-Ebene
+    g = meta.get("geraet")
+    if isinstance(g, dict) and g.get("art") == "drohne":
+        return "drohne"
     sp = (meta.get("sport") or {})
     sport = sp.get("sport") or (meta.get("session") or {}).get("sport")
     sub = sp.get("sub_sport") or (meta.get("session") or {}).get("sub_sport")

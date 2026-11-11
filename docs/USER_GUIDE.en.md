@@ -445,21 +445,23 @@ line style (solid, dashed, dotted, dash-dot, tube) with spacing, shadow, glow, t
 reduction in percent and the **running dot** (show, ball, arrow in travel direction or a
 vehicle, size; "arrow smoothing" applies to all arrows). You pick the shape as a picture tile; below it,
 **Two tabs, 2D and 3D (since 2026-11-08):** above the tiles you choose **2D** (ball, glowing dot, arrow, the vehicles as picture
-or symbol, your own picture — with the vehicle look below) or **3D** (the 20 vehicles as 3D models; with the 3D tube also comet
-arrow, comet, 3D arrow and 3D puck first; car shape and motion speed in the track editor). Clicking a tab only shows its tiles;
+or symbol, your own picture — with the vehicle look below) or **3D** (the 21 vehicles as 3D models; with the 3D tube also comet
+arrow, comet, 3D arrow and 3D puck first; car shape, drone type and motion speed in the track editor). Clicking a tab only shows its tiles;
 a tile makes the choice.
 **"Vehicle look (all vehicles)"** offers twelve tiles (2D tab only): badge (the drawn symbol), **symbol** (since v0.9.792, see below) or photorealistic, pencil &
 watercolour, comic, pictogram, engraving, neon, pixel art, blueprint, paper, clay. These pictures are drawn
 from above, lie flat on the map and turn with the direction of travel — on planned stages too. **Symbols for every way of
-travelling (since v0.9.792):** 20 simple top-down symbols — car, motorbike, camper van, bus, bike, mountain bike, hiker,
-runner, horse rider, ski, train, boat, sailboat, ferry, kayak, SUP, plane, helicopter, paraglider, hot-air balloon. They
-lie flat on the map and turn with the route. **3D model (new, 3D tab):** the same 20 kinds as real 3D vehicles that stand on the
+travelling (since v0.9.792):** 21 simple top-down symbols — car, motorbike, camper van, bus, bike, mountain bike, hiker,
+runner, horse rider, ski, train, boat, sailboat, ferry, kayak, SUP, plane, helicopter, drone, paraglider, hot-air balloon. They
+lie flat on the map and turn with the route. **3D model (new, 3D tab):** the same 21 kinds as real 3D vehicles that stand on the
 map, turn with the camera and tilt on slopes; hikers, runners, cyclists, riders, paddlers and wheels move with the ride
 (along the distance covered; when the dot stops — photo stop, end — the figures settle into a resting pose: the hiker
-stands upright, pedals level, paddle still; the helicopter rotor and the balloon's burner keep going). **Motion speed (3D models)** in the track editor (0.25–3×) sets
+stands upright, pedals level, paddle still; the helicopter rotor, the drone's rotors and the balloon's burner keep going). **Motion speed (3D models)** in the track editor (0.25–3×) sets
 the base pace. Two colours of your own come from **"Vehicle colours" → Fixed colours** (body and accent), the size from
 **Size**. For the car, **"Car shape"** offers nine: estate, small car, saloon, SUV, sports car, convertible (with driver),
-pick-up, minibus, off-roader. They are coloured like the symbols (line colour or fixed colours). Also in
+pick-up, minibus, off-roader. For the **drone** (since 2026-11-10) the same row is called **"Drone type"** with six
+shapes: travel drone (folding arms), mini with prop guards, FPV with ducted props, FPV racer, 360° drone (one lens on top,
+one below) and pro camera drone. They are coloured like the symbols (line colour or fixed colours). Also in
 the air and on the 3D tube (head “Like the moving dot”). Needs the free maps — with Mapbox and for further tours the
 symbol is shown. Below you choose the **symbol colours** (for all of them): **Line colour**
 uses the tour's colour with a matching accent, **Fixed colours** two colours of your choice (body and accent, “Default”
@@ -747,7 +749,7 @@ Mapbox permits **publishing videos** containing its map content **only with purc
 ### Ask GPS Studio — search the manual and the buttons (⌘K)
 Looking for a switch, or not sure what something is called? Press **⌘K** (Windows/Linux: **Ctrl+K**) or click **Ask GPS Studio …** at the top right (also under **Help → Ask GPS Studio …** and in the **Quick Start** window). Type your question the way you would ask it — “how do I change the date of many photos”, “camera follows the track”, “video in 9:16”. GPS Studio searches this manual and the labels of all buttons and shows the matching places, with the found words highlighted. It runs on your computer, without internet and without an AI service.
 
-- **Show me** jumps right there: GPS Studio switches to the right module, opens the section (or “More”) and briefly highlights the control. If the place first needs a loaded tour or selected photos, the result tells you — for example “Change capture time …”, which only appears once photos are selected.
+- **Show me** jumps right there: GPS Studio switches to the right module, opens the section (or “More”) and briefly highlights the control. Fields in the track editor (moving dot, line, tube …) are opened for you (since 2026-11-11); if a moving-dot field is hidden right now — say “Drone type” while the dot isn't a drone — the moving-dot shape lights up, where you bring it back. If the place first needs a loaded tour or selected photos, the result tells you — for example “Change capture time …”, which only appears once photos are selected.
 - A **manual hit** (click it or press **↵**) opens the manual at exactly that section.
 - **↑ ↓** pick a result, **Esc** closes the search.
 
@@ -1476,9 +1478,9 @@ start and destination are then prefilled with the end of the tour before and the
 gets its own row (🗺, ✎ edits it again) and runs like any tour; the running dot shows the vehicle of the current
 section. The stage belongs to the project (it also travels in the `.rzproj`) and has no clock time.
 
-**Means of transport.** At the very top of the editor is the **“Travelling by”** row with 20 symbols (since v0.9.792): car,
+**Means of transport.** At the very top of the editor is the **“Travelling by”** row with 21 symbols (since v0.9.792, drone since 2026-11-10): car,
 motorbike, camper van, bus, bike, mountain bike, hiker, runner and horse rider follow roads and paths; ski, train, boat,
-sailboat, ferry, kayak, SUP, plane, helicopter, paraglider and hot-air balloon go in an arc (ski with heights from the
+sailboat, ferry, kayak, SUP, plane, helicopter, drone, paraglider and hot-air balloon go in an arc (ski with heights from the
 terrain, water and air flat). A click applies to all sections — or, with a point selected, from that point on. Single
 sections are changed in the list between two stops; there you can also switch off “Road” (“Arc” for the arc ones), and
 the section becomes a free curve. The small bar at the selected point always stays inside the map; drag it aside by its
@@ -2080,8 +2082,11 @@ A folder you remove only disappears from the stock; the files stay where they ar
 **View large:** double-click a tile, click the image on the right or press **space** to open the photo in the whole
 window. **← / →** browse in raster order, **Esc** closes. Videos play there with sound and the usual controls;
 **📸 Save still image** saves the frame shown as JPEG (you choose where; capture time and place of the video come
-along). At the bottom: **Show in Finder** and **Open with default app**. *Windows:* if a video does not play, the free
-“HEVC Video Extensions” are usually missing — the app shows a short guide and opens the Microsoft Store page.
+along). At the bottom: **Show in Finder** and **Open with default app**. If the large view
+can't play a video itself (on Windows often HEVC/H.265, e.g. from DJI, GoPro or phone cameras, otherwise AVI or MKV),
+GPS Studio converts it once into a playable copy — a few seconds with a progress note, then it plays right away. The copy
+lives in the clip cache, your original stays untouched. *Windows:* if that fails too, the app shows a short guide to the
+“HEVC Video Extensions” from the Microsoft Store.
 
 **Place:** the small map on the right is always there. Without a location you click the map; with one you drag the
 dot. Before writing you can add altitude and viewing direction and accept the suggested address.
@@ -2776,6 +2781,8 @@ tours). If something is missing, the app tells you when you switch it on. Also a
 **Colours by height, speed … in the air too (since v0.9.793):** the line in the air is coloured exactly like the line on the ground — **Track → Multiple track colours**: by distance, height, speed, gradient or a sensor, with hard colour changes or a smooth gradient, plus **colour per day** and the stage colours. For a paraglider, „by height“ shows at a glance where the glider climbs in a thermal and where it glides. The plumb lines take the colour of their point. Every change to the colour stops shows at once, in the video too.
 
 **IGC tracks go into the air by themselves (since v0.9.793):** load a paragliding, gliding or hang-gliding flight as an IGC file into a project and the app switches terrain and “Flight in the air” on by itself — nothing to set. If you switch it off, it stays off in that project. For DJI drone flights a hint points to the switch, because low camera flights often look better on the ground. The switch is under **Map → 3D on the map → Route**; it appears for flights (IGC, drone) and whenever it is on. 
+
+**Drone flights are recognised (since 2026-11-10):** the subtitle file of a DJI drone (`.srt` next to the video), GPX and KML files from drone apps (AirData, Litchi, DroneLink, DroneDeploy, UgCS, DJI, Antigravity …) and DJI waypoint missions are filed in the archive with the mode of travel **Drone** — the import assistant suggests it too. Open such a flight in a project and the moving dot becomes a **3D drone** once by itself; a note tells you, **⌘Z** undoes it. If you then pick something else, it stays that way in this project. Flights from the Antigravity app get the 360° drone straight away. The video assistant also keeps the drone as the moving dot for a drone flight, whichever style you pick (unless you switch the dot off). A hike on which you also flew (“Hike with drone”) stays a hike.
 
 **Moving dot by activity (since 2026-10-19):** In the track editor, under the moving dot, switch on **“Symbol by activity (from the logbook)”**. The dot then shows what the logbook detected at that spot: **car** for a drive (the **motorbike** if the tour is filed as a motorbike tour in the archive), **boat** on a ferry (the ferry with the vehicle look “Symbol”), **hiker** for hikes and walks, **bicycle**, **runner** and **kayak** for water sports. Breaks and overnight stops keep the symbol before them. At each change the dot shrinks briefly and grows again; the line stays one line. Sections that would be on screen for less than a second (the minute from the car park to the viewpoint) keep the previous symbol so the dot doesn't flicker — the hint below the switch says which symbols are left out for that reason; a longer video shows them. This applies in the preview, while scrubbing, in the video and to the dot in the air. A planned stage's vehicle, your own image and “Show moving dot” off still take precedence. Without a logbook (tour not in the archive, no timestamps, several tours in a row) the switch is grey, with the reason next to it.
 
@@ -3658,6 +3665,7 @@ When you open a tour from the archive, the logbook appears **below the map**: a 
 - **Coupled with the map:** click an entry (list or timeline) to highlight that part on the track and zoom to it. Click the track to select the entry the point belongs to. Move the mouse over the track or the elevation profile and a marker with the time follows in the timeline. **Esc** clears the selection.
 - **“show everything”** brings short stops and the raw ranges of the recognition back; **↻** recognises the logbook again; **▾** collapses it (remembered).
 - **Water sport:** if the tour is filed as boat/kayak/SUP in the archive, its slow parts are called water sport instead of hike.
+- **Flight (since 2026-11-11):** if the tour is filed as a drone in the archive (drone flights are recognised), all moving parts are called flight instead of drive or hike — with the flight time in the summary. With “Symbol by activity” the moving dot shows the drone there.
 - **“assumed”** marks entries where the recognition had to guess — slow driving through towns that looks like cycling, for example.
 - The head line sums it up: “99 h 5 min drive · 2 ferries · 47 walks · 214 breaks · 37 overnight stays”.
 
@@ -3924,6 +3932,13 @@ Usually a firewall, a VPN, a company proxy or a web protection cuts the connecti
 the export starts anyway and tells you when map parts are missing. If it still fails, start the export without the VPN
 or with the web protection briefly off, or choose another map style (e.g. Satellite). More below under the note „The map
 service … is not responding“.
+
+### A video in the large view only plays with sound, no picture – what can I do?
+Nothing to set: since v0.9.858 GPS Studio notices this itself and converts the video once into a playable copy (a few
+seconds, depending on its length); then it plays with picture. It happens mostly on Windows with videos in HEVC (H.265),
+as recorded in 4K by DJI cameras (e.g. Osmo Pocket 3), GoPro and many phones — Windows can't show HEVC without the
+“HEVC Video Extensions” from the Microsoft Store. Your original stays untouched; for the animation and the video export
+GPS Studio uses its own still frames anyway, so the problem doesn't occur there.
 
 ### Which files can I read in?
 Besides GPX also FIT (Garmin, Wahoo, Coros, Suunto), TCX, KML/KMZ, GeoJSON, NMEA, IGC (flight recorders), the subtitle

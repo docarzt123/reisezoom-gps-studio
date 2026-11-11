@@ -74,10 +74,10 @@ function mountAnimator(body, headerActions, opts) {
   // 05.10.2026 — Laufpunkt als Fahrzeug-Symbol (_fahrzeugBild)
   const FAHRZEUGE = ["wanderer", "laeufer", "rad", "auto", "motorrad", "boot", "zug", "flugzeug",   // 11.10.2026 + Läufer
     // 13.10.2026 (Marc: Symbole je Bewegungsart) — gibt es nur als Symbol (ui/js/bewegung.js), nicht als Plakette/Bild
-    "wohnmobil", "bus", "mountainbike", "reiter", "ski", "segelboot", "faehre", "kajak", "sup", "hubschrauber", "gleitschirm", "heissluftballon"];
+    "wohnmobil", "bus", "mountainbike", "reiter", "ski", "segelboot", "faehre", "kajak", "sup", "hubschrauber", "drohne", "gleitschirm", "heissluftballon"];   // 10.11.2026 + Drohne
   const FAHRZEUG_NAMEN = { wanderer: "Wanderer", laeufer: "Läufer", rad: "Fahrrad", auto: "Auto", motorrad: "Motorrad", boot: "Boot", zug: "Zug", flugzeug: "Flugzeug",
     wohnmobil: "Wohnmobil", bus: "Bus", mountainbike: "Mountainbike", reiter: "Reiter", ski: "Ski", segelboot: "Segelboot", faehre: "Fähre",
-    kajak: "Kajak", sup: "SUP", hubschrauber: "Hubschrauber", gleitschirm: "Gleitschirm", heissluftballon: "Heißluftballon" };
+    kajak: "Kajak", sup: "SUP", hubschrauber: "Hubschrauber", drohne: "Drohne", gleitschirm: "Gleitschirm", heissluftballon: "Heißluftballon" };
   const FZ_NUR_SYMBOL = new Set(FAHRZEUGE.slice(8));
   // 07.10.2026 (Marc: „von jedem Verkehrsmittel 10 Stück … mehr Comic, realistischer, handgezeichnet, passend zu den
   // Kartenstilen“) — Fahrzeug-Aussehen: „plakette“ = das gezeichnete Symbol wie bisher, sonst ein Bild aus
@@ -842,6 +842,8 @@ function mountAnimator(body, headerActions, opts) {
               <input type="range" id="anim-dot-modell-tempo" min="0.25" max="3" step="0.25" value="1" hidden>
               <!-- 08.11.2026 (Marc: „hatte die Web-Version nicht mehrere Autos?“) — Form des 3D-Autos (rz-modelle VARIANTEN.auto) -->
               <input type="hidden" id="anim-dot-modell-auto" value="auto">
+              <!-- 10.11.2026 (Marc: „verschiedene Drohnen-Modelle“) — Form der 3D-Drohne (rz-modelle VARIANTEN.drohne) -->
+              <input type="hidden" id="anim-dot-modell-drohne" value="drohne">
               <select id="anim-dot-fz-stil" class="select" hidden>
                 ${FZ_STILE.map(s => `<option value="${s}">${t("animator.dot.fzs_" + s, FZ_STIL_NAMEN[s])}</option>`).join("")}
               </select>
@@ -4118,7 +4120,7 @@ function mountAnimator(body, headerActions, opts) {
   // Punkt in der Luft sehen gleich aus). Vorrang behalten: Fahrzeug der Etappe/Reiseroute, eigenes Bild, „Laufpunkt zeigen“ aus.
   let _lbAktivitaet = "", _lbFuer = null, _lbLaeuft = false;
   const _LB_FZ = { fahrt: "auto", uebersetzen: "faehre", wanderung: "wanderer", spaziergang: "wanderer", gehen: "wanderer",
-                   rad: "rad", laufen: "laeufer", wassersport: "kajak" };
+                   rad: "rad", laufen: "laeufer", wassersport: "kajak", flug: "drohne" };   // 11.11.2026 + Flug
   const LB_WECHSEL_S = 0.25;    // halbe Dauer des Symbolwechsels in Videosekunden (klein werden → tauschen → groß werden)
   const LB_WECHSEL_MIN = 0.15;  // kleinste Größe mitten im Wechsel
   function _lbSymAn() { return !!document.getElementById("anim-dot-lb")?.checked; }
@@ -4129,7 +4131,10 @@ function mountAnimator(body, headerActions, opts) {
     const sym = dotFzStil() === "symbol";
     if (fz === "auto" && _lbAktivitaet === "motorrad") fz = "motorrad";
     if (fz === "rad" && _lbAktivitaet === "mtb" && sym) fz = "mountainbike";
-    if (fz && FZ_NUR_SYMBOL.has(fz) && !sym) fz = fz === "mountainbike" ? "rad" : "boot";
+    // 11.11.2026 — Flug: Drohne, beim Gleitschirm-Archiv der Gleitschirm
+    if (fz === "drohne" && /gleitschirm|paraglid/.test(String(_lbAktivitaet || ""))) fz = "gleitschirm";
+    // Symbol-Arten gibt es als Symbol und als 3D-Modell — nur bei Plakette/Bildern ein Ersatz
+    if (fz && FZ_NUR_SYMBOL.has(fz) && !sym && dotFzStil() !== "3d") fz = fz === "mountainbike" ? "rad" : (fz === "drohne" || fz === "gleitschirm") ? "flugzeug" : "boot";
     return FAHRZEUGE.includes(fz) ? fz : "";
   }
   let _lbSymPlanC = null;
@@ -4293,7 +4298,7 @@ function mountAnimator(body, headerActions, opts) {
              segStarts: _segStarts.map(x => x.slice()), tempo: _lbTempo(), dauer, artStats };
   };
   const _LB_ICON = { fahrt: "🚗", rad: "🚲", laufen: "🏃", wanderung: "🥾", spaziergang: "🚶", gehen: "🚶",
-                     uebersetzen: "⛴", pause: "⏸", uebernachtung: "🛏", wassersport: "🛶", unsicher: "❔" };
+                     uebersetzen: "⛴", pause: "⏸", uebernachtung: "🛏", wassersport: "🛶", flug: "✈", unsicher: "❔" };
   function _lbZeit(t, vm) {
     const d = new Date((t + (vm || 0) * 60) * 1000);
     return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
@@ -7523,6 +7528,53 @@ function mountAnimator(body, headerActions, opts) {
     }
     toast(t("animator.flug3d_igc_an", "Flug erkannt: Die Linie hängt in ihrer echten Höhe (Karte → „Flug in der Luft“, dort auch ausschalten)."), "success", 6000);
   }
+  // 10.11.2026 (Marc: „mach die Drohne jetzt, und auch direkt DJI-Erkennung und Anti-Gravity-Erkennung“) — ein
+  // Drohnenflug bekommt die Drohne als Laufpunkt (3D-Modell). Erkannt an der Fortbewegung im Archiv („drohne“: DJI-
+  // Untertitel, Drohnen-App als Ersteller, DJI-Mission), am Gerät aus der Datei oder an der Höhe über dem Start (rel_alt).
+  // Bauform: Antigravity → 360°-Drohne, sonst die gewählte (Vorgabe Faltdrohne). Einmal je Projekt
+  // (`marker_dot_drohne_auto`) — wer danach etwas anderes wählt, dem bleibt es; ⌘Z nimmt es zurück. Ohne Projekt nur
+  // ein Hinweis (sonst flöge jede spätere Wanderung als Drohne, wie bei „Flug in der Luft“). Nie im Video-Render.
+  function _istDrohnenflug() {
+    const s = _gpxStats || {};
+    if (s.activity === "drohne") return true;
+    if (s.geraet && s.geraet.art === "drohne") return true;
+    if (s.drohnen_datei && s.drohnen_datei.drohne) return true;   // Drohnen-App als Ersteller (Datei außerhalb des Archivs)
+    return !!(_ovSeries && _ovSeries.sensors && Array.isArray(_ovSeries.sensors.rel_alt) && _ovSeries.sensors.rel_alt.length);
+  }
+  function _drohnenFormAusQuelle() {
+    const s = _gpxStats || {}, q = String(s.quelle || "") + " " + String((s.geraet && s.geraet.hersteller) || "")
+      + " " + String((s.drohnen_datei && s.drohnen_datei.ersteller) || "");
+    return /antigravity/i.test(q) ? "drohne_360" : "";
+  }
+  let _drohneFuer = "";
+  function _drohneAuto(path) {
+    if (!path || _drohneFuer === path || window.__rzRenderMode || _isStaticFrame) return false;
+    if (!_istDrohnenflug()) return false;
+    _drohneFuer = path;
+    if (_isReiseroute || _reiseAktiv() || _nurOrteEt() || dotStil() === "drohne" || dotStil() === "bild") return false;
+    const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    if (!proj) {
+      toast(t("animator.drohne_tipp", "Drohnenflug erkannt: Im Track-Editor unter „Laufpunkt → 3D“ gibt es die Drohne als Laufpunkt."), "info", 6000);
+      return false;
+    }
+    if (proj[_MODKEY] && proj[_MODKEY].marker_dot_drohne_auto) return false;   // in diesem Projekt schon einmal gesetzt
+    applog("info", "[drohne] Drohnenflug erkannt — Laufpunkt Drohne (3D): " + String(path).split(/[\\/]/).pop());
+    const form = _drohnenFormAusQuelle(), fh = document.getElementById("anim-dot-modell-drohne");
+    if (form && fh) fh.value = form;
+    if (_roehreGewaehlt() && !_roehreMapbox()) _kopfSetzen("punkt");
+    const fz = document.getElementById("anim-dot-fz-stil"); if (fz) fz.value = "3d";
+    const sel = document.getElementById("anim-dot-style");
+    if (!sel) return false;
+    _dotStilVorBild = sel.value; sel.value = "drohne"; sel.dispatchEvent(new Event("change"));
+    try { _dotKachelnAlle(); } catch (_) {}
+    if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, { marker_dot_drohne_auto: true });
+    // Der Hinweis zu „Flug in der Luft“ (_flugAuto, eben gezeigt) stünde sonst nur Sekundenbruchteile — beides in einem
+    const mitFlug = _flug.hinweisFuer === path && !_luftFlug();
+    toast(t("animator.drohne_an", "Drohnenflug erkannt: Der Laufpunkt ist jetzt eine Drohne (Track-Editor → Laufpunkt, dort auch die Bauform; ⌘Z nimmt es zurück).")
+          + (mitFlug ? " " + t("animator.drohne_flug_dazu", "Unter Karte → „Flug in der Luft“ hängt die Linie in ihrer echten Höhe.") : ""), "success", mitFlug ? 10000 : 7000);
+    return true;
+  }
+  window.__rzDrohneAuto = { ist: () => _istDrohnenflug(), form: () => _drohnenFormAusQuelle() };   // Prüfstand (test_drohne)
   function _flugMoeglich() {
     if (!window.rzLine3d || !map || !currentCoords || currentCoords.length < 2) return "keine_tour";
     if (map.__rzEngine === "mapbox") return "mapbox";
@@ -9486,9 +9538,21 @@ function mountAnimator(body, headerActions, opts) {
   /** 08.11.2026 — Tempo der Bewegung der 3D-Modelle (Beine, Pedale, Räder, Rotor): Faktor 0,25 … 3, 1 = Grundtakt. */
   const AUTO_FORMEN = { auto: "Kombi", auto_klein: "Kleinwagen", auto_limousine: "Limousine", auto_suv: "SUV", auto_sport: "Sportwagen",
                         auto_cabrio: "Cabrio", auto_pickup: "Pick-up", auto_van: "Kleinbus", auto_gelaende: "Geländewagen" };
-  function dotModellAuto() { const v = document.getElementById("anim-dot-modell-auto")?.value; return AUTO_FORMEN[v] ? v : "auto"; }
-  /** Modell-Art für eine Laufpunkt-Form: das Auto in der gewählten Form, sonst die Art selbst. */
-  function _modellArt(art) { return art === "auto" ? dotModellAuto() : art; }
+  // 10.11.2026 (Marc: „such mal verschiedene Drohnen-Modelle und baue das an“) — sechs Drohnen-Bauformen, Auswahl wie die Autos
+  const DROHNEN_FORMEN = { drohne: "Faltdrohne", drohne_mini: "Mini mit Schutzkäfig", drohne_fpv: "FPV mit Ringen", drohne_race: "FPV-Racer",
+                           drohne_360: "360°-Drohne", drohne_profi: "Profi-Kameradrohne" };
+  /** Laufpunkt-Formen mit wählbarer 3D-Bauform: Liste, verstecktes Feld, Zeilentitel, Präfix der Übersetzungen */
+  const MODELL_FORMEN = {
+    auto:   { formen: AUTO_FORMEN, feld: "anim-dot-modell-auto", titel: ["animator.dot.auto_form", "Auto-Form"], i18n: "animator.dot.auto_" },
+    drohne: { formen: DROHNEN_FORMEN, feld: "anim-dot-modell-drohne", titel: ["animator.dot.drohne_form", "Drohnen-Form"], i18n: "animator.dot.drohne_" },
+  };
+  function _modellForm(art) { const m = MODELL_FORMEN[art]; if (!m) return art; const v = document.getElementById(m.feld)?.value; return m.formen[v] ? v : art; }
+  function dotModellAuto() { return _modellForm("auto"); }
+  function dotModellDrohne() { return _modellForm("drohne"); }
+  /** Modell-Art für eine Laufpunkt-Form: Auto/Drohne in der gewählten Bauform, sonst die Art selbst. */
+  function _modellArt(art) { return MODELL_FORMEN[art] ? _modellForm(art) : art; }
+  /** Hat die aktuelle Laufpunkt-Form eine Bauform-Auswahl (Auto, Drohne)? */
+  function _hatModellFormen() { return !!MODELL_FORMEN[dotStil()]; }
   function dotModellTempo() { const v = parseFloat(document.getElementById("anim-dot-modell-tempo")?.value); return isFinite(v) ? Math.max(0.25, Math.min(3, v)) : 1; }
   // 13.10.2026 — Farbe der Symbole: „linie“ (Linienfarbe der Tour + Akzent) oder „fest“ (zwei Farben, Vorgabe Schiefer/Mint)
   function dotSymFarbe()  { return document.getElementById("anim-dot-sym-farbe")?.value === "fest" ? "fest" : "linie"; }
@@ -10050,12 +10114,14 @@ function mountAnimator(body, headerActions, opts) {
   function _fracBeiZeit(t) { try { return trackFracAusAnkerHaupt(_sgAnkerAusZeit(t)); } catch (_) { return null; } }
   // Marc 08.11.2026: „beim Hubschrauber muss der Rotor aber weiter drehen!“ — Rotor und Brennerflamme laufen an der
   // Videozeit weiter, auch im Stand (Schweben, Halt); keine Ruhepose.
+  // 10.11.2026 — Drohnen (alle Bauformen) schweben mit laufenden Rotoren
   const _MODELL_UHR = new Set(["hubschrauber", "heissluftballon"]);
+  const _modellUhr = (art) => _MODELL_UHR.has(art) || /^drohne(_|$)/.test(String(art || ""));
   function _modellBewegung(art, frac) {
     const R = window.rzModelle, Z0 = R && R.ZYKLUS[art];
     if (!Z0) return { phase: 0, ruhe: 0 };
     const Z = Z0 / dotModellTempo();   // 08.11.2026 — Bewegungstempo (Track-Editor)
-    if (_MODELL_UHR.has(art)) {
+    if (_modellUhr(art)) {
       const T = +window.__rzVideoSek;
       const s = isFinite(T) ? T : (window.__rzRenderClock ? window.__rzRenderClock() / 1000 : performance.now() / 1000);
       return { phase: ((s / Z) % 1 + 1) % 1, ruhe: 0 };
@@ -20704,19 +20770,23 @@ function mountAnimator(body, headerActions, opts) {
     }
     return _modellBilder.get(key);
   }
-  /** 08.11.2026 — Kacheln „Auto-Form“ (3D-Modell): neun Autos, Vorschau in den Fahrzeugfarben. */
+  /** 08.11.2026 — Kacheln „Auto-Form“ (3D-Modell): neun Autos, Vorschau in den Fahrzeugfarben.
+   *  10.11.2026 — dieselbe Zeile wählt bei der Drohne die Drohnen-Form (MODELL_FORMEN). */
   function _autoKacheln(zeile) {
     const box = zeile && zeile.querySelector("[data-auto-wahl]");
     if (!box || !window.rzModelle) return;
-    const sf = _symFarben(currentLineColor()) || { dunkel: currentLineColor(), akzent: "#ffffff" }, akt = dotModellAuto();
-    box.innerHTML = Object.keys(AUTO_FORMEN).map(v => {
+    const m = MODELL_FORMEN[dotStil()];
+    const tl = zeile.querySelector("[data-form-titel]"); if (tl && m) tl.textContent = t(m.titel[0], m.titel[1]);
+    if (!m) { box.innerHTML = ""; return; }
+    const sf = _symFarben(currentLineColor()) || { dunkel: currentLineColor(), akzent: "#ffffff" }, akt = _modellForm(dotStil());
+    box.innerHTML = Object.keys(m.formen).map(v => {
       let url = "";
-      try { url = window.rzModelle.vorschau(v, 96, { farbe: sf.dunkel, farbe2: sf.akzent }).toDataURL("image/png"); } catch (e) { applog("warn", "[dot] Auto-Vorschau: " + e); }
-      const name = t("animator.dot.auto_" + v, AUTO_FORMEN[v]);
+      try { url = window.rzModelle.vorschau(v, 96, { farbe: sf.dunkel, farbe2: sf.akzent }).toDataURL("image/png"); } catch (e) { applog("warn", "[dot] Form-Vorschau: " + e); }
+      const name = t(m.i18n + v, m.formen[v]);
       return `<button type="button" class="dot-kachel${v === akt ? " ist-an" : ""}" data-auto="${v}" title="${_animEscapeHtml(name)}"><span class="dot-kachel-bild">${url ? `<img src="${url}" alt="">` : _animEscapeHtml(name)}</span></button>`;
     }).join("");
     box.querySelectorAll("[data-auto]").forEach(b => b.onclick = () => {
-      const h = document.getElementById("anim-dot-modell-auto"); if (!h) return;
+      const h = document.getElementById(m.feld); if (!h) return;
       h.value = b.dataset.auto; dotGeaendert(true);
     });
   }
@@ -20729,7 +20799,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _dotWahlZeichnen(); } catch (e) { applog("warn", "[dot] Auswahl: " + e); }
     // 08.11.2026 — Zeile „Bewegungstempo“ nur beim Fahrzeug-Aussehen „3D-Modell“
     document.querySelectorAll(".anim-stil-panel [data-nur-3d]").forEach(z => { z.hidden = !dotZeigen() || dotFzStil() !== "3d"; });
-    document.querySelectorAll(".anim-stil-panel [data-nur-auto3d]").forEach(z => { z.hidden = !dotZeigen() || dotFzStil() !== "3d" || dotStil() !== "auto"; _autoKacheln(z); });
+    document.querySelectorAll(".anim-stil-panel [data-nur-auto3d]").forEach(z => { z.hidden = !dotZeigen() || dotFzStil() !== "3d" || !_hatModellFormen(); _autoKacheln(z); });
     dotAnzeigen();
     dotEbenenAufbauen();
     // 02.09.2026: Größe und Form gelten auch für die Punkte der übrigen
@@ -20762,7 +20832,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!speichern) return;
     try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.laufpunkt_geaendert", "Laufpunkt geändert")); } catch (_) {}   // 10.09.2026
     const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(), marker_dot_fz_stil: dotFzStil(),
-                    marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(), marker_dot_modell_tempo: dotModellTempo(), marker_dot_modell_auto: dotModellAuto(),
+                    marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung(), marker_dot_modell_tempo: dotModellTempo(), marker_dot_modell_auto: dotModellAuto(), marker_dot_modell_drohne: dotModellDrohne(),
                     marker_dot_rueckblick_m: dotRueckblick(),
                     marker_dot_bild: dotBild(), marker_dot_bild_form: dotBildForm(), marker_dot_bild_drehen: dotBildDrehen(),
                     marker_dot_sym_farbe: dotSymFarbe(), marker_dot_sym_dunkel: dotSymDunkel(), marker_dot_sym_akzent: dotSymAkzent(),
@@ -20901,6 +20971,7 @@ function mountAnimator(body, headerActions, opts) {
       const fzs = document.getElementById("anim-dot-fz-stil");
       if (fzs) fzs.value = FZ_STILE.includes(a.marker_dot_fz_stil) ? a.marker_dot_fz_stil : "plakette";
       const mta = document.getElementById("anim-dot-modell-auto"); if (mta) mta.value = AUTO_FORMEN[a.marker_dot_modell_auto] ? a.marker_dot_modell_auto : "auto";
+      const mtd = document.getElementById("anim-dot-modell-drohne"); if (mtd) mtd.value = DROHNEN_FORMEN[a.marker_dot_modell_drohne] ? a.marker_dot_modell_drohne : "drohne";
       const mte = document.getElementById("anim-dot-modell-tempo"); if (mte) mte.value = (a.marker_dot_modell_tempo != null && isFinite(+a.marker_dot_modell_tempo)) ? +a.marker_dot_modell_tempo : 1;   // 08.11.2026
       const lpb = document.getElementById("anim-dot-bild"); if (lpb) lpb.value = a.marker_dot_bild || "";
       const lpf = document.getElementById("anim-dot-bild-form"); if (lpf) lpf.value = LP_FORMEN.includes(a.marker_dot_bild_form) ? a.marker_dot_bild_form : "plakette";
@@ -25577,6 +25648,7 @@ function mountAnimator(body, headerActions, opts) {
     try { paceAnzeigen(); } catch (_) {}
     _demVorwaermen(res.coords);
     try { _flugAuto(path); } catch (e) { applog("warn", "[flug3d] automatisch: " + e); }
+    try { _drohneAuto(path); } catch (e) { applog("warn", "[drohne] automatisch: " + e); }
   }
   // 04.10.2026 — Geländehöhen für die ruhige Kamera (api.dem_hoehen, Stufe 13) schon beim Laden des Tracks im
   // Hintergrund holen: der erste Probelauf in einer neuen Gegend wartete sonst ~2,7 s auf das Netz, bevor sich etwas
@@ -26182,7 +26254,7 @@ function mountAnimator(body, headerActions, opts) {
           <label>${t("animator.dot.sym_koerper", "Körper")} <input type="color" data-sym="dunkel"></label>
           <label>${t("animator.dot.sym_akzent", "Akzent")} <input type="color" data-sym="akzent"></label>
           <button type="button" class="btn btn-sm" data-sym-zurueck title="${_animEscapeHtml(t("animator.dot.sym_zurueck_tip", "Schiefer und Mint"))}">${t("animator.dot.sym_zurueck", "Vorgabe")}</button></div></div>
-      ${ziel === "haupt" ? `<div class="anim-stil-zeile" data-nur-auto3d ${st.dot_show && !ganz && dotFzStil() === "3d" && dotStil() === "auto" ? "" : "hidden"}><label>${t("animator.dot.auto_form", "Auto-Form")}</label>
+      ${ziel === "haupt" ? `<div class="anim-stil-zeile" data-nur-auto3d ${st.dot_show && !ganz && dotFzStil() === "3d" && _hatModellFormen() ? "" : "hidden"}><label data-form-titel>${dotStil() === "drohne" ? t("animator.dot.drohne_form", "Drohnen-Form") : t("animator.dot.auto_form", "Auto-Form")}</label>
         <div class="dot-wahl" data-auto-wahl></div></div>` : ""}
       ${ziel === "haupt" ? `<div class="anim-stil-zeile" data-nur-3d ${st.dot_show && !ganz && dotFzStil() === "3d" ? "" : "hidden"} title="${_animEscapeHtml(t("animator.dot.modell_tempo_tip", "Wie schnell sich Beine, Pedale, Räder und Rotor der 3D-Modelle bewegen — 1× ist der Grundtakt. Steht der Laufpunkt, steht auch die Bewegung (außer Rotor und Brenner)."))}"><label>${t("animator.dot.modell_tempo", "Bewegungstempo (3D-Modelle)")} <b data-gv="anim-dot-modell-tempo">${dotModellTempo()}</b>×</label>
         <input type="range" data-global="anim-dot-modell-tempo" min="0.25" max="3" step="0.25" value="${dotModellTempo()}"></div>` : ""}
@@ -26309,7 +26381,7 @@ function mountAnimator(body, headerActions, opts) {
         el.querySelectorAll("[data-nur-dot]").forEach(z => { z.hidden = !show || ganz; });
         el.querySelectorAll("[data-nur-pfeil]").forEach(z => { z.hidden = !(show && pfeil) || ganz; });
         el.querySelectorAll("[data-nur-3d]").forEach(z => { z.hidden = !show || ganz || dotFzStil() !== "3d"; });
-        el.querySelectorAll("[data-nur-auto3d]").forEach(z => { z.hidden = !show || ganz || dotFzStil() !== "3d" || dotStil() !== "auto"; });
+        el.querySelectorAll("[data-nur-auto3d]").forEach(z => { z.hidden = !show || ganz || dotFzStil() !== "3d" || !_hatModellFormen(); });
         if (ziel === "haupt" && el.__dotFuellen) el.__dotFuellen();   // 08.11.2026 — Reiter 2D/3D: Fahrzeug-Aussehen nur bei 2D
       };
       const anwenden = () => {
@@ -28085,7 +28157,7 @@ function mountAnimator(body, headerActions, opts) {
    *  nur einen Moment. Je Abschnitt: Grundwert des Verkehrsmittels × Wurzel der Strecke (lange Strecken etwas
    *  länger, nicht proportional); die Abschnitte addieren sich, höchstens 1,5. Tempo je Etappe bleibt über den Faktor. */
   const _ET_ZEIT = { flugzeug: 0.3, zug: 0.4, boot: 0.4, auto: 0.45, motorrad: 0.45, rad: 0.6, laeufer: 0.65, wanderer: 0.7,
-    hubschrauber: 0.35, faehre: 0.4, wohnmobil: 0.5, bus: 0.5, segelboot: 0.45, gleitschirm: 0.5, heissluftballon: 0.55,
+    hubschrauber: 0.35, drohne: 0.35, faehre: 0.4, wohnmobil: 0.5, bus: 0.5, segelboot: 0.45, gleitschirm: 0.5, heissluftballon: 0.55,
     kajak: 0.55, ski: 0.6, sup: 0.6, mountainbike: 0.6, reiter: 0.65 };
   function _etZeitAnteil(et) {
     const ab = Array.isArray(et && et.abschnitte) ? et.abschnitte : [];
@@ -31907,7 +31979,7 @@ function mountAnimator(body, headerActions, opts) {
   // Art der Tour → eigene Sprüche (animator.wander.<gruppe>_<lage>); Wandern = die bisherigen + wartespruch.01–30.
   const WANDER_GRUPPE = { auto: "fahren", motorrad: "fahren", wohnmobil: "fahren", bus: "fahren", zug: "fahren", rad: "rad",
     mountainbike: "rad", boot: "wasser", segelboot: "wasser", faehre: "wasser", kajak: "wasser", sup: "wasser",
-    flugzeug: "flug", hubschrauber: "flug", gleitschirm: "flug", heissluftballon: "flug" };
+    flugzeug: "flug", hubschrauber: "flug", drohne: "flug", gleitschirm: "flug", heissluftballon: "flug" };
   function _wanderGruppe() {
     try {
       if (_flugLuftAn() || _luftFlug() || /\.igc$/i.test(String(currentGpx || ""))) return "flug";

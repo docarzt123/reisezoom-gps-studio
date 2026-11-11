@@ -1014,7 +1014,7 @@ def map_match(
 ARTEN_STRASSE = {"auto": "driving", "motorrad": "driving", "wohnmobil": "driving", "bus": "driving",
                  "rad": "cycling", "mountainbike": "cycling",
                  "wanderer": "walking", "laeufer": "walking", "reiter": "walking"}
-ARTEN_GERADE = ("flugzeug", "hubschrauber", "gleitschirm", "heissluftballon",
+ARTEN_GERADE = ("flugzeug", "hubschrauber", "drohne", "gleitschirm", "heissluftballon",   # 10.11.2026 + Drohne
                 "boot", "segelboot", "faehre", "kajak", "sup", "zug", "ski")
 ARTEN = tuple(ARTEN_STRASSE) + ARTEN_GERADE
 #: Höhen aus dem Gelände (auf dem Boden unterwegs); alle anderen flach zwischen den Enden des Abschnitts

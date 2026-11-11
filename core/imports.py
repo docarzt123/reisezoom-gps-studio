@@ -672,6 +672,10 @@ def _parse_rows(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
         "dji_srt": _parse_dji_srt, "dashcam_dat": _parse_dashcam_dat,
     }[key]
     rows = parser(path, meta_out) if key == "fit" else parser(path)
+    # 10.11.2026 — DJI-Untertitel schreiben nur Drohnen: Gerät in die Tour-Ebene → Archiv-Fortbewegung „drohne“,
+    # Laufpunkt im Animator (fitmeta.aktivitaet, library._drohnen_quelle)
+    if key == "dji_srt" and meta_out is not None:
+        meta_out["geraet"] = {"art": "drohne", "hersteller": "DJI", "quelle": "srt"}
     if not rows:
         # Gelesen werden konnte die Datei — sie hat nur keine Positionen.
         raise NoTrackPoints(_i18n.t_aktiv("import.err_keine_punkte", "Keine Track-Punkte in der Datei gefunden."))
@@ -839,6 +843,11 @@ def _cache_name(path: str) -> str:
     return f"{stem}-{h}.gpx"
 
 
+#: Formate mit Tour-Ebene in der Sidecar (FIT: Sportart/Gerät/Puls …; 10.11.2026 .srt: Gerät „Drohne“). Ein Cache ohne
+#: `tour` stammt aus der Zeit davor und wird einmal neu gebaut.
+_MIT_TOUR = (".fit", ".srt")
+
+
 def _cache_veraltet(gpx_out: str, ext: str) -> bool:
     """Stammt der GPX-Cache aus der Zeit vor der Tour-Ebene (v0.9.501)?
 
@@ -851,7 +860,7 @@ def _cache_veraltet(gpx_out: str, ext: str) -> bool:
     JEDE aus FIT erzeugte Sidecar trägt — auch wenn er leer ist. Fehlt er, ist
     der Cache alt und wird einmalig neu gebaut; danach greift er wieder normal.
     """
-    if ext != ".fit":
+    if ext not in _MIT_TOUR:
         return False
     sc = _sidecar_for(gpx_out)
     if not os.path.exists(sc):
@@ -883,7 +892,8 @@ def ensure_gpx(path: str, cache_dir) -> str:
     # v0.9.501 — dazu die Tour-Ebene, aber nur FIT liefert so etwas. Bei allen
     # anderen Formaten bleibt `tour` None, damit kein leerer Block entsteht,
     # der `_cache_veraltet` durcheinanderbrächte.
-    tour: Optional[dict] = {} if ext == ".fit" else None
+    # 10.11.2026 — auch .srt (DJI-Drohne): Gerät in der Tour-Ebene
+    tour: Optional[dict] = {} if ext in _MIT_TOUR else None
     pts, extras = parse_track(path, tour)
     if not pts:
         raise NoTrackPoints(_i18n.t_aktiv("import.err_keine_punkte", "Keine Track-Punkte in der Datei gefunden."))

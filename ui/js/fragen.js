@@ -445,9 +445,40 @@
     let z = typeof zielOderDoc === "string" ? ZIEL.get(zielOderDoc) : zielOderDoc;
     if (z && z.typ === "ui" && z.art === "label") {   // Beschriftung ohne Tabelleneintrag: im Modul suchen
       const d = z, text = d.titel;
+      // 11.11.2026 (Klicktest: „Drohnen-Form“ sprang in den Animator, nichts leuchtete) — viele Animator-Felder stehen im
+      // Track-Editor (Laufpunkt, Linie, Röhre …), den es nur gibt, solange er offen ist. Steht die Beschriftung nicht
+      // sichtbar im Animator, wird der Editor der Haupt-Tour geöffnet und dort gesucht; steht sie dort auch nicht, geht er
+      // wieder zu. Ist die Zeile im Editor gerade ausgeblendet (z. B. „Drohnen-Form“ nur bei der Drohne als Laufpunkt),
+      // leuchtet die Laufpunkt-Form, mit der man sie hervorholt.
+      const imEditor = () => { const te = $("#anim-track-editor"); return te ? sucheLabel(text, te) : null; };
+      // Laufpunkt-Felder (animator.dot.*): je nach Form heißen/zeigen die Zeilen anders — dann zur Laufpunkt-Form
+      const laufpunkt = /^animator\.dot\./.test(String(d.schluessel || ""));
+      const formZeile = () => { const f = $("#anim-track-editor [data-dot-wahl]"); return f ? (f.closest(".anim-stil-zeile") || f) : null; };
+      const animVorher = async () => {
+        const da = sucheLabel(text, $("#main"));
+        if (da && sichtbar(da)) return;
+        // aus einem anderen Modul: der Animator lädt die Tour gerade erst (Klicktest 11.11.2026 — sonst „nicht zu sehen“)
+        if (!(await warteBis(trackGeladen, 5000)) || typeof window.__rzAnimTrackEditor !== "function") return;
+        const warOffen = !!$("#anim-track-editor");
+        window.__rzAnimTrackEditor("haupt");
+        await pause(300);
+        if (!imEditor() && !laufpunkt && !warOffen) { const x = $("#anim-track-editor .sign-editor-x"); if (x) x.click(); }
+      };
+      const animFinde = () => {
+        const a = imEditor();
+        if (a) {
+          if (sichtbar(a) || sichtbar(a.closest(".anim-stil-zeile") || a)) return a;
+          if (a.closest("[data-nur-auto3d], [data-nur-3d], [data-nur-dot], [data-nur-pfeil]")) return formZeile() || a;
+          return a;
+        }
+        const m = sucheLabel(text, $("#main"));
+        if (m && sichtbar(m)) return m;
+        return (laufpunkt && formZeile()) || m;
+      };
       z = { id: "label:" + d.schluessel, modul: d.modul === "settings" ? null : d.modul,
-        vorher: d.modul === "settings" ? async () => { if (window.openSettingsModal) await window.openSettingsModal(); await pause(300); } : null,
-        finde: () => sucheLabel(text, d.modul === "settings" ? $("#modal-overlay") : $("#main")) };
+        vorher: d.modul === "settings" ? async () => { if (window.openSettingsModal) await window.openSettingsModal(); await pause(300); }
+          : (d.modul === "animator" ? animVorher : null),
+        finde: d.modul === "animator" ? animFinde : () => sucheLabel(text, d.modul === "settings" ? $("#modal-overlay") : $("#main")) };
     }
     if (!z) return { ok: false, grund: "unbekannt" };
     log("info", "Zeig mir: " + z.id);

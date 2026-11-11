@@ -91,6 +91,7 @@ import webview
 from PIL import Image, ImageOps
 
 from core import gpx as cgpx
+from core import fitmeta as cfitmeta   # 10.11.2026 — Drohnenflug im Video-Assistenten
 from core import medienexport as cmedex
 from core import oeffnen_mit as coeffnen
 from core import entwickeln as cent   # 08.10.2026 — Fotos/Clips exportieren (oben importiert, damit es ins Paket kommt)
@@ -188,7 +189,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.857"
+APP_VERSION = "0.9.858"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -3218,7 +3219,9 @@ class Api:
                           "datum": (zeiten[0].astimezone().strftime("%Y-%m-%d") if zeiten and zeiten[0].tzinfo
                                     else (zeiten[0].strftime("%Y-%m-%d") if zeiten else "")),
                           "titel": (st.name or Path(pfad).stem),
-                          "aktivitaet": clib._guess_activity(st.name or Path(pfad).stem, st.distance_m or 0, bewegt),
+                          # 10.11.2026 — wie im Archiv: Datei (FIT-Sportart, DJI-Drohne, Drohnen-App) vor Name/Tempo
+                          "aktivitaet": clib.aktivitaet_erkennen(pfad, st.name or Path(pfad).stem, st.distance_m or 0, bewegt,
+                                                                 getattr(st, "tour_meta", None)),
                           "coords": [[q.lon, q.lat] for q in cgpx.downsample(pts, 600)]})
                 tc = self.trackcheck_datei(pfad)
                 e["befunde"], e["hoechste"] = (tc.get("befunde") or [], tc.get("hoechste")) if tc.get("ok") else ([], None)
@@ -9883,7 +9886,15 @@ class Api:
                     "max_speed_kmh": stats.max_speed_kmh,
                     "start_epoch": e_start, "end_epoch": e_end, "tz_offset_min": tz_off,
                     # 11.10.2026 (Läufer: „Pace statt Geschwindigkeit“) — Fortbewegung aus dem Archiv, „laufen“ → Pace
-                    "activity": self._aktivitaet_fuer(path),
+                    # 10.11.2026 — mit dem Original-Pfad nachschlagen: bei FIT/SRT/… ist `path` die umgewandelte Kopie,
+                    # die das Archiv nicht kennt (Läufe aus FIT bekamen deshalb nie Pace)
+                    "activity": self._aktivitaet_fuer(orig_path),
+                    # 10.11.2026 (Marc: „DJI-Erkennung und Anti-Gravity-Erkennung“) — Gerät aus der Datei (DJI-Untertitel:
+                    # Drohne) und Ersteller-App laut Archiv: der Animator setzt bei Drohnenflügen die Drohne als Laufpunkt
+                    "geraet": ((getattr(stats, "tour_meta", None) or {}).get("geraet")
+                               if isinstance(getattr(stats, "tour_meta", None), dict) else None),
+                    "quelle": self._quelle_fuer(orig_path),
+                    "drohnen_datei": clib.drohnen_datei(orig_path),   # auch außerhalb des Archivs
                 },
                 "series": series,
                 # v0.9.331 — vorhandene Sensorfelder [{key,label,unit}] fürs UI.
@@ -15118,6 +15129,14 @@ class Api:
         except Exception:  # noqa: BLE001 — nur Anzeige (Tempo oder Pace)
             return ""
 
+    def _quelle_fuer(self, path: str) -> str:
+        """Ersteller-App der Tour laut Archiv („Litchi“, „Antigravity …“), leer außerhalb des Archivs (10.11.2026)."""
+        try:
+            t = clib.get_track(self._lib(), path)
+            return str((t or {}).get("source") or "")[:80]
+        except Exception:  # noqa: BLE001 — nur für die Laufpunkt-Automatik
+            return ""
+
     def _art_stats_fuer(self, path: str, pts) -> dict:
         """Kennzahlen je Bewegungsart für die Vorschau. Leer, wenn
         die Tour nicht im Archiv ist oder keine Zeitstempel hat."""
@@ -15480,7 +15499,7 @@ class Api:
     # Logbuch-Art → Fortbewegungsart im Archiv (core/library ACTIVITIES)
     _ABSCHNITT_AKTIVITAET = {"wanderung": "wandern", "gehen": "wandern", "spaziergang": "spaziergang",
                              "rad": "rad", "laufen": "laufen", "fahrt": "auto",
-                             "wassersport": "boot", "uebersetzen": "boot"}
+                             "wassersport": "boot", "uebersetzen": "boot", "flug": "drohne"}   # 11.11.2026 + Flug
 
     @_nur_einmal("archiv_import")
     def archiv_abschnitt_aufnehmen(self, points: list, src_path: str = "", name: str = "",
@@ -16589,15 +16608,16 @@ class Api:
             if len(pts) < 2:
                 return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "Der Track hat zu wenige Punkte.")}
             lons = [q.lon for q in pts]; lats = [q.lat for q in pts]
-            name, ort, land = "", "", ""
+            name, ort, land, akt = "", "", "", ""
             try:
                 with sqlite3.connect(str(LIBRARY_DB)) as con:
-                    row = con.execute("SELECT COALESCE(NULLIF(display_name,''), name), place, region, country "
+                    row = con.execute("SELECT COALESCE(NULLIF(display_name,''), name), place, region, country, activity "
                                       "FROM tracks WHERE path = ?", (pf,)).fetchone()
                 if row:
                     name = row[0] or ""
                     ort = ", ".join(x for x in (row[1], row[2]) if x) or (row[3] or "")
                     land = row[3] or ""
+                    akt = row[4] or ""
             except Exception as e:  # noqa: BLE001 — Archiv optional (Datei von außen)
                 log.info("schnellvideo_vorschlag: kein Archiv-Eintrag (%s)", e)
             def _ep(iso):
@@ -16658,6 +16678,11 @@ class Api:
                     "linie": linie, "pois": pois, "profil": profil, "zahlen": zahlen,
                     "bbox": [min(lons), min(lats), max(lons), max(lats)],
                     "distance_km": round((st.distance_m or 0) / 1000, 2),
+                    # 10.11.2026 — Drohnenflug (Archiv-Fortbewegung, Gerät aus der Datei, Drohnen-App, Höhe über Start):
+                    # der Assistent behält dann die Drohne als Laufpunkt, egal welcher Stil
+                    "drohne": bool(akt == "drohne" or cfitmeta.aktivitaet(getattr(st, "tour_meta", None)) == "drohne"
+                                   or clib.drohnen_datei(pf).get("drohne")
+                                   or any("rel_alt" in (q.extra or {}) for q in pts[:50])),
                     "letzte": (_load_settings().get("schnellvideo_letzte") or {}),
                     # 11.10.2026 (Video-Assistent Schritt 8) — eigene Videostil-Vorlagen, gemeinsam mit dem Schnell-Video
                     "eigene_vorlagen": (_load_settings().get("videostil_vorlagen") or []),
@@ -17125,6 +17150,23 @@ class Api:
     def clip_standbild(self, pfad: str, t: float = 0.5) -> dict:
         p = cclips.standbild(str(pfad or ""), float(t or 0))
         return {"ok": bool(p), "path": p or ""}
+
+    def fotos_video_abspielkopie(self, path: str) -> dict:
+        """10.11.2026 (Nutzer-Meldung: DJI-Video in der Großansicht unter Windows nur mit Ton) — spielt das WebView ein
+        Video nicht (HEVC ohne Store-Erweiterung, AVI, MKV …), einmal eine H.264-Kopie in 720p rechnen und die zeigen."""
+        try:
+            _vm("video_umwandeln", "Video wird zum Abspielen umgewandelt …")
+            r = cclips.abspielkopie(str(path or ""))
+            if not r.get("ok"):
+                log.warning("[abspielkopie] %s: %s", path, r.get("error"))
+                return {"ok": False, "error": r.get("error") or "ffmpeg"}
+            m = self.serve_media(r["datei"])
+            return {"ok": bool(m.get("ok")), "url": m.get("url"), "neu": r.get("neu"), "error": m.get("error")}
+        except Exception as e:  # noqa: BLE001
+            log.exception("fotos_video_abspielkopie")
+            return {"ok": False, "error": str(e)}
+        finally:
+            _vorgang_melden("")
 
     @staticmethod
     def _schnell_schilder_einsetzen(p: dict, schilder) -> int:

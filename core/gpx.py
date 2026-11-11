@@ -425,7 +425,7 @@ def etappen_stats(pts) -> dict:
 # 24.09.2026 — Kennzahlen je Bewegungsart. Welche Arten zählen:
 # alles, was Bewegung ist; Pausen, Übernachtungen und Unsicheres nicht.
 ARTEN_MIT_ZAHLEN = ("wanderung", "spaziergang", "gehen", "laufen", "rad", "fahrt",
-                    "uebersetzen", "wassersport")
+                    "uebersetzen", "wassersport", "flug")   # 11.11.2026 + Flug
 
 
 def arten_stats(pts, bereiche) -> dict:

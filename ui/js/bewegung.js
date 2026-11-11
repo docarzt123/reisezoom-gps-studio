@@ -7,7 +7,7 @@
   const PFADE = () => window.RZ_BEWEGUNG_PFADE || {};
   // Reihenfolge in der Oberfläche: Straße/Weg, Schiene, Wasser, Luft
   const ARTEN = ["auto", "motorrad", "wohnmobil", "bus", "rad", "mountainbike", "wanderer", "laeufer", "reiter", "ski",
-                 "zug", "boot", "segelboot", "faehre", "kajak", "sup", "flugzeug", "hubschrauber", "gleitschirm", "heissluftballon"];
+                 "zug", "boot", "segelboot", "faehre", "kajak", "sup", "flugzeug", "hubschrauber", "drohne", "gleitschirm", "heissluftballon"];
   const SYMBOL = { boot: "motorboot" };   // „Boot“ gab es schon vor den Symbolen — es zeigt das Motorboot
   const FEST = { dunkel: "#2b3a40", akzent: "#4fc9ab", hell: "#ffffff" };
   const EBENEN = ["hell", "dunkel", "akzent"];

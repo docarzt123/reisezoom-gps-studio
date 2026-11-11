@@ -166,7 +166,7 @@ function mountLibrary(body, headerActions) {
   // 09.10.2026 — Strich-Symbol (ui/js/icons.js)
   const SI = (n, g) => (typeof rzIcon === "function" ? rzIcon(n, { size: g || 16 }) : "");
   const ACT_SYMBOL = { wandern: "footprints", spaziergang: "person-standing", laufen: "activity", rad: "bike", mtb: "bike",
-    rennrad: "bike", ebike: "bike", gravel: "bike", motorrad: "rz-motorrad", auto: "car", boot: "sailboat", ski: "mountain-snow" };
+    rennrad: "bike", ebike: "bike", gravel: "bike", motorrad: "rz-motorrad", auto: "car", boot: "sailboat", ski: "mountain-snow", drohne: "rz-drohne" };
   const ACT_LABELS = {
     wandern: T("library.act.wandern", "Wandern"),
     spaziergang: T("library.act.spaziergang", "Spaziergang"),
@@ -180,6 +180,7 @@ function mountLibrary(body, headerActions) {
     auto: T("library.act.auto", "Auto"),
     boot: T("library.act.boot", "Boot"),
     ski: T("library.act.ski", "Ski"),
+    drohne: T("library.act.drohne", "Drohne"),   // 10.11.2026
   };
   // Sammelposten — dieselbe Aufteilung wie in `core/library.ACT_GROUPS`.
   // ⚠️ Bei Änderungen BEIDE Seiten pflegen; der Filter rechnet im Backend,
@@ -3846,9 +3847,9 @@ function mountLibrary(body, headerActions) {
 
   /** Logbuch-Kurzfassung im Detail (Q20): „5 h Fahrt · 1 Fähre · 2 Wanderungen · höchster Punkt 1.240 m". */
   const _LB_KURZ_ICON = { fahrt: "🚗", uebersetzen: "⛴", wanderung: "🥾", spaziergang: "🚶", gehen: "🚶", rad: "🚴", laufen: "🏃",
-                          wassersport: "🛶", pause: "☕", uebernachtung: "🌙" };
+                          wassersport: "🛶", flug: "✈", pause: "☕", uebernachtung: "🌙" };
   const _LB_KURZ_DE = { fahrt: "Fahrt", uebersetzen: "Fähre", wanderung: "Wanderung", spaziergang: "Spaziergang", gehen: "Gehen", rad: "Rad",
-                        laufen: "Laufen", wassersport: "Wassersport", pause: "Pause", uebernachtung: "Übernachtung" };
+                        laufen: "Laufen", wassersport: "Wassersport", flug: "Flug", pause: "Pause", uebernachtung: "Übernachtung" };
   function _lbDauerKurz(sek) {
     const h = Math.floor(sek / 3600), m = Math.round((sek - h * 3600) / 60);
     return h ? (m ? T("logbuch.dauer_hm", "{h} h {m} min", { h, m }) : T("logbuch.dauer_h", "{h} h", { h })) : T("logbuch.dauer_m", "{m} min", { m });
@@ -3890,7 +3891,7 @@ function mountLibrary(body, headerActions) {
   }
   function _logbuchKurzHtml(r) {
     const z = r.zusammenfassung || {}, teile = [];
-    for (const art of ["fahrt", "rad", "laufen"]) if (z[art]) teile.push(`<span class="lib-logbuch-chip">${_LB_KURZ_ICON[art]} ${_lbDauerKurz(z[art].dauer_s)} ${T("logbuch.art." + art, _LB_KURZ_DE[art])}</span>`);
+    for (const art of ["fahrt", "flug", "rad", "laufen"]) if (z[art]) teile.push(`<span class="lib-logbuch-chip">${_LB_KURZ_ICON[art]} ${_lbDauerKurz(z[art].dauer_s)} ${T("logbuch.art." + art, _LB_KURZ_DE[art])}</span>`);
     for (const art of ["uebersetzen", "wanderung", "spaziergang", "gehen", "wassersport", "pause", "uebernachtung"]) if (z[art]) {
       const n = z[art].anzahl; teile.push(`<span class="lib-logbuch-chip">${_LB_KURZ_ICON[art]} ${n} ${n === 1 ? T("logbuch.art." + art, _LB_KURZ_DE[art]) : T("logbuch.mehrzahl." + art, _LB_KURZ_DE[art])}</span>`);
     }

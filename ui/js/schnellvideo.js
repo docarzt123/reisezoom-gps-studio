@@ -1181,6 +1181,12 @@
     if (V.vv && window.rzVideoVorlagen && window.rzVideoVorlagen.standard) { const st = window.rzVideoVorlagen.standard(V.vv); w.profil = st.profil; w.uebersicht = st.uebersicht; }
     if (V.fotoArt) w.fotoArt = V.fotoArt;
     w.logoAn = true;   // Logo in allen Vorlagen an
+    vaDrohneHalten(w);
+  }
+  /** 10.11.2026 (Marc: „DJI-Erkennung und Anti-Gravity-Erkennung“) — Drohnenflug (schnellvideo_vorschlag.drohne): der
+   *  Laufpunkt bleibt die Drohne, welcher Stil auch gewählt wird; „Aus“ bleibt aus. Von Hand gewählt gilt danach. */
+  function vaDrohneHalten(w) {
+    if (w && w.drohne && w.lp !== "aus") { w.lp = "fahrzeug"; w.lpFz = "drohne"; }
   }
   function vaStilName(k) {
     if (VA_STILE[k] && VA_STILE[k].eigen) return "★ " + VA_STILE[k].eigen.name;
@@ -1266,6 +1272,7 @@
       tempoRegie: true,   // 06.10.2026 — immer an, kein Haken mehr
       flug: FLUGSTILE[L.flug] ? L.flug : "begleiter",   // 14.10.2026 — Flugstil der Kamerafahrt
       fotoKreisen: !!L.foto_kreisen,                      // 14.10.2026 — Kamera kreist im Fotostopp einmal ums Foto
+      drohne: !!v.drohne,                                 // 10.11.2026 — Drohnenflug: Laufpunkt Drohne (vaDrohneHalten)
     };
     if (!VORLAGEN[L.vorlage]) {
       // Erster Aufruf mit Vorlagen: Weite vorbelegen (Q5) — eigene Musikdatei und Felder bleiben
@@ -1316,6 +1323,7 @@
     // 03.11.2026 (Nutzer-Meldung: die Kommandozeile kannte nur die alten Schnell-Video-Vorlagen) — Videovorlage von außen
     // (Kommandozeile `--template wanderlust`, eigene ★ des Assistenten, .rzstyle): Einblendungen, Schilder, Linie wie im Assistenten
     if (!ASS && opts && opts.videovorlage && VA_STILE[opts.videovorlage]) vaStilWerte(w, opts.videovorlage);
+    vaDrohneHalten(w);
     if (opts && FOTO_ARTEN.includes(opts.fotoArt)) w.fotoArt = opts.fotoArt;
     if (opts && FLUGSTILE[opts.flug]) w.flug = opts.flug;   // 14.10.2026 — Flugstil von außen (Kommandozeile, Web)
     if (opts && typeof opts.fotoKreisen === "boolean") w.fotoKreisen = opts.fotoKreisen;
@@ -2823,6 +2831,7 @@ ${mehrAuf(1)}
         if (ASS) {
           if (["nah", "mittel", "hoch"].includes(st.hoehe)) { w.hoehe = st.hoehe; box.querySelectorAll("[data-va-hoehe]").forEach(b => b.classList.toggle("is-on", b.dataset.vaHoehe === w.hoehe)); }
           if (typeof st.laufpunkt === "string" && st.laufpunkt) { if (["arrow", "dot", "aus"].includes(st.laufpunkt)) w.lp = st.laufpunkt; else { w.lp = "fahrzeug"; w.lpFz = st.laufpunkt; } }
+          vaDrohneHalten(w);   // 10.11.2026 — Drohnenflug behält die Drohne
           if (st.linie && typeof st.linie === "object") w.ls = Object.assign({}, st.linie);
           if (st.beschriftung && typeof st.beschriftung === "object") w.beschr = Object.assign({}, st.beschriftung);
           if (typeof st.gelaende === "boolean") w.gelaende = st.gelaende;

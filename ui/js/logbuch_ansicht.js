@@ -18,16 +18,16 @@
   // Farben wie im Inspektor (modules/gpxinspect/ui/module.js _LB_FARBE), Symbole als Strich-Icons (Lucide, keine Emojis)
   const FARBE = { fahrt: "#3b82f6", uebersetzen: "#14b8a6", gehen: "#22c55e", wanderung: "#22c55e", spaziergang: "#4ade80",
                   rad: "#f97316", laufen: "#eab308", pause: "#6b7280", uebernachtung: "#4b5563", halt: "#9ca3af", unsicher: "#8b8fa3",
-                  wassersport: "#0ea5e9", punkt: "#a78bfa", poi: "#fbbf24", hoechster_punkt: "#c084fc", start: "#2dd4bf", ziel: "#2dd4bf" };
+                  wassersport: "#0ea5e9", flug: "#e879f9", punkt: "#a78bfa", poi: "#fbbf24", hoechster_punkt: "#c084fc", start: "#2dd4bf", ziel: "#2dd4bf" };
   const SYMBOL = { fahrt: "car", uebersetzen: "ship", gehen: "footprints", wanderung: "footprints", spaziergang: "footprints",
                    rad: "bike", laufen: "activity", pause: "coffee", uebernachtung: "moon", halt: "pause", unsicher: "circle-help",
-                   wassersport: "sailboat", punkt: "map-pin", poi: "star", hoechster_punkt: "mountain", start: "flag", ziel: "flag" };
+                   wassersport: "sailboat", flug: "plane", punkt: "map-pin", poi: "star", hoechster_punkt: "mountain", start: "flag", ziel: "flag" };
   const ARTEN_DE = { fahrt: "Fahrt", uebersetzen: "Fähre", gehen: "Gehen", wanderung: "Wanderung", spaziergang: "Spaziergang",
                      rad: "Rad", laufen: "Laufen", pause: "Pause", uebernachtung: "Übernachtung", halt: "Halt",
-                     unsicher: "Rad oder Laufen?", wassersport: "Wassersport", hoechster_punkt: "Höchster Punkt", start: "Start",
+                     unsicher: "Rad oder Laufen?", wassersport: "Wassersport", flug: "Flug", hoechster_punkt: "Höchster Punkt", start: "Start",
                      ziel: "Ziel", punkt: "Eigener Punkt", poi: "Sehenswürdigkeit" };
   // 16.10.2026 — Arten, die man von Hand setzen kann (wie core/logbuch.HAND_ARTEN und das „Art ändern“ im Inspektor)
-  const HAND_ARTEN = ["fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "pause"];
+  const HAND_ARTEN = ["fahrt", "uebersetzen", "wanderung", "spaziergang", "rad", "laufen", "wassersport", "flug", "pause"];   // 11.11.2026 + Flug
   const artName = (a) => T("logbuch.art." + a, ARTEN_DE[a] || a);
   const farbe = (a) => FARBE[a] || "#8b8fa3";
   const symbol = (a) => I(SYMBOL[a] || "map-pin", 17);
@@ -351,7 +351,7 @@
 
     function chipsHtml() {
       const z = (Z.d && Z.d.zusammenfassung) || {}, raus = [];
-      for (const a of ["fahrt", "rad", "laufen"]) if (z[a]) raus.push(`<span class="lba-chip" style="--c:${farbe(a)}">${I(SYMBOL[a], 13)} ${esc(dauer(z[a].dauer_s))} ${esc(artName(a))}</span>`);
+      for (const a of ["fahrt", "flug", "rad", "laufen"]) if (z[a]) raus.push(`<span class="lba-chip" style="--c:${farbe(a)}">${I(SYMBOL[a], 13)} ${esc(dauer(z[a].dauer_s))} ${esc(artName(a))}</span>`);
       for (const a of ["uebersetzen", "wanderung", "spaziergang", "gehen", "wassersport", "pause", "uebernachtung"]) if (z[a]) {
         const n = z[a].anzahl, name = n === 1 ? artName(a) : T("logbuch.mehrzahl." + a, artName(a));
         raus.push(`<span class="lba-chip" style="--c:${farbe(a)}">${I(SYMBOL[a], 13)} ${n} ${esc(name)}</span>`);

@@ -3561,7 +3561,27 @@
     if (r && r.ok && r.art === "video" && r.quelle === "original") {
       buehne.innerHTML = `<video class="foto-gross-video" controls autoplay playsinline src="${r.url}"></video>`;
       const v = buehne.querySelector("video");
-      v.addEventListener("error", () => videoGehtNicht(f, hinweis), { once: true });
+      // 10.11.2026 (Nutzer-Meldung: DJI-Video unter Windows nur mit Ton) — kann das WebView das Bild nicht dekodieren
+      // (HEVC ohne Store-Erweiterung, AVI, MKV …), kommt oft kein Fehler, sondern nur der Ton: Bildbreite 0. Dann einmal
+      // eine abspielbare Kopie rechnen lassen und die zeigen; erst wenn das scheitert, der Hinweis mit der Erweiterung.
+      let ersetzt = false;
+      const ersatz = async () => {
+        if (ersetzt) return; ersetzt = true;
+        try { v.pause(); } catch (_) {}
+        v.hidden = true;
+        hinweis.hidden = false;
+        hinweis.innerHTML = `<div><span class="spinner"></span> ${esc(T("fotos.video_umwandeln", "Dieses Video kann hier nicht direkt abgespielt werden — GPS Studio wandelt es einmal um. Das dauert je nach Länge ein paar Sekunden …"))}</div>`;
+        const k = await api().fotos_video_abspielkopie(f.path).catch((e) => ({ ok: false, error: String(e) }));   // warte-ok: Spinner + Text im Hinweis darüber
+        if (gross !== g || g.liste[g.idx] !== f) return;   // inzwischen weitergeblättert
+        if (k && k.ok && k.url) {
+          hinweis.hidden = true; hinweis.innerHTML = "";
+          v.hidden = false; v.src = k.url;
+          v.addEventListener("error", () => videoGehtNicht(f, hinweis), { once: true });
+          try { const p_ = v.play(); if (p_ && p_.catch) p_.catch(() => {}); } catch (_) {}
+        } else videoGehtNicht(f, hinweis);
+      };
+      v.addEventListener("error", ersatz, { once: true });
+      v.addEventListener("loadedmetadata", () => { if (!v.videoWidth) ersatz(); }, { once: true });
       knoepfe.push(`<button type="button" class="btn btn-sm" data-gk="standbild">${I("camera", 14)} ${esc(T("fotos.standbild", "Standbild speichern"))}</button>`);
     } else if (r && r.ok) {
       if (!gemerkt || gemerkt.url !== r.url) { buehne.innerHTML = ""; buehne.appendChild(_gross(r)); }

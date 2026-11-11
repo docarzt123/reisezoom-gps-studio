@@ -226,11 +226,11 @@
 
   // ── Modelle (Meter) ───────────────────────────────────────────────────────
   const M = {};
-  const LUFT = new Set(["flugzeug", "hubschrauber", "gleitschirm", "heissluftballon"]);
+  const LUFT = new Set(["flugzeug", "hubschrauber", "drohne", "drohne_mini", "drohne_fpv", "drohne_race", "drohne_360", "drohne_profi", "gleitschirm", "heissluftballon"]);
   /** Dauer eines Bewegungszyklus in Sekunden Fahrt (in der App: Videosekunden, in denen sich der Laufpunkt bewegt). Fehlt = keine Bewegung. */
   const ZYKLUS = { wanderer: 1.1, laeufer: 0.7, rad: 0.95, mountainbike: 1.05, reiter: 1.3, ski: 1.8, kajak: 1.5, sup: 2.2,
                    motorrad: 0.4, auto: 0.45, auto_klein: 0.45, auto_limousine: 0.45, auto_suv: 0.45, auto_sport: 0.45, auto_cabrio: 0.45, auto_pickup: 0.45, auto_van: 0.45, auto_gelaende: 0.45,
-                   wohnmobil: 0.6, bus: 0.65, hubschrauber: 0.45, gleitschirm: 3.2, heissluftballon: 0.5 };
+                   wohnmobil: 0.6, bus: 0.65, hubschrauber: 0.45, drohne: 0.3, drohne_mini: 0.3, drohne_fpv: 0.3, drohne_race: 0.3, drohne_360: 0.3, drohne_profi: 0.3, gleitschirm: 3.2, heissluftballon: 0.5 };
   M.flugzeug = (t) => {   // Mittelstreckenjet ~ 37 m, Spannweite 34 m
     const sw = (w) => Math.sin(w);
     t.rumpf([
@@ -530,6 +530,168 @@
       for (const y of [-0.6, 1.6]) t.rohr([0.95 * sx, y, 0.08], [0.6 * sx, y, 0.75], 0.045, "grau", 5);
     }
   };
+  M.drohne = (t, p) => {   // Quadrokopter ~ 0,35 × 0,42 m (Klapparme, Kamera-Gimbal vorn); vier Rotoren drehen paarweise gegenläufig
+    // Marc, 10.11.2026: „wir brauchen noch eine Drohne als 3D-Modell“. Gebaut wie eine Reisedrohne, keine Marke nachgebaut.
+    const a = 2 * PI * p;
+    t.kugel([0, 0.0, 0.0], [0.075, 0.15, 0.045], "farbe", 5, 12);                                   // Rumpf
+    t.kugel([0, -0.02, 0.03], [0.06, 0.11, 0.03], "farbe2", 3, 10);                                 // Deckel oben
+    t.kugel([0, 0.13, 0.0], [0.05, 0.035, 0.03], "dunkel", 3, 8);                                   // Nase / Sensoren
+    for (const sx of [1, -1]) t.kugel([0.025 * sx, 0.155, 0.006], [0.01, 0.006, 0.008], "glas", 2, 6);   // Hindernissensoren
+    t.kugel([0, 0.115, -0.048], [0.026, 0.026, 0.026], "grau", 3, 8);                               // Gimbal
+    t.kugel([0, 0.14, -0.05], [0.016, 0.006, 0.016], "glas", 3, 8);                                 // Objektiv
+    t.kasten(-0.03, 0.03, -0.15, -0.13, -0.01, 0.01, "dunkel");                                    // Akku-Ende
+    const motoren = [[0.16, 0.12], [-0.16, 0.12], [0.18, -0.12], [-0.18, -0.12]];
+    motoren.forEach(([x, y], k) => {
+      const vorn = y > 0, wurzel = [0.05 * Math.sign(x), vorn ? 0.07 : -0.07, vorn ? 0.0 : -0.012];
+      const z = vorn ? 0.012 : -0.004;                                                              // hintere Arme tiefer (wie beim Klappen)
+      t.rohr(wurzel, [x, y, z], 0.011, vorn ? "farbe2" : "farbe", 6, 0.009);                         // Arm, vordere in Zweitfarbe
+      t.rohr([x, y, z - 0.018], [x, y, z + 0.022], 0.017, "grau", 8);                               // Motor
+      t.rohr([x, y, z - 0.018], [x, y, z - 0.055], 0.005, "dunkel", 4);                             // Landefuß
+      t.kugel([x, y, z - 0.004], [0.006, 0.006, 0.006], vorn ? "licht" : "rot", 2, 5);               // Lichter: vorn weiß, hinten rot
+      const dreh = (k === 0 || k === 3 ? 1 : -1) * a * 3 + k;                                       // paarweise gegenläufig
+      for (let b = 0; b < 2; b++) {
+        const w = dreh + b * PI, d = [Math.cos(w), Math.sin(w), 0];
+        t.blatt([x + d[0] * 0.062, y + d[1] * 0.062, z + 0.027], d, 0.12, 0.018, 0.003, "dunkel");
+      }
+      t.kugel([x, y, z + 0.027], [0.009, 0.009, 0.005], "grau", 2, 6);                              // Nabe
+    });
+  };
+  M.hubschrauber = (t, p) => {   // ~ 12 m mit Rotor; Haupt- und Heckrotor drehen
+    const a = 2 * PI * p;
+    t.kugel([0, 0.6, 1.5], [1.1, 2.3, 1.15], "farbe", 7, 14);
+    t.kugel([0, 2.05, 1.7], [0.92, 0.95, 0.85], "glas", 5, 12);
+    t.rohr([0, -1.4, 1.85], [0, -6.2, 2.25], 0.4, "farbe", 10, 0.15);
+    t.flosse(2.1, -5.5, -6.5, 0.12, 3.4, -6.2, -6.8, 0.06, "farbe2");
+    t.kasten(-0.9, 0.9, -5.6, -5.3, 2.15, 2.25, "farbe2");
+    for (let k = 0; k < 2; k++) { const w = a * 2 + k * PI / 2; t.blatt([0.18, -6.3, 2.6], [0, Math.cos(w), Math.sin(w)], 1.2, 0.12, 0.03, "dunkel", [0, 0, 0]); }
+    t.rohr([0, 0.6, 2.6], [0, 0.6, 3.05], 0.12, "grau", 8);
+    for (let k = 0; k < 4; k++) { const w = a + k * PI / 2, d = [Math.cos(w), Math.sin(w), 0]; t.blatt([d[0] * 3.1, 0.6 + d[1] * 3.1, 3.12], d, 6.0, 0.4, 0.06, "dunkel"); }
+    t.kugel([0, 0.6, 3.12], [0.25, 0.25, 0.12], "grau", 3, 8);
+    for (const sx of [1, -1]) {
+      t.rohr([0.95 * sx, -1.3, 0.08], [0.95 * sx, 2.4, 0.08], 0.06, "grau", 6);
+      t.rohr([0.95 * sx, 2.4, 0.08], [0.95 * sx, 2.75, 0.3], 0.06, "grau", 6);
+      for (const y of [-0.6, 1.6]) t.rohr([0.95 * sx, y, 0.08], [0.6 * sx, y, 0.75], 0.045, "grau", 5);
+    }
+  };
+  // ── Weitere Drohnen-Formen (10.11.2026, Marc: „such mal einfach verschiedene Drohnen-Modelle und dann baue das an“) ──
+  // Bauformen, keine Marken nachgebaut: Mini mit Schutzkäfig (Handflächen-/Selfie-Drohne), FPV mit Ringen um die Rotoren
+  // (Cinewhoop), FPV-Racer (X-Rahmen, offene Propeller), 360°-Drohne (je eine Linse oben und unten), Profi-Kameradrohne
+  // (Arme schräg nach oben, große Kamera unten). Rotoren drehen paarweise gegenläufig wie bei der Reisedrohne.
+  /** Ring in der xy-Ebene aus kurzen Rohren (Schutzbügel) */
+  const ringXY = (t, c, r, dicke, rolle, n = 16) => {
+    const P = Array.from({ length: n }, (_, i) => [c[0] + Math.cos(i / n * 2 * PI) * r, c[1] + Math.sin(i / n * 2 * PI) * r, c[2]]);
+    for (let i = 0; i < n; i++) t.rohr(P[i], P[(i + 1) % n], dicke, rolle, 5);
+  };
+  /** Hohle Hülse um die senkrechte Achse durch c (Rotor-Ring): Innen-/Außenradius, Höhe h */
+  const huelse = (t, c, ri, ra, h, rolle, n = 20) => {
+    const z0 = c[2] - h / 2, z1 = c[2] + h / 2;
+    const pt = (i, r, z) => { const w = i / n * 2 * PI; return [c[0] + Math.cos(w) * r, c[1] + Math.sin(w) * r, z]; };
+    for (let i = 0; i < n; i++) {
+      const j = i + 1, wm = (i + 0.5) / n * 2 * PI, aus = [c[0] + Math.cos(wm) * ra * 3, c[1] + Math.sin(wm) * ra * 3, c[2]];
+      t.viereck(pt(i, ra, z0), pt(j, ra, z0), pt(j, ra, z1), pt(i, ra, z1), rolle, c);                            // außen
+      t.viereck(pt(i, ri, z0), pt(j, ri, z0), pt(j, ri, z1), pt(i, ri, z1), rolle, aus);                          // innen
+      t.viereck(pt(i, ri, z1), pt(j, ri, z1), pt(j, ra, z1), pt(i, ra, z1), rolle, [c[0], c[1], z0 - h]);          // Rand oben
+      t.viereck(pt(i, ri, z0), pt(j, ri, z0), pt(j, ra, z0), pt(i, ra, z0), rolle, [c[0], c[1], z1 + h]);          // Rand unten
+    }
+  };
+  /** Rotor mit n Blättern um (x, y, z), Radius r; `dreh` Bogenmaß */
+  const rotor = (t, x, y, z, r, n, dreh, rolle = "dunkel") => {
+    for (let b = 0; b < n; b++) {
+      const w = dreh + b * 2 * PI / n, d = [Math.cos(w), Math.sin(w), 0];
+      t.blatt([x + d[0] * r * 0.5, y + d[1] * r * 0.5, z], d, r * 0.96, r * 0.17, r * 0.03, rolle);
+    }
+    t.kugel([x, y, z + r * 0.02], [r * 0.13, r * 0.13, r * 0.07], "grau", 2, 6);
+  };
+  /** Drehwinkel des Rotors k (0…3) in Phase p — diagonal gegenüberliegende drehen gleich, Nachbarn gegenläufig */
+  const rotorDreh = (p, k) => (k === 0 || k === 3 ? 1 : -1) * 2 * PI * p * 3 + k;
+  M.drohne_mini = (t, p) => {   // Handflächen-Drohne ~ 0,15 × 0,16 m, Rotoren rundum im Schutzkäfig, Kamera vorn
+    t.kugel([0, 0, 0], [0.034, 0.05, 0.02], "farbe", 4, 12);                                          // Rumpf
+    t.kugel([0, -0.006, 0.014], [0.028, 0.038, 0.009], "farbe2", 3, 10);                              // Deckel
+    t.kugel([0, 0.048, -0.003], [0.017, 0.012, 0.016], "dunkel", 3, 8);                               // Kamerakopf
+    t.kugel([0, 0.058, -0.003], [0.009, 0.004, 0.009], "glas", 3, 8);                                 // Objektiv
+    const Q = [[0.055, 0.052], [-0.055, 0.052], [0.055, -0.052], [-0.055, -0.052]];
+    Q.forEach(([x, y], k) => {
+      t.rohr([0.02 * Math.sign(x), 0.025 * Math.sign(y), 0], [x, y, 0.002], 0.006, "farbe", 6);       // Arm
+      t.rohr([x, y, -0.006], [x, y, 0.008], 0.009, "grau", 8);                                      // Motor
+      rotor(t, x, y, 0.011, 0.036, 2, rotorDreh(p, k));
+      ringXY(t, [x, y, 0.016], 0.042, 0.0035, "farbe");                                             // Käfig oben
+      ringXY(t, [x, y, -0.008], 0.042, 0.0035, "farbe");                                            // Käfig unten
+      for (let s = 0; s < 4; s++) {                                                                  // Gitter oben + Streben
+        const w = s * PI / 4 + PI / 8, d = [Math.cos(w) * 0.042, Math.sin(w) * 0.042];
+        t.rohr([x - d[0], y - d[1], 0.017], [x + d[0], y + d[1], 0.017], 0.0018, "farbe", 4);
+        t.rohr([x + d[0], y + d[1], -0.008], [x + d[0], y + d[1], 0.016], 0.0025, "farbe", 4);
+      }
+    });
+  };
+  M.drohne_fpv = (t, p) => {   // FPV mit Ringen um die Rotoren (Cinewhoop) ~ 0,18 × 0,2 m; gedrungen, Kamera vorn, Antennen hinten
+    const D = [[0.064, 0.058], [-0.064, 0.058], [0.064, -0.058], [-0.064, -0.058]];
+    t.platte([[0.02, 0.1], [0.1, 0.06], [0.1, -0.06], [0.02, -0.1], [-0.02, -0.1], [-0.1, -0.06], [-0.1, 0.06], [-0.02, 0.1]], -0.018, -0.012, "dunkel");   // Bodenplatte
+    D.forEach(([x, y], k) => {
+      huelse(t, [x, y, -0.002], 0.039, 0.045, 0.03, "farbe");                                         // Ring
+      t.rohr([x, y, -0.016], [x, y, 0.0], 0.011, "grau", 8);                                          // Motor
+      rotor(t, x, y, 0.003, 0.037, 3, rotorDreh(p, k));
+    });
+    t.kugel([0, 0, 0.012], [0.04, 0.07, 0.028], "farbe2", 4, 12);                                     // Rumpf
+    t.kasten(-0.026, 0.026, -0.065, -0.01, 0.03, 0.05, "dunkel");                                     // Akku oben
+    t.kugel([0, 0.07, 0.01], [0.022, 0.016, 0.02], "dunkel", 3, 8);                                   // Kamera
+    t.kugel([0, 0.085, 0.01], [0.012, 0.004, 0.012], "glas", 3, 8);
+    for (const sx of [1, -1]) t.rohr([0.012 * sx, -0.06, 0.04], [0.032 * sx, -0.095, 0.072], 0.0025, "grau", 4);   // Antennen
+  };
+  M.drohne_race = (t, p) => {   // FPV-Racer ~ 0,25 × 0,22 m: X-Rahmen aus Carbon, offene Dreiblatt-Propeller, Akku + Actioncam oben
+    const R = [[0.095, 0.085], [-0.095, 0.085], [0.095, -0.085], [-0.095, -0.085]];
+    R.forEach(([x, y], k) => {
+      const l = Math.hypot(x, y), d = [x / l, y / l, 0];
+      t.blatt([x / 2, y / 2, 0.003], d, l + 0.02, 0.02, 0.005, "dunkel");                              // Arm
+      t.rohr([x, y, 0.005], [x, y, 0.026], 0.012, "grau", 8);                                         // Motor
+      rotor(t, x, y, 0.03, 0.064, 3, rotorDreh(p, k), "farbe2");                                      // Propeller in Zweitfarbe
+    });
+    t.kasten(-0.03, 0.03, -0.06, 0.06, 0.0, 0.006, "dunkel");                                         // Unterplatte
+    t.kasten(-0.03, 0.03, -0.055, 0.05, 0.032, 0.036, "dunkel");                                      // Oberplatte
+    for (const [x, y] of [[0.026, 0.045], [-0.026, 0.045], [0.026, -0.05], [-0.026, -0.05]]) t.rohr([x, y, 0.006], [x, y, 0.032], 0.003, "grau", 5);
+    t.kasten(-0.018, 0.018, -0.045, 0.03, 0.036, 0.066, "farbe");                                     // Akku
+    t.kasten(-0.02, 0.02, -0.012, -0.004, 0.035, 0.068, "farbe2");                                    // Gurt
+    t.kasten(-0.02, 0.02, 0.03, 0.058, 0.04, 0.074, "dunkel");                                        // Actioncam
+    t.kugel([0, 0.06, 0.057], [0.01, 0.004, 0.01], "glas", 3, 8);
+    t.kugel([0, 0.066, 0.018], [0.012, 0.01, 0.011], "dunkel", 3, 8);                                 // FPV-Kamera vorn
+    t.kugel([0, 0.075, 0.018], [0.007, 0.003, 0.007], "glas", 3, 6);
+    t.rohr([0, -0.055, 0.034], [0, -0.09, 0.07], 0.003, "grau", 4);                                   // Antenne
+  };
+  M.drohne_360 = (t, p) => {   // 360°-Drohne ~ 0,31 × 0,38 m: je eine Linse oben und unten (die Drohne verschwindet beim Zusammensetzen)
+    t.kugel([0, 0, 0], [0.06, 0.09, 0.04], "farbe", 5, 12);                                           // Rumpf
+    t.kugel([0, -0.01, 0.02], [0.05, 0.07, 0.022], "farbe2", 3, 10);                                  // Deckel
+    t.rohr([0, 0, 0.035], [0, 0, 0.06], 0.026, "dunkel", 12);                                         // Linse oben: Fassung
+    t.kugel([0, 0, 0.062], [0.022, 0.022, 0.018], "glas", 4, 10);                                     //               Glas
+    t.rohr([0, 0, -0.035], [0, 0, -0.06], 0.026, "dunkel", 12);                                       // Linse unten
+    t.kugel([0, 0, -0.062], [0.022, 0.022, 0.018], "glas", 4, 10);
+    const A = [[0.15, 0.17], [-0.15, 0.17], [0.15, -0.17], [-0.15, -0.17]];
+    A.forEach(([x, y], k) => {
+      t.rohr([0.045 * Math.sign(x), 0.05 * Math.sign(y), 0], [x, y, 0], 0.01, "farbe", 6, 0.008);    // Arm
+      t.rohr([x, y, -0.014], [x, y, 0.016], 0.016, "grau", 8);                                        // Motor
+      t.kugel([x, y, 0.0], [0.006, 0.006, 0.006], y > 0 ? "licht" : "rot", 2, 5);
+      rotor(t, x, y, 0.02, 0.07, 2, rotorDreh(p, k));
+    });
+  };
+  M.drohne_profi = (t, p) => {   // Profi-Kameradrohne ~ 0,6 × 0,5 m: Arme schräg nach oben (Flugstellung), große Kamera am Gimbal unten
+    t.kugel([0, 0, 0], [0.09, 0.17, 0.05], "farbe", 5, 14);                                           // Rumpf
+    t.kugel([0, 0.02, 0.03], [0.07, 0.12, 0.025], "farbe2", 3, 12);                                   // Deckel
+    t.kugel([0, 0.16, 0.0], [0.05, 0.03, 0.03], "dunkel", 3, 8);                                      // Nase / Sensoren
+    t.rohr([0, 0.07, -0.04], [0, 0.07, -0.075], 0.012, "grau", 6);                                    // Gimbal-Aufhängung
+    t.kasten(-0.045, 0.045, 0.03, 0.12, -0.14, -0.075, "dunkel");                                     // Kamera
+    t.rohr([0, 0.12, -0.108], [0, 0.155, -0.108], 0.026, "dunkel", 12);                               // Objektiv
+    t.kugel([0, 0.158, -0.108], [0.02, 0.004, 0.02], "glas", 3, 10);
+    for (const sx of [1, -1]) {
+      for (const sy of [1, -1]) {
+        const k = (sx > 0 ? 0 : 1) + (sy > 0 ? 0 : 2), x = 0.3 * sx, y = 0.2 * sy, z = 0.1;
+        t.rohr([0.06 * sx, 0.07 * sy, 0.0], [x, y, z], 0.016, "farbe", 8, 0.012);                   // Arm (Rohr, schräg hoch)
+        t.rohr([x, y, z - 0.02], [x, y, z + 0.02], 0.024, "grau", 10);                               // Motor
+        t.kugel([x, y, z - 0.024], [0.008, 0.008, 0.008], sy > 0 ? "licht" : "rot", 2, 5);
+        rotor(t, x, y, z + 0.026, 0.15, 2, rotorDreh(p, k));
+      }
+      t.rohr([0.08 * sx, 0.06, -0.02], [0.13 * sx, 0.06, -0.16], 0.008, "grau", 6);                  // Landebeine
+      t.rohr([0.08 * sx, -0.08, -0.02], [0.13 * sx, -0.08, -0.16], 0.008, "grau", 6);
+      t.rohr([0.13 * sx, 0.12, -0.16], [0.13 * sx, -0.14, -0.16], 0.009, "grau", 6);                 // Kufe
+    }
+  };
   M.gleitschirm = (t, p, r = 0) => {   // Schirm ~ 11 m Spannweite, Pilot im Gurtzeug, Beine baumeln
     const N = 14, R = 6.2, H = 7.0, sp = 62;
     const pt = (i, y, d) => { const a = (-sp + i / N * 2 * sp) * PI / 180; return [Math.sin(a) * (R + d), y, H - R + Math.cos(a) * (R + d)]; };
@@ -644,14 +806,16 @@
   }
   const ARTEN = ["auto", "auto_klein", "auto_limousine", "auto_suv", "auto_sport", "auto_cabrio", "auto_pickup", "auto_van", "auto_gelaende",
                  "motorrad", "wohnmobil", "bus", "rad", "mountainbike", "wanderer", "laeufer", "reiter", "ski",
-                 "zug", "boot", "segelboot", "faehre", "kajak", "sup", "flugzeug", "hubschrauber", "gleitschirm", "heissluftballon"];
+                 "zug", "boot", "segelboot", "faehre", "kajak", "sup", "flugzeug", "hubschrauber", "drohne", "drohne_mini", "drohne_fpv", "drohne_race", "drohne_360", "drohne_profi", "gleitschirm", "heissluftballon"];
   const NAMEN = { auto: "Auto · Kombi", auto_klein: "Auto · Kleinwagen", auto_limousine: "Auto · Limousine", auto_suv: "Auto · SUV",
                   auto_sport: "Auto · Sportwagen", auto_cabrio: "Auto · Cabrio", auto_pickup: "Auto · Pick-up", auto_van: "Auto · Kleinbus", auto_gelaende: "Auto · Geländewagen", motorrad: "Motorrad", wohnmobil: "Wohnmobil", bus: "Bus", rad: "Rad", mountainbike: "Mountainbike", wanderer: "zu Fuß",
                   laeufer: "Laufen", reiter: "Reiten", ski: "Ski", zug: "Zug", boot: "Boot", segelboot: "Segelboot", faehre: "Fähre", kajak: "Kajak",
-                  sup: "SUP", flugzeug: "Flugzeug", hubschrauber: "Hubschrauber", gleitschirm: "Gleitschirm", heissluftballon: "Heißluftballon" };
+                  sup: "SUP", flugzeug: "Flugzeug", hubschrauber: "Hubschrauber", drohne: "Drohne · Faltdrohne", drohne_mini: "Drohne · Mini mit Schutzkäfig", drohne_fpv: "Drohne · FPV mit Ringen",
+                  drohne_race: "Drohne · FPV-Racer", drohne_360: "Drohne · 360°", drohne_profi: "Drohne · Profi-Kamera", gleitschirm: "Gleitschirm", heissluftballon: "Heißluftballon" };
   const LICHT = (() => { const l = [-0.45, 0.55, 0.75], n = Math.hypot(...l); return l.map((x) => x / n); })();   // Ost, Nord, oben
   /** Varianten je Verkehrsart (für eine spätere Auswahl im Studio: Art „auto“ → eine dieser Formen) */
-  const VARIANTEN = { auto: ["auto", "auto_klein", "auto_limousine", "auto_suv", "auto_sport", "auto_cabrio", "auto_pickup", "auto_van", "auto_gelaende"] };
+  const VARIANTEN = { auto: ["auto", "auto_klein", "auto_limousine", "auto_suv", "auto_sport", "auto_cabrio", "auto_pickup", "auto_van", "auto_gelaende"],
+                      drohne: ["drohne", "drohne_mini", "drohne_fpv", "drohne_race", "drohne_360", "drohne_profi"] };
   /** Vorschau als Bild (Auswahlkacheln): Ansicht schräg von vorn rechts oben, Maler-Verfahren (hinten zuerst), Licht wie
    *  im Studio. `p` = { farbe, farbe2, phase, ruhe }. Ergebnis: Canvas `px` × `px`, durchsichtiger Grund. */
   const _vorschauCache = new Map();

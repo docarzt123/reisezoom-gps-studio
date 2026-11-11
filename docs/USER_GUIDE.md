@@ -436,23 +436,25 @@ und darunter ihre Bedienung:
   Fotostopp, Ende), atmet der Punkt langsam (Takt 1,6 s); sobald es weiterfährt, hört das sofort auf. Der Schweif ist beim
   Leuchtpunkt im Bildmaß bemessen — gleich lang, egal wie weit gezoomt ist.
   **Zwei Reiter, 2D und 3D (seit 08.11.2026):** über den Kacheln wählst du **2D** (Kugel, Leuchtpunkt, Pfeil, die Fahrzeuge
-  als Bild oder Symbol, eigenes Bild — darunter das Fahrzeug-Aussehen) oder **3D** (die 20 Fahrzeuge als 3D-Modell, mit der
-  3D-Röhre vorn auch Komet-Pfeil, Komet, 3D-Pfeil und 3D-Puk; Auto-Form und Bewegungstempo im Track-Editor). Ein Klick auf
+  als Bild oder Symbol, eigenes Bild — darunter das Fahrzeug-Aussehen) oder **3D** (die 21 Fahrzeuge als 3D-Modell, mit der
+  3D-Röhre vorn auch Komet-Pfeil, Komet, 3D-Pfeil und 3D-Puk; Auto-Form, Drohnen-Form und Bewegungstempo im Track-Editor). Ein Klick auf
   den Reiter zeigt nur die Kacheln, gewählt wird mit einer Kachel.
   Die Form wählst du als Bildkachel; darunter steht **„Fahrzeug-Aussehen (alle Fahrzeuge)“** mit zwölf
   Kacheln (nur im Reiter 2D): Plakette (das gezeichnete Symbol), **Symbol** (seit v0.9.792, siehe unten) oder fotorealistisch, Bleistift & Aquarell, Comic,
   Piktogramm, Kupferstich, Neon, Pixel-Art, Blaupause, Papier, Knete. Diese Bilder sind von oben
   gezeichnet, liegen flach auf der Karte und drehen sich mit der Fahrtrichtung — auch auf geplanten
-  Etappen. **Symbole je Bewegungsart (seit v0.9.792):** 20 schlichte Symbole von oben — Auto, Motorrad, Wohnmobil, Bus,
+  Etappen. **Symbole je Bewegungsart (seit v0.9.792):** 21 schlichte Symbole von oben — Auto, Motorrad, Wohnmobil, Bus,
   Fahrrad, Mountainbike, Wanderer, Läufer, Reiter, Ski, Zug, Boot, Segelboot, Fähre, Kajak, SUP, Flugzeug, Hubschrauber,
-  Gleitschirm, Heißluftballon. Sie liegen flach auf der Karte und drehen sich mit dem Weg. **3D-Modell (neu, Reiter 3D):** dieselben
-  20 Arten als echte 3D-Fahrzeuge, die auf der Karte stehen, mit der Kamera mitdrehen und sich am Hang neigen; Wanderer,
+  Drohne, Gleitschirm, Heißluftballon. Sie liegen flach auf der Karte und drehen sich mit dem Weg. **3D-Modell (neu, Reiter 3D):** dieselben
+  21 Arten als echte 3D-Fahrzeuge, die auf der Karte stehen, mit der Kamera mitdrehen und sich am Hang neigen; Wanderer,
   Läufer, Radfahrer, Reiter, Paddler und Räder bewegen sich mit der gefahrenen Strecke; steht der Punkt (Fotostopp, Ende),
   gehen die Figuren in eine Ruhepose — der Wanderer steht gerade, die Pedale stehen waagrecht, das Paddel ruht. Rotor des
-  Hubschraubers und Brennerflamme des Ballons laufen auch im Stand weiter. **Bewegungstempo (3D-Modelle)** im Track-Editor
+  Hubschraubers, die Rotoren der Drohne und die Brennerflamme des Ballons laufen auch im Stand weiter. **Bewegungstempo (3D-Modelle)** im Track-Editor
   (0,25–3×) stellt den Grundtakt ein. Zwei eigene Farben gibt es unter **„Farben der Fahrzeuge“ → Feste Farben** (Körper und
   Akzent), die Größe über **Größe**. Beim Auto wählst du unter **„Auto-Form“** eins von neun: Kombi, Kleinwagen, Limousine,
-  SUV, Sportwagen, Cabrio (mit Fahrer), Pick-up, Kleinbus, Geländewagen. Gefärbt
+  SUV, Sportwagen, Cabrio (mit Fahrer), Pick-up, Kleinbus, Geländewagen. Bei der **Drohne** (seit 10.11.2026) heißt dieselbe
+  Zeile **„Drohnen-Form“** mit sechs Bauformen: Faltdrohne (Klapparme), Mini mit Schutzkäfig, FPV mit Ringen um die
+  Rotoren, FPV-Racer, 360°-Drohne (je eine Linse oben und unten) und Profi-Kameradrohne. Gefärbt
   werden sie wie die Symbole (Linienfarbe oder feste Farben). Auch in der Luft und auf der 3D-Röhre (Kopf „Wie der
   Laufpunkt“). Braucht die freien Karten — mit Mapbox und bei weiteren Touren steht das Symbol. Darunter wählst du die
   **Farbe der Symbole** (gilt für alle): **Linienfarbe** färbt das Symbol in der Farbe der Tour mit passendem Akzent,
@@ -798,7 +800,7 @@ Mapbox erlaubt die **Veröffentlichung von Videos** mit seinem Kartenmaterial **
 ### Frag GPS Studio — Handbuch und Knöpfe durchsuchen (⌘K)
 Du suchst einen Schalter oder weißt nicht, wie etwas heißt? Drück **⌘K** (Windows/Linux: **Strg+K**) oder klick oben rechts auf **Frag GPS Studio …** (auch unter **Hilfe → Frag GPS Studio …** und im Fenster **Erste Schritte**). Schreib deine Frage so, wie du sie stellen würdest — „wie ändere ich das Datum vieler Fotos“, „Kamera folgt dem Track“, „Video in 9:16“. GPS Studio durchsucht dieses Handbuch und die Beschriftungen aller Knöpfe und zeigt die passenden Stellen, die gefundenen Wörter sind markiert. Das läuft ohne Internet und ohne KI-Dienst auf deinem Rechner.
 
-- **Zeig mir** springt direkt dorthin: GPS Studio wechselt ins richtige Modul, klappt den Abschnitt (oder „Mehr“) auf und lässt den Schalter kurz aufleuchten. Braucht die Stelle erst eine geladene Tour oder markierte Fotos, steht das im Treffer — zum Beispiel bei „Aufnahmezeit ändern …“, das erst erscheint, wenn Fotos markiert sind.
+- **Zeig mir** springt direkt dorthin: GPS Studio wechselt ins richtige Modul, klappt den Abschnitt (oder „Mehr“) auf und lässt den Schalter kurz aufleuchten. Felder aus dem Track-Editor (Laufpunkt, Linie, Röhre …) öffnet er dafür selbst (seit 11.11.2026); ist ein Laufpunkt-Feld gerade ausgeblendet — etwa die „Drohnen-Form“, solange der Laufpunkt keine Drohne ist —, leuchtet die Laufpunkt-Form, in der du es hervorholst. Braucht die Stelle erst eine geladene Tour oder markierte Fotos, steht das im Treffer — zum Beispiel bei „Aufnahmezeit ändern …“, das erst erscheint, wenn Fotos markiert sind.
 - Ein **Handbuch-Treffer** (anklicken oder **↵**) öffnet das Handbuch genau an diesem Abschnitt.
 - Mit **↑ ↓** wählst du einen Treffer, **Esc** schließt die Suche.
 
@@ -1516,7 +1518,7 @@ auf, wenn du ihn startest, und braucht einen neuen Track im Eingang.
 ### Neu in v0.9.796: kleine Korrekturen
 
 - **Track-Check: Fehler aus dem Archiv im Inspektor finden.** Meldet das Archiv bei einer Tour „Fehler im Track“, öffne sie mit „Im Inspektor reparieren“. Oben im Inspektor steht der Track-Check mit jeder Befund-Art, darunter die einzelnen Fundstellen als kleine Knöpfe mit dem Kilometer. Ein Klick springt zur Stelle, markiert sie auf Karte und Höhenprofil und bietet „Reparieren“ an. Nach dem Reparieren und „Im Archiv ersetzen“ verschwindet der Hinweis im Archiv. Stammt das Archiv-Ergebnis noch aus einer älteren Prüfung, prüft GPS Studio die Tour beim Öffnen neu und sagt dir, was sich geändert hat — oft ist dann gar nichts mehr zu reparieren.
-- **Logbuch: Art der Fortbewegung ändern.** Auf der Tour-Seite kannst du im Logbuch über „⋯“ an einem Eintrag unter **„Art ändern“** die Fortbewegung umstellen: Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport oder Pause. Hat GPS Studio eine Art nur vermutet, kannst du sie dort bestätigen. Die Änderung gilt überall — im Inspektor, im Animator, im Video-Assistenten und in der Kurzfassung der Tour. „Rückgängig“ unter der Liste nimmt sie zurück.
+- **Logbuch: Art der Fortbewegung ändern.** Auf der Tour-Seite kannst du im Logbuch über „⋯“ an einem Eintrag unter **„Art ändern“** die Fortbewegung umstellen: Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport, Flug oder Pause. Hat GPS Studio eine Art nur vermutet, kannst du sie dort bestätigen. Die Änderung gilt überall — im Inspektor, im Animator, im Video-Assistenten und in der Kurzfassung der Tour. „Rückgängig“ unter der Liste nimmt sie zurück.
 - **Fahrzeug der Etappe zeigen.** Im Etappen-Editor steht unter „Unterwegs mit“ der Schalter **„Fahrzeug der Etappe zeigen“**. Eingeschaltet (Standard) wird der Laufpunkt zum Verkehrsmittel des Abschnitts — Auto, Flugzeug, Boot. Ausgeschaltet behält er die Form, die du unter „Laufpunkt“ eingestellt hast (Kugel, Pfeil, Symbol oder eigenes Bild); das Verkehrsmittel bestimmt dann nur noch, ob die Linie der Straße folgt oder als Bogen fliegt. Ganz ohne Punkt, nur mit der Linie: Knopf „Laufpunkt einstellen …“ direkt darunter, dort den Haken „Laufpunkt zeigen“ entfernen. Der Schalter gilt je Etappe und wirkt sofort.
 - **Ortssuche: Stadt vor Dorf.** Gibt es mehrere Orte gleichen Namens, nimmt die Ortssuche die Stadt vor dem Dorf („Lindau“ → Lindau (Bodensee), „Frankfurt“ → Frankfurt am Main). Steht schon eine Nachbar-Station fest, gewinnt der nächstgelegene Ort dieses Namens.
 - **Medien:** Fotos, die du im Finder bzw. Explorer verschiebst oder umbenennst, stehen gleich am neuen Ort, mit dem Datum, das jetzt in der Datei steht (siehe „Von selbst aktuell halten“).
@@ -1585,9 +1587,9 @@ und dem Anfang der Tour danach belegt. Die Etappe bekommt eine eigene Zeile (�
 läuft wie jede Tour; der Laufpunkt zeigt das Fahrzeug des gerade laufenden Abschnitts. Die Etappe gehört zum Projekt
 (sie reist auch im `.rzproj` mit) und hat keine Uhrzeit.
 
-**Verkehrsmittel.** Ganz oben im Editor steht die Leiste **„Unterwegs mit“** mit 20 Symbolen (seit v0.9.792): Auto,
+**Verkehrsmittel.** Ganz oben im Editor steht die Leiste **„Unterwegs mit“** mit 21 Symbolen (seit v0.9.792, Drohne seit 10.11.2026): Auto,
 Motorrad, Wohnmobil, Bus, Fahrrad, Mountainbike, Wanderer, Läufer, Reiter folgen der Straße bzw. dem Weg; Ski, Zug, Boot,
-Segelboot, Fähre, Kajak, SUP, Flugzeug, Hubschrauber, Gleitschirm und Heißluftballon fahren einen Bogen (Ski mit Höhen
+Segelboot, Fähre, Kajak, SUP, Flugzeug, Hubschrauber, Drohne, Gleitschirm und Heißluftballon fahren einen Bogen (Ski mit Höhen
 aus dem Gelände, Wasser und Luft flach). Ein Klick gilt für alle Abschnitte — oder, wenn ein Punkt ausgewählt ist, ab
 diesem Punkt. Einzelne Abschnitte stellst du in der Liste zwischen zwei Stationen um; dort schaltest du auch „Straße“
 (bei den Bogen-Arten „Bogen“) aus, dann wird der Abschnitt eine freie Kurve. Die kleine Leiste am ausgewählten Punkt bleibt immer in der
@@ -2586,8 +2588,11 @@ auf, den die Datei mitbringt.
 ganzen Fenster. **← / →** blättert in der Reihenfolge des Rasters, **Esc** schließt. Videos laufen dort mit Ton und den
 üblichen Steuerelementen; **📸 Standbild speichern** legt das gerade gezeigte Bild als JPEG ab (du wählst den Ort, die
 Aufnahmezeit und der Ort des Videos kommen mit). Unten: **Im Finder zeigen** und **Mit Standard-App öffnen**.
-*Windows:* Spielt ein Video nicht, fehlt meist die kostenlose Erweiterung „HEVC-Videoerweiterungen“ — die App
-zeigt eine kurze Anleitung und öffnet die Seite im Microsoft Store.
+Kann die Großansicht ein Video nicht selbst abspielen (unter Windows oft HEVC/H.265, etwa von DJI-, GoPro- oder
+Handy-Kameras, sonst z. B. AVI oder MKV), wandelt GPS Studio es einmal in eine abspielbare Kopie um — ein paar Sekunden
+mit Ladeanzeige, danach läuft es sofort. Die Kopie liegt im Clip-Speicher, dein Original bleibt unverändert.
+*Windows:* Klappt auch das nicht, zeigt die App eine kurze Anleitung zur Erweiterung „HEVC-Videoerweiterungen“ aus dem
+Microsoft Store.
 
 **Verorten:** Die kleine Karte rechts ist immer da. Hat das Foto keinen Ort, klickst du in die Karte; hat es einen,
 ziehst du den Punkt. Vor dem Schreiben kannst du Höhe und Blickrichtung angeben und die vorgeschlagene Adresse
@@ -2978,6 +2983,8 @@ es beim Einschalten. Gilt auch fürs gerenderte Video.
 **Farben nach Höhe, Tempo … auch in der Luft (seit v0.9.793):** Die Linie in der Luft färbt sich genau wie die Linie am Boden — **Track → Mehrere Track-Farben**: nach Strecke, Höhe, Tempo, Steigung oder einem Sensor, mit harten Farbwechseln oder fließendem Verlauf, dazu **Farbe je Tag** und die Farben der Etappen. Beim Gleitschirm zeigt „nach Höhe“ so auf einen Blick, wo der Schirm in der Thermik steigt und wo er gleitet. Die Lotlinien nehmen die Farbe ihres Punkts an. Jede Änderung an den Farbstufen sieht man sofort, auch im Video.
 
 **IGC-Tracks gehen von selbst in die Luft (seit v0.9.793):** Lädst du einen Gleitschirm-, Segelflug- oder Drachenflug als IGC-Datei in ein Projekt, schaltet die App Gelände und „Flug in der Luft“ von selbst ein — du musst nichts einstellen. Schaltest du es aus, bleibt es in diesem Projekt aus. Bei DJI-Drohnenflügen erinnert ein Hinweis an den Schalter, weil tiefe Kameraflüge am Boden oft besser aussehen. Den Schalter findest du unter **Karte → 3D auf der Karte → Strecke**; er erscheint bei Flügen (IGC, Drohne) und immer, wenn er an ist. 
+
+**Drohnenflüge werden erkannt (seit 10.11.2026):** Die Untertitel-Datei einer DJI-Drohne (`.srt` neben dem Video), GPX- und KML-Dateien aus Drohnen-Apps (AirData, Litchi, DroneLink, DroneDeploy, UgCS, DJI, Antigravity …) und DJI-Wegpunkt-Missionen landen im Archiv mit der Fortbewegung **Drohne** — auch der Import-Assistent schlägt sie vor. Öffnest du so einen Flug in einem Projekt, wird der Laufpunkt einmal von selbst zur **Drohne als 3D-Modell**; ein Hinweis sagt es dir, **⌘Z** nimmt es zurück. Wählst du danach etwas anderes, bleibt es in diesem Projekt so. Flüge aus der Antigravity-App bekommen gleich die 360°-Drohne. Auch der Video-Assistent behält bei einem Drohnenflug die Drohne als Laufpunkt, welchen Stil du auch wählst (außer du schaltest den Laufpunkt aus). Eine Wanderung, bei der du nebenbei geflogen bist („Wanderung mit Drohne“), bleibt eine Wanderung.
 
 **Laufpunkt nach Aktivität (seit 19.10.2026):** Im Track-Editor unter dem Laufpunkt schaltest du **„Symbol nach Aktivität (aus dem Logbuch)“** ein. Dann zeigt der Laufpunkt, was das Logbuch an der Stelle erkannt hat: **Auto** bei einer Fahrt (das **Motorrad**, wenn die Tour im Archiv als Motorrad-Tour eingetragen ist), **Boot** auf der Fähre (mit dem Fahrzeug-Aussehen „Symbol“ die Fähre), **Wanderer** beim Wandern und Spazieren, **Fahrrad**, **Läufer** und beim Wassersport **Kajak**. Pausen und Übernachtungen behalten das Symbol davor. An jedem Wechsel wird der Punkt kurz klein und wieder groß; die Linie bleibt eine Linie. Abschnitte, die im Video kürzer als eine Sekunde zu sehen wären (die Minute vom Parkplatz zur Aussicht), behalten das Symbol davor, damit der Punkt nicht zuckt — der Hinweis unter dem Schalter sagt, welche Symbole deshalb fehlen; mit längerer Videodauer erscheinen sie. Das gilt in der Vorschau, beim Scrubben, im Video und für den Punkt in der Luft. Vorrang behalten das Fahrzeug einer geplanten Etappe, dein eigenes Bild und „Laufpunkt zeigen“ aus. Ohne Logbuch (Tour nicht im Archiv, keine Zeitstempel, mehrere Touren nacheinander) ist der Schalter grau, mit dem Grund daneben.
 
@@ -3865,6 +3872,7 @@ Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau 
 - **Gekoppelt mit der Karte:** Klick auf einen Eintrag (Liste oder Zeitstrahl) hebt den Abschnitt auf dem Track hervor und zoomt hin. Klick auf den Track wählt den Eintrag, in dem der Punkt liegt. Fährst du mit der Maus über den Track oder das Höhenprofil, wandert eine Marke mit Uhrzeit im Zeitstrahl mit. **Esc** hebt die Auswahl auf.
 - **„alles zeigen“** holt auch kurze Halte und die rohen Bereiche der Erkennung zurück; **↻** erkennt das Logbuch neu; **▾** klappt es ein (bleibt gemerkt).
 - **Wassersport:** Steht die Tour im Archiv als Boot/Kajak/SUP, heißen die langsamen Abschnitte Wassersport statt Wanderung.
+- **Flug (seit 11.11.2026):** Steht die Tour im Archiv als Drohne (Drohnenflüge werden erkannt), heißen alle bewegten Abschnitte Flug statt Fahrt oder Wanderung — mit Flugdauer in der Kurzfassung. Mit „Symbol nach Aktivität“ zeigt der Laufpunkt dort die Drohne.
 - **„vermutet“** steht bei Einträgen, bei denen die Erkennung geraten hat — etwa langsames Fahren durch Ortschaften, das wie Radfahren aussieht.
 - Die Kopfzeile fasst zusammen: „99 h 5 min Fahrt · 2 Fähren · 47 Spaziergänge · 214 Pausen · 37 Übernachtungen“.
 
@@ -3879,7 +3887,7 @@ Halts das Häkchen **„Zu ‚Meine Orte‘ hinzufügen“** setzen. Die Orte bl
 Tagebuch der Tour: je Tag Datum und Kilometer, ein Kärtchen der Tagesstrecke und alle Einträge mit Uhrzeit, Ort, Dauer und
 Notiz. **CSV** speichert eine Tabelle für Excel oder Numbers, eine Zeile je Eintrag, mit Koordinaten.
 
-**Bearbeiten (seit v0.9.709):** Jeder Eintrag hat ein **⋯-Menü** (auch Rechtsklick in der Liste oder auf einen Block im Zeitstrahl): *Umbenennen*, *Notiz*, *Art ändern* (Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport, Pause), *Aktivität teilen* — hier (im Zeitstrahl an der Mausstelle), bei Anker A, bei einer Uhrzeit oder in der Mitte; geteilt wird nur der Eintrag, nie der Track —, *Mit vorherigem/nächstem zusammenlegen*, *Löschen* — das Gelöschte geht im Nachbarn auf. **Grenzen ziehen:** im Zeitstrahl den Übergang zwischen zwei Blöcken packen und schieben. **＋ A→B** macht aus dem Abschnitt zwischen Anker A und B einen eigenen Eintrag, **📍 Punkt** setzt mit dem nächsten Kartenklick einen eigenen Punkt (mit Namen). Alles ist ein **⌘Z**-Schritt; deine Handarbeit bleibt auch nach ↻ (neu erkennen) stehen.
+**Bearbeiten (seit v0.9.709):** Jeder Eintrag hat ein **⋯-Menü** (auch Rechtsklick in der Liste oder auf einen Block im Zeitstrahl): *Umbenennen*, *Notiz*, *Art ändern* (Fahrt, Fähre, Wanderung, Spaziergang, Rad, Laufen, Wassersport, Flug, Pause), *Aktivität teilen* — hier (im Zeitstrahl an der Mausstelle), bei Anker A, bei einer Uhrzeit oder in der Mitte; geteilt wird nur der Eintrag, nie der Track —, *Mit vorherigem/nächstem zusammenlegen*, *Löschen* — das Gelöschte geht im Nachbarn auf. **Grenzen ziehen:** im Zeitstrahl den Übergang zwischen zwei Blöcken packen und schieben. **＋ A→B** macht aus dem Abschnitt zwischen Anker A und B einen eigenen Eintrag, **📍 Punkt** setzt mit dem nächsten Kartenklick einen eigenen Punkt (mit Namen). Alles ist ein **⌘Z**-Schritt; deine Handarbeit bleibt auch nach ↻ (neu erkennen) stehen.
 
 **Vermutete Arten bestätigen (seit v0.9.713):** War die Erkennung unsicher, steht beim Eintrag die Marke **„vermutet“**. Ein Klick darauf — oder Rechtsklick/⋯ in Liste, Zeitstrahl und auf der Karte — bietet ganz oben **„✓ Rad bestätigen“** (bzw. die angezeigte Art); daneben kannst du wie gewohnt eine andere Art wählen. Bestätigte Einträge sind Handarbeit und bleiben auch nach ↻ Neu-Erkennen. Im **großen Fenster** zeigt das Häkchen **„nur vermutete“** genau diese Einträge; alle markieren → **„✓ Vermutete bestätigen“**. Alles mit ⌘Z.
 
@@ -4174,6 +4182,13 @@ Meist unterbricht eine Firewall, ein VPN, ein Firmen-Proxy oder ein Web-Schutz d
 Seit v0.9.804 läuft der Export trotzdem los und sagt dir, wenn Kartenteile fehlen. Klappt es dann noch nicht, starte den
 Export ohne VPN bzw. mit kurz abgeschaltetem Web-Schutz, oder wähle einen anderen Kartenstil (z. B. Satellit). Mehr dazu
 weiter unten bei „Hinweis ‚Der Kartendienst … antwortet nicht‘“.
+
+### Ein Video läuft in der Großansicht nur mit Ton, ohne Bild – was tun?
+Nichts einstellen: Seit v0.9.858 merkt GPS Studio das selbst und wandelt das Video einmal in eine abspielbare Kopie um
+(ein paar Sekunden, je nach Länge), danach läuft es mit Bild. Das passiert vor allem unter Windows mit Videos im Format
+HEVC (H.265), wie sie DJI-Kameras (z. B. Osmo Pocket 3), GoPro und viele Handys in 4K aufnehmen — Windows kann HEVC ohne
+die Erweiterung „HEVC-Videoerweiterungen“ aus dem Microsoft Store nicht zeigen. Dein Original bleibt unverändert; für
+Animation und Video-Export nutzt GPS Studio ohnehin eigene Einzelbilder, dort tritt das Problem nicht auf.
 
 ### Welche Dateien kann ich einlesen?
 Neben GPX auch FIT (Garmin, Wahoo, Coros, Suunto), TCX, KML/KMZ, GeoJSON, NMEA, IGC (Flugschreiber), die Untertitel-Dateien

@@ -4786,6 +4786,47 @@ zieht Seitenleiste und offene Panels nach (Röhre an/aus, `_roehreGeaendert`). A
 teilt ZYKLUS in `_modellBewegung`. Auto-Form: `dotModellAuto()` (`anim-dot-modell-auto`, `marker_dot_modell_auto`, neun
 `AUTO_FORMEN` = rz-modelle `VARIANTEN.auto`), `_modellArt(art)` setzt sie beim Auto ein; Kacheln `_autoKacheln` (Zeile
 `data-nur-auto3d`, nur 3D + Form Auto).
+
+**Drohne (10.11.2026):** Art `drohne` überall, wo es Verkehrsarten gibt: `FAHRZEUGE`/`FAHRZEUG_NAMEN` (module.js, nur
+Symbol/3D), `bewegung.js ARTEN` + Symbol `ui/img/bewegung/drohne.svg` (gezeichnet mit PIL in den drei Symbolfarben, dann
+`scripts/bewegungsarten_svg.symbol_svg`; Pfade per `bewegungsarten_svg.py js`), `route.ARTEN_GERADE` (Etappe als Bogen wie
+der Hubschrauber), `_ET_ZEIT`, `WANDER_GRUPPE` (flug), i18n `animator.dot.fz_drohne`. rz-modelle: sechs Bauformen
+`VARIANTEN.drohne` (`drohne` aus dem Web-Prototyp, dazu `drohne_mini`, `drohne_fpv`, `drohne_race`, `drohne_360`,
+`drohne_profi`; Helfer `ringXY`, `huelse` (hohle Hülse mit Innen-/Außenwand), `rotor`, `rotorDreh` paarweise gegenläufig),
+alle in `LUFT`, `ZYKLUS` 0,3 s. Bauform-Wahl verallgemeinert: `MODELL_FORMEN = {auto, drohne}` (Liste, verstecktes Feld
+`anim-dot-modell-auto`/`-drohne`, Zeilentitel, i18n-Präfix), `_modellForm(art)`, `_modellArt(art)`, `_hatModellFormen()`;
+die Zeile `data-nur-auto3d` zeigt die Formen der aktuellen Art, Titel über `[data-form-titel]`. Gespeichert als
+`marker_dot_modell_drohne`. Rotoren laufen an der Videozeit (`_modellUhr`: Hubschrauber, Ballon, `drohne*`).
+
+**Drohnenflüge erkennen (10.11.2026):** Fortbewegung `drohne` im Archiv (`library._ACT_WORDS`, ganz hinten — „Wanderung mit
+Drohne“ bleibt Wanderung; Label `library.act.drohne`, Symbol `rz-drohne` in icons.js). Quellen: (1) DJI-Untertitel —
+`imports._parse_rows` legt bei `dji_srt` `geraet: {art: drohne, hersteller: DJI}` in die Tour-Ebene; `ensure_gpx` sammelt
+die Tour-Ebene jetzt für `_MIT_TOUR = (.fit, .srt)` (Cache ohne `tour` → einmal neu); `fitmeta.aktivitaet` liest `geraet`.
+(2) Ersteller einer Drohnen-App (`library._DROHNEN_APP_RE` auf `creator`) oder DJI-Mission (`xmlns:wpml`, nur KML-Kopf).
+Rangfolge in `library.aktivitaet_erkennen()` (Archiv-Zeile und Import-Assistent `eingang_pruefen`): Tour-Ebene → Drohnen-
+Quelle → Name/Tempo. Bestehende Archive: Schema 3, `_migrate_drohne` (SRT/KML `mtime = 0`, GPX mit Drohnen-`source` direkt
+umgestellt, nie bei `track_meta.activity_user`). Animator: `animator_load_gpx` liefert `stats.activity` (jetzt mit dem
+Original-Pfad nachgeschlagen — vorher die umgewandelte Kopie, FIT-Läufe bekamen nie Pace), `stats.geraet`, `stats.quelle`
+(Archiv-`source`) und `stats.drohnen_datei` (`library.drohnen_datei`: Ersteller aus dem Dateikopf, auch außerhalb des
+Archivs). `_drohneAuto(path)` nach `_flugAuto` in `applyGlobalGpx`: Drohnenflug (`_istDrohnenflug`: activity, geraet,
+drohnen_datei, `rel_alt`) + Projekt ohne `marker_dot_drohne_auto` → Kopf „punkt“ (bei Röhre), `anim-dot-fz-stil` = 3d,
+`anim-dot-style` = drohne per change (Undo-Schritt), Bauform `drohne_360` bei Antigravity, Merker ins Projekt; der Hinweis
+nimmt den „Flug in der Luft“-Hinweis von `_flugAuto` mit (ein Toast-Element, sonst überschrieben). Ohne Projekt nur ein
+Hinweis, nie im Render. Video-Assistent/Schnell-Video: `schnellvideo_vorschlag` liefert `drohne` (Archiv-`activity`,
+`tour_meta.geraet`, `drohnen_datei`, `rel_alt`), `w.drohne` → `vaDrohneHalten(w)` nach jeder Stil-/Vorlagenwahl (`lp` = fahrzeug/drohne, außer „aus“). Prüfstand `window.__rzDrohneAuto`. Test `tests/test_drohne.py` (A–E, WebKit + Chromium + Video).
+Nicht gebaut: GPS aus DJI-MP4 ohne SRT (Telemetriespur `djmd`, Air 3S/Mini 5 Pro/Mavic 4), AirData-/Litchi-CSV,
+Antigravity-`.insv`/`.insp` (braucht eine echte Datei).
+
+**Logbuch-Art „Flug“ (11.11.2026):** `logbuch._prior` → „flug“ bei Fortbewegung drohne/Gleitschirm/Flug, `_anzeige_art`
+macht dann gehen/laufen/rad/fahrt/unsicher zu „flug“ (wie Wassersport); „flug“ in `HAND_ARTEN`, `FAMILIE`, Nachbarschaft,
+`gpx.ARTEN_MIT_ZAHLEN`, `_ABSCHNITT_AKTIVITAET` (→ drohne). Nicht in `lernen.ARTEN` (kein Lernziel). UI-Tabellen in
+logbuch_ansicht.js, gpxinspect, library (Kurzfassung mit Dauer wie Fahrt), Animator `_LB_FZ.flug = drohne` (Gleitschirm-
+Archiv → gleitschirm). `_lbFzVon`: Symbol-Arten nur bei Plakette/Bildern ersetzen, bei „3D-Modell“ das Modell.
+
+**„Zeig mir“ im Track-Editor (11.11.2026, fragen.js `zeigMir`):** Beschriftungs-Treffer im Animator (`art: label`) — steht die
+Beschriftung nicht sichtbar im Animator, öffnet `animVorher` den Track-Editor (`__rzAnimTrackEditor("haupt")`) und sucht
+dort; nichts gefunden → wieder zu (außer Laufpunkt-Feld `animator.dot.*`). Ausgeblendete Zeilen (`data-nur-*`) und
+Laufpunkt-Felder, die gerade anders heißen, führen zur Laufpunkt-Form (`[data-dot-wahl]`). Test test_drohne D.
 **Röhre ist kein Flug:** `_flug.an` heißt nur „Flug-Ebene steht“. Alles, was den echten Flug meint (feste Blickrichtung `_flugKameraRuhig`, kein Kamera-Ausweichen, Bildmitte in Flughöhe `_flugKameraPlus`/`__rzFlugMitte`, Boden = GPX − Höhe über Grund, Hochflug, Wartesprüche „Flug“, IGC-Automatik, Zeile „Strecke“) fragt `_luftFlug()` (Schalter) bzw. `_flugLuftAn()` (Schalter + Ebene an). Sonst bekam jede Röhre eine starre Blickrichtung (test_schnellvideo_fotostopps).
 
 **Farben je Segment (15.10.2026):** `segColors: [[rgbaAnfang, rgbaEnde]…]` je Segment (0..1, Vorrang vor `colors` je Punkt) — jedes Segment hat eigene vier Eckpunkte, ein harter Farbwechsel an einem Punkt braucht so keine Zusatzpunkte (die Bereiche `setRanges` hängen an den Punktindizes). Die Fluglinie im Animator (`_flugSegFarben`) wertet dafür den line-gradient-Ausdruck der Bodenlinie aus (`_verlaufAusdruck`/`_maskeAusdruck`, dieselben Bausteine wie `applyPreviewColorGradient`) — je Segment am Anfang (`_ausdruckBei(expr, p, false)`) und Ende (von links), `p` aus der Bodenstrecke `_cumGeoM` wie MapLibres `line-progress`. `applyPreviewColorGradient` ruft `_flugFarbenPruefen`: ändert sich `_flugFarbSchluessel` (Quelle, Modus, Stops, Farben, Etappen, Farbe je Tag), wird die Fluglinie neu aufgebaut. Test: `tests/test_flug_farbwechsel.py`.
@@ -7288,6 +7329,15 @@ Wächter `tests/test_kachel_sicherung.py`.
 **Speicher (E-1/E-2).** `core/clips.py`: `CACHE_MAX_BYTES` 2 GB, `CACHE_MAX_TAGE` 30, `utime` bei Treffer,
 `aufraeumen`/`aufraeumen_gedrosselt`; Start-Faden `speicher-aufraeumen` (+ `_renders_aufraeumen`).
 Wächter `tests/test_speicher_aufraeumen.py`.
+
+**Abspielkopie für die Großansicht (10.11.2026).** Spielt das WebView ein Video nicht (Windows: HEVC ohne Store-
+Erweiterung — dabei kommt kein `error`, nur Ton, `videoWidth === 0`; sonst AVI/MKV/10 Bit), ruft `ui/js/fotos.js`
+(`grossZeigen`, Zweig `quelle === "original"`) nach `loadedmetadata` ohne Bildbreite oder bei `error` die Brücke
+`fotos_video_abspielkopie(path)`. Die rechnet über `core/clips.py abspielkopie()` einmal H.264/AAC, `yuv420p`, höchstens
+720 px hoch, `+faststart`, in `clip_cache/<schlüssel>/f_abspiel_720/abspiel.mp4` (+ `fertig`; Sperre je Datei, damit
+zwei Anfragen nur einmal rechnen; Ordner `f_*` → `aufraeumen` begrenzt ihn mit), und liefert sie über `serve_media`.
+Währenddessen Spinner + Text im Hinweisfeld, `_vm("video_umwandeln")` für das Wartefenster. Scheitert die Kopie, kommt der
+bisherige Hinweis (`videoGehtNicht`, Windows mit Store-Link). Test `tests/test_video_abspielkopie.py` (10-Bit-HEVC wie DJI).
 
 **Foto-Einlesen (B-4…B-10, E-3, G-2, G-3).**
 - `medien_pruefen(..., unlesbar=set)` sammelt Verzeichnisse, deren `scandir` scheiterte; `durchgang1` markiert nur in

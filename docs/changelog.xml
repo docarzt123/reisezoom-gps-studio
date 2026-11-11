@@ -5,8 +5,34 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 05 Nov 2026 19:53:25 +0000</lastBuildDate>
+<lastBuildDate>Wed, 11 Nov 2026 06:58:05 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.858</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-858</link>
+<guid isPermaLink="false">gps-studio-v0.9.858</guid>
+<pubDate>Wed, 11 Nov 2026 12:00:00 +0000</pubDate>
+<description>Drohne als Fortbewegung — Der Laufpunkt kann jetzt eine Drohne sein, mit sechs 3D-Formen zur Auswahl: Faltdrohne, Mini mit Schutzkäfig, FPV mit Ringen, FPV-Racer, 360°-Drohne und Profi-Kameradrohne. Die Rotoren drehen paarweise gegenläufig, auch im Schwebeflug. Du findest sie im Track-Editor unter Laufpunkt → 3D → Drohne, die Zeile „Drohnen-Form“ darunter wählt die Bauform. Für den flachen Laufpunkt gibt es ein Drohnen-Symbol, geplante Etappen lassen sich als Drohnenflug in gerader Linie anlegen, und das Archiv kennt „Drohne“ als Fortbewegung.
+
+Drohnenflüge werden erkannt — DJI-Untertiteldateien (.srt neben dem Drohnenvideo), GPX/KML aus Drohnen-Apps wie AirData, Litchi, DroneLink, DJI oder Antigravity und DJI-Wegpunkt-Missionen landen im Archiv als „Drohne“. Öffnest du so einen Flug im Projekt, wird der Laufpunkt einmal von selbst zur 3D-Drohne (mit Hinweis, ⌘Z macht es rückgängig). Flüge aus Antigravity bekommen die 360°-Drohne, und der Video-Assistent behält die Drohne bei, egal welchen Stil du wählst.
+
+Logbuch: Art „Flug“ — In einer Drohnen-Tour heißen die bewegten Abschnitte jetzt Flug statt Fahrt oder Wanderung, mit der Flugzeit in der Kurzfassung. Du kannst die Art auch von Hand unter „Art ändern“ setzen.
+
+Videos mit Bild statt nur Ton — Unter Windows liefen manche Videos in der Großansicht nur mit Ton, zum Beispiel 4K-HEVC von DJI-Kameras. GPS Studio merkt das jetzt, wandelt das Video einmal in eine abspielbare Kopie um und zeigt die. Dein Original bleibt unverändert. Das hilft auch bei anderen Formaten, die der eingebaute Player nicht zeigt.</description>
+</item>
+<item>
+<title>v0.9.857</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-857</link>
+<guid isPermaLink="false">gps-studio-v0.9.857</guid>
+<pubDate>Tue, 10 Nov 2026 12:00:00 +0000</pubDate>
+<description>Track als 3D-Röhre mit Kometenkopf und Nachglühen — Unter „Darstellung“ im Aussehen des Tracks (Stift neben der Tour) wechselst du zwischen flacher Linie und einer 3D-Röhre, die knapp über dem Gelände schwebt. Vorne läuft ein leuchtender Komet oder ein Kometenpfeil, aus dem die Röhre kommt; dahinter glüht die frisch gefahrene Strecke nach und kühlt in der eingestellten Zeit („Nachglühen“, Standard 1,5 Sekunden) zur Linienfarbe ab. Glanz, Dicke und Höhe über dem Boden stellst du selbst ein, die Glutfarben kommen aus der Linienfarbe oder aus vier Looks. Vorschau und Video sehen gleich aus. Neue Projekte starten mit der Röhre, bestehende bleiben flach. Die Röhre braucht die freien Karten, mit Mapbox bleibt die Linie flach.
+
+Laufpunkt als 3D-Modell — Der neue Fahrzeug-Look „3D-Modell“ macht aus dem Laufpunkt ein echtes 3D-Fahrzeug — für alle 20 Fortbewegungsarten, vom Auto (neun Formen, vom Kombi bis zum Geländewagen) über Wanderer und Fahrrad bis zu Kajak, Flugzeug und Heißluftballon. Es steht auf der Karte, dreht sich mit der Fahrtrichtung, neigt sich am Hang und bewegt Beine, Pedale, Paddel und Räder mit; bei einem Halt gleitet es in eine Ruhepose. Die Formen des Laufpunkts sind dafür auf die Reiter 2D und 3D verteilt.
+
+Nachglühen auch für die flache Linie — Das leuchtende Stück hinter dem Laufpunkt folgt jetzt genau dem Track und wird in Sekunden gemessen, statt in Prozent der Strecke. Projekte mit dem alten Schweif behalten ihn, bis du das Nachglühen einschaltest.
+
+Web-Karte: Tracks mit eigenem Link — Jeder Track der Web-Karte bekommt ein Feld für einen Link. In der exportierten Karte zeigt das Überfahren den Namen und hebt den Track hervor, ein Klick öffnet deine Seite — im selben Fenster oder in einem neuen Tab.</description>
+</item>
 <item>
 <title>v0.9.856</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-856</link>
@@ -216,32 +242,6 @@ Kamerafahrt neu erzeugen — In der Zeitleiste „Fahrt neu erzeugen …“: and
 Orts- und Pass-Schilder — Deckkraft und Größe für alle auf einmal einstellen — und ein klarer Hinweis mit „Erneut versuchen“, wenn OpenStreetMap die Orte gerade nicht liefert.
 
 Lange Videos — Der Render räumt seinen Speicher regelmäßig auf, und ein voller Kachelspeicher legt keinen Fehlerschirm mehr ins Video. Danke an @kaennchenstruggle für diese Beiträge!</description>
-</item>
-<item>
-<title>v0.9.800</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-800</link>
-<guid isPermaLink="false">gps-studio-v0.9.800</guid>
-<pubDate>Tue, 20 Oct 2026 12:00:00 +0000</pubDate>
-<description>Frag GPS Studio — „Wie ändere ich das Datum vieler Fotos?“ — ⌘K (Windows: Strg+K) sucht im Handbuch und in den Knöpfen der App, „Zeig mir“ springt direkt zur richtigen Stelle. Offline, auf Deutsch, Englisch und Spanisch.
-
-Ort setzen mit Vorschlägen — Ortsangaben, die schon in deinen Fotos stehen (z. B. aus Lightroom), erscheinen als Vorschlag. Die Karte startet dort, wo die Fotos entstanden sind — „Masca“ findet jetzt Teneriffa statt Frankreich.
-
-Über die Datumsgrenze — Touren über 180° (Fidschi, Aleuten, Pazifik) zeigen alle Karten richtig — vorher sprang jede Karte vor die Küste Westafrikas.
-
-Inspektor merkt sich alles — Empfindlichkeit, was „Auto-Heilen“ repariert, Tempofarben und Toleranzen bleiben nach einem Neustart erhalten.</description>
-</item>
-<item>
-<title>v0.9.799</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-799</link>
-<guid isPermaLink="false">gps-studio-v0.9.799</guid>
-<pubDate>Mon, 19 Oct 2026 12:00:00 +0000</pubDate>
-<description>Laufpunkt nach Aktivität — Neuer Schalter beim Laufpunkt: Das Symbol wechselt mit dem Logbuch — Auto oder Motorrad auf der Fahrt, Boot auf der Fähre, Wanderer zu Fuß, Fahrrad auf dem Rad.
-
-Farbe nach Tempo — „Auto“ verteilt die Farben über den typischen Bereich deiner Tour, einzelne GPS-Ausreißer färben nicht mehr alles ein. Neu: Vorgabe „Ampel“ und ein Knopf direkt bei „Aussehen der Linie“. Ideen von @kaennchenstruggle, danke!
-
-Aufnahmezeit vieler Fotos ändern — Kamera stand auf dem falschen Jahr? Fotos markieren, „Aufnahmezeit ändern …“, z. B. 10 Jahre früher — mit Vorschau und Sicherung der Originale.
-
-Richtiger Tag im Archiv — Eine Tour zählt für den Tag, an dem sie vor Ort begonnen hat — wer nach Mitternacht losfährt, landet nicht mehr am Vortag.</description>
 </item>
 </channel>
 </rss>
