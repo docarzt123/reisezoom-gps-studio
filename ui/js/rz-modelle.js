@@ -625,8 +625,9 @@
   };
   M.drohne_fpv = (t, p) => {   // FPV mit Ringen um die Rotoren (Cinewhoop) ~ 0,18 × 0,2 m; gedrungen, Kamera vorn, Antennen hinten
     const D = [[0.064, 0.058], [-0.064, 0.058], [0.064, -0.058], [-0.064, -0.058]];
-    t.platte([[0.02, 0.1], [0.1, 0.06], [0.1, -0.06], [0.02, -0.1], [-0.02, -0.1], [-0.1, -0.06], [-0.1, 0.06], [-0.02, 0.1]], -0.018, -0.012, "dunkel");   // Bodenplatte
+    // 12.11.2026 (Marc: „warum hat die Drohne eine schwarze Platte drunter!? weg damit“) — statt der Bodenplatte schmale Arme
     D.forEach(([x, y], k) => {
+      t.rohr([0.018 * Math.sign(x), 0.03 * Math.sign(y), -0.006], [x, y, -0.006], 0.005, "grau", 6);   // Arm zum Motor
       huelse(t, [x, y, -0.002], 0.039, 0.045, 0.03, "farbe");                                         // Ring
       t.rohr([x, y, -0.016], [x, y, 0.0], 0.011, "grau", 8);                                          // Motor
       rotor(t, x, y, 0.003, 0.037, 3, rotorDreh(p, k));

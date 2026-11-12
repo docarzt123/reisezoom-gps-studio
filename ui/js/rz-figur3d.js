@@ -230,7 +230,10 @@
           geo.setAttribute("position", new T.BufferAttribute(pos, 3));
           geo.setAttribute("normal", new T.BufferAttribute(nor, 3));
           geo.setAttribute("color", new T.BufferAttribute(new Float32Array(3 * n), 3));
-          e = { geo, farbKey: null, rolle: t.rolle };
+          // 12.11.2026 — Unterkante (Modelllänge = 1, Mitte = 0) für Luftmodelle: sie stehen mit der Mitte auf agl
+          let unter = 0;
+          if (t.luft) for (let i = 2; i < t.pos.length; i += 3) unter = Math.max(unter, -t.pos[i]);
+          e = { geo, farbKey: null, rolle: t.rolle, unter };
           this._modellGeo.set(t, e);
           this._modellGeoListe.push(geo);
         }
@@ -247,6 +250,7 @@
           e.geo.getAttribute("color").needsUpdate = true;
           e.farbKey = fk;
         }
+        this._modellUnter = e.unter || 0;
         return e.geo;
       },
       render(gl, args) {
@@ -313,13 +317,20 @@
         // Körper
         const feuer = f.form === "feuer" && !!this._feuer;
         let form = (f.form === "pfeil" || f.form === "puk" || f.form === "komet" || f.form === "kometpfeil") ? f.form : "kugel";
+        let heben = 0;   // Meter, um die der Körper über agl steigt (Luftmodell am Boden)
         if (f.form === "modell") {
+          this._modellUnter = 0;
           const geo = this._modellGeometrie(f.modell);
           if (geo) { form = "modell"; this._formen.modell.geometry = geo; }
           // 09.11.2026 (Audit) — „obenauf“ schaltete hier den Tiefentest ab: dann malte jedes spätere Dreieck über die
           // früheren (ferne Räder und Innenflächen über der Karosserie). Jetzt mit Tiefentest, aber in den vordersten
           // Tiefenbereich gedrückt (gl.depthRange beim Zeichnen, unten) — vor dem Gelände, in sich richtig sortiert.
           this._modellMat.depthTest = true;
+          // 12.11.2026 (FPV-Drohne „zerstückelt“) — Luftmodelle stehen mit der Mitte auf agl. Ohne Flugmodus ist
+          // agl 0: Die untere Hälfte steckte im Gelände, bei der FPV-Drohne die ganzen Ringe (bis −0,21 Modelllänge unter
+          // der Mitte), zu sehen waren nur Kuppel, Akku und lose Bögen. Jetzt schwebt die Unterkante mindestens 0,1
+          // Modelllänge über dem Boden; im Flug (agl groß genug) ändert sich nichts.
+          if (geo && this._modellUnter > 0) heben = Math.max(0, (this._modellUnter + 0.1) * groesse - agl);
         }
         for (const k in this._formen) this._formen[k].visible = (k === form);   // Feuerkugel = normale Kugel + Schweif
         if (this._feuer) this._feuer.gruppe.visible = feuer;
@@ -327,7 +338,8 @@
         this._material.color.set(f.farbe || "#48d6c4");
         this._material.roughness = this._weiss.roughness = Math.max(0.08, 0.85 - 0.7 * Math.max(0, Math.min(1, f.glanz != null ? +f.glanz : 0.5)));
         const dreh = (+f.drehung || 0) * Math.PI / 180, neig = (+f.neigung || 0) * Math.PI / 180;
-        this._koerper.position.set(0, 0, 0);
+        this._koerper.position.set(0, heben, 0);
+        this._hebenM = heben;   // Prüfstand
         this._koerper.rotation.set(0, 0, 0);
         // Fahrtrichtung: Nord = −z; im Uhrzeigersinn von oben gesehen = negative Drehung um y
         this._koerper.rotation.order = "YXZ";
@@ -336,8 +348,9 @@
         this._koerper.scale.setScalar(groesse);
         // Schatten auf dem Boden: Abstand nach unten, mit der Höhe weicher und größer
         this._schatten.position.set(0, -agl + Math.max(0.3, groesse * 0.02), 0);
-        this._schatten.scale.setScalar(groesse * (1.25 + Math.min(1, agl / Math.max(1, groesse)) * 0.35));
-        this._schatten.material.opacity = Math.max(0.25, 0.75 - 0.25 * Math.min(1, agl / Math.max(1, groesse)));
+        const aglS = agl + heben;   // Schatten weicher, je höher der Körper wirklich schwebt
+        this._schatten.scale.setScalar(groesse * (1.25 + Math.min(1, aglS / Math.max(1, groesse)) * 0.35));
+        this._schatten.material.opacity = Math.max(0.25, 0.75 - 0.25 * Math.min(1, aglS / Math.max(1, groesse)));
         this._schatten.visible = f.schatten !== false;
         // Komet: Hauch der Glutfarbe im Perlmutt + Schein um den Kopf
         const leucht = (form === "komet" || form === "kometpfeil") ? (f.leucht || f.farbe || "#ffffff") : null;

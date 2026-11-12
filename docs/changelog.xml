@@ -5,8 +5,17 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 11 Nov 2026 22:51:33 +0000</lastBuildDate>
+<lastBuildDate>Thu, 12 Nov 2026 09:24:51 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.860</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-860</link>
+<guid isPermaLink="false">gps-studio-v0.9.860</guid>
+<pubDate>Thu, 12 Nov 2026 12:00:00 +0000</pubDate>
+<description>Drohnen und Flugzeuge stecken nicht mehr halb im Boden — Lief eine Tour nicht als Flug, etwa eine geplante Route, standen Drohne, Flugzeug, Hubschrauber, Gleitschirm und Ballon mit ihrer Mitte auf dem Boden, und die untere Hälfte verschwand im Gelände. Bei der FPV-Drohne waren die Ringe um die Rotoren dann weg oder nur als lose Bögen zu sehen. Jetzt schweben die Modelle knapp über dem Boden. Im echten Flug ändert sich nichts.
+
+FPV-Drohne ohne schwarze Platte — Unter der Drohne mit den Ringen lag eine dunkle Bodenplatte, die wie ein schwarzer Klotz wirkte. Sie ist weg, schmale Arme verbinden jetzt den Rumpf mit den Motoren.</description>
+</item>
 <item>
 <title>v0.9.859</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-859</link>
@@ -229,19 +238,6 @@ Stürzende Linien — Geometrie mit Vertikal, Horizontal und mehr — oder „Up
 Verlauf und Versionen — Jeder Schritt steht im Verlauf, benannte Versionen hältst du fest, ⌘Z geht zurück. „Auto“ schaltet sich mit einem zweiten Klick wieder aus, und in der Lupe setzt das Herz (oder P) einen Favoriten.
 
 Schneller speichern — Export, Videos und Vorschaubilder rechnet jetzt die Grafikkarte — mit demselben Code wie die Vorschau, ein großes Foto in rund einer Sekunde.</description>
-</item>
-<item>
-<title>v0.9.804</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-804</link>
-<guid isPermaLink="false">gps-studio-v0.9.804</guid>
-<pubDate>Wed, 21 Oct 2026 12:00:00 +0000</pubDate>
-<description>Zoomen wie in Lightroom — In der Lupe vergrößert ein Klick genau dort, wo du klickst — Pinch auf dem Trackpad zoomt stufenlos, mit gedrückter Maus verschieben, Z schaltet um.
-
-Blättern ohne Warten — Was du im Raster siehst und gleich sehen könntest, bereitet GPS Studio im Hintergrund vor — beim Durchklicken ist das große Bild sofort da.
-
-Besseres Auto — „Auto“ hellt die Tiefen nicht mehr flau auf, der Weißabgleich lässt Sonnenuntergänge in Ruhe, und die Regler zeigen, was Auto eingestellt hat.
-
-Doppelte Zeile für Zeile — Beim Wegräumen von Doppelten entscheidest du je Gruppe, ob sie angefasst wird. Danke für die Idee aus der Community!</description>
 </item>
 </channel>
 </rss>

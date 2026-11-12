@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.860] – 2026-11-12
+
+### Fixed
+- **Drones, planes and helicopters half sunk into the ground**: on a tour that is not played as a flight (for example a
+  planned route or a drone flight without height above ground), these 3D models stood with their centre on the ground,
+  so their lower half disappeared in the terrain — the FPV drone showed only its dome and battery, the rings around the
+  rotors were gone or appeared as loose arcs. They now hover with their underside just above the ground; in real flight
+  nothing changes.
+- **FPV drone without the black plate underneath**: the drone with rings around its rotors had a dark base plate that
+  looked like a black slab under the model. It is gone; slim arms now connect the body to the motors.
+
+
 ## [0.9.859] – 2026-11-11
 
 ### Added

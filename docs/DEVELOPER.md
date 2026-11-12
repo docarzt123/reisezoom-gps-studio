@@ -4748,6 +4748,12 @@ sortiert — ohne Tiefentest malten ferne Räder und Innenflächen über die Kar
 **Röhren-Zeiten nachziehen (08.11.2026):** `_flugSpuren` merkt `_flug.glutZ` (die Zeiten, mit denen die Röhre gebaut
 ist); `_flugGlutPruefen()` (am Anfang von `_flugPunkt`) setzt die Spuren neu, sobald `_glutZeiten()` ein anderes Feld liefert
 (Tempo-Tabelle kam später, Dauer/Intro geändert) — sonst lief der Kopf der Röhre davon (Mammut-Tour: +4 %).
+**Luftmodelle nie im Gelände (12.11.2026):** `rz-figur3d` setzt Luftmodelle (`rzModelle.LUFT`) mit der Mitte auf `agl`.
+Ohne Flugmodus gibt der Animator `agl 0` (`_bodenPunktSetzen → _modellZeigen`) — die untere Hälfte steckte im Gelände
+(FPV-Ringe bis −0,21 Modelllänge unter der Mitte). `_modellGeometrie` merkt sich die Unterkante (`unter`, Modelllänge = 1),
+`render` hebt den Körper um `heben = max(0, (unter + 0,1) × groesse − agl)`; der Schatten bleibt am Boden und wird mit
+`agl + heben` weicher. Prüfstand `_hebenM`, `_modellUnter`; Test `test_drohne` (Teil D, auch mit `agl 0`).
+
 **rz-figur3d im Globus (08.11.2026):** bei `projectionTransition > 0` kommt die Modellmatrix aus
 `map.transform.getMatrixForModel([lng, lat], boden + agl)` (gleiche Achsen x Ost/y oben/z Süd in Metern), sonst wie bisher
 aus MercatorCoordinate — Komet-Kopf und 3D-Modelle erscheinen auch im Globus (Prüfstand `layer._globus`).
