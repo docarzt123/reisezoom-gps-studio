@@ -229,7 +229,7 @@ function mountAnimator(body, headerActions, opts) {
             </div>
             <div class="anim-format-alle" id="anim-format-alle" hidden>
               <div class="anim-format-raster">${[["16:9", t("einfach.f_yt", "YouTube")], ["9:16", t("einfach.f_reel", "Reel, Short")], ["1:1", t("einfach.f_quadrat", "Quadrat")],
-                ["4:5", t("einfach.f_insta", "Instagram")], ["4:3", t("einfach.f_klassisch", "klassisch")], ["21:9", t("einfach.f_kino", "Kino")]]
+                ["4:5", t("einfach.f_insta", "Instagram")], ["4:3", t("einfach.f_klassisch", "klassisch")], ["3:2", t("einfach.f_foto", "Foto, Fotobuch")], ["2:3", t("einfach.f_foto_hoch", "Foto hochkant")], ["21:9", t("einfach.f_kino", "Kino")]]
                 .map(([f, d]) => `<button type="button" class="anim-format-kachel" data-format="${f}"><b>${f}</b><span>${d}</span></button>`).join("")}</div>
               <div class="anim-format-eigen">
                 <span>${t("animator.format.eigen", "Eigenes")}</span>
@@ -16374,7 +16374,10 @@ function mountAnimator(body, headerActions, opts) {
       // (funktioniert zuverlässig). ~50 KB pro Bild-Schild, für eine Handvoll ok.
       const persist = inMem.map(s => { const o = { ...s }; delete o._imgEl; delete o._imgLoading; delete o._imgFailed; delete o._imgMissing; delete o._imgChecked; delete o._imgBroken; return o; });
       try {
-        if (typeof saveActiveProjectPatch === "function") saveActiveProjectPatch({ [_SIGNS_KEY]: persist });
+        // 13.11.2026 — mit dem Merker „Spitze = Ankerpunkt“: neu gesetzte Schilder stehen schon richtig und dürfen beim
+        // nächsten Öffnen nicht umgerechnet werden (sonst rückten Schilder aus einem frischen Projekt um den Versatz weg)
+        _activeProject[_SIGNS_KEY + "_spitze"] = 1;
+        if (typeof saveActiveProjectPatch === "function") saveActiveProjectPatch({ [_SIGNS_KEY]: persist, [_SIGNS_KEY + "_spitze"]: 1 });
       } catch (_) {}
       try { if (window.__rzFotostoppGeaendert) window.__rzFotostoppGeaendert(); } catch (_) {}   // 01.10.2026
     }
@@ -16583,6 +16586,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     // Was das gerasterte Schild-Bild bestimmt — ohne Ort, Zeitanker und Sichtbarkeit.
     const _animSignImgSig = new Map();
+    const _animSignSpitze = new Map();   // 13.11.2026 — Bild-ID → Versatz Spitze → Geo-Punkt (CSS-px, sign_draw.js rzDrawSign)
     let _animSignsAltIds = [];
     const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "strecke_m", "visible", "anchorMode", "_imgEl", "_imgLoading",
                                "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc",
@@ -16638,6 +16642,62 @@ function mountAnimator(body, headerActions, opts) {
       if (!_animSignEditMode || ei < 0 || allSigns[ei] !== s) return false;
       return !_animSignFsErsetzt(s) || _animSignMoveArmed === ei;
     }
+    /** 13.11.2026 (Nutzer-Meldung: frei gesetzte Stecknadeln wandern mit Kamerahöhe und Fenstergröße) — seit heute steht die
+     *  Spitze eines Schilds auf seinem Punkt (sign_draw.js rzDrawSign `spitze`). Vorher stand der untere Bildrand-Mittelpunkt
+     *  dort, die Spitze (Zeiger links/rechts, Schatten) einige Pixel daneben — wer ein Schild FREI gesetzt hat, hat das mit der
+     *  Hand ausgeglichen. Einmal je Projekt (Merker `<schilder>_spitze`) werden frei gesetzte Text-Schilder so umgerechnet,
+     *  dass die Spitze in der Ansicht, mit der das Projekt geöffnet wird, an derselben Stelle bleibt wie vorher. Schilder auf
+     *  der Strecke bleiben auf ihrem Streckenpunkt (die Spitze zeigt jetzt genau darauf). Läuft nach dem ersten „idle“. */
+    let _animSpitzeGeplant = null;
+    function _animSignsSpitzeUmstellen() {
+      if (!_activeProject || !map || window.__rzRenderMode || window.__rzSicherVerdeckt) return;
+      const FLAG = _SIGNS_KEY + "_spitze";
+      if (_activeProject[FLAG] || _animSpitzeGeplant === _activeProject) return;
+      const pj = _activeProject; _animSpitzeGeplant = pj;
+      // erst rechnen, wenn die Kamera zur Ruhe gekommen ist (nach dem Öffnen stellt sie sich noch ein: Neigung, Keyframe) —
+      // sonst stimmt die Ansicht nicht, in der die Spitze stehen bleiben soll
+      const _kam = () => { const c = map.getCenter(); return [c.lng.toFixed(6), c.lat.toFixed(6), map.getZoom().toFixed(3), map.getPitch().toFixed(2), map.getBearing().toFixed(2)].join(","); };
+      let _versuche = 0;
+      const _warten = () => { try { map.once("idle", () => { const k0 = _kam(); setTimeout(() => {
+        if (_activeProject !== pj) return;
+        if ((_kam() !== k0 || (map.isMoving && map.isMoving())) && ++_versuche < 20) { _warten(); return; }
+        _rechnen(); }, 1200); }); } catch (_) {} };
+      const _rechnen = () => {
+        if (_activeProject !== pj || pj[FLAG] || window.__rzSicherVerdeckt) return;
+        const liste = _animSignsList(); let n = 0;
+        // ohne frei gesetzte Text-Schilder gibt es nichts umzurechnen — Merker nur im Speicher, NICHT speichern: das legte ein
+        // frisch geöffnetes, noch schwebendes Projekt fest an (13.11.2026)
+        if (!liste.some((s) => s && s.anchorMode === "free" && !s.imageSrc)) { pj[FLAG] = 1; return; }
+        const neu = liste.map((s) => {
+          if (!s || s.anchorMode !== "free" || s.imageSrc || !window.__rzDrawSign) return s;
+          let sp = null; try { const im = window.__rzDrawSign(_animSignNormalize(s)); sp = im && im.spitze; } catch (_) {}
+          if (!sp || (Math.abs(sp[0]) < 0.5 && Math.abs(sp[1]) < 0.5)) return s;
+          try {
+            const gr = window.__rzSignGroesse ? window.__rzSignGroesse(map, !!s.zoomScale) : 1;
+            const p = map.project([Number(s.lon), Number(s.lat)]), ziel = [p.x - sp[0] * gr, p.y - sp[1] * gr];
+            // project rechnet mit dem Gelände, unproject nicht immer → nachziehen, bis der neue Punkt auf `ziel` liegt
+            let ll = map.unproject(ziel); const u0 = ll;
+            for (let i = 0; i < 6; i++) {
+              const q = map.project(ll); if (Math.hypot(q.x - ziel[0], q.y - ziel[1]) < 0.2) break;
+              const uq = map.unproject(q); ll = { lng: ll.lng + (u0.lng - uq.lng), lat: ll.lat + (u0.lat - uq.lat) };
+            }
+            if (!isFinite(ll.lng) || !isFinite(ll.lat)) return s;
+            n++;
+            return { ...s, lon: Math.round(ll.lng * 1e7) / 1e7, lat: Math.round(ll.lat * 1e7) / 1e7 };
+          } catch (_) { return s; }
+        });
+        pj[FLAG] = 1;
+        try { saveActiveProjectPatch({ [FLAG]: 1 }); } catch (_) {}
+        if (n) {
+          // kein ⌘Z-Schritt: Zurückholen gäbe die alten Punkte ohne den alten Versatz (Merker bleibt gesetzt)
+          const _u = window.__rzUndoApplying; window.__rzUndoApplying = true;
+          try { _animSignsSave(neu); } finally { window.__rzUndoApplying = _u; }
+          _animSignsAttachToMap(); _animSignsRenderList();
+          applog("info", `[schild] Spitze als Ankerpunkt: ${n} frei gesetzte Schilder umgerechnet (Zoom ${map.getZoom().toFixed(2)}, Neigung ${map.getPitch().toFixed(1)}°, Drehung ${map.getBearing().toFixed(1)}°)`);
+        }
+      };
+      _warten();
+    }
     function _animSignsAttachToMap(opts) {
       if (!map) return;
       // v0.9.379 — Style-Loaded-Guard (analog PhotoPins.attachToMap). Ist der Map-
@@ -16649,6 +16709,7 @@ function mountAnimator(body, headerActions, opts) {
         try { map.once("idle", () => _animSignsAttachToMap(opts)); } catch (_) {}
         return;
       }
+      _animSignsSpitzeUmstellen();
       // 18.10.2026 — `nurGpu`: bei offenem Editor nur die Schild-Ebene neu bauen (z. B. Bild eines anderen Schilds geladen),
       // das HTML-Schild im Editor bleibt stehen — sonst verlöre es beim Tippen den Fokus.
       const nurGpu = !!(opts && opts.nurGpu === true) && _animSignEditMode && (_animSignMarkers || []).some(Boolean);
@@ -16882,6 +16943,9 @@ function mountAnimator(body, headerActions, opts) {
         const ll = mk.marker.getLngLat();
         if (window.__rzSignRandPx) off = window.__rzSignRandPx(map, [ll.lng, ll.lat], w, h, mk.anchor, gr, { anzahl: _animSignMetas.length, randFest: mk.randFest });
       } catch (_) { off = [0, 0]; }
+      // 13.11.2026 — Spitze auf den Geo-Punkt (wie icon-offset der Schild-Ebene, × Größe); getLngLat bleibt der Punkt
+      const _sp = wrap.__bildAn && wrap.__bildMass && wrap.__bildMass.spitze;
+      if (_sp) off = [off[0] + _sp[0] * gr, off[1] + _sp[1] * gr];
       const key = off[0].toFixed(2) + "," + off[1].toFixed(2);
       if (mk._lastOff !== key) { mk._lastOff = key; try { mk.marker.setOffset(off); } catch (_) {} }
     }
@@ -17044,7 +17108,7 @@ function mountAnimator(body, headerActions, opts) {
       const sig = _animSignBildSignatur(sn);
       if (map.hasImage(id) && _animSignImgSig.get(id) === sig) return;
       const img = _animSignDrawImageData(sn); if (!img) return;
-      try { if (map.hasImage(id)) map.removeImage(id); map.addImage(id, img.data, { pixelRatio: img.dpr }); _animSignImgSig.set(id, sig); } catch (_) {}
+      try { if (map.hasImage(id)) map.removeImage(id); map.addImage(id, img.data, { pixelRatio: img.dpr }); _animSignImgSig.set(id, sig); _animSignSpitze.set(id, img.spitze || [0, 0]); } catch (_) {}
       if (_animSignImgIds.indexOf(id) < 0) _animSignImgIds.push(id);
     }
     // ── GPU-Symbol-Layer (Probelauf/Export/Ruhe): flüssig wie die Foto-Pins ──
@@ -17127,6 +17191,7 @@ function mountAnimator(body, headerActions, opts) {
             if (map.hasImage(id)) map.removeImage(id);
             map.addImage(id, img.data, { pixelRatio: img.dpr });
             _animSignImgSig.set(id, sig);
+            _animSignSpitze.set(id, img.spitze || [0, 0]);
           }
           _animSignImgIds.push(id);
         } catch (_) { return; }
@@ -17148,7 +17213,7 @@ function mountAnimator(body, headerActions, opts) {
           applog("info", `[schild] Mini-Bild ${fi} fehlt: Zeichner ${!!window.__rzDrawSofortbildMini}, Bild ${_animSignHasImg(s)}`);
         }
         _animSignMetas[fi] = meta;
-        features.push({ type: "Feature", id: fi, properties: { imgId: id, signIdx: fi, zoomScale: !!sn.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(sn), popScale: 1, randFest: sn.rand_fest === true }, geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
+        features.push({ type: "Feature", id: fi, properties: { imgId: id, signIdx: fi, zoomScale: !!sn.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(sn), spitze: _animSignSpitze.get(id) || [0, 0], popScale: 1, randFest: sn.rand_fest === true }, geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
         // 11.10.2026 — Fotostopp „eigene Gestaltung“: die Halt-Fassung als zweites Objekt. Gleiche signIdx → gleiches
         // Sichtbarkeitsfenster; Deckkraft-Vorgabe 0 (op0), eingeblendet nur über _animHaltUeberAnwenden.
         if (s.stopp && _fsLook(s) === "eigen" && _animSignHasImg(s)) {
@@ -17159,13 +17224,13 @@ function mountAnimator(body, headerActions, opts) {
             const hid = "sign-halt-" + fi, hsig = "halt|" + _animSignBildSignaturVon(s, hs);
             if (!(map.hasImage(hid) && _animSignImgSig.get(hid) === hsig)) {
               const himg = _animSignDrawImageData(hs);
-              if (himg) { if (map.hasImage(hid)) map.removeImage(hid); map.addImage(hid, himg.data, { pixelRatio: himg.dpr }); _animSignImgSig.set(hid, hsig); }
+              if (himg) { if (map.hasImage(hid)) map.removeImage(hid); map.addImage(hid, himg.data, { pixelRatio: himg.dpr }); _animSignImgSig.set(hid, hsig); _animSignSpitze.set(hid, himg.spitze || [0, 0]); }
             }
             if (map.hasImage(hid)) {
               _animSignImgIds.push(hid);
               _animHaltKopie.set(fi, ANIM_HALT_ID + fi);
               features.push({ type: "Feature", id: ANIM_HALT_ID + fi, properties: { imgId: hid, signIdx: fi, op0: 0, zoomScale: !!hs.zoomScale,
-                a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(hs), popScale: 1 },
+                a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(hs), spitze: _animSignSpitze.get(hid) || [0, 0], popScale: 1 },
                 geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
             }
           } catch (e) { applog("warn", "[fotostopp] Halt-Fassung " + fi + ": " + e); }
@@ -17208,7 +17273,9 @@ function mountAnimator(body, headerActions, opts) {
                  16, ["case", ["==", ["get", "zoomScale"], true], 1.5, 1.0],
                  20, ["case", ["==", ["get", "zoomScale"], true], 2.4, 1.0]],
             "icon-anchor": ["coalesce", ["get", "iconAnchor"], "bottom"],  // v0.9.408 — Sprechblasen-Richtung pro Schild
-            "icon-offset": ["coalesce", ["get", "rzOff"], ["literal", [0, 0]]],   // 13.10.2026 (F-20) — am Bildrand ins Bild schieben
+            // 13.11.2026 (Nutzer-Meldung: Stecknadeln wandern mit dem Zoom) — Spitze auf den Geo-Punkt (sign_draw.js rzDrawSign
+            // `spitze`, wird mit icon-size multipliziert); der alte Randversatz rzOff ist seit 29.10.2026 immer 0
+            "icon-offset": ["coalesce", ["get", "spitze"], ["literal", [0, 0]]],
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
             "icon-pitch-alignment": "viewport",

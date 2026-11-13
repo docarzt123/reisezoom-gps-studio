@@ -787,11 +787,32 @@
       }
     }
 
+    // 13.11.2026 (Nutzer-Meldung: frei gesetzte Stecknadeln wandern mit Kamerahöhe und Fenstergröße) — `spitze`: um wie viele
+    // CSS-px das Bild verschoben werden muss, damit die Spitze (Nadel, Sprechblasen-Spitze, Fuß von Box/Pfosten) GENAU auf
+    // dem Geo-Punkt steht. Der Anker (icon-anchor) ist ein Bildrand (unten Mitte …); bei Zeiger links/rechts liegt die
+    // Spitze aber seitlich daneben, mit Schatten auch `mb` px höher — ein fester Bildschirm-Abstand, also je Zoom eine
+    // andere Strecke am Boden. Verbraucher: Schild-Ebene (icon-offset × icon-size), Editor-Marker (setOffset × Größe),
+    // Video-Render (core/animator.py), Höhepunkt-Export (core/szene.py).
+    var sx, sy;
+    if (decoration === "pin") { sx = cx; sy = H - mb; }
+    else if (decoration === "tail") {
+      var _ti = 7 * dpr + 9 * dpr;
+      var _cxT = tailPos === "left" ? (bx + _ti) : tailPos === "right" ? (bx + boxW - _ti) : (bx + boxW / 2);
+      var _cyT = tailPos === "left" ? (by + _ti) : tailPos === "right" ? (by + boxH - _ti) : (by + boxH / 2);
+      if (calloutDir === "top") { sx = _cxT; sy = by - tailH; }
+      else if (calloutDir === "left") { sx = bx - tailH; sy = _cyT; }
+      else if (calloutDir === "right") { sx = bx + boxW + tailH; sy = _cyT; }
+      else { sx = _cxT; sy = by + boxH + tailH; }
+    } else { sx = bx + boxW / 2; sy = by + boxH + decoH; }
+    var ax = calloutDir === "left" ? 0 : calloutDir === "right" ? c.width : c.width / 2;
+    var ay = calloutDir === "top" ? 0 : calloutDir === "bottom" ? c.height : c.height / 2;
+    var spitze = [Math.round((ax - sx) / dpr * 100) / 100, Math.round((ay - sy) / dpr * 100) / 100];
+
     // anchor = auf welchen Bildrand der Geo-Punkt fällt (Sprechblasen-Spitze).
     // Für alle Nicht-Callout-Stile bleibt es "bottom" (calloutDir default).
     // 18.10.2026 — `text`: wo der Text im Bild steht (CSS-px ab der linken oberen Bildecke). Das HTML-Schild im Editor
     // zeigt dieses Bild und legt seinen tippbaren Text unsichtbar genau darüber (Schreibmarke an der richtigen Stelle).
-    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: calloutDir,
+    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: calloutDir, spitze: spitze,
              text: { x: (bx + pad + contentDX) / dpr, y: (by + pad + (hasImg ? imgH + imgGap : 0)) / dpr,
                      w: (boxW - arrowW - pad * 2) / dpr, h: Math.max(textH, lineH) / dpr, zeile: lineH / dpr,
                      px: fontPx, ausrichtung: align, farbe: textColor, schrift: FONT.replace(fs + "px", fontPx + "px") } };

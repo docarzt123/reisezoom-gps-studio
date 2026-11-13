@@ -1053,6 +1053,10 @@ function createMap(opts) {
     _mapMode = "osm";
     lib = maplibregl;
     const _pq = (window.__rzPreviewPixelRatio ? { pixelRatio: window.__rzPreviewPixelRatio } : {});   // 07.09.2026 Vorschau-Qualität «schnell»
+    // 13.11.2026 (Nutzer-Meldung: Kartenbild fürs Fotobuch, ~20 MP) — MapLibre deckelt die Zeichenfläche auf 4096 px und
+    // zieht alles darüber weich hoch (betraf auch 4K-Video mit Supersampling). Im Render bis RZ_RENDER_MAX_KANTE (Spiegel von
+    // core/animator.py RENDER_MAX_KANTE), höchstens bis zur Grenze der Grafikkarte.
+    if (window.__rzRenderMode) _pq.maxCanvasSize = rzRenderMaxCanvas();
     map = new maplibregl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 20, maxPitch: 85, fadeDuration: 0 }, _pq, opts.common || {}));   // maxPitch 85: MapLibre-Standard ist 60 → Keyframes mit 76° wurden geklemmt (04.09.2026)   // fadeDuration 0: Symbol-Ebenen (Pfeil) folgen sofort statt 300 ms Überblendung (04.09.2026)
   }
   map.__rzEngine = spec.engine;
@@ -2704,6 +2708,27 @@ let _projectRootPendingZiel = null;  // { hash, id } — Ziel des offenen Root-P
 let _projectRootSaveTimer = null;
 // 13.09.2026 — im sicheren Modus ausgeblendete, also schreibgeschützte Projekt-Schlüssel
 const _SICHER_SCHLUESSEL = ["signs", "tourmap_signs", "photos"];
+
+const RZ_RENDER_MAX_KANTE = 8192;
+/** 13.11.2026 — größte Zeichenfläche für den Render: RZ_RENDER_MAX_KANTE, aber nie über MAX_RENDERBUFFER_SIZE /
+ *  MAX_VIEWPORT_DIMS der Grafik (sonst schneidet WebGL still ab). Einmal gemessen. */
+let _rzMaxCanvas = null;
+function rzRenderMaxCanvas() {
+  if (_rzMaxCanvas) return _rzMaxCanvas;
+  let g = RZ_RENDER_MAX_KANTE;
+  try {
+    const c = document.createElement("canvas"), gl = c.getContext("webgl2") || c.getContext("webgl");
+    if (gl) {
+      const rb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || g, vp = gl.getParameter(gl.MAX_VIEWPORT_DIMS) || [g, g];
+      g = Math.min(g, rb, vp[0], vp[1]);
+      const ext = gl.getExtension("WEBGL_lose_context"); if (ext) ext.loseContext();
+    }
+  } catch (_) {}
+  _rzMaxCanvas = [g, g];
+  try { if (window.applog) window.applog("info", `[render] größte Zeichenfläche ${g} px`); } catch (_) {}
+  return _rzMaxCanvas;
+}
+window.rzRenderMaxCanvas = rzRenderMaxCanvas;
 
 function saveActiveProjectPatch(patch, opts) {
   if (!_activeSession || !_activeProject) return;

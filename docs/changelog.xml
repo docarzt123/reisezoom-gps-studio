@@ -5,8 +5,19 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 12 Nov 2026 09:24:51 +0000</lastBuildDate>
+<lastBuildDate>Fri, 13 Nov 2026 17:04:51 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.861</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-861</link>
+<guid isPermaLink="false">gps-studio-v0.9.861</guid>
+<pubDate>Fri, 13 Nov 2026 12:00:00 +0000</pubDate>
+<description>Bilder in Druckauflösung — Für Standbilder aus der Tour-Map bietet das Export-Fenster jetzt die Stufe „Druck“ mit rund 20 Megapixeln in jedem Seitenverhältnis, im Format 3:2 also 5472 × 3648 Pixel wie bei einer 20-MP-Kamera. Neu sind die Formate 3:2 und 2:3 (Seitenleiste „Format“ → „Weitere …“), passend für Fotobücher und Abzüge. Breite und Höhe lassen sich für Bilder frei bis 8192 Pixel eintippen.
+
+Stecknadeln und Sprechblasen zeigen genau auf ihren Ort — Stand der Zeiger links oder rechts, lag die Spitze ein festes Stück neben dem Ort. Frei gesetzte Schilder schienen deshalb zu wandern, wenn sich die Kamerahöhe oder die Fenstergröße änderte. Jetzt ist die Spitze der Ankerpunkt, in Vorschau, Schild-Editor, Video und Höhepunkt-Export. Frei gesetzte Schilder aus älteren Projekten werden beim Öffnen einmal so umgerechnet, dass ihre Spitze bleibt, wo sie war.
+
+Große Renders scharf — Die Karte wurde höchstens 4096 Pixel breit gezeichnet und dann hochgezogen. Das betraf auch 4K-Videos mit „Höchster Qualität“. Jetzt rendert GPS Studio in voller Größe, so weit die Grafikkarte das kann.</description>
+</item>
 <item>
 <title>v0.9.860</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-860</link>
@@ -225,19 +236,6 @@ Logbuch als PDF und Tabelle — Ein Tagebuch der Tour mit Karte je Tag als PDF, 
 Sehenswürdigkeiten im Logbuch — Aussichtspunkte, Gipfel und Burgen am Weg landen jetzt auch auf der Tourseite im Logbuch — auch bei langen Reisen. Die Daten kommen aus eigenen Kacheln statt von einem oft überlasteten Server.
 
 Logbuch erkennt besser — Stau auf der Autobahn bleibt Teil der Fahrt statt „Rad oder Laufen?“, keine „0 min“-Einträge mehr, Start und Ziel sitzen an Abfahrt und Ankunft, und der höchste Punkt erscheint nur, wo es wirklich bergauf ging.</description>
-</item>
-<item>
-<title>v0.9.806</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-806</link>
-<guid isPermaLink="false">gps-studio-v0.9.806</guid>
-<pubDate>Thu, 22 Oct 2026 12:00:00 +0000</pubDate>
-<description>Fotos bearbeiten wie in Lightroom — Die Regler stehen in einklappbaren Bereichen mit Auge zum Vergleichen, neu sind Weiß, Schwarz, Struktur und Schärfen. Zum leichten Drehen ziehst du beim Zuschneiden einfach neben dem Rahmen.
-
-Stürzende Linien — Geometrie mit Vertikal, Horizontal und mehr — oder „Upright“ macht es automatisch: Auto, Waagerecht, Senkrecht oder Voll.
-
-Verlauf und Versionen — Jeder Schritt steht im Verlauf, benannte Versionen hältst du fest, ⌘Z geht zurück. „Auto“ schaltet sich mit einem zweiten Klick wieder aus, und in der Lupe setzt das Herz (oder P) einen Favoriten.
-
-Schneller speichern — Export, Videos und Vorschaubilder rechnet jetzt die Grafikkarte — mit demselben Code wie die Vorschau, ein großes Foto in rund einer Sekunde.</description>
 </item>
 </channel>
 </rss>

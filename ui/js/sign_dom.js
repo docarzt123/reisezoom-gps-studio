@@ -157,7 +157,8 @@
     if (cv.height !== r.data.height) cv.height = r.data.height;
     try { cv.getContext("2d").putImageData(r.data, 0, 0); } catch (_) {}
     wrap.__bildAn = true;
-    wrap.__bildMass = { w: r.data.width / (r.dpr || 2), h: r.data.height / (r.dpr || 2), text: r.text || null };
+    wrap.__bildMass = { w: r.data.width / (r.dpr || 2), h: r.data.height / (r.dpr || 2), text: r.text || null,
+                      spitze: r.spitze || [0, 0] };   // 13.11.2026 — Versatz Spitze → Geo-Punkt (sign_draw.js rzDrawSign)
     wrap.__hlKey = null;
     card.className = "rz-sign rz-sign--bild";
     card.style.cssText = "display:block;position:relative;background:transparent;padding:0;border:none;box-shadow:none;" +

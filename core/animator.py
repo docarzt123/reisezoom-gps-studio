@@ -1033,6 +1033,12 @@ def _vf_args(cfg) -> list[str]:
     return ["-vf", ",".join(teile)] if teile else []
 
 
+# 13.11.2026 — größte Kante der Render-Zeichenfläche (Karten-Canvas). Darüber steigen Software-GL (SwiftShader, Windows ohne
+# GPU im Render-Browser) und viele Grafiktreiber aus; Chromiums Bildschirmfoto könnte bis 16384. Spiegel: ui/js/util.js
+# RZ_RENDER_MAX_KANTE. Ein Druck-Standbild mit 20 MP (5472×3648) bleibt mit 1,25× Supersampling darunter (6840).
+RENDER_MAX_KANTE = 8192
+
+
 def _render_ss(width: int, height: int, hohe_qualitaet: bool = False) -> float:
     """Supersampling-(SSAA-)Faktor gegen Bewegungs-Aliasing/Flimmern (Marc-Bug
     v0.9.286). Bei 4K zeigt Mapbox feines Satelliten-Detail 1:1 — beim
@@ -1054,10 +1060,14 @@ def _render_ss(width: int, height: int, hohe_qualitaet: bool = False) -> float:
     # 23.10.2026 (Marc: „bessere Kartendarstellungen", Prototyp „GPS Studio Karten": 16 Abtastungen/Pixel) — Option
     # „Höchste Qualität": intern doppelte Auflösung (4 Abtastungen je Pixel, dazu MSAA), bei 4K 1,5×. Langsamer.
     if hohe_qualitaet:
-        return 1.5 if max(width, height) >= 3840 else 2.0
-    if max(width, height) >= 3840:
-        return 1.25
-    return 1.0
+        ss = 1.5 if max(width, height) >= 3840 else 2.0
+    elif max(width, height) >= 3840:
+        ss = 1.25
+    else:
+        ss = 1.0
+    # 13.11.2026 — Druck-Standbilder (bis 8192 px): Supersampling nur so weit, wie die Zeichenfläche es hergibt
+    kante = max(1, max(width, height))
+    return max(1.0, min(ss, RENDER_MAX_KANTE / kante))
 
 
 
@@ -2414,7 +2424,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                                        quellen_wort=_ta("attrib.quellen", "Quellen")).replace("'", "\\'")
     common_opts = (
         "  preserveDrawingBuffer:true, antialias:true, fadeDuration:0,\n"
-        "  prefetchZoomDelta:6, attributionControl:false, maxPitch:85\n"   # maxPitch: MapLibre-Standard 60 klemmte Keyframes (04.09.2026)
+        "  prefetchZoomDelta:6, attributionControl:false, maxPitch:85,\n"   # maxPitch: MapLibre-Standard 60 klemmte Keyframes (04.09.2026)
+        # 13.11.2026 (Nutzer-Meldung: Kartenbild fürs Fotobuch, ~20 MP) — MapLibre deckelt die Zeichenfläche sonst auf 4096 px
+        # und zieht größere Bilder weich hoch; Mapbox kennt die Option nicht und ignoriert sie
+        f"  maxCanvasSize:[{RENDER_MAX_KANTE}, {RENDER_MAX_KANTE}]\n"
     )
     attribution_init = (
         "map.addControl(new mapboxgl.AttributionControl({compact:false"
@@ -2716,11 +2729,11 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "    for (let i = __von; i < __bis; i++) {\n"
             "      const s = __signs[i], __img = __imgs[i - __von];\n"
             "      const id = 'sign-img-'+i;\n"
-            "      let __anchor='bottom';\n"  # v0.9.408 — Sprechblasen-Richtung → icon-anchor pro Schild
-            "      try { const o = Object.assign({}, s); if (__img) o.image = __img; if (s.imageSrc) o.__dpr = __dprFuer(s); const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
+            "      let __anchor='bottom', __spitze=[0,0];\n"  # v0.9.408 — Sprechblasen-Richtung → icon-anchor pro Schild; 13.11.2026 Spitze → Geo-Punkt
+            "      try { const o = Object.assign({}, s); if (__img) o.image = __img; if (s.imageSrc) o.__dpr = __dprFuer(s); const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (im && im.spitze) __spitze = im.spitze; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
             "      s.thumb = null;\n"
             "      const meta = __signMetas[i];\n"
-            "      __feats[i] = { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor, popScale: 1 },\n"
+            "      __feats[i] = { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor, spitze: __spitze, popScale: 1 },\n"
             "                     geometry:{ type:'Point', coordinates:[s.lon, s.lat] } };\n"
             "    }\n"
             "  }\n"
@@ -2737,7 +2750,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             # verlangt ['zoom'] top-level im interpolate, sonst wird der Layer
             # verworfen → gar kein Schild. WYSIWYG: Schild gleich groß wie Preview.
             f"      'icon-size':{_sign_icon_size},\n"
-            "      'icon-anchor':['coalesce',['get','iconAnchor'],'bottom'], 'icon-allow-overlap':true, 'icon-ignore-placement':true,\n"
+            "      'icon-anchor':['coalesce',['get','iconAnchor'],'bottom'], 'icon-offset':['coalesce',['get','spitze'],['literal',[0,0]]], 'icon-allow-overlap':true, 'icon-ignore-placement':true,\n"
             "      'icon-pitch-alignment':'viewport', 'icon-rotation-alignment':'viewport' },\n"
             "    paint:{ 'icon-opacity':['coalesce', ['feature-state','op'], 1] }\n"
             "  });\n"

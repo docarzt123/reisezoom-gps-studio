@@ -14,6 +14,24 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.861] – 2026-11-13
+
+### Added
+- **Images in print resolution (Tour-Map)**: the export window offers a **Print** level for images with about 20
+  megapixels in every aspect ratio — 5472 × 3648 in 3:2, like a 20 MP camera. **3:2** and **2:3** are new aspect
+  ratios (sidebar “Format” → “More …”, and in the export window, where the size buttons used to be disabled for 3:2).
+  Free width/height for images now go up to 8192 px and typed values are kept within the limits.
+
+### Fixed
+- **Pins and speech bubbles point exactly at their spot** at every zoom level and window size. With the pointer set to
+  left or right, the tip used to sit a fixed number of screen pixels beside the spot (with a shadow also a little
+  higher), so freely placed signs seemed to wander when the camera height or the window size changed. Now the tip is
+  the anchor — in the preview, in the sign editor, in the video and in the highlight export. Freely placed signs from
+  older projects are converted once when the project is opened, so that their tip stays where it was in that view.
+- **Large renders were softer than they should be**: the map was drawn at most 4096 px wide and then scaled up — this
+  affected 4K videos with supersampling and “Highest quality” as well. The render now uses the full size (up to
+  8192 px, limited to what the graphics card supports).
+
 ## [0.9.860] – 2026-11-12
 
 ### Fixed

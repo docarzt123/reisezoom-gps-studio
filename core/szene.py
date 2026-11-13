@@ -917,7 +917,7 @@ _HL_SCHILDER_JS = r"""() => {
     if (!img || !img.data || !img.data.width) continue;
     const d = img.data.data; let bin = "";
     for (let i = 0; i < d.length; i += 0x8000) bin += String.fromCharCode.apply(null, d.subarray(i, i + 0x8000));
-    raus.push({ id: f.id, auto, text: String(s.text || ""), lat: +s.lat, lon: +s.lon, anker: String(pr.iconAnchor || "bottom"),
+    raus.push({ id: f.id, auto, text: String(s.text || ""), lat: +s.lat, lon: +s.lon, anker: String(pr.iconAnchor || "bottom"), spitze: pr.spitze || [0, 0],
                 zoomScale: !!pr.zoomScale, w: img.data.width, h: img.data.height, pr: img.pixelRatio || 1, rgba: btoa(bin) });
   }
   return { schilder: raus, skala: m.__rzSignSizeScale || 1, cssW: m.getCanvas().clientWidth };
@@ -1044,13 +1044,17 @@ async def highlights_export(cfg, *, api, projekt_id: str, ordner: str, params: O
         png = ziel / f"highlight_{k + 1:02d}_{art}.png"
         buf = BytesIO(); bild.save(buf, "PNG"); png.write_bytes(buf.getvalue())
         ax, ay = _HL_ANKER.get(s["anker"], (0.5, 1))
+        # 13.11.2026 — Ankerpunkt = Spitze (Nadel/Sprechblase), nicht der Bildrand: `spitze` ist der Versatz Bild → Geo-Punkt
+        # in CSS-px (sign_draw.js rzDrawSign); im Bild liegt die Spitze also um diesen Betrag vor dem Bildrand-Anker
+        sp = s.get("spitze") or [0, 0]
+        k_px = float(s["pr"] or 1) * (bw / float(s["w"] or 1))
         sicht = [(n, op, ps) for n, op, ps in verlauf.get(s["id"], []) if op > 0]
         kurve = [[n, op, ps] for n, op, ps in sicht]   # Größe ändert sich mit der Perspektive je Bild
         h = hoehen.get(s["id"])
         e = {"kind": art, "text": s["text"], "lat": s["lat"], "lon": s["lon"],
              "ele_m": round(float(h), 1) if h is not None else None,
              "from_frame": sicht[0][0] if sicht else None, "to_frame": sicht[-1][0] if sicht else None,
-             "png": str(png), "size_px": [bw, bh], "anchor_px": [round(ax * bw, 1), round(ay * bh, 1)], "curve": kurve}
+             "png": str(png), "size_px": [bw, bh], "anchor_px": [round(ax * bw - float(sp[0]) * k_px, 1), round(ay * bh - float(sp[1]) * k_px, 1)], "curve": kurve}
         # Feldnamen wie in der Bitte der 3D-Seite (deutsch) zusätzlich
         e.update({"art": e["kind"], "ab_bild": e["from_frame"], "bis_bild": e["to_frame"], "anker_px": e["anchor_px"], "verlauf": kurve})
         raus.append(e)
@@ -1413,6 +1417,10 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
     return cfg.output_path
 
 
+_ZEICHENFLAECHE_JS = """() => { const m = window.__rzLetzteKarte || (window.__rzAnimMap && window.__rzAnimMap()); const c = m && m.getCanvas();
+  return c ? [c.width, c.height, (m.getPixelRatio && m.getPixelRatio()) || 0] : null; }"""
+
+
 async def render_szene_still(cfg, *, api, projekt_id: str, params: Optional[dict] = None,
                              on_progress: Optional[Callable[[float, str], None]] = None,
                              is_cancelled: Optional[Callable[[], bool]] = None) -> str:
@@ -1439,6 +1447,18 @@ async def render_szene_still(cfg, *, api, projekt_id: str, params: Optional[dict
                 await page.wait_for_timeout(400)
             await page.evaluate(_WARTE_BILD_JS)
             _gelaende_warnen("Standbild", _dem)
+            # 13.11.2026 (Druck-Standbild ~20 MP) — Größe der Karten-Zeichenfläche festhalten: kleiner als Bild × SSAA heißt,
+            # MapLibre/Grafik hat gedeckelt und das Bild wird weich hochgezogen
+            try:
+                zf = await page.evaluate(_ZEICHENFLAECHE_JS)
+                if zf:
+                    soll = int(round(max(cfg.width, cfg.height) * ss))
+                    ist = max(zf[0], zf[1])
+                    (_log.info if ist >= soll * 0.98 else _log.warning)(
+                        "Szene: Standbild-Zeichenfläche %dx%d (Pixelfaktor %.2f, Soll-Kante %d)%s", zf[0], zf[1], zf[2], soll,
+                        "" if ist >= soll * 0.98 else " — gedeckelt, Karte wird weicher")
+            except Exception:
+                pass
             alt = cfg.frame_format
             try:
                 cfg.frame_format = "png"

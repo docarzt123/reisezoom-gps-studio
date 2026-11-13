@@ -18,9 +18,19 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  const FORMATE = [["16:9", 16, 9], ["9:16", 9, 16], ["1:1", 1, 1], ["4:5", 4, 5], ["4:3", 4, 3], ["21:9", 21, 9]];
+  // 13.11.2026 (Nutzer-Meldung: Fotobuch, Fotos 3:2) — 3:2 und 2:3 dazu; vorher waren bei 3:2 alle Größen-Knöpfe gesperrt
+  const FORMATE = [["16:9", 16, 9], ["9:16", 9, 16], ["1:1", 1, 1], ["4:5", 4, 5], ["4:3", 4, 3], ["3:2", 3, 2], ["2:3", 2, 3], ["21:9", 21, 9]];
   const STUFEN = [[2160, "4K"], [1440, "1440p"], [1080, "1080p"], [720, "720p"]];
+  // 13.11.2026 — Standbild in Druckauflösung: ~20 MP in jedem Seitenverhältnis (3:2 → 5472×3648 wie eine 20-MP-Kamera).
+  // Größte Kante RENDER_MAX = core/animator.py RENDER_MAX_KANTE (Zeichenfläche des Render-Browsers).
+  const DRUCK_MP = 20e6, RENDER_MAX = 8192;
   const gerade = (v) => Math.max(2, Math.round(v / 2) * 2);
+  /** Kurze Seite für ~20 MP im Format (3:2 → 3648). */
+  function druckKurz(format) {
+    const f = FORMATE.find((x) => x[0] === format) || FORMATE[0];
+    const r = Math.max(f[1], f[2]) / Math.min(f[1], f[2]);
+    return Math.min(gerade(Math.sqrt(DRUCK_MP / r) / 8) * 8, gerade(RENDER_MAX / r));
+  }
 
   /** Breite × Höhe für ein Seitenverhältnis und die kurze Seite (1080 → 1920×1080, 9:16 → 1080×1920). */
   function groesse(format, kurz) {
@@ -182,9 +192,12 @@
             <span data-weg class="${st.loeschen === v.id ? "is-frage" : ""}" title="${esc(T("exportdlg.loeschen", "Löschen"))}">${st.loeschen === v.id ? esc(T("exportdlg.loeschen_frage", "Löschen?")) : "✕"}</span>` : ""}
           </span></div>`;
       };
-      const stufen = STUFEN.map(([kurz, lab]) => {
+      const _stufen = (bild ? [[druckKurz(fmt || "16:9"), T("exportdlg.druck", "Druck")]] : []).concat(STUFEN);
+      const stufen = _stufen.map(([kurz, lab]) => {
         const [w, h] = groesse(fmt || "16:9", kurz);
-        return `<button type="button" class="anim-pille${w === s.w && h === s.h ? " is-on" : ""}" data-res="${w}x${h}" ${fmt ? "" : "disabled"}>${esc(lab)} <span class="muted">${w}×${h}</span></button>`;
+        // Megapixel nur im Tooltip — im Knopf schnitt der Zusatz die Größe ab (Klicktest 13.11.2026)
+        const tip = bild ? ` title="${w}×${h} · ${Math.round(w * h / 1e6)} ${esc(T("exportdlg.megapixel", "Megapixel"))}"` : "";
+        return `<button type="button" class="anim-pille${w === s.w && h === s.h ? " is-on" : ""}" data-res="${w}x${h}"${tip} ${fmt ? "" : "disabled"}>${esc(lab)} <span class="muted">${w}×${h}</span></button>`;
       }).join("");
       const sel = (id, werte, jetzt) => `<select id="${id}" class="select">${werte.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(jetzt) ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
       const alpha = ($("anim-style") || {}).value === "alpha";
@@ -195,7 +208,7 @@
           <div class="rz-exp-vorlagen">${liste.map(karte).join("")}</div></div>
         <div class="rz-exp-abschnitt">
           <div class="rz-exp-label">${esc(T("exportdlg.aufloesung", "Auflösung"))}
-            <span class="rz-exp-format">${esc(fmt || T("exportdlg.frei", "frei"))} · <span class="muted">${esc(T("exportdlg.format_hinweis", "Seitenverhältnis in der Seitenleiste unter „Format & Ablauf“"))}</span></span></div>
+            <span class="rz-exp-format">${esc(fmt || T("exportdlg.frei", "frei"))} · <span class="muted">${esc(bild ? T("exportdlg.format_hinweis_bild", "Seitenverhältnis in der Seitenleiste unter „Format“ — für ein Fotobuch meist 3:2") : T("exportdlg.format_hinweis", "Seitenverhältnis in der Seitenleiste unter „Format & Ablauf“"))}</span></span></div>
           <div class="anim-pillen rz-exp-stufen">${stufen}</div></div>
         ${bild ? "" : `<div class="rz-exp-reihe">
           <label class="rz-exp-feld"><span class="rz-exp-label">${esc(T("animator.field.fps", "Bildrate"))}</span>
@@ -210,8 +223,8 @@
           <input type="checkbox" id="rz-exp-hq"${s.hq ? " checked" : ""}> <span>${esc(T("animator.field.hq_title", "Höchste Qualität (langsamer)"))}</span></label>
         <details class="anim-mehr rz-exp-mehr"${st.mehrOffen ? " open" : ""}><summary>${esc(T("animator.mehr", "Mehr"))}</summary>
           <div class="rz-exp-reihe">
-            <label class="rz-exp-feld"><span class="rz-exp-label">${esc(T("animator.field.width", "Breite"))}</span><input type="number" id="rz-exp-w" min="320" max="7680" step="2" value="${s.w}"></label>
-            <label class="rz-exp-feld"><span class="rz-exp-label">${esc(T("animator.field.height", "Höhe"))}</span><input type="number" id="rz-exp-h" min="320" max="7680" step="2" value="${s.h}"></label>
+            <label class="rz-exp-feld"><span class="rz-exp-label">${esc(T("animator.field.width", "Breite"))}</span><input type="number" id="rz-exp-w" min="320" max="${bild ? RENDER_MAX : 7680}" step="2" value="${s.w}"></label>
+            <label class="rz-exp-feld"><span class="rz-exp-label">${esc(T("animator.field.height", "Höhe"))}</span><input type="number" id="rz-exp-h" min="320" max="${bild ? RENDER_MAX : 7680}" step="2" value="${s.h}"></label>
           </div>
           ${bild ? "" : `<label class="rz-exp-feld"><span class="rz-exp-label">${esc(T("animator.field.map_smoothing", "Karte glätten"))} <span class="muted" id="rz-exp-gl-v">${isFinite(s.glaettung) ? s.glaettung.toFixed(1) : "1.3"} px</span></span>
             <input type="range" id="rz-exp-glaettung" min="0" max="3" step="0.1" value="${isFinite(s.glaettung) ? s.glaettung : 1.3}"></label>`}
@@ -246,8 +259,10 @@
       an("rz-exp-fps", (v) => feld("anim-fps", v));
       an("rz-exp-farbraum", (v) => feld("anim-farbraum", v));
       an("rz-exp-codec", (v) => codecSetzen(v));
-      an("rz-exp-w", (v) => feld("anim-w", gerade(+v || 1920)));
-      an("rz-exp-h", (v) => feld("anim-h", gerade(+v || 1080)));
+      // 13.11.2026 — Grenzen wirklich einhalten (das max-Attribut allein hält Getipptes nicht auf)
+      const _grenze = (v, d) => Math.min(bild ? RENDER_MAX : 7680, Math.max(320, gerade(+v || d)));
+      an("rz-exp-w", (v) => feld("anim-w", _grenze(v, 1920)));
+      an("rz-exp-h", (v) => feld("anim-h", _grenze(v, 1080)));
       const hq = inhalt.querySelector("#rz-exp-hq");   // 23.10.2026 — Höchste Qualität (doppelte Render-Auflösung)
       if (hq) hq.onchange = () => { const e = $("anim-hq"); if (e && e.checked !== hq.checked) { e.checked = hq.checked; e.dispatchEvent(new Event("change", { bubbles: true })); } };
       const gl = inhalt.querySelector("#rz-exp-glaettung");

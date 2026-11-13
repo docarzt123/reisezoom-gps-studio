@@ -4748,6 +4748,28 @@ sortiert — ohne Tiefentest malten ferne Räder und Innenflächen über die Kar
 **Röhren-Zeiten nachziehen (08.11.2026):** `_flugSpuren` merkt `_flug.glutZ` (die Zeiten, mit denen die Röhre gebaut
 ist); `_flugGlutPruefen()` (am Anfang von `_flugPunkt`) setzt die Spuren neu, sobald `_glutZeiten()` ein anderes Feld liefert
 (Tempo-Tabelle kam später, Dauer/Intro geändert) — sonst lief der Kopf der Röhre davon (Mammut-Tour: +4 %).
+**Spitze = Ankerpunkt der Schilder (13.11.2026):** `rzDrawSign` (sign_draw.js) liefert neben `anchor` (Bildrand, auf
+den der Geo-Punkt fällt) `spitze = [dx, dy]` in CSS-px: so weit muss das Bild verschoben werden, damit die Spitze
+(Nadel, Sprechblasen-Spitze, Fuß von Box/Pfosten) genau auf dem Punkt steht — bei Zeiger links/rechts seitlich, mit
+Schatten auch `mb` px nach unten. Verbraucher, alle mit demselben Wert: Schild-Ebene der Vorschau und der Szene
+(module.js: `_animSignSpitze` je Bild-ID gemerkt, Feature-Eigenschaft `spitze`, Layout `icon-offset` — MapLibre
+multipliziert ihn mit `icon-size`), Editor-Marker (`_animSignDomRand`: `setOffset(spitze × Größe)`, `sign_dom.js`
+legt ihn in `__bildMass.spitze`), Rückfall-Render (`core/animator.py` signs_block) und Höhepunkt-Export
+(`core/szene.py` `anchor_px`). Der alte Randversatz `rzOff` wird nicht mehr gelesen. Einmalige Umrechnung alter
+Projekte: `_animSignsSpitzeUmstellen` rechnet je Projekt (Merker `signs_spitze` / `tourmap_signs_spitze`) frei gesetzte
+Text-Schilder so um, dass die Spitze in der geöffneten Ansicht stehen bleibt — erst wenn die Kamera ruht (zweimal
+gleiche Kamera nach `idle`), iterativ mit `project`/`unproject` (unproject trifft im Gelände nicht immer). Schilder auf
+der Strecke bleiben auf ihrem Streckenpunkt. Tests: test_schild_spitze (MapLibre, Spitze gemessen), test_schild_spitze_app.
+
+**Render-Zeichenfläche bis 8192 px (13.11.2026):** MapLibre deckelt den Canvas per `maxCanvasSize` (Standard 4096) und
+senkt sonst still den Pixelfaktor — große Renders (Druck-Standbild, 4K mit SSAA, „Höchste Qualität“) wurden weich
+hochgezogen. Im Render-Modus setzt `util.js` `maxCanvasSize = rzRenderMaxCanvas()` (`RZ_RENDER_MAX_KANTE` 8192, nie über
+`MAX_RENDERBUFFER_SIZE`/`MAX_VIEWPORT_DIMS` der Grafik), der Rückfall-Render `core/animator.py` `RENDER_MAX_KANTE`;
+`_render_ss` deckelt das Supersampling so, dass die Kante ≤ 8192 bleibt. Das Szene-Standbild schreibt die Größe der
+Zeichenfläche ins Log („Standbild-Zeichenfläche …“, Warnung bei Deckel). Export-Dialog: Formate 3:2/2:3, Stufe „Druck“
+(`druckKurz`: ~20 MP je Format) nur für Standbilder. Offen: Luftbild-Kacheln bleiben bei Pixelfaktor ~7 weicher als
+Linien/Schrift — eine dritte Kachelstufe (`kachelStufen` 3) brachte messbar nichts. Test: test_druck_standbild.
+
 **Luftmodelle nie im Gelände (12.11.2026):** `rz-figur3d` setzt Luftmodelle (`rzModelle.LUFT`) mit der Mitte auf `agl`.
 Ohne Flugmodus gibt der Animator `agl 0` (`_bodenPunktSetzen → _modellZeigen`) — die untere Hälfte steckte im Gelände
 (FPV-Ringe bis −0,21 Modelllänge unter der Mitte). `_modellGeometrie` merkt sich die Unterkante (`unter`, Modelllänge = 1),
