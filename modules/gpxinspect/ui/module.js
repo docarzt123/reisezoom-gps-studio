@@ -3727,7 +3727,7 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-delete-one", deletePoint);
   _on("gpxi-ab-archiv", () => {
     if (_selA == null || _selB == null) return;
-    const stamm = (_lb && _lb.name) || String(_origPath || _srcPath || "").split("/").pop().replace(/\.[^.]+$/, "") || "Tour";
+    const stamm = (_lb && _lb.name) || String(_origPath || _srcPath || "").split(/[\\/]/).pop().replace(/\.[^.]+$/, "") || "Tour";
     _abschnittInsArchiv(Math.min(_selA, _selB), Math.max(_selA, _selB),
       stamm + " – " + t("gpxinspect.abschnitt", "Abschnitt"), "");
   });

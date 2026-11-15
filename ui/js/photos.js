@@ -177,7 +177,7 @@
       computeTrackAnchors(photos, opts.coords);
       // v0.9.80 — Debug-Log damit Marc per DevTools sieht was die Anchors sind
       console.log("[photo-pins] computed track_anchors:",
-        photos.map(p => ({ name: (p.path || "").split("/").pop(),
+        photos.map(p => ({ name: (p.path || "").split(/[\\/]/).pop(),
                            anchor: p.track_anchor })));
     } else if (typeof opts.markerAnchor === "number") {
       console.warn("[photo-pins] markerAnchor übergeben, aber KEIN coords-Array → " +
@@ -288,7 +288,7 @@
       const st = _attachState.get(map);
       const p = st && st.photos && st.photos[f.properties.idx];
       if (!p || !p.thumb) return;
-      const name = (p.path || "").split("/").pop();
+      const name = (p.path || "").split(/[\\/]/).pop();
       popup.setLngLat(f.geometry.coordinates)
         .setHTML(
           '<div class="photo-hover-card">' +
@@ -439,7 +439,7 @@
       meta.className = "photos-list-meta";
       const nameEl = document.createElement("div");
       nameEl.className = "photos-list-name";
-      const base = (p.path || "").split("/").pop() || ((window.t && window.t("photos.unbenannt", "(unbenannt)")) || "(unbenannt)");
+      const base = (p.path || "").split(/[\\/]/).pop() || ((window.t && window.t("photos.unbenannt", "(unbenannt)")) || "(unbenannt)");
       nameEl.textContent = base;
       const coordEl = document.createElement("div");
       coordEl.className = "photos-list-coord";
@@ -614,7 +614,7 @@
     const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g,
       (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const kacheln = photos.map((p, i) => `
-      <label class="foto-wahl-kachel${vor.has(i) ? " ist-an" : ""}" title="${esc((p.path || "").split("/").pop())}">
+      <label class="foto-wahl-kachel${vor.has(i) ? " ist-an" : ""}" title="${esc((p.path || "").split(/[\\/]/).pop())}">
         <input type="checkbox" data-fw="${i}"${vor.has(i) ? " checked" : ""}>
         ${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">`
                   : `<span class="foto-wahl-leer">🖼</span>`}

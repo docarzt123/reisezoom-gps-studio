@@ -1809,6 +1809,17 @@ body.is-rendering .anim-ansicht-hinweis { display: none; }
 .sign-editor .se-lage-k:hover { color: var(--text); border-color: var(--text-dim); }
 .sign-editor .se-lage-k.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .sign-editor .se-lage-hint { font-size: 10.5px; margin: -2px 0 6px; }
+/* 15.11.2026 — weitere Fotos an derselben Stelle (Fotostopp nacheinander / Collage), synchron zur iPhone-App */
+.sign-editor .se-mehr { margin-top: 8px; padding: 6px 8px; border: 1px solid var(--border, rgba(255,255,255,0.12)); border-radius: 8px; }
+.sign-editor .se-mehr-kopf { display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 5px; }
+.sign-editor .se-mehr-liste { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.sign-editor .se-mehr-liste:empty { display: none; }
+.sign-editor .se-mehr-foto { position: relative; width: 52px; height: 52px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.06); }
+.sign-editor .se-mehr-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sign-editor .se-mehr-rm { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(0,0,0,0.6); color: #fff; font-size: 10px; line-height: 18px; cursor: pointer; }
+.sign-editor .se-mehr-collage { margin-top: 6px; font-size: 12px; gap: 6px; }
+.sign-editor .se-mehr-hint { font-size: 10.5px; margin-top: 4px; line-height: 1.4; }
 
 /* 01.11.2026 — Bergnamen: Schrift, Größe, Farbe, Schatten unter dem Schalter */
 .anim-bn-mehr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin: 4px 0 8px; }

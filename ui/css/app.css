@@ -4131,6 +4131,9 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
 .va-schalter:checked::before { transform: translateX(18px); background: #fff; }
 .va-schalter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .va-schalter-zeile { display: flex; align-items: center; gap: 14px; padding: 14px 0 4px; cursor: pointer; }
+/* 15.11.2026 — Stellen mit mehreren Fotos (Hinweis + Collage-Schalter, wie die iPhone-App) */
+.va-mehrfach { margin-top: 10px; }
+.va-mehrfach-text { font-size: 12.5px; line-height: 1.45; }
 .va-sz-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .va-sz-text b { font-size: 14.5px; font-weight: 600; }
 .va-sz-text small { font-size: 12.5px; color: var(--text-muted); }

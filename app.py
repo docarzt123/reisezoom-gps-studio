@@ -135,6 +135,7 @@ from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft
 from core import umzug as cumzug    # 02.09.2026: Altbestand → Bibliothek
 from core import tourmap_html as ctourhtml  # v0.9.406: Tour-Map → interaktiver Leaflet-HTML-Export
 from core import tourmap_leaflet as ctmleaflet  # v0.9.418: leichter Leaflet-Blog-Export (HTML-Modus)
+from core import collage as ccollage  # 15.11.2026: mehrere Fotos einer Stelle als Collage
 from core import gpxedit as cgpxedit  # v0.9.233: GPX-Inspektor (Track heilen/füllen)
 from core import gpxmerge as cgpxmerge  # v0.9.456: mehrere Tracks zu einem verschmelzen
 from core import trackio as ctrackio  # v0.9.297: Track→GPX/CSV-String (geteilt mit Web)
@@ -189,7 +190,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.862"
+APP_VERSION = "0.9.863"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -9257,6 +9258,9 @@ class Api:
         """Thumbnail für einen bekannten Bild-Pfad (neu) erzeugen — beim
         Projekt-Laden, da der Thumb nicht persistiert wird (nur der Pfad)."""
         try:
+            # 15.11.2026 — mehrere Fotos einer Stelle als Collage (Foto-Schild ohne Halt, synchron zur iPhone-App)
+            if isinstance(path, str) and path.startswith(ccollage.PRAEFIX):
+                return self._collage_thumb(path, max_px)
             if not path or not os.path.exists(path):
                 return {"ok": False, "error": "not found"}
             thumb = self._photo_thumbnail_data_url(path, max(64, min(1440, int(max_px or 600))))
@@ -9265,6 +9269,34 @@ class Api:
             return {"ok": bool(thumb), "thumb": thumb, "rz": rz}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def _collage_thumb(self, src: str, max_px: int = 600) -> dict:
+        """Collage (core/collage.py) aus den Fotos einer `rzcollage:`-Quelle als Daten-URL. Jedes Foto kommt durch dieselbe
+        Aufbereitung wie ein einzelnes (Bearbeitung/Zuschnitt, RAW, HEIC); fehlende Fotos fallen weg, bleibt eins übrig,
+        kommt dieses allein."""
+        pfade = [p for p in ccollage.pfade_aus(src) if os.path.exists(p)]
+        if not pfade:
+            return {"ok": False, "error": "not found"}
+        breite = max(600, min(1440, int(max_px or 600)))
+        if len(pfade) == 1:
+            return self.sign_image_thumb(pfade[0], max_px)
+        bilder = []
+        for p in pfade:
+            d = self._photo_thumbnail_data_url(p, breite)
+            if not d or "," not in d:
+                continue
+            try:
+                bilder.append(Image.open(io.BytesIO(base64.b64decode(d.split(",", 1)[1]))))
+            except Exception as e:   # noqa: BLE001
+                log.warning("Collage: %s übersprungen: %s", Path(p).name, e)
+        if len(bilder) < 2:
+            return self.sign_image_thumb(pfade[0], max_px)
+        bild = ccollage.collage(bilder, breite)
+        puf = io.BytesIO()
+        bild.save(puf, "JPEG", quality=88)
+        rez = self._rezepte_fuer(pfade)
+        rz = "|".join(self._rezept_stempel(rez.get(p)) or "" for p in pfade)
+        return {"ok": True, "thumb": "data:image/jpeg;base64," + base64.b64encode(puf.getvalue()).decode("ascii"), "rz": rz}
 
     # 02.10.2026 (Marc, Teide-Demo: „Gipfel — da steht La Orotava … gucken, welcher Gipfel das ist, und direkt hinschreiben")
     # Benannter Ort an einer Stelle (Photon, core/highlights.ort_am_punkt), dauerhaft gemerkt; „nichts" 30 Tage.
@@ -11634,6 +11666,7 @@ class Api:
                 "show_north": bool(params.get("show_north", True)),   # 04.09.2026 Nordpfeil
                 "quellenangabe": "voll" if params.get("quellenangabe") == "voll" else "ecke",   # 15.09.2026
                 "link_ziel": "_blank" if params.get("link_ziel") == "_blank" else "_top",   # 08.11.2026 Track-Links
+                "link_klick": "sofort" if params.get("link_klick") == "sofort" else "schild",   # 15.11.2026 Klick zeigt Schild
                 "start_label": params.get("start_label") or _ui_t()("webkarte.start", "Start"),
                 "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
                 "view_center": params.get("view_center"),
@@ -16913,6 +16946,24 @@ class Api:
                 drin = {f["path"] for f in wahl}
                 wahl += [f for f in kandidaten if f.get("manuell") and f["path"] not in drin]   # von Hand platziert = gewollt
             wahl.sort(key=lambda f: f["bei"])
+            # 15.11.2026 (Marc: „die iOS-App kann das … das soll synchron laufen“) — Fotos an derselben Stelle (≤ 1,5 % der
+            # Strecke) hängen am nächsten gewählten Foto, statt wegzufallen (iPhone: Fotos.auswaehlen / gleicheStelle,
+            # jeStelleMax 4). Serienbilder (≤ 4 s neben einem Foto der Stelle) zählen nicht doppelt.
+            weitere: dict[str, list] = {}
+            if not clip and wahl:
+                drin = {f["path"] for f in wahl}
+                for k in sorted((f for f in kandidaten if f["path"] not in drin), key=lambda f: -float(f.get("wert") or 0)):
+                    ziel = min(wahl, key=lambda f: abs(f["bei"] - k["bei"]))
+                    if abs(ziel["bei"] - k["bei"]) > 0.015:
+                        continue
+                    gruppe = weitere.setdefault(ziel["path"], [])
+                    if len(gruppe) >= ccollage.JE_STELLE_MAX - 1:
+                        continue
+                    te = k.get("epoch")
+                    if te is not None and any(x.get("epoch") is not None and abs(float(x["epoch"]) - float(te)) <= 4
+                                              for x in [ziel] + gruppe):
+                        continue
+                    gruppe.append(k)
             raus = []
             for f in wahl:
                 q = pts[f["idx"]]
@@ -16920,6 +16971,12 @@ class Api:
                                          "ort": f.get("ort") or ""})
                 e = {"path": f["path"], "lat": q.lat, "lon": q.lon, "bei": round(f["bei"], 6),
                      "zeit": info.get("zeit", ""), "ort": info.get("ort", ""), "wert": f["wert"], "grund": f.get("grund") or []}
+                if f["path"] in weitere:
+                    gr = sorted(weitere[f["path"]], key=lambda x: float(x.get("epoch") or 0))
+                    e["weitere"] = [{"path": x["path"], "t": x.get("epoch"), "thumb": self._photo_thumbnail_data_url(x["path"], 160),
+                                     **({"text": (fest.get(os.path.abspath(x["path"])) or {}).get("text")}
+                                        if (fest.get(os.path.abspath(x["path"])) or {}).get("text") else {})} for x in gr]
+                e["t"] = f.get("epoch")
                 fe = fest.get(os.path.abspath(f["path"])) or {}
                 if fe.get("text"):
                     e["text"] = fe["text"]

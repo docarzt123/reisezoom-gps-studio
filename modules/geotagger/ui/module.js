@@ -1241,7 +1241,7 @@ function mountGeotagger(body, headerActions) {
     _gtTracks = Array.isArray(res.tracks) && res.tracks.length ? res.tracks : [res];   // 10.09.2026
     _gtTracksListe();
     _gtUpdateSnapAvail();             // v0.9.166 — Snap-Toggle aktivieren (Track da)
-    setLabel("gt-gpx-path", path.split("/").slice(-1)[0]);
+    setLabel("gt-gpx-path", path.split(/[\\/]/).slice(-1)[0]);
     // v0.8.0: Session aktivieren — gleiche Settings wie in Animator/Tour-Map
     // 14.09.2026 (Echt-Test): NICHT, wenn die Sitzung schon steht — die globale
     // Leiste hat sie beim Laden aktiviert. Bei einer Reise (Kontext „menge:…“)
@@ -1327,7 +1327,7 @@ function mountGeotagger(body, headerActions) {
     const hauptNeu = haupt.path !== currentGpxPath;
     currentGpxPath = haupt.path;
     _gtUpdateSnapAvail();
-    setLabel("gt-gpx-path", haupt.path.split("/").slice(-1)[0]);
+    setLabel("gt-gpx-path", haupt.path.split(/[\\/]/).slice(-1)[0]);
     // Sitzung nur wechseln, wenn der Haupt-Track ein anderer ist — ein Sitzungswechsel
     // leert die Undo-Stapel (rebindAllSettings), und Undo soll bei gleichem
     // Haupt-Track die Track-Liste zurückholen können (10.09.2026).
@@ -1388,7 +1388,7 @@ function mountGeotagger(body, headerActions) {
       <label class="modal-gpx-pick-row gt-track-wahl">
         <input type="checkbox" name="gt-track-wahl" value="${i}" ${(tr.n_fotos > 0 || k.tracks.length === 1) ? "checked" : ""}>
         <div class="modal-gpx-pick-info">
-          <div class="modal-gpx-pick-name">${_gtEsc(tr.name || tr.path.split("/").pop())}${tr.vorgegeben ? ` <span class="gt-chip track">${_gtEsc(t("geotagger.tracks.vorgegeben", "vorgegeben"))}</span>` : ""}</div>
+          <div class="modal-gpx-pick-name">${_gtEsc(tr.name || tr.path.split(/[\\/]/).pop())}${tr.vorgegeben ? ` <span class="gt-chip track">${_gtEsc(t("geotagger.tracks.vorgegeben", "vorgegeben"))}</span>` : ""}</div>
           <div class="modal-gpx-pick-meta">📅 ${datum(tr.time_start)} · 📷 ${_gtEsc(t("geotagger.tracks.fotos", "{n} Fotos").replace("{n}", tr.n_fotos))}${tr.doppel ? ` · ↔ ${_gtEsc(t("geotagger.tracks.doppel", "{n} davon passen auch auf eine andere Tour").replace("{n}", tr.doppel))}` : ""}</div>
         </div>
       </label>`).join("");
@@ -1633,7 +1633,7 @@ function mountGeotagger(body, headerActions) {
     if (window.rzStatus) {
       window.rzStatus.start("gt-ordner", {
         titel: t("geotagger.busy.lese_ordner", "Lese Ordner …"),
-        text: folder.split("/").slice(-2).join("/"),
+        text: folder.split(/[\\/]/).slice(-2).join("/"),
       });
     }
     try {

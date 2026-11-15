@@ -2170,7 +2170,7 @@ async function sessionActivate(coords, gpxPath) {
     // Oberfläche das auch sagen.
     try {
       const tourName = (res.session && res.session.name) || "";
-      const dateiName = (gpxPath || "").split("/").pop().replace(/\.[^.]+$/, "");
+      const dateiName = (gpxPath || "").split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
       if (res.bekannt && res.andere_datei !== false && gpxPath && tourName && tourName.trim() !== dateiName.trim()
           && !window.__rzGleicheTourGesagt) {
         window.__rzGleicheTourGesagt = true;

@@ -1087,7 +1087,7 @@ function mountHeightAnim(body, headerActions) {
           const frac = _photoAnchorFrac(p);
           if (frac == null) continue;
           const dm = frac * maxDist;
-          const nm = (p.name || p.filename || "").split("/").pop() || "📷";
+          const nm = (p.name || p.filename || "").split(/[\\/]/).pop() || "📷";
           out.push({ dist_m: dm, ele: _eleAtDistArr(dists, elevs, dm), label: "📷 " + nm.replace(/\.[^.]+$/, ""), color: "#7ab8ff" });
         }
       } catch (_) {}
@@ -2001,7 +2001,7 @@ function mountHeightAnim(body, headerActions) {
         const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
         ((proj && proj.photos) || []).forEach((p, i) => {
           if (p.visible === false) return;
-          const nm = (p.name || p.filename || t("heightanim.points.photo_default", "Foto")).split("/").pop().replace(/\.[^.]+$/, "");
+          const nm = (p.name || p.filename || t("heightanim.points.photo_default", "Foto")).split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
           rows.push({ kind: "photo", key: "photo:" + i, label: "📷 " + nm, color: "#7ab8ff", hidden: !!_wpHidden["photo:" + i] });
         });
       } catch (_) {}
@@ -2447,7 +2447,7 @@ function mountHeightAnim(body, headerActions) {
       const openBtn = document.getElementById("height-open-folder");
       if (openBtn) openBtn.onclick = () => window.pywebview.api.reveal_in_finder(s.output);
       if (typeof toast === "function") {
-        toast(t("heightanim.toast.done", "Video fertig") + ": " + (s.output || "").split("/").pop(), "success", 6000);
+        toast(t("heightanim.toast.done", "Video fertig") + ": " + (s.output || "").split(/[\\/]/).pop(), "success", 6000);
       }
       return;
     }

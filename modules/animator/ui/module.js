@@ -5584,6 +5584,24 @@ function mountAnimator(body, headerActions, opts) {
   //   3. das Foto erscheint groß über der Karte (#anim-fotostopp), wächst aus dem Pin heraus.
   // Bei einer Reise (Etappen-Zeitplan) gibt es keine Fotostopps — die Kurve verteilt dort nichts.
   const FS_STD = { sek: 3, anflug: 1, abflug: 1, zoom: 1.5, schwenk: 2, ken: 8 };   // schwenk in Grad, ken in % (02.10.2026)
+  // ── Mehrere Fotos an einer Stelle (15.11.2026, synchron zur iPhone-App `Fotos.swift`: gleicheStelle/jeStelleMax) ──
+  // Marc: „Das mit den mehreren Bildern, die iOS-App kann das … das soll synchron laufen“ — ein Foto-Schild trägt bis zu
+  // drei weitere Fotos derselben Stelle (`weitere: [{imageSrc, text}]`, zusammen höchstens SIGN_JE_STELLE_MAX).
+  //   · mit Halt („Foto groß“): nacheinander in derselben großen Karte, je weiteres Foto FS_WEITERES_S länger
+  //     (Feld `stopp_weitere_s`), kurzes Wegblenden beim Wechsel (FS_WECHSEL_S) — die Kamera bleibt am Ort
+  //   · `collage: true` (vor allem ohne Halt — Sofortbild, Bild im Bild): alle Fotos als EIN Bild (core/collage.py,
+  //     über sign_image_thumb("rzcollage:[…]"))
+  const SIGN_JE_STELLE_MAX = 4, FS_WEITERES_S = 2.5, FS_WECHSEL_S = 0.25;
+  function _animSignWeitere(s) {
+    return (s && Array.isArray(s.weitere)) ? s.weitere.filter(w => w && w.imageSrc).slice(0, SIGN_JE_STELLE_MAX - 1) : [];
+  }
+  function _animSignCollage(s) { return !!(s && s.collage && s.imageSrc && !(s.clip && s.clip.pfad) && _animSignWeitere(s).length); }
+  /** Bildquelle für sign_image_thumb: das Foto selbst oder die Collage aus allen Fotos der Stelle. */
+  function _animSignBildQuelle(s) {
+    if (!_animSignCollage(s)) return s.imageSrc;
+    return "rzcollage:" + JSON.stringify([s.imageSrc].concat(_animSignWeitere(s).map(w => w.imageSrc)));
+  }
+  window.__rzSignBildQuelle = (s) => _animSignBildQuelle(s);   // Prüfstand
   const _fsZahl = (v, std, lo, hi) => {
     const x = Number(v);
     return Math.max(lo, Math.min(hi, (v == null || v === "" || !isFinite(x)) ? std : x));
@@ -5594,10 +5612,14 @@ function mountAnimator(body, headerActions, opts) {
   // 14.10.2026 (Marc: „an einem Foto einmal rumkreisen“) — `stopp_kreisen`: eine volle Runde um den Fotoort im Halt;
   // eine Runde braucht Zeit, der Halt dauert dann mindestens FS_KREIS_MIN_S
   const FS_KREIS_MIN_S = 6;
+  const _fsWeiteresS = (s) => _fsZahl(s && s.stopp_weitere_s, FS_WEITERES_S, 0.5, 30);
+  /** Weitere Fotos, die im Halt nacheinander kommen (nicht bei Clip oder Collage). */
+  const _fsNacheinander = (s) => (s && !(s.clip && s.clip.pfad) && !_animSignCollage(s)) ? _animSignWeitere(s) : [];
   function _fsWerte(s) {
     const c = !!(s && s.clip && s.clip.pfad);
     const kreisen = !c && !!(s && s.stopp_kreisen) && !(s && s.stopp_kamera === false);
-    return { kreisen, sek: c ? _fsClipDauer(s) : Math.max(kreisen ? FS_KREIS_MIN_S : 0, _fsZahl(s.stopp_s, FS_STD.sek, 0.5, 30)), anflug: _fsZahl(s.stopp_anflug_s, FS_STD.anflug, 0, 5),
+    const mehr = _fsNacheinander(s).length * _fsWeiteresS(s);   // 15.11.2026 — je weiteres Foto länger halten
+    return { kreisen, sek: c ? _fsClipDauer(s) : Math.max(kreisen ? FS_KREIS_MIN_S : 0, _fsZahl(s.stopp_s, FS_STD.sek, 0.5, 30) + mehr), anflug: _fsZahl(s.stopp_anflug_s, FS_STD.anflug, 0, 5),
              abflug: _fsZahl(s.stopp_abflug_s, FS_STD.abflug, 0, 5),
              pin: _fsZahl(s.stopp_pin_s, FS_PIN_VORLAUF, 0, 30),   // 06.10.2026 — wie früh der Foto-Pin vor dem Anflug erscheint (linker Rand in der Spur)
              zoom: _fsZahl(s.stopp_zoom, FS_STD.zoom, 0, 4),
@@ -5731,7 +5753,7 @@ function mountAnimator(body, headerActions, opts) {
   // Großes Bild + Bildunterschrift je Foto (Datei → { el, laden, info })
   const _fsBilder = new Map();
   function _fsBildHolen(s) {
-    const src = s.imageSrc;
+    const src = _animSignBildQuelle(s);   // 15.11.2026 — Collage aus allen Fotos der Stelle, sonst das Foto
     // 18.10.2026 — Schlüssel mit der Stelle des Schilds: ein weit verschobener Fotostopp bekommt den Ort von dort
     // (app.py fotostopp_info), die alte Unterschrift darf nicht aus dem Speicher kommen
     const stelle = (isFinite(+s.lat) && isFinite(+s.lon)) ? `|${(+s.lat).toFixed(3)},${(+s.lon).toFixed(3)}` : "";
@@ -5757,10 +5779,10 @@ function mountAnimator(body, headerActions, opts) {
     let bildFertig = false, infoFertig = false;
     const fertig = () => { if (bildFertig && (infoFertig || !render)) e.laden = false; };
     const neuZeigen = () => { try { if (_fsZeitLetzt != null) _fotostoppZeigen(_fsZeitLetzt); } catch (_) {} };
-    api().fotostopp_info(clip ? clip.pfad : src, isFinite(+s.lat) ? +s.lat : null, isFinite(+s.lon) ? +s.lon : null).catch(() => null)   // warte-ok: dito
+    api().fotostopp_info(clip ? clip.pfad : s.imageSrc, isFinite(+s.lat) ? +s.lat : null, isFinite(+s.lon) ? +s.lon : null).catch(() => null)   // warte-ok: dito
       .then((inf) => { e.info = (inf && inf.ok) ? inf : {}; infoFertig = true; fertig(); if (e.el) neuZeigen(); });
     bild().then((r) => {
-      if (!(r && r.ok && r.thumb)) { bildFertig = true; fertig(); applog("warn", "[fotostopp] Bild fehlt: " + String(src).split("/").pop()); return; }
+      if (!(r && r.ok && r.thumb)) { bildFertig = true; fertig(); applog("warn", "[fotostopp] Bild fehlt: " + String(src).split(/[\\/]/).pop()); return; }
       const im = new Image();
       im.onload = () => { e.el = im; bildFertig = true; fertig(); neuZeigen(); };
       im.onerror = () => { bildFertig = true; fertig(); };
@@ -5775,6 +5797,7 @@ function mountAnimator(body, headerActions, opts) {
       for (const s of _fsSchilderAlle()) {
         if (!_fsAktiv(s)) continue;
         if (_fsBildHolen(s).laden) n++;
+        for (const x of _fsTeileFotos(s).slice(1)) if (_fsBildHolen(x).laden) n++;   // 15.11.2026 weitere Fotos
         if (s.clip && s.clip.pfad && _fsClipHolen(s).laden) n++;
       }
     } catch (_) {}
@@ -5942,6 +5965,23 @@ function mountAnimator(body, headerActions, opts) {
              abflugBis: intro + h.bis_s + w.abflug, w, clip: !!(s.clip && s.clip.pfad),
              aus: pe ? intro + pe.ende : null, ausS: pe ? pe.ausS : 0 };
   }
+  /** 15.11.2026 — Fotos eines Halts in Reihenfolge: das Schild selbst, dann die weiteren (als kleine Schild-Hüllen mit
+   *  derselben Stelle, damit Bild, Ort und Zeit wie beim ersten Foto geholt werden). */
+  function _fsTeileFotos(s) {
+    return [s].concat(_fsNacheinander(s).map(w => ({ imageSrc: w.imageSrc, text: String(w.text || ""), lat: s.lat, lon: s.lon,
+      stopp_ortzeit: s.stopp_ortzeit, stopp_exif: s.stopp_exif })));
+  }
+  /** Zeitscheiben der Fotos im Halt h (Animationssekunden): erstes Foto `stopp_s`, jedes weitere `stopp_weitere_s`,
+   *  auf die tatsächliche Halt-Länge gestreckt (Kreisen kann ihn verlängern). Wie `Einblendungen.stoppTeile` (iPhone). */
+  function _fsTeile(s, h) {
+    const fotos = _fsTeileFotos(s);
+    if (fotos.length < 2) return [{ s, ab: h.ab_s, bis: h.bis_s }];
+    const roh = [_fsZahl(s.stopp_s, FS_STD.sek, 0.5, 30)].concat(fotos.slice(1).map(() => _fsWeiteresS(s)));
+    const summe = roh.reduce((a, b) => a + b, 0), f = summe > 0 ? (h.bis_s - h.ab_s) / summe : 1;
+    let t = h.ab_s;
+    return fotos.map((x, i) => { const ab = t; t += roh[i] * f; return { s: x, ab, bis: i === fotos.length - 1 ? h.bis_s : t }; });
+  }
+  window.__rzFsTeile = (s, h) => _fsTeile(s, h);   // Prüfstand
   function _fotostoppZeigen(tSek) {
     _fsZeitLetzt = tSek;
     const aktiv = !(tSek == null || !(tSek >= 0));
@@ -5985,7 +6025,21 @@ function mountAnimator(body, headerActions, opts) {
     if (!el) return;
     const karte = el.querySelector(".fs-karte"), dunkel = el.querySelector(".fs-dunkel");
     const fsFoto = !!(fs && _fsLook(fs.s) === "foto");
-    const e = fsFoto ? _fsBildHolen(fs.s) : null;
+    // 15.11.2026 — mehrere Fotos an der Stelle: das gerade dran ist; beim Wechsel blenden nur Bild und Text kurz weg
+    let teilS = fs ? fs.s : null, wechsel = 1;
+    if (fsFoto) {
+      const teile = _fsTeile(fs.s, fs.h);
+      let ti = 0;
+      for (let k = 1; k < teile.length; k++) if (tSek >= teile[k].ab) ti = k;
+      if (teile.length > 1) {
+        const tt = teile[ti];
+        if (ti > 0) wechsel = Math.max(0, Math.min(1, (tSek - tt.ab) / FS_WECHSEL_S));
+        if (ti < teile.length - 1) wechsel = Math.min(wechsel, Math.max(0, Math.min(1, (tt.bis - tSek) / FS_WECHSEL_S)));
+        const et = _fsBildHolen(tt.s);
+        if (et.el) teilS = tt.s; else wechsel = 1;   // noch nicht geladen → erstes Foto stehen lassen
+      }
+    }
+    const e = fsFoto ? _fsBildHolen(teilS) : null;
     if (!fsFoto || !(fs.p > 0) || !e || !e.el) {
       if (_fsSichtbar) { el.style.display = "none"; _fsSichtbar = false; }
       return;
@@ -6009,7 +6063,7 @@ function mountAnimator(body, headerActions, opts) {
       if (img && !img.isConnected) img = null;
       if (img) img.__clip = clip;
       const asp = (e.el.naturalWidth || 4) / Math.max(1, e.el.naturalHeight || 3);
-      const zeilen = _fsZeilen(fs.s, e.info);
+      const zeilen = _fsZeilen(teilS, e.info);
       const fz = H * 0.034, pad = H * 0.014;
       const textH = zeilen.length ? zeilen.length * fz * 1.3 + pad * 0.7 : 0;
       let bh = H * 0.70 - textH, bw = bh * asp;
@@ -6024,10 +6078,12 @@ function mountAnimator(body, headerActions, opts) {
         boxShadow: `0 ${H * 0.012}px ${H * 0.05}px rgba(0,0,0,0.45)` });
       Object.assign(bild.style, { width: bw + "px", height: bh + "px" });
       // 02.10.2026 (Marc: „das Foto selber soll durchgehend leicht gezoomt werden") — Ken Burns
-      if (img) Object.assign(img.style, { width: bw + "px", height: bh + "px", transform: `scale(${(1 + fs.w.ken / 100 * fs.ken).toFixed(4)})` });
+      if (img) Object.assign(img.style, { width: bw + "px", height: bh + "px", transform: `scale(${(1 + fs.w.ken / 100 * fs.ken).toFixed(4)})`,
+                                          opacity: wechsel < 1 ? wechsel.toFixed(3) : "" });
       const html = zeilen.map(z => `<div class="${z.k}">${_fsEsc(z.t)}</div>`).join("");
       if (txt.__html !== html) { txt.innerHTML = html; txt.__html = html; }
-      Object.assign(txt.style, { fontSize: fz + "px", paddingTop: (pad * 0.7) + "px", display: zeilen.length ? "" : "none" });
+      Object.assign(txt.style, { fontSize: fz + "px", paddingTop: (pad * 0.7) + "px", display: zeilen.length ? "" : "none",
+                                 opacity: wechsel < 1 ? wechsel.toFixed(3) : "" });
       dunkel.style.opacity = String(0.35 * p);
     }
     if (!_fsSichtbar) { el.style.display = ""; _fsSichtbar = true; }
@@ -6284,7 +6340,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   window.__rzTon = { plan: () => _tonPlan(), spur: () => _tonSpurJetzt(), vorschau: () => _tonV, takt: () => _tonVorschauTakt(),
                      kontext: () => (_tonCtx ? _tonCtx.state : null),
-                     puffer: () => [..._tonPuffer.entries()].map(([k, v]) => [String(k).split("/").pop(), typeof v === "object" ? +v.duration.toFixed(2) : v]),
+                     puffer: () => [..._tonPuffer.entries()].map(([k, v]) => [String(k).split(/[\\/]/).pop(), typeof v === "object" ? +v.duration.toFixed(2) : v]),
                      clipsLaufen: () => _tonV.clips.size };   // Prüfstand
 
   let _tempoSchreibt = false;   // verhindert die Schleife Dauer → Kurve → Dauer
@@ -16478,7 +16534,16 @@ function mountAnimator(body, headerActions, opts) {
     // Echtes, geladenes Bild? (kein leeres/0px-Image, kein serialisierter {src}-Rest)
     /** 09.10.2026 — passt das gespeicherte Schild-Bild noch zur Bearbeitung des Fotos? */
     function _animSignThumbAktuell(s) {
-      const st = (window.__rzRezeptStempel || {})[s.imageSrc] || "";
+      const stempel = window.__rzRezeptStempel || {};
+      // 15.11.2026 — Collage: der Thumb gehört zu genau diesen Fotos (`thumb_quelle`), Stempel aller Fotos
+      const q = _animSignBildQuelle(s);
+      if (q !== s.imageSrc) {
+        if (s.thumb_quelle !== q) return false;
+        const st = [s.imageSrc].concat(_animSignWeitere(s).map(w => w.imageSrc)).map(x => stempel[x] || "").join("|");
+        return st === (s.thumb_rz || "");
+      }
+      if (s.thumb_quelle && s.thumb_quelle !== s.imageSrc) return false;   // Thumb war noch die Collage
+      const st = stempel[s.imageSrc] || "";
       return st === (s.thumb_rz || "");
     }
     // Fotos bearbeitet (Archiv, Lupe, Tour-Seite): veraltete Schild-Bilder und die Bild-Zwischenspeicher dieser Sitzung weg
@@ -16504,8 +16569,14 @@ function mountAnimator(body, headerActions, opts) {
       } catch (_) {}
     };
     window.addEventListener("rz-rezept-stempel", window[_rzHk]);
+    /** 15.11.2026 — woraus der gespeicherte Thumb entstand (nur bei einer Collage gesetzt). */
+    function _animSignQuelleMerken(s) {
+      const q = _animSignBildQuelle(s);
+      if (q !== s.imageSrc) s.thumb_quelle = q; else delete s.thumb_quelle;
+    }
     function _animSignHasImg(s) {
-      return !!(s && s._imgEl && s._imgEl.naturalWidth > 0);
+      // 15.11.2026 — Bild aus einer anderen Quelle (Collage an/aus, Foto der Stelle dazu/weg) gilt nicht mehr
+      return !!(s && s._imgEl && s._imgEl.naturalWidth > 0 && (s._imgQ === undefined || s._imgQ === _animSignBildQuelle(s)));
     }
     function _animSignDrawImageData(s) {
       if (!window.__rzDrawSign) return null;
@@ -16521,6 +16592,7 @@ function mountAnimator(body, headerActions, opts) {
       return new Promise((resolve) => {
         if (!s || !s.imageSrc) { resolve(false); return; }
         if (_animSignHasImg(s)) { resolve(true); return; }
+        const q0 = _animSignBildQuelle(s);
         if (s._imgLoading) { resolve(false); return; }
         s._imgLoading = true;
         // v0.9.194 — Erfolg NUR wenn das Bild wirklich Pixel hat (naturalWidth>0).
@@ -16534,6 +16606,7 @@ function mountAnimator(body, headerActions, opts) {
           im.onload = () => {
             if (im.naturalWidth > 0) {
               _animSetImgEl(s, im);   // non-enumerable → wird NICHT persistiert
+              try { Object.defineProperty(s, "_imgQ", { value: q0, enumerable: false, writable: true, configurable: true }); } catch (_) {}
               s._imgLoading = false; s._imgFailed = false; s._imgBroken = false;
               if (allowRegen && window.__rzRenderMode) nachschaerfen(im, () => resolve(true));   // Render: erst das große Bild, dann weiter
               else { resolve(true); if (allowRegen) nachschaerfen(im); }
@@ -16559,13 +16632,13 @@ function mountAnimator(body, headerActions, opts) {
             const stufe = bedarf <= 600 ? 600 : (bedarf <= 1000 ? 1000 : _SIGN_BILD_RENDER_MAX_PX);
             if (fertig) setTimeout(ende, 15000);   // Render nie an einem Bild hängen lassen
             Object.defineProperty(s, "_scharfVersucht", { value: true, enumerable: false, writable: true, configurable: true });
-            api().sign_image_thumb(s.imageSrc, stufe).then((r) => {   // warte-ok: Hintergrund, das kleine Bild steht schon
+            api().sign_image_thumb(_animSignBildQuelle(s), stufe).then((r) => {   // warte-ok: Hintergrund, das kleine Bild steht schon
               if (!(r && r.ok && r.thumb)) { ende(); return; }
               const gross = new Image();
               gross.onload = () => {
                 if (gross.naturalWidth > kante) {
                   // Im Render-Modus das große Bild NICHT ins Projekt schreiben (nur für diesen Lauf).
-                  if (!window.__rzRenderMode) { s.thumb = r.thumb; s.thumb_rz = r.rz || ""; }
+                  if (!window.__rzRenderMode) { s.thumb = r.thumb; s.thumb_rz = r.rz || ""; _animSignQuelleMerken(s); }
                   _animSetImgEl(s, gross);
                   try { _animSignsKarteBald(); } catch (_) {}
                 }
@@ -16578,8 +16651,8 @@ function mountAnimator(body, headerActions, opts) {
         };
         const regen = () => {
           try {
-            api().sign_image_thumb(s.imageSrc).then((r) => {
-              if (r && r.ok && r.thumb) { s.thumb = r.thumb; s.thumb_rz = r.rz || ""; tryLoad(r.thumb, false); }
+            api().sign_image_thumb(_animSignBildQuelle(s)).then((r) => {
+              if (r && r.ok && r.thumb) { s.thumb = r.thumb; s.thumb_rz = r.rz || ""; _animSignQuelleMerken(s); tryLoad(r.thumb, false); }
               else { fail(); }
             }).catch(() => { fail(); });
           } catch (_) { fail(); }
@@ -16595,7 +16668,7 @@ function mountAnimator(body, headerActions, opts) {
     const _animSignSpitze = new Map();   // 13.11.2026 — Bild-ID → Versatz Spitze → Geo-Punkt (CSS-px, sign_draw.js rzDrawSign)
     let _animSignsAltIds = [];
     const _SIG_OHNE = new Set(["lat", "lon", "timeAnchor", "strecke_m", "visible", "anchorMode", "_imgEl", "_imgLoading",
-                               "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "imageSrc",
+                               "_imgFailed", "_imgMissing", "_imgChecked", "_imgBroken", "thumb", "thumb_quelle", "imageSrc",
                                "stopp", "stopp_s", "stopp_anflug_s", "stopp_abflug_s", "stopp_zoom", "stopp_schwenk", "stopp_ken", "stopp_kamera", "stopp_ortzeit", "stopp_exif", "stopp_bei", "stopp_pin_s", "clip", "stopp_kreisen"]);
     // 14.09.2026 — Signatur am Schild-Objekt merken: das Objekt in `_activeProject` bleibt
     // zwischen zwei Aufbauten dasselbe (jede Änderung erzeugt über `_animSignsSave` neue
@@ -16766,7 +16839,7 @@ function mountAnimator(body, headerActions, opts) {
             if (geaendert) _animSignsListeBald();
             // Eine Meldung statt einer je Schild (vorher bis zu 2830 Toasts).
             if (fehlen.length === 1) {
-              toast(t("signs.image_missing", "⚠ Bild nicht mehr gefunden") + ": " + (fehlen[0].imageSrc.split("/").pop()), "error");
+              toast(t("signs.image_missing", "⚠ Bild nicht mehr gefunden") + ": " + (fehlen[0].imageSrc.split(/[\\/]/).pop()), "error");
             } else if (fehlen.length > 1) {
               toast(t("signs.images_missing_n", "⚠ {n} Bilder nicht mehr gefunden").replace("{n}", fehlen.length), "error", 5000);
             }
@@ -17594,7 +17667,7 @@ function mountAnimator(body, headerActions, opts) {
         // Label
         let _lbl = (s.text || "").trim()
           ? s.text
-          : (s.imageSrc ? (s.imageSrc.split("/").pop() || t("signs.grp.image", "Bild")) : "—");
+          : (s.imageSrc ? (s.imageSrc.split(/[\\/]/).pop() || t("signs.grp.image", "Bild")) : "—");
         const _err = !!(s._imgMissing || s._imgBroken);
         if (_err) _lbl = "⚠ " + _lbl;
         const _errTitle = s._imgMissing
@@ -17909,7 +17982,7 @@ function mountAnimator(body, headerActions, opts) {
     function _hlOrdnerRender() {
       const el = document.getElementById("hl-ordner");
       if (!el) return;
-      el.innerHTML = _hlState.ordner.map((o, i) => `<span class="hl-chip">${_hlI("folder-open")} ${_hlEsc(String(o).split("/").pop())} <button type="button" data-hlrm="${i}" title="${_hlEsc(t("common.remove", "Entfernen"))}">✕</button></span>`).join("")
+      el.innerHTML = _hlState.ordner.map((o, i) => `<span class="hl-chip">${_hlI("folder-open")} ${_hlEsc(String(o).split(/[\\/]/).pop())} <button type="button" data-hlrm="${i}" title="${_hlEsc(t("common.remove", "Entfernen"))}">✕</button></span>`).join("")
         || `<span class="muted">${_hlEsc(t("hl.kein_ordner", "noch kein Fotoordner"))}</span>`;
       el.querySelectorAll("[data-hlrm]").forEach(b => b.onclick = () => { _hlState.ordner.splice(+b.dataset.hlrm, 1); _hlOrdnerRender(); });
     }
@@ -18377,10 +18450,18 @@ function mountAnimator(body, headerActions, opts) {
             <button type="button" class="btn btn-small" id="se-img-pick" style="flex:1;">${c.imageSrc ? t("signs.image_change", "🖼 Bild ändern") : t("signs.image_add", "🖼 Bild hinzufügen")}</button>
             <button type="button" class="btn btn-small" id="se-img-clear" style="${c.imageSrc ? "" : "display:none;"}">${t("signs.image_remove", "✕")}</button>
           </div>
-          <div class="muted" id="se-img-name" style="font-size:10.5px; margin-top:2px; ${c.imageSrc ? "" : "display:none;"}">${_animEscapeHtml((c.imageSrc || "").split("/").pop())}</div>
+          <div class="muted" id="se-img-name" style="font-size:10.5px; margin-top:2px; ${c.imageSrc ? "" : "display:none;"}">${_animEscapeHtml((c.imageSrc || "").split(/[\\/]/).pop())}</div>
           <div class="se-grid" id="se-img-size-row" style="margin-top:6px; ${c.imageSrc ? "" : "display:none;"}">
             <label>${t("signs.image_size", "Bildgröße")}</label>
             <input type="range" id="se-img-size" min="20" max="160" step="4" value="${c.imageSize}">
+          </div>
+          <!-- 15.11.2026 (Marc: „die iOS-App kann das … das soll synchron laufen“) — mehrere Fotos an derselben Stelle -->
+          <div id="se-mehr-block" class="se-mehr" style="${c.imageSrc && !(c.clip && c.clip.pfad) ? "" : "display:none;"}">
+            <div class="se-mehr-kopf"><span>${t("signs.mehr_titel", "Weitere Fotos an dieser Stelle")}</span><span class="muted" id="se-mehr-zahl"></span></div>
+            <div class="se-mehr-liste" id="se-mehr-liste"></div>
+            <button type="button" class="btn btn-small" id="se-mehr-add">${typeof rzIcon === "function" ? rzIcon("plus", { size: 13 }) : ""} ${t("signs.mehr_add", "Foto dazu")}</button>
+            <label class="se-inline se-mehr-collage" id="se-collage-zeile"><input type="checkbox" id="se-collage"${chk(c.collage)}> ${t("signs.collage", "Als Collage zeigen")}</label>
+            <div class="muted se-mehr-hint" id="se-mehr-hint">${t("signs.mehr_hint", "Mit Halt kommen sie nacheinander, der Halt dauert je Foto 2,5 s länger. Als Collage erscheinen alle zusammen in einem Bild.")}</div>
           </div>
           <!-- 01.10.2026 (Marc: „wie bei Relive", „ein aufgebohrtes Foto-Schild") — Fotostopp -->
           <div id="se-stopp-block" style="${c.imageSrc ? "" : "display:none;"}">
@@ -18920,6 +19001,62 @@ function mountAnimator(body, headerActions, opts) {
         try { if (map && map.triggerRepaint) map.triggerRepaint(); } catch (_) {}
         toast(t("signs.apply_all_done", "Stil + Verhalten auf alle übertragen."), "ok");
       };
+      // 15.11.2026 — weitere Fotos an dieser Stelle (höchstens SIGN_JE_STELLE_MAX zusammen) + Collage
+      const _seMehrSpeichern = (aendern, label) => {
+        const l2 = _animSignsList().slice();
+        if (idx >= l2.length) return;
+        const neu = { ...l2[idx] };
+        aendern(neu);
+        if (!_animSignWeitere(neu).length) { delete neu.weitere; delete neu.collage; }
+        l2[idx] = neu;   // ohne _imgEl: das Schildbild entsteht neu (Collage an/aus, Foto dazu/weg)
+        _animSignsSave(l2, label);
+        _animSignsAttachToMap();
+        _animSignsRenderList();
+        try { window.__rzFotostoppGeaendert && window.__rzFotostoppGeaendert(); } catch (_) {}
+        _seMehrZeichnen();
+      };
+      const _seMehrZeichnen = () => {
+        const box = $("#se-mehr-liste"); if (!box) return;
+        const s0 = _animSignsList()[idx] || {};
+        const w = _animSignWeitere(s0);
+        const z = $("#se-mehr-zahl"); if (z) z.textContent = w.length ? `${w.length + 1} / ${SIGN_JE_STELLE_MAX}` : "";
+        box.innerHTML = w.map((x, i) => `<span class="se-mehr-foto" title="${_animEscapeHtml(String(x.imageSrc).split(/[\\/]/).pop())}">`
+          + `<img alt="" data-se-mehr-bild="${i}"><button type="button" class="se-mehr-rm" data-se-mehr-rm="${i}" title="${t("signs.mehr_rm", "Foto entfernen")}">✕</button></span>`).join("");
+        w.forEach((x, i) => {
+          api().sign_image_thumb(x.imageSrc, 96).then((r) => {   // warte-ok: Hintergrund, nur das kleine Vorschaubild
+            const im = box.querySelector(`[data-se-mehr-bild="${i}"]`);
+            if (im && r && r.ok && r.thumb) im.src = r.thumb;
+          }).catch(() => {});
+        });
+        const add = $("#se-mehr-add"); if (add) add.disabled = w.length >= SIGN_JE_STELLE_MAX - 1;
+        const cz = $("#se-collage-zeile"); if (cz) cz.style.display = w.length ? "" : "none";
+        const hi = $("#se-mehr-hint"); if (hi) hi.textContent = w.length >= SIGN_JE_STELLE_MAX - 1
+          ? t("signs.mehr_voll", "An dieser Stelle liegen schon 4 Fotos – mehr zeigt ein Fotostopp nicht.")
+          : t("signs.mehr_hint", "Mit Halt kommen sie nacheinander, der Halt dauert je Foto 2,5 s länger. Als Collage erscheinen alle zusammen in einem Bild.");
+      };
+      _seMehrZeichnen();
+      { const box = $("#se-mehr-liste");
+        if (box) box.addEventListener("click", (ev) => {
+          const b = ev.target.closest("[data-se-mehr-rm]"); if (!b) return;
+          const i = parseInt(b.getAttribute("data-se-mehr-rm"), 10);
+          _seMehrSpeichern((neu) => { const w = _animSignWeitere(neu).slice(); w.splice(i, 1); neu.weitere = w; },
+                           t("signs.mehr_rm", "Foto entfernen"));
+        }); }
+      $("#se-mehr-add").onclick = async () => {
+        let r;
+        try { r = await api().sign_pick_image(); } catch (e) { return; } // warte-ok: Systemdialog
+        if (!r || !r.ok) { if (r && r.error) toast(r.error, "error"); return; }
+        if (r.cancelled || !r.path) return;
+        _seMehrSpeichern((neu) => {
+          const w = _animSignWeitere(neu).slice();
+          if (w.length >= SIGN_JE_STELLE_MAX - 1 || w.some(x => x.imageSrc === r.path) || neu.imageSrc === r.path) return;
+          w.push({ imageSrc: r.path, text: "" }); neu.weitere = w;
+        }, t("signs.mehr_add", "Foto dazu"));
+      };
+      $("#se-collage").onchange = () => {
+        const an = !!$("#se-collage").checked;
+        _seMehrSpeichern((neu) => { if (an) neu.collage = true; else delete neu.collage; }, t("signs.collage", "Als Collage zeigen"));
+      };
       // v0.9.189 — Bild hinzufügen / ändern / entfernen
       $("#se-img-pick").onclick = async () => {
         let r;
@@ -18934,9 +19071,10 @@ function mountAnimator(body, headerActions, opts) {
         _animSignsRenderList();
         $("#se-img-pick").textContent = t("signs.image_change", "🖼 Bild ändern");
         $("#se-img-clear").style.display = "";
-        const nm = $("#se-img-name"); if (nm) { nm.style.display = ""; nm.textContent = (r.path || "").split("/").pop(); }
+        const nm = $("#se-img-name"); if (nm) { nm.style.display = ""; nm.textContent = (r.path || "").split(/[\\/]/).pop(); }
         const szr = $("#se-img-size-row"); if (szr) szr.style.display = "";
         const fsb = $("#se-stopp-block"); if (fsb) fsb.style.display = "";
+        const mb = $("#se-mehr-block"); if (mb && !(l2[idx].clip && l2[idx].clip.pfad)) mb.style.display = "";
         $("#se-text").placeholder = t("signs.caption_ph", "Bildunterschrift (optional)");
       };
       $("#se-img-clear").onclick = () => {
@@ -18951,6 +19089,7 @@ function mountAnimator(body, headerActions, opts) {
         const nm = $("#se-img-name"); if (nm) nm.style.display = "none";
         const szr = $("#se-img-size-row"); if (szr) szr.style.display = "none";
         const fsb = $("#se-stopp-block"); if (fsb) fsb.style.display = "none";
+        const mb = $("#se-mehr-block"); if (mb) mb.style.display = "none";
         $("#se-text").placeholder = t("signs.modal_ph", "z.B. Gipfel erreicht!");
       };
       // 15.10.2026 — neues Schild ohne Text: gleich in der Karte tippen (das Feld rechts läuft mit)
@@ -22457,7 +22596,8 @@ function mountAnimator(body, headerActions, opts) {
       // 06.10.2026 — Phasengrenzen: Anflug-Beginn, Ende „Foto groß“ (Fotodauer), Ende Abflug
       const zt = (k) => (neu.fs && neu.fs[k] != null) ? _ovZeitAusLeiste(neu.fs[k]) : null, r1 = (x) => Math.round(x * 10) / 10;
       if (griff === "fs-anflug" && zt("anflug") != null) out.stopp_anflug_s = r1(Math.max(0, Math.min(5, fsF.halt[0] - zt("anflug"))));
-      if (griff === "fs-grossBis" && zt("grossBis") != null && !fsF.clip) out.stopp_s = r1(Math.max(0.5, Math.min(30, zt("grossBis") - fsF.halt[0])));
+      // 15.11.2026 — mit weiteren Fotos ist der Halt länger als die Zeit des ersten Fotos: deren Anteil abziehen
+      if (griff === "fs-grossBis" && zt("grossBis") != null && !fsF.clip) out.stopp_s = r1(Math.max(0.5, Math.min(30, zt("grossBis") - fsF.halt[0] - _fsNacheinander(s).length * _fsWeiteresS(s))));
       if (griff === "fs-abflugBis" && zt("abflugBis") != null) out.stopp_abflug_s = r1(Math.max(0, Math.min(5, zt("abflugBis") - fsF.halt[1])));
       return { out, sn, ph };
     }
@@ -22549,7 +22689,29 @@ function mountAnimator(body, headerActions, opts) {
     // Klammer: Stellen mit Balkenanfang vor bzw. hinter dem Ziel grenzen ein, die Sekante darf die Klammer nicht verlassen
     // (sonst Mitte der Klammer), bis 6 Runden.
     let lo = null, hi = null, letzte = alt;
-    const einordnen = (p) => { if (p.t < ziel) { if (!lo || p.A > lo.A) lo = p; } else if (!hi || p.A < hi.A) hi = p; };
+    // 15.11.2026 (mehrere Fotos je Stelle → lange Halte) — liegt das Ziel in einem Sprung der Zeitachse (dort steht ein
+    // anderer Fotostopp), ist es nicht erreichbar: dann gilt am Ende die gemessene Stelle, die dem Ziel am nächsten kam —
+    // der Stopp bleibt vor dem anderen stehen, statt 10 s darüber hinweg zu springen.
+    let best = null;
+    const einordnen = (p) => { if (p.t < ziel) { if (!lo || p.A > lo.A) lo = p; } else if (!hi || p.A < hi.A) hi = p;
+                               if (!best || Math.abs(p.t - ziel) < Math.abs(best.t - ziel)) best = p; };
+    const setzen = (An, von) => {
+      const l2 = _sgS().list().slice(), alt2 = l2[i], neuS = { ...alt2, timeAnchor: An };
+      try {   // Foto-Ort wandert um dasselbe Stück Strecke mit (wie beim Ziehen)
+        const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
+        if (n >= 2 && isFinite(+alt2.lat) && isFinite(+alt2.lon)) {
+          const p0 = coordBeiFrac(currentCoords, von * (n - 1)), p1 = coordBeiFrac(currentCoords, neuS.timeAnchor * (n - 1));
+          neuS.lon = +(+alt2.lon + (p1[0] - p0[0])).toFixed(7); neuS.lat = +(+alt2.lat + (p1[1] - p0[1])).toFixed(7);
+        }
+      } catch (_) {}
+      l2[i] = neuS;
+      if (alt2 && alt2._imgEl) _sgS().bildUebernehmen(l2[i], alt2._imgEl);
+      const war = window.__rzUndoApplying;
+      window.__rzUndoApplying = true;   // kein eigener ⌘Z-Schritt
+      try { _sgS().speichern(l2); } finally { window.__rzUndoApplying = war; }
+      _sgS().neuZeichnen();
+      _sgSpurAktualisieren();
+    };
     einordnen(alt);
     for (let runde = 0; runde < 6; runde++) {
       const info0 = _tempoInfo, t0 = performance.now();
@@ -22564,6 +22726,14 @@ function mountAnimator(body, headerActions, opts) {
       applog("info", `[sg-spur] nachziehen ${runde + 1}: Ziel ${ziel.toFixed(2)} s · steht ${f.an.toFixed(2)} s · Rest ${rest.toFixed(2)} s · neue Kurve ${neuKurve} (${Math.round(performance.now() - t0)} ms)`);
       if (Math.abs(rest) < 0.04) return;
       einordnen(jetzt);
+      // Klammer zu eng (Sprung der Achse) oder letzte Runde: auf die beste gemessene Stelle und fertig
+      if ((lo && hi && Math.abs(hi.A - lo.A) < 2e-5) || runde === 5) {
+        if (best && best !== jetzt && Math.abs(best.A - jetzt.A) > 1e-6 && Math.abs(best.t - ziel) < Math.abs(rest) - 0.04) {
+          applog("info", `[sg-spur] Ziel ${ziel.toFixed(2)} s nicht erreichbar (anderer Fotostopp dazwischen) — bleibt bei ${best.t.toFixed(2)} s`);
+          setzen(best.A, jetzt.A);
+        }
+        return;
+      }
       // erster Schritt mit der gewöhnlichen Steigung der Achse (Sekunden je Anker) — die Sekante aus „vor dem Ziehen“ → „nach
       // dem Ziehen“ enthält den Sprung des eigenen Halts und schoss weit übers Ziel (Foto sprang kurz +300 px)
       const ph_ = _sgPhasen(), steil = ph_.anim / Math.max(1e-6, ph_.B - ph_.A);
@@ -22574,21 +22744,7 @@ function mountAnimator(body, headerActions, opts) {
       An = Math.round(Math.max(0, Math.min(1, An)) * 100000) / 100000;
       if (Math.abs(An - jetzt.A) < 1e-6) return;
       letzte = jetzt;
-      const l2 = _sgS().list().slice(), alt2 = l2[i], neuS = { ...alt2, timeAnchor: An };
-      try {   // Foto-Ort wandert um dasselbe Stück Strecke mit (wie beim Ziehen)
-        const n = Array.isArray(currentCoords) ? currentCoords.length : 0;
-        if (n >= 2 && isFinite(+alt2.lat) && isFinite(+alt2.lon)) {
-          const p0 = coordBeiFrac(currentCoords, jetzt.A * (n - 1)), p1 = coordBeiFrac(currentCoords, neuS.timeAnchor * (n - 1));
-          neuS.lon = +(+alt2.lon + (p1[0] - p0[0])).toFixed(7); neuS.lat = +(+alt2.lat + (p1[1] - p0[1])).toFixed(7);
-        }
-      } catch (_) {}
-      l2[i] = neuS;
-      if (alt2 && alt2._imgEl) _sgS().bildUebernehmen(l2[i], alt2._imgEl);
-      const war = window.__rzUndoApplying;
-      window.__rzUndoApplying = true;   // kein eigener ⌘Z-Schritt
-      try { _sgS().speichern(l2); } finally { window.__rzUndoApplying = war; }
-      _sgS().neuZeichnen();
-      _sgSpurAktualisieren();
+      setzen(An, jetzt.A);
     }
   }
   window.__rzSgSpur = { zeilen: () => _sgLetzteZeilen, jetzt: () => _sgSpurJetzt(), zeitAusAnker: (a) => _sgZeitAusAnker(a), ankerAusZeit: (t0) => _sgAnkerAusZeit(t0) };   // Prüfstand
@@ -23656,7 +23812,8 @@ function mountAnimator(body, headerActions, opts) {
     if (_ctBilder.has(pfad)) return _ctBilder.get(pfad);
     // 05.10.2026 (Schnell-Video „Puls": Foto als Bild im Bild) — Fotos (JPEG/HEIC/RAW …) wie die Schilder verkleinert
     // laden (kein 8-MB-Deckel, HEIC/RAW gehen); PNG/SVG/GIF/WebP (Logos mit Transparenz) bleiben unverändert.
-    const istFoto = !String(pfad).startsWith("@") && /\.(jpe?g|heic|heif|tiff?|dng|arw|cr2|cr3|nef|orf|raf|rw2)$/i.test(String(pfad));
+    const istFoto = String(pfad).startsWith("rzcollage:")   // 15.11.2026 — Bild im Bild mit mehreren Fotos (core/collage.py)
+      || (!String(pfad).startsWith("@") && /\.(jpe?g|heic|heif|tiff?|dng|arw|cr2|cr3|nef|orf|raf|rw2)$/i.test(String(pfad)));
     const p = (istFoto ? api().sign_image_thumb(pfad, 1440).then(r => ({ ok: r && r.ok, data_uri: r && r.thumb })) : api().watermark_data(pfad)).then(r => {
       const uri = (r && r.ok && r.data_uri) || "";
       _ctBilder.set(pfad, uri);
@@ -26769,7 +26926,7 @@ function mountAnimator(body, headerActions, opts) {
   }
   // Der Dialog „Aussehen auf alle übernehmen": Quelle wählen, Felder ankreuzen.
   function _stilAlleDialog(quelleSchluessel) {
-    const namen = [{ key: "haupt", name: _animEtappe1Name || (currentGpx || "Tour 1").split("/").pop().replace(/\.gpx$/i, "") }]
+    const namen = [{ key: "haupt", name: _animEtappe1Name || (currentGpx || "Tour 1").split(/[\\/]/).pop().replace(/\.gpx$/i, "") }]
       .concat(_extraTours.map((tr, i) => ({ key: String(i), name: tr.name || _dateiName(tr.gpx_path) })));
     const felder = [["width", t("animator.field.line_width", "Track-Dicke"), true], ["line_style", t("animator.stil.stil_abstand", "Stil + Abstand"), true],
                     ["shadow", t("animator.field.shadow_strength", "Schatten"), true], ["glow", t("animator.field.glow_strength", "Glow"), true],
@@ -27026,7 +27183,7 @@ function mountAnimator(body, headerActions, opts) {
       const st = tr.stats || {};
       const d = st.started_at || st.start_time || st.date || "";
       if (d) return String(d);
-      const datei = String(tr.gpx_path || "").split("/").pop() || "";
+      const datei = String(tr.gpx_path || "").split(/[\\/]/).pop() || "";
       const m = datei.match(/(\d{4})[-_](\d{2})[-_](\d{2})/);
       return m ? `${m[1]}-${m[2]}-${m[3]}` : datei.toLowerCase();
     };
@@ -27102,7 +27259,7 @@ function mountAnimator(body, headerActions, opts) {
       // 09.09.2026 (Marc: „umbenennen in der Sidebar möglich machen") — ein
       // eigener Name gewinnt über den Dateinamen.
       const nm = _animEtappe1Name
-        || (currentGpx.split("/").pop() || "Tour 1").replace(/\.gpx$/i, "");
+        || (currentGpx.split(/[\\/]/).pop() || "Tour 1").replace(/\.gpx$/i, "");
       // 08.09.2026 (Marc: „achte beim Multitrack, dass alles sauber lesbar
       // ist"): In einer Zeile mit Dauer-Feld und drei Knöpfen blieb vom Namen
       // „2024-02-10_66 Seen #1 Neus…" übrig — fünfzehn Etappen sahen alle gleich
@@ -27997,7 +28154,7 @@ function mountAnimator(body, headerActions, opts) {
   try { window.__rzReiseBahn = () => (_reiseBahn ? {
     punkte: _reiseBahn.coords.length, teile: _reiseBahn.teile,
     ecken: _reiseBahn.teile.map(t => _reiseBahn.coords[t.von].map(x => +x.toFixed(3))),
-    namen: _reiseBahn.etappen.map(e => (e.tour.gpx_path || "").split("/").pop()),
+    namen: _reiseBahn.etappen.map(e => (e.tour.gpx_path || "").split(/[\\/]/).pop()),
     ueber: Array.from(_reiseBahn.istUeber).reduce((a, b) => a + b, 0),
     etappen: _reiseBahn.etappen.length,
     // Der Zeitplan — daran misst der Prüfstand, ob die Vorschau so lang ist wie
@@ -28033,7 +28190,7 @@ function mountAnimator(body, headerActions, opts) {
    *     (Lücke = Übergang), solange eine Gruppe nicht von Hand gelegt (`fest`)
    *     wurde. Daraus baut `_reiseBauen` die Bahn.
    */
-  function _dateiName(pfad) { return String(pfad || "").split("/").pop().replace(/\.[^.]+$/i, ""); }
+  function _dateiName(pfad) { return String(pfad || "").split(/[\\/]/).pop().replace(/\.[^.]+$/i, ""); }
   // 26.09.2026 (Eigentest RE-04) — Etappenname im Video: der Name der Tour (GPX-Titel), nicht der
   // Dateiname („2026-02-22_Cruz del Carmen … -2794475846“). Ein selbst vergebener Name gewinnt.
   function _globalerTourName(pfad) {   // Name der global geladenen Tour, wenn es dieselbe Datei ist
@@ -30792,7 +30949,7 @@ function mountAnimator(body, headerActions, opts) {
     } catch (e) { r = { ok: false, error: String(e) }; }
     E.busy = false;
     if (!r || !r.ok) { _etEdZeichnen(); toast(t("animator.etappe.fehler", "Etappe konnte nicht berechnet werden: ") + ((r && r.error) || ""), "error", 6000); return; }
-    const etappe = { id: String(r.gpx_path).split("/").pop().split("_")[0], wps: E.wps.map(w => Object.assign({}, w)),
+    const etappe = { id: String(r.gpx_path).split(/[\\/]/).pop().split("_")[0], wps: E.wps.map(w => Object.assign({}, w)),
                      arten: E.arten.slice(0, E.wps.length - 1), kurve: E.kurve.slice(0, E.wps.length - 1), weich: E.weich, grob: E.grob,
                      abschnitte, km: Math.round((r.distance_m || 0) / 100) / 10, beschriften: E.beschriften !== false,
                      ...(E.fzZeigen === false ? { fz_zeigen: false } : {}),   // 16.10.2026 — nur gespeichert, wenn aus
@@ -31217,7 +31374,7 @@ function mountAnimator(body, headerActions, opts) {
         else if (Array.isArray(proj.gpx_paths) && proj.gpx_paths.length >= 2) {
           const farben = ["#35a7ff", "#ffd166", "#06d6a0", "#ef476f", "#8338ec", "#fb5607", "#00bbf9", "#9ef01a"];
           saved = proj.gpx_paths.slice(1).map((p, i) => ({ gpx_path: p, line_color: farben[i % farben.length],
-            name: String(p).split("/").pop().replace(/\.[a-z0-9]+$/i, "") }));
+            name: String(p).split(/[\\/]/).pop().replace(/\.[a-z0-9]+$/i, "") }));
         }
       }
       if (typeof a.fly_duration_s === "number") fly = a.fly_duration_s;
@@ -31603,7 +31760,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.245 — Codec kommt aus den globalen Einstellungen „Qualität & Export".
     const codec = (_settingsCache && _settingsCache.render && _settingsCache.render.codec) || "h264";
     const alpha = document.getElementById("anim-style").value === "alpha";
-    const gpxStem = (currentGpx.split("/").pop() || "tour").replace(/\.gpx$/i, "");
+    const gpxStem = (currentGpx.split(/[\\/]/).pop() || "tour").replace(/\.gpx$/i, "");
     // .mov für Alpha ODER ProRes-ohne-Alpha; .mp4 für H.264/H.265.
     const needsMov = alpha || String(codec).startsWith("prores");
     // v0.9.308 — Standbild (Tour-Map): PNG statt Video.
@@ -31739,7 +31896,7 @@ function mountAnimator(body, headerActions, opts) {
       // = die globale GPX (currentGpx) mit der Farbe aus der Track-Sektion.
       ...(function() {
         if (!_extraTours.length) return {};
-        const primaryName = (currentGpx.split("/").pop() || "Tour 1").replace(/\.gpx$/i, "");
+        const primaryName = (currentGpx.split(/[\\/]/).pop() || "Tour 1").replace(/\.gpx$/i, "");
         const tracks = [{
           gpx_path: currentGpx,
           line_color: document.getElementById("anim-color").value,
@@ -32268,7 +32425,7 @@ function mountAnimator(body, headerActions, opts) {
       // des Animators statt in der Zeitleiste") — beim Schnell-Video zeigt dessen eigener Bildschirm das Ergebnis
       // (Abspielen, Speichern, Teilen); die Fertig-Seite des Animators bleibt zu.
       if (!(_skLetzter && _skLetzter.buehne)) done.classList.remove("hidden");
-      const _fileName = s.output.split("/").slice(-1)[0];
+      const _fileName = s.output.split(/[\\/]/).slice(-1)[0];
       // v0.9.390 — Standbild-Modus (Tour-Map): das Ergebnis ist EIN PNG, kein
       // Video. Der Fertig-Bereich zeigte fälschlich Video-Player + „▶ Abspielen"
       // + „Nächstes Video". Hier auf Bild-Anzeige + passende Labels umstellen.
@@ -32347,7 +32504,7 @@ function mountAnimator(body, headerActions, opts) {
         done.classList.add("hidden");
       };
       try { _skFertigKnoepfe(s.output); } catch (e) { applog("warn", "[schnell] Fertig-Knöpfe: " + e); }
-      if (!(_skLetzter && _skLetzter.buehne)) toast(t("animator.toast.render_done", "Video fertig: {file}", { file: s.output.split("/").slice(-1)[0] }), "success", 6000);   // 30.09.2026: Schnell-Video-Bildschirm meldet selbst
+      if (!(_skLetzter && _skLetzter.buehne)) toast(t("animator.toast.render_done", "Video fertig: {file}", { file: s.output.split(/[\\/]/).slice(-1)[0] }), "success", 6000);   // 30.09.2026: Schnell-Video-Bildschirm meldet selbst
       return;
     }
     pollTimer = setTimeout(pollStatus, 350);

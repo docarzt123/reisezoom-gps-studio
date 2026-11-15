@@ -52,7 +52,7 @@
       line_color: "#ff6b35", line_width: 4.5, tile_style: "osm", labels: [], tracks: [],
       consent_enabled: false, consent_text: "", consent_button: "", consent_preview: true,
       leaflet_mode: "cdn", leaflet_url: "", attribution_enabled: true, show_scale: true, show_north: true, quellenangabe: "ecke",
-      main_link: "", main_name: "", link_ziel: "_top",   // 08.11.2026 — Track anklickbar mit eigenem Link
+      main_link: "", main_name: "", link_ziel: "_top", link_klick: "schild",   // 08.11.2026 — Track anklickbar mit eigenem Link
     };
     const wkSnapshot = () => {
       const a = wk(), out = {};
@@ -89,8 +89,14 @@
     // NICHT persistiert (kommen frisch aus der Datei via webkarte_prepare). Der erste Track
     // bleibt der globale GPX (aus dem GPX-Balken); hier legt man weitere Etappen/Touren dazu.
     const TRK_PALETTE = ["#2e86de", "#e0322c", "#9b59b6", "#16a085", "#f39c12", "#d35400"];
+    // 15.11.2026 (Nutzer-Meldung Windows) — ältere Projekte haben als Namen den ganzen Windows-Pfad
+    // („C:\\Users\\…\\import\\Tour“, früher nur an „/“ getrennt) → auf den letzten Teil kürzen; wie tour_name() im Export.
+    const wkName = (n) => {
+      const s = String(n || "").trim();
+      return (/^([A-Za-z]:[\\/]|\\\\)/.test(s) || /^\/.*\//.test(s)) ? (s.split(/[\\/]/).filter(Boolean).pop() || s) : s;
+    };
     const normTracks = (arr) => (Array.isArray(arr) ? arr.map((t) => ({
-      path: String(t.path || ""), name: String(t.name || ""),
+      path: String(t.path || ""), name: wkName(t.name),
       color: (typeof t.color === "string" && t.color) ? t.color : "#2e86de",
       width: (Number(t.width) > 0) ? Number(t.width) : lineWidth0,
       show_pins: t.show_pins !== false, coords: Array.isArray(t.coords) ? t.coords : [],
@@ -139,6 +145,13 @@
                  style="width:100%; box-sizing:border-box; font-size:13px; padding:4px 6px; margin-bottom:5px;">
           <input type="url" id="wk-main-link" value="${esc(get("main_link", ""))}" placeholder="${esc(T("webkarte.link_ph", "Link, z. B. https://meine-seite.de/tour.html"))}"
                  style="width:100%; box-sizing:border-box; font-size:13px; padding:4px 6px; margin-bottom:5px;">
+          <!-- 15.11.2026 (Marc: „Wenn man direkt draufklickt und dann sofort rausspringt, ist das irgendwie doof“) — Klick
+               zeigt standardmäßig erst ein Schild mit Name + Link (wie am Pin); „sofort öffnen“ = bisheriges Verhalten -->
+          <label class="field-label" for="wk-link-klick" style="font-size:12px;">${T("webkarte.link_klick", "Klick auf einen Track")}</label>
+          <select id="wk-link-klick" class="select" style="margin-bottom:6px;">
+            <option value="schild"${get("link_klick", "schild") !== "sofort" ? " selected" : ""}>${T("webkarte.link_klick_schild", "zeigt ein Schild mit Name und Link")}</option>
+            <option value="sofort"${get("link_klick", "schild") === "sofort" ? " selected" : ""}>${T("webkarte.link_klick_sofort", "öffnet den Link sofort")}</option>
+          </select>
           <label class="field-label" for="wk-link-ziel" style="font-size:12px;">${T("webkarte.link_ziel", "Klick auf einen Track öffnet den Link")}</label>
           <select id="wk-link-ziel" class="select" style="margin-bottom:4px;">
             <option value="_top"${get("link_ziel", "_top") === "_top" ? " selected" : ""}>${T("webkarte.link_ziel_top", "im selben Fenster (die Seite mit der Karte)")}</option>
@@ -398,7 +411,7 @@
             <button type="button" class="wk-trk-del" data-idx="${i}" title="${esc(T("webkarte.delete", "Löschen"))}"
                     style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px;">🗑</button>
           </div>
-          <div class="muted wk-trk-file" style="font-size:10px; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc((t.path || "").split("/").pop())}</div>
+          <div class="muted wk-trk-file" style="font-size:10px; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc((t.path || "").split(/[\\/]/).pop())}</div>
         </div>`).join("");
     }
     // Koordinaten der Extra-Tracks frisch aus den Dateien holen (nicht persistiert),
@@ -432,7 +445,7 @@
       if (!pfade.length) return;
       for (const path of pfade) {
         if (tracks.some(x => x.path === path)) continue;
-        const name = (path.split("/").pop() || "Track").replace(/\.[^.]+$/, "");
+        const name = (path.split(/[\\/]/).pop() || "Track").replace(/\.[^.]+$/, "");
         tracks.push({ path, name, color: TRK_PALETTE[tracks.length % TRK_PALETTE.length], width: lineWidth0, show_pins: true, coords: [] });
       }
       persistTracks(); renderTrackList();
@@ -466,6 +479,7 @@
       if (el("wk-main-link")) el("wk-main-link").value = a.main_link || "";   // 08.11.2026 Links
       if (el("wk-main-name")) el("wk-main-name").value = a.main_name || "";
       if (el("wk-link-ziel")) el("wk-link-ziel").value = a.link_ziel === "_blank" ? "_blank" : "_top";
+      if (el("wk-link-klick")) el("wk-link-klick").value = a.link_klick === "sofort" ? "sofort" : "schild";
       updateLeafletHint();
       // Kachel-Layer an den (evtl. neuen) Stil anpassen
       if (map && tileLayer && el("wk-tile")) {
@@ -594,6 +608,7 @@
         tracks.forEach((t) => { if (t.path) p.tracks.push({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins, link: t.link || "" }); });
       }
       p.link_ziel = el("wk-link-ziel")?.value === "_blank" ? "_blank" : "_top";
+      p.link_klick = el("wk-link-klick")?.value === "sofort" ? "sofort" : "schild";
       return p;
     }
 
@@ -751,6 +766,7 @@
     el("wk-main-link")?.addEventListener("input", () => save({ main_link: el("wk-main-link").value.trim() }, true));
     el("wk-main-name")?.addEventListener("input", () => save({ main_name: el("wk-main-name").value }, true));
     el("wk-link-ziel")?.addEventListener("change", () => save({ link_ziel: el("wk-link-ziel").value }));
+    el("wk-link-klick")?.addEventListener("change", () => save({ link_klick: el("wk-link-klick").value === "sofort" ? "sofort" : "schild" }));
     el("wk-export")?.addEventListener("click", doExport);
     // 19.10.2026 (Audit) — wie in Animator und Tour-Map: die Hauptaktion oben rechts. Der Knopf stand nur ganz unten in
     // der Seitenleiste; als Neuling sucht man ihn dort, wo die anderen Module „Exportieren“ haben.
@@ -787,6 +803,7 @@
           if (el("wk-main-link")) el("wk-main-link").value = state.main_link || "";
           if (el("wk-main-name")) el("wk-main-name").value = state.main_name || "";
           if (el("wk-link-ziel")) el("wk-link-ziel").value = state.link_ziel === "_blank" ? "_blank" : "_top";
+          if (el("wk-link-klick")) el("wk-link-klick").value = state.link_klick === "sofort" ? "sofort" : "schild";
           // 20.10.2026 (Rückgängig-Prüfung) — ohne gespeicherten Text die Standardtexte wie beim Öffnen; vorher waren
           // Datenschutz-Text und Knopf nach jedem ⌘Z leer (und gingen leer in den Export)
           if (el("wk-consent-text")) el("wk-consent-text").value = state.consent_text || DEFAULT_CONSENT;

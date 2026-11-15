@@ -9505,3 +9505,59 @@ Daten aus normalen Einblendungen.
 - Übersichtskarte: noch nicht gefahrener Teil in der Textfarbe (`ct-ueb-bg`). Bergnamen: zusätzlich feiner Rand (4
   Richtungen, 0,11 % H). Laufpunkt-Schilder zählen `.rz-bn` als Hindernis.
 - Prüfung: Standbilder aller Vorlagen auf Teide, Potsdam, Pisa-Küste und heller Straßenkarte (Titel + Unterwegs).
+
+## Web-Karte: Tour-Name beim Überfahren, Windows-Pfade (15.11.2026, nach v0.9.862)
+
+- **Dateinamen in der Oberfläche** werden mit `split(/[\\/]/)` statt `split("/")` aus Pfaden geschnitten — unter Windows
+  blieb sonst der ganze Pfad stehen (Web-Karte, Animator-Etappen, Assistent, Fotos, Geotagger, GPX-Balken). Ausnahmen mit
+  Absicht: Kachel-Schlüssel `z/x` in `sichtausweichen.js`, Laufwerkstext in `fotos.js`.
+- **Bestehende Projekte:** `core/tourmap_leaflet.tour_name()` kürzt beim Export einen Namen, der wie ein ganzer Pfad aussieht
+  (`C:\…`, UNC, `/…/…`), auf den letzten Teil; `modules/web-karte/ui/module.js` macht dasselbe beim Laden (`wkName`).
+  Gewöhnliche Namen mit „/“ („Tag 1/2“) bleiben.
+- **Name beim Überfahren** (`rzLinkTrack` im Export): Klickflächen liegen in eigener Leaflet-Ebene `rzHit` (z-Index 450)
+  über den Linien, statt beim `mouseover` per `bringToFront()` im SVG umgehängt zu werden (danach fehlte dem Browser das
+  `mouseout`, Namen blieben stehen). Der Name ist ein eigener `L.tooltip`, beim Erreichen des Tracks an `e.latlng`
+  geöffnet (folgt der Maus nicht mehr), geschlossen bei `mouseout` und beim Verlassen des Kartencontainers.
+- Test: `tests/test_webkarte_name_hover.py` (Gegenprobe mit altem Code: 6 rot).
+- **Klick auf einen Track** (15.11.2026): Einstellung `link_klick` (`"schild"` Standard | `"sofort"`), Auswahl
+  `#wk-link-klick` in der Web-Karte → Brücke `webkarte_export` → `make_leaflet_html` → `D.linkKlick`. Bei „schild“ öffnet
+  `rzLinkTrack` ein `L.popup` an `e.latlng` mit `rzPopup()` (wie die Pins); `link_ziel` gilt für den Link im Schild.
+  Solange ein Schild offen ist (`popupopen`/`popupclose` → `rzPopOffen`), erscheint beim Überfahren kein zusätzlicher Name.
+  Test: `tests/test_webkarte_track_link.py` B/D/F.
+
+## Mehrere Fotos an einer Stelle (15.11.2026, synchron zur iPhone-App)
+
+Vorbild: iPhone-App `RZRender/Sources/RZRender/Fotos.swift` (`gleicheStelle` = 0,015, `jeStelleMax` = 4, `sekJe` 3 s / 2,5 s,
+`collage`) und `Einblendungen.swift` (`stoppTeile`, Wechsel 0,25 s). Marc: der Assistent baut die Timeline, die Timeline muss
+alles können — darum liegt alles im Foto-Schild.
+
+- **Daten (Foto-Schild):** `weitere: [{imageSrc, text}]` (höchstens 3, zusammen 4), `collage: true` (alle Fotos als ein Bild),
+  `stopp_weitere_s` (Standard 2,5). `thumb_quelle` merkt, woraus der gespeicherte Thumb entstand (nur bei Collage).
+- **Collage:** `core/collage.py` (Aufbau 2 = 1200×800 nebeneinander, 3 = 60 % links + zwei rechts, 4 = 2×2, Fuge 14 px bei
+  1200 px). Bildquelle `rzcollage:[pfad, …]` — `app.sign_image_thumb` erkennt das Präfix (`_collage_thumb`, jedes Foto durch
+  `_photo_thumbnail_data_url`, also mit Bearbeitung), schreibt keine Datei. Animator: `_animSignBildQuelle(s)` für Schildbild,
+  Fotostopp-Karte und Foto-Pin; Bild-im-Bild-Container nehmen den `rzcollage:`-Pfad direkt (`_ctBildLaden` behandelt ihn als Foto).
+  `_animSignHasImg` verwirft ein Bild aus einer anderen Quelle (`_imgQ`), `_animSignThumbAktuell` vergleicht `thumb_quelle` und
+  die Bearbeitungsstempel aller Fotos.
+- **Halt:** `_fsWerte().sek` = `stopp_s` + Anzahl weiterer × `stopp_weitere_s` (nicht bei Clip/Collage, `_fsNacheinander`).
+  `_fsTeile(s, h)` teilt den Halt in Zeitscheiben (auf die echte Halt-Länge gestreckt); `_fotostoppZeigen` zeigt das Foto der
+  Scheibe in derselben Karte, Bild + Text blenden je FS_WECHSEL_S (0,25 s) aus/ein; nicht geladenes Foto → erstes bleibt.
+  `__rzFotostoppLaden` lädt die weiteren Fotos vor (Render wartet). Kamera, Pin und Tempo-Kurve sehen nur den einen Halt.
+- **Editor:** Block `#se-mehr-block` unter dem Bild (Vorschaubilder mit ✕, „Foto dazu“ über `sign_pick_image`, `#se-collage`);
+  jede Änderung speichert das Schild ohne `_imgEl` und meldet `__rzFotostoppGeaendert` (Halt-Länge).
+- **Assistent:** `app.schnellvideo_fotos` hängt nicht gewählte Kandidaten ≤ 0,015 an das nächste gewählte Foto (`weitere` mit
+  `thumb`, `t`), Serienbilder ≤ 4 s neben einem Foto der Stelle zählen nicht. `schnellvideo.js`: `anStelleHaengen` (auch für
+  Fotos, die am 4-%-Abstand/Budget scheitern), `stelleFotos` (nach Aufnahmezeit), `stelleFelder` → Schild mit `weitere`;
+  `zusatzS`/`mitZusatz` legen die Zeit der weiteren Fotos auf `duration_s` (die Strecke behält ihre Zeit); Halte-Dauer kurz/lang
+  skaliert auch `stopp_weitere_s`. Ohne Halt: `w.collage` (Schalter `#va-collage`, gemerkt in `va_wahl`/letzte Wahl) →
+  Sofortbild mit `collage`, Bild im Bild mit `rzcollage:`-Pfad. Hinweis `mehrfachZeigen()` (Texte wie iPhone `ux_mehrfach_*`).
+  Prüfstand `window.__rzSvPruef`.
+- **Schilder-Spur:** Griff „Foto groß“ setzt `stopp_s` ohne den Anteil der weiteren Fotos. `_fsNachziehen` merkt sich die
+  gemessene Stelle, die dem Ziel am nächsten kam (`best`): liegt das Ziel in einem Sprung der Zeitachse (Halt eines anderen
+  Fotostopps — mit langen Halten häufiger), bleibt der Stopp dort statt nach 6 Runden irgendwo. `test_fotostopp_nach_assistent`
+  zieht seither nur so weit, wie bis zum nächsten Stopp Platz ist.
+- **Test:** `tests/test_mehrere_fotos_stelle.py` (Collage, Backend-Gruppierung, Assistenten-Auswahl, 8-s-Halt, Fotowechsel im
+  Scrubben, Collage-Schild).
+- **Nicht synchron (bewusst):** Clips gehören nicht in eine Gruppe (eigener Stopp); Looks „Schild wie unterwegs“/„eigen“
+  wechseln die Fotos nicht (nur „Foto groß“). Die Web-Version bekommt es mit dem nächsten Engine-Bau.
+

@@ -14,6 +14,37 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.863] – 2026-11-15
+
+### Added
+- **Several photos at one spot** (in sync with the iPhone app): photos close together on the route (up to 1.5 %) now
+  belong to one spot, up to 4, in the order they were taken.
+  - Video assistant: with “Large with pause” they come one after another at one stop (first photo 3 s, each further
+    one 2.5 s) and the video gets longer by that time; the assistant says by how much. With instant photo and picture
+    in picture there is the new switch “Show as collage”.
+  - Timeline: a photo sign keeps its further photos (“More photos at this spot” in the sign editor: add, remove,
+    “Show as collage”). At a stop they change in the same large card while the camera stays; a collage shows 2 side
+    by side, 3 as one large and two small, 4 in a grid.
+
+### Changed
+- **Web map: clicking a track shows a label first** instead of leaving the page straight away: like at the pins, the
+  label shows the tour name and “To the tour →”, and only that link opens the page. Handy on phones, where you tap a
+  line to see what it is. The previous behaviour is still available: “Clicking a track” → “opens the link straight
+  away”.
+
+### Fixed
+- **Library “Rows with map image” stopped at 200 tours**: cards and list load the next tours while scrolling, the
+  rows view (the default) did not, so a tag with more than 200 tours showed and selected only the first 200, also with
+  Shift-click from the first to the last. The rows view now loads more while scrolling as well.
+- **Web map showed the whole file path as the tour name** (Windows): when tours were added, the name was cut from the
+  file path only at “/”, so on Windows the full path (“C:\Users\…\import\Tour”) stayed and appeared when hovering a
+  track and in the pin pop-up of the exported map. Names are now cut at “\” as well; maps from existing projects are
+  repaired automatically on the next export. The same fix applies to file names shown elsewhere (animator stages,
+  assistant, photos, geotagger).
+- **Web map: tour name moved with the mouse and sometimes stayed on the map**: the name now stays where the mouse
+  reaches the track and disappears when the mouse leaves the track or the map. Switching between two tracks shows only
+  one name.
+
 ## [0.9.862] – 2026-11-15
 
 ### Fixed

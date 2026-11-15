@@ -99,7 +99,7 @@
     try { r = await api().ladeflagge_vom_letzten_start(); } catch (_) { return; }
     if (!r || !r.problem) return;
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    const name = r.projekt || String(r.gpx || "").split("/").pop();
+    const name = r.projekt || String(r.gpx || "").split(/[\\/]/).pop();
     const teile = [];
     if (r.schilder) teile.push(t("ladeflagge.n_schilder", "{n} Schilder").replace("{n}", r.schilder.toLocaleString()));
     if (r.fotos) teile.push(t("ladeflagge.n_fotos", "{n} Fotos").replace("{n}", r.fotos.toLocaleString()));
@@ -195,7 +195,7 @@
     const txt = document.getElementById("source-missing-banner-text");
     if (!bar || !txt) return;
     _bindSourceMissingBanner();
-    const name = String(path || "").split("/").pop() || path || "";
+    const name = String(path || "").split(/[\\/]/).pop() || path || "";
     const tpl = (typeof t === "function")
       ? t("app.source_missing", "Quelldatei nicht gefunden: <b>{name}</b> — Laufwerk gemountet?")
       : "Quelldatei nicht gefunden: <b>{name}</b> — Laufwerk gemountet?";
@@ -222,7 +222,7 @@
       if (window.rzStatus) {
         window.rzStatus.start(ladeId, {
           titel: t("track.laden_titel", "Track wird geladen"),
-          text: (path || "").split("/").pop(),
+          text: (path || "").split(/[\\/]/).pop(),
         });
       }
       // 13.09.2026 — Ladeflagge (Marc): „lädt" steht auf der Platte, BEVOR die Arbeit
@@ -240,10 +240,10 @@
       // Die Quelldatei war weg, die Bibliothek hatte ihre eigene Kopie — sagen,
       // statt still etwas anderes zu laden (Beta-Tester, 12.09.2026).
       if (res.ersatz) {
-        const nm = res.ersatz.name || (res.ersatz.fehlt || "").split("/").pop();
+        const nm = res.ersatz.name || (res.ersatz.fehlt || "").split(/[\\/]/).pop();
         if (window.applog) window.applog("warn", `[loadGlobalGpx] Quelldatei fehlt (${res.ersatz.fehlt}) → Bibliothekskopie`);
         toast(t("track.aus_bibliothek", "Die Datei „{d}“ gibt es nicht mehr — die Tour kommt aus deiner Bibliothek.")
-          .replace("{d}", (res.ersatz.fehlt || "").split("/").pop()), "info", 7000);
+          .replace("{d}", (res.ersatz.fehlt || "").split(/[\\/]/).pop()), "info", 7000);
         path = res.ersatz.pfad || path;
         if (nm && window.applog) window.applog("info", `[loadGlobalGpx] Ersatz-Tour: ${nm}`);
       }
@@ -495,7 +495,7 @@
   function _renderCurrent() {
     if (!_container) return;
     if (_gpxPath && _gpxData) {
-      const name = _gpxData.name || _gpxPath.split("/").pop();
+      const name = _gpxData.name || _gpxPath.split(/[\\/]/).pop();
       _container.innerHTML = templateLoaded(name, _gpxPath, _gpxData.stats);
     } else {
       _container.innerHTML = templateEmpty();

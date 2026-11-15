@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 15 Nov 2026 00:25:19 +0000</lastBuildDate>
+<lastBuildDate>Sun, 15 Nov 2026 15:27:58 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.863</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-863</link>
+<guid isPermaLink="false">gps-studio-v0.9.863</guid>
+<pubDate>Sun, 15 Nov 2026 12:00:00 +0000</pubDate>
+<description>Mehrere Fotos an einer Stelle — Fotos, die auf der Strecke dicht beieinander liegen, gehören jetzt zu einer Stelle (bis zu vier, in Aufnahme-Reihenfolge), genau wie in der iPhone-App. Bei „Groß mit Halt“ zeigt der Video-Assistent sie bei einem Stopp nacheinander: das erste 3 Sekunden, jedes weitere 2,5 Sekunden. Das Video wird um diese Zeit länger, und der Assistent sagt, um wie viel. Die Kamera bleibt dabei stehen, nur das Bild in der großen Karte wechselt. Beim Sofortbild und bei Bild im Bild gibt es den neuen Schalter „Als Collage zeigen“: zwei Fotos nebeneinander, drei als ein großes und zwei kleine, vier im Raster. In der Timeline kannst du im Schild-Editor unter „Weitere Fotos an dieser Stelle“ Fotos dazunehmen, entfernen oder als Collage zeigen.
+
+Web-Karte: Klick auf einen Track zeigt erst ein Schild — Bisher sprang die Karte beim Klick auf einen Track sofort auf die verlinkte Seite. Jetzt erscheint wie bei den Pins ein Schild mit dem Namen der Tour und „Zur Tour →“, erst dieser Link öffnet die Seite. Das hilft vor allem auf dem Handy, wo man eine Linie antippt, um zu sehen, was sie ist. Wer lieber direkt springt, stellt „Klick auf einen Track“ auf „öffnet den Link sofort“.
+
+Archiv „Zeile mit Kartenbild“ zeigt wieder alle Touren — Kacheln und Liste laden beim Scrollen weitere Touren nach, die Zeilen-Ansicht hörte nach den ersten 200 auf. Bei einem Schlagwort mit mehr Touren erschienen und markierten sich deshalb nur die ersten 200, auch mit Shift-Klick von der ersten bis zur letzten. Jetzt lädt auch die Zeilen-Ansicht beim Scrollen nach.
+
+Web-Karte zeigt unter Windows nicht mehr den ganzen Dateipfad — Beim Darüberfahren und im Schild einer exportierten Karte stand statt des Tournamens der ganze Pfad („C:\Users\…\Tour“). Jetzt steht dort nur der Name. Bestehende Karten werden beim nächsten Export automatisch richtig. Dieselbe Korrektur gilt für Dateinamen an anderen Stellen der App.</description>
+</item>
 <item>
 <title>v0.9.862</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-862</link>
@@ -223,19 +236,6 @@ Für 3D-Programme: Kamerafahrt und Einblendungen als Datei — gpsstudio camera-
 „Hier Keyframe“ neben einem vorhandenen — Legst du einen Keyframe dicht neben einen anderen, entsteht ein neuer — der alte bleibt. Steht der Abspielkopf auf einem Keyframe, wird genau dieser aktualisiert, an seiner Stelle.
 
 Ruhige Kamera ohne Ruckeln — Mit „Ruhige Kamera“ änderte die Kamera ihr Tempo nur jedes zweite Bild — ein leichtes, gleichmäßiges Ruckeln im ganzen Bild. Jetzt fährt sie in jedem Bild gleichmäßig weiter, auf derselben Bahn.</description>
-</item>
-<item>
-<title>v0.9.834</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-834</link>
-<guid isPermaLink="false">gps-studio-v0.9.834</guid>
-<pubDate>Mon, 26 Oct 2026 12:00:00 +0000</pubDate>
-<description>Überblick und Anleitungen mit Bildern — Unter Hilfe → Überblick über GPS Studio steht jetzt jedes Modul mit Bild und einem Satz, dazu „In drei Schritten zum ersten Video“. „Mehr erfahren“ zeigt zu jedem Schritt einen Ausschnitt der App, auf dem der gemeinte Knopf leuchtet.
-
-Ein Logbuch für alles — Tourseite und GPX-Inspektor zeigen dieselbe Liste mit demselben Menü (teilen, zusammenlegen, Art ändern, im Video raffen …). Mehrtägige Touren scrollen durchgehend mit Tagesüberschriften, der Zeitstrahl liegt jetzt auch unter der Karte der Tourseite — und dort gibt es „Im Inspektor“ und „Öffnen in“.
-
-Logbuch kennt den Weg — Ob ein langsames Stück Stau oder Radtour war, entscheidet jetzt der Weg darunter: Autobahn bleibt Fahrt, Fährlinie wird Fähre, Radweg wird Rad. Gelesen aus denselben Kartenkacheln, einmal je Tour.
-
-Logbuch lernt mit — nur wenn du willst — Wer möchte, teilt Korrekturen der Eintragsart anonym (Einstellungen → Allgemein, Standard aus): nur Zahlen wie Tempo und Steigung, keine Orte, Uhrzeiten oder Namen. Daraus wird die Erkennung für alle besser.</description>
 </item>
 </channel>
 </rss>

@@ -117,9 +117,22 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.862</span>
+    <span class="version-num">v0.9.863</span>
     <span class="version-date">15. November 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <ul>
+    <li><strong>Mehrere Fotos an einer Stelle</strong> &mdash; Fotos, die auf der Strecke dicht beieinander liegen, gehören jetzt zu einer Stelle (bis zu vier, in Aufnahme-Reihenfolge), genau wie in der iPhone-App. Bei „Groß mit Halt“ zeigt der Video-Assistent sie bei einem Stopp nacheinander: das erste 3 Sekunden, jedes weitere 2,5 Sekunden. Das Video wird um diese Zeit länger, und der Assistent sagt, um wie viel. Die Kamera bleibt dabei stehen, nur das Bild in der großen Karte wechselt. Beim Sofortbild und bei Bild im Bild gibt es den neuen Schalter „Als Collage zeigen“: zwei Fotos nebeneinander, drei als ein großes und zwei kleine, vier im Raster. In der Timeline kannst du im Schild-Editor unter „Weitere Fotos an dieser Stelle“ Fotos dazunehmen, entfernen oder als Collage zeigen.</li>
+    <li><strong>Web-Karte: Klick auf einen Track zeigt erst ein Schild</strong> &mdash; Bisher sprang die Karte beim Klick auf einen Track sofort auf die verlinkte Seite. Jetzt erscheint wie bei den Pins ein Schild mit dem Namen der Tour und „Zur Tour →“, erst dieser Link öffnet die Seite. Das hilft vor allem auf dem Handy, wo man eine Linie antippt, um zu sehen, was sie ist. Wer lieber direkt springt, stellt „Klick auf einen Track“ auf „öffnet den Link sofort“.</li>
+    <li><strong>Archiv „Zeile mit Kartenbild“ zeigt wieder alle Touren</strong> &mdash; Kacheln und Liste laden beim Scrollen weitere Touren nach, die Zeilen-Ansicht hörte nach den ersten 200 auf. Bei einem Schlagwort mit mehr Touren erschienen und markierten sich deshalb nur die ersten 200, auch mit Shift-Klick von der ersten bis zur letzten. Jetzt lädt auch die Zeilen-Ansicht beim Scrollen nach.</li>
+    <li><strong>Web-Karte zeigt unter Windows nicht mehr den ganzen Dateipfad</strong> &mdash; Beim Darüberfahren und im Schild einer exportierten Karte stand statt des Tournamens der ganze Pfad („C:\Users\…\Tour“). Jetzt steht dort nur der Name. Bestehende Karten werden beim nächsten Export automatisch richtig. Dieselbe Korrektur gilt für Dateinamen an anderen Stellen der App.</li>
+    <li><strong>Web-Karte: Tourname bleibt, wo er hingehört</strong> &mdash; Der Name wanderte mit der Maus mit und blieb manchmal auf der Karte stehen. Jetzt erscheint er dort, wo die Maus den Track erreicht, und verschwindet, sobald sie den Track oder die Karte verlässt.</li>
+  </ul>
+</article>
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.862</span>
+    <span class="version-date">15. November 2026</span>
   </div>
   <ul>
     <li><strong>4K-Video mit „Höchster Qualität“ bricht nicht mehr ab</strong> &mdash; Seit 0.9.861 zeichnet GPS Studio die Karte in voller Größe. Auf schwächerer Grafik konnte dadurch die Aufnahme eines einzelnen Bildes länger als 30 Sekunden dauern, und das ganze Video war weg. Jetzt startet der Render in so einem Fall neu und macht beim selben Bild weiter. Ab da zeichnet er die Karte wieder etwas kleiner, so wie vor 0.9.861.</li>

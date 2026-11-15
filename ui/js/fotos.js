@@ -490,7 +490,7 @@
     const fernText = (st) => {
       const f = (st && st.ferne_ordner) || [];
       if (!f.length) return "";
-      const namen = f.map((x) => String(x).split("/").pop()).slice(0, 3).join(", ");
+      const namen = f.map((x) => String(x).split(/[\\/]/).pop()).slice(0, 3).join(", ");
       return T("fotos.ordner_fern", "Nicht erreichbar") + ": " + namen
              + (f.length > 3 ? " +" + (f.length - 3) : "");
     };

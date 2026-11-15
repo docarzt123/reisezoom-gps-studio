@@ -22,14 +22,14 @@
       body: `<div class="lib-hint">${tt("assistent.intro", "Von der Tour zum fertigen Projekt: der Track wird geprüft und repariert (als neue Version im Archiv, „Ist so in Ordnung“ bleibt), dann entsteht ein Projekt mit der Vorlage, und du landest im Animator.")}</div>
         <div class="vorl-feld">${tt("assistent.track", "Track")}
           <div class="ass-track">
-            <span id="ass-track-name" class="ass-track-name">${esc(pfad ? pfad.split("/").pop() : tt("assistent.track_keiner", "noch keiner gewählt"))}</span>
+            <span id="ass-track-name" class="ass-track-name">${esc(pfad ? pfad.split(/[\\/]/).pop() : tt("assistent.track_keiner", "noch keiner gewählt"))}</span>
             <button type="button" class="btn btn-sm" id="ass-track-archiv">📚 ${tt("assistent.track_archiv", "Aus dem Archiv …")}</button>
             <button type="button" class="btn btn-ghost btn-sm" id="ass-track-datei">📂 ${tt("assistent.track_datei", "Datei …")}</button>
           </div></div>
         <label class="vorl-feld">${tt("vorlagen.feld", "Vorlage")}
           ${window.rzVorlageAuswahlHtml(liste, standard, "ass-vorlage")}</label>
         <label class="vorl-feld">${tt("assistent.name", "Projektname")}
-          <input type="text" id="ass-name" class="lib-input" value="${esc(pfad ? pfad.split("/").pop().replace(/\.[^.]+$/, "") : "")}" placeholder="${esc(tt("assistent.name_ph", "leer = Name der Tour"))}"></label>
+          <input type="text" id="ass-name" class="lib-input" value="${esc(pfad ? pfad.split(/[\\/]/).pop().replace(/\.[^.]+$/, "") : "")}" placeholder="${esc(tt("assistent.name_ph", "leer = Name der Tour"))}"></label>
         <label class="check-row vorl-feld"><input type="checkbox" id="ass-highlights" checked> ${tt("assistent.highlights", "Highlights als Schilder setzen (Gipfel, Aussichtspunkte, Hütten, Burgen … aus OpenStreetMap; Start und Ziel mit Ortsname)")}</label>
         <ol class="ass-schritte" id="ass-schritte" hidden></ol>
         <div class="lib-hint" id="ass-fehler" hidden></div>`,
@@ -42,12 +42,12 @@
     // den Rumpf aus HTML neu auf, die Ereignis-Handler sind weg (Marc: „ich kann Los
     // nicht klicken"). Deshalb hängt ALLES an `wire()`, das openModal über
     // `restorePrevious` nach jedem Zurückholen erneut ruft. Zustand lebt in Variablen.
-    let vid = standard, name = pfad ? pfad.split("/").pop().replace(/\.[^.]+$/, "") : "", highlights = true;
+    let vid = standard, name = pfad ? pfad.split(/[\\/]/).pop().replace(/\.[^.]+$/, "") : "", highlights = true;
     let laeuft = false;
     const $ = (id) => document.getElementById(id);
     function wire() {
       const nameEl = $("ass-name"), sel = $("ass-vorlage"), los = $("ass-los"), n = $("ass-track-name");
-      if (n) n.textContent = pfad ? pfad.split("/").pop() : tt("assistent.track_keiner", "noch keiner gewählt");
+      if (n) n.textContent = pfad ? pfad.split(/[\\/]/).pop() : tt("assistent.track_keiner", "noch keiner gewählt");
       if (nameEl) { nameEl.value = name; nameEl.oninput = () => { name = nameEl.value; }; }
       if (sel) { sel.value = vid; if (sel.value !== vid) vid = sel.value; sel.onchange = () => { vid = sel.value; }; }
       if (los) los.disabled = !pfad || laeuft;
@@ -55,7 +55,7 @@
       const ba = $("ass-track-archiv"), bd = $("ass-track-datei"), ab = $("ass-ab");
       const setzePfad = (p) => {
         pfad = p || "";
-        if (pfad && !name.trim()) name = pfad.split("/").pop().replace(/\.[^.]+$/, "");
+        if (pfad && !name.trim()) name = pfad.split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
         wire();
       };
       if (ba) ba.onclick = async () => {

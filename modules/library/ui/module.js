@@ -586,7 +586,7 @@ function mountLibrary(body, headerActions) {
       }
     }
     // Nach dem Gegend-Zweig rechnen, nicht davor — der tauscht _items/_total aus.
-    _hatMehr = (view === "cards" || view === "list") && _items.length < _total;
+    _hatMehr = (view === "cards" || view === "list" || view === "rows") && _items.length < _total;
     _laedtMehr = false;
     await reloadStats();
     if (_unmounted || seq !== _reloadSeq) return;
@@ -634,7 +634,9 @@ function mountLibrary(body, headerActions) {
    *  Liste, einschließlich einer aktiven Gegend-Suche (bbox statt Text). */
   async function nachladen() {
     if (!_hatMehr || _laedtMehr || _unmounted) return;
-    if (view !== "cards" && view !== "list") return;
+    // 15.11.2026 (Nutzer: Schlagwort mit 437 Touren, „Zeile mit Kartenbild“ zeigte nur 200) — die Zeilen-Ansicht
+    // (Standard seit der Umstellung) war hier nicht dabei und lud nie nach, obwohl ihr Scroll-Hörer es versuchte
+    if (view !== "cards" && view !== "list" && view !== "rows") return;
     _laedtMehr = true;
     const ort = _ortAktiv ? { search: "", bbox: _ortAktiv.bbox } : {};
     const res = await api().library_query(queryParams(Object.assign({
@@ -650,7 +652,7 @@ function mountLibrary(body, headerActions) {
     // 22.08.2026: Fenster-Rendering — nur der sichtbare Ausschnitt steht im DOM,
     // ein Neuaufbau ist deshalb billig; der untere Platzhalter wächst mit.
     void start;
-    if (view === "cards") renderGrid(); else renderList();
+    if (view === "cards") renderGrid(); else if (view === "rows") renderRows(); else renderList();
   }
 
   /** Kurz vor dem Ende der Scrollbahn die nächste Seite anstoßen. */
@@ -788,7 +790,7 @@ function mountLibrary(body, headerActions) {
     const hint = $("lib-nav-hint");
     if (hint) {
       hint.innerHTML = _folders.length
-        ? _folders.map(f => `<div title="${esc(f.path)}">${esc(f.path.split("/").pop())} · ${f.n_tracks}</div>`).join("")
+        ? _folders.map(f => `<div title="${esc(f.path)}">${esc(f.path.split(/[\\/]/).pop())} · ${f.n_tracks}</div>`).join("")
         : `<div class="lib-nav-warn">${T("library.no_folders_short", "Noch kein Ordner eingelesen")}</div>`;
     }
   }
@@ -1143,7 +1145,7 @@ function mountLibrary(body, headerActions) {
     if (!suche) return true;
     return p.name.toLowerCase().includes(suche)
       || (p.tour_namen || []).some(nm => nm.toLowerCase().includes(suche))
-      || (p.gpx_paths || []).some(pp => String(pp).split("/").pop().toLowerCase().includes(suche));
+      || (p.gpx_paths || []).some(pp => String(pp).split(/[\\/]/).pop().toLowerCase().includes(suche));
   }
   function renderProjNav() {
     const box = document.getElementById("lib-proj-scopes");
@@ -1637,7 +1639,7 @@ function mountLibrary(body, headerActions) {
         titel: T("vorlagen.neu_projekt", "Neues Projekt daraus") + " — " + T("vorlagen.touren_waehlen", "Touren wählen"),
         okLabel: T("common.next", "Weiter") });
       if (!pfade) return;
-      const vorschlag = String(pfade[0] || "").split("/").pop().replace(/\.[^.]+$/, "") || v.name || "";
+      const vorschlag = String(pfade[0] || "").split(/[\\/]/).pop().replace(/\.[^.]+$/, "") || v.name || "";
       const wahl = await window.rzNeuesProjektModal(vorschlag, T("vorlagen.neu_projekt", "Neues Projekt daraus"), b.dataset.vneu);
       if (!wahl) return;
       const r = await rzWarten("projekt_aus_vorlage_anlegen", () => api().projekt_aus_vorlage_anlegen(wahl.name, wahl.vorlageId || b.dataset.vneu));

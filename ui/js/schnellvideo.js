@@ -713,6 +713,56 @@
    *  bei Überzahl gehen die besten vor. */
   const STOPP = { sek: 3, anflug: 1, abflug: 1 };
   const STOPP_KOSTEN = STOPP.sek;   // nur der Halt verlängert; An-/Abflug während der Fahrt
+  // 15.11.2026 (Marc: „Das mit den mehreren Bildern, die iOS-App kann das … das soll synchron laufen“) — mehrere Fotos an
+  // derselben Stelle wie in der iPhone-App (Fotos.swift): ≤ 1,5 % der Strecke = eine Stelle, höchstens 4 Fotos je Stelle,
+  // nach Aufnahmezeit. Mit Halt kommen sie nacheinander (je weiteres Foto 2,5 s), das VERLÄNGERT das Video (zusatzS);
+  // ohne Halt auf Wunsch als Collage (w.collage). Die Timeline bekommt ein Foto-Schild mit `weitere` (+ `collage`).
+  const GLEICHE_STELLE = 0.015, JE_STELLE_MAX = 4, WEITERES_S = 2.5;
+  /** Alle Fotos einer Stelle (das gewählte + `weitere` vom Server), nach Aufnahmezeit, höchstens JE_STELLE_MAX. */
+  function stelleFotos(f) {
+    const alle = [{ path: f.path, text: f.text, t: f.t }]
+      .concat((Array.isArray(f.weitere) ? f.weitere : []).map(x => ({ path: x.path, text: x.text, t: x.t })))
+      .filter((x, i, a) => x.path && a.findIndex(y => y.path === x.path) === i);
+    const zeit = (x) => (x.t == null || !isFinite(+x.t)) ? Infinity : +x.t;
+    return alle.map((x, i) => ({ x, i })).sort((a, b) => (zeit(a.x) - zeit(b.x)) || (a.i - b.i)).map(o => o.x).slice(0, JE_STELLE_MAX);
+  }
+  /** Foto-Schild-Felder für die Fotos einer Stelle: erstes Foto = Bild des Schilds, die übrigen als `weitere`. */
+  function stelleFelder(f, collage) {
+    const alle = stelleFotos(f);
+    if (alle.length < 2) return {};
+    return { imageSrc: alle[0].path, weitere: alle.slice(1).map(x => ({ imageSrc: x.path, text: String(x.text || "").trim() })),
+             ...(collage ? { collage: true } : {}) };
+  }
+  /** Nicht gewählte Fotos an derselben Stelle (≤ GLEICHE_STELLE) an das nächste gewählte hängen, statt sie fallen zu lassen. */
+  function anStelleHaengen(gewaehlt, uebrig) {
+    for (const k of uebrig) {
+      if (!k || !isFinite(+k.bei)) continue;
+      let ziel = null;
+      for (const g of gewaehlt) if (Math.abs(+g.bei - +k.bei) <= GLEICHE_STELLE && (!ziel || Math.abs(+g.bei - +k.bei) < Math.abs(+ziel.bei - +k.bei))) ziel = g;
+      if (!ziel) continue;
+      const w_ = (Array.isArray(ziel.f.weitere) ? ziel.f.weitere : []).slice();
+      for (const x of [{ path: k.f.path, text: k.f.text, t: k.f.t }].concat(Array.isArray(k.f.weitere) ? k.f.weitere : [])) {
+        if (w_.length >= JE_STELLE_MAX - 1 || !x.path || x.path === ziel.f.path || w_.some(y => y.path === x.path)) continue;
+        w_.push({ path: x.path, text: x.text, t: x.t });
+      }
+      ziel.f = Object.assign({}, ziel.f, { weitere: w_ });
+    }
+  }
+  /** Sekunden, die die weiteren Fotos an Halten zum Video hinzufügen (nicht bei Collage, nicht bei Clips). */
+  function zusatzS(schilder) {
+    let z = 0;
+    for (const x of schilder || []) {
+      if (!x || !x.stopp || x.clip || x.collage || !Array.isArray(x.weitere)) continue;
+      z += Math.min(JE_STELLE_MAX - 1, x.weitere.length) * (isFinite(+x.stopp_weitere_s) && +x.stopp_weitere_s > 0 ? +x.stopp_weitere_s : WEITERES_S);
+    }
+    return Math.round(z * 100) / 100;
+  }
+  /** Gewählte Länge + Zusatz der weiteren Fotos ins Projekt (die Strecke behält ihre Zeit). */
+  function mitZusatz(patch, schilder) {
+    const z = zusatzS(schilder);
+    if (z > 0 && patch && isFinite(+patch.duration_s)) patch.duration_s = Math.round((+patch.duration_s + z) * 100) / 100;
+    return patch;
+  }
   function fotostoppSchilder(fotos, animS) {
     const max = Math.max(0, Math.floor(animS * 0.5 / STOPP_KOSTEN));
     const wahl = (fotos || []).slice().sort((a, b) => (b.wert || 0) - (a.wert || 0) || a.bei - b.bei).slice(0, max)
@@ -727,6 +777,7 @@
       stopp: true, stopp_s: STOPP.sek, stopp_anflug_s: STOPP.anflug, stopp_abflug_s: STOPP.abflug, stopp_zoom: 1.5, stopp_schwenk: 2, stopp_ken: 8,
       stopp_ortzeit: true, stopp_exif: false,
       ...(String(f.text || "").trim() ? { __eigenText: true } : {}),   // F-5: eigene Unterschrift bleibt (Logbuch überschreibt nicht)
+      ...(() => { const sf = stelleFelder(f, false); if (sf.imageSrc) { const t0 = stelleFotos(f)[0]; sf.text = String(t0.text || "").trim(); } return sf; })(),   // 15.11.2026
     }));
   }
 
@@ -776,6 +827,8 @@
       wahl.push(k); summe += k.kosten;
     }
     wahl.sort((a, b) => a.bei - b.bei);
+    // 15.11.2026 — Fotos derselben Stelle, die wegen Abstand/Budget nicht selbst gewählt sind, kommen zum Foto dazu
+    anStelleHaengen(wahl.filter(k => k.art === "foto"), kand.filter(k => k.art === "foto" && !wahl.includes(k)));
     return wahl.map(k => Object.assign(k.art === "clip" ? clipSchild(k.f, mitTon) : fotostoppSchilder([k.f], 1e9)[0], { __bei: k.bei }));
   }
   /** 05.10.2026 (Vorlagen Tagebuch/Puls) — Fotos OHNE Halt: die Fahrt läuft weiter, das Foto steht ~3 s. Kostet keine
@@ -793,13 +846,17 @@
       wahl.push(k); besetzt.push(k.bei);
     }
     const spanne = OHNE_HALT_S / Math.max(1, animS);
+    anStelleHaengen(wahl, kand.filter(k => !wahl.includes(k)));   // 15.11.2026 — für „Als Collage zeigen“
     return wahl.sort((a, b) => a.bei - b.bei).map(k => ({ f: k.f, bei: k.bei, von: Math.max(0, k.bei - 0.004), bis: Math.min(1, k.bei + spanne) }));
   }
+  // 15.11.2026 — Prüfstand (tests/test_mehrere_fotos_stelle.py): Auswahl und Zusatzlänge ohne Dialog prüfen
+  window.__rzSvPruef = { stoppsWaehlen: (...a) => stoppsWaehlen(...a), fotosOhneHalt: (...a) => fotosOhneHalt(...a),
+                         sofortbildSchild: (...a) => sofortbildSchild(...a), zusatzS: (x) => zusatzS(x), stelleFotos: (f) => stelleFotos(f) };
   /** Sofortbild-Schild an der Strecke (wie ein neues Foto-Schild im Animator: aufpoppen, kurz groß, zum Mini schrumpfen). */
   // 07.10.2026 (Web-Version) — Größe des Sofortbilds wählbar (Standard 24: die Route bleibt sichtbar, Demo 05.10.)
   const SOFORT_GROESSE = { std: 24, min: 16, max: 80 };
   const sofortGroesse = (x) => { const n = +x; return isFinite(n) && n > 0 ? Math.max(SOFORT_GROESSE.min, Math.min(SOFORT_GROESSE.max, Math.round(n))) : SOFORT_GROESSE.std; };
-  function sofortbildSchild(k, groesse) {
+  function sofortbildSchild(k, groesse, collage) {
     // 05.10.2026 — Ortszeile als Unterschrift (nur der Ortsname, ohne Region); ein Logbuch-Text ersetzt sie.
     // 07.10.2026 (F-5) — eigene Unterschrift je Foto (`text`) gilt so, wie sie ist (kein Kürzen am Komma), und bleibt
     const eigen = String(k.f.text || "").trim();
@@ -807,7 +864,8 @@
     return { text: eigen || ort, imageSrc: k.f.path, lat: k.f.lat, lon: k.f.lon, anchorMode: "track", style: "sofortbild",
              imageSize: sofortGroesse(groesse),
              entry: "pop", entry_s: 0.5, before: 0.4, after: 2.5, exit: "mini", exit_s: 0.8, visible: true, __bei: k.bei,
-             ...(eigen ? { __eigenText: true } : {}) };
+             ...(eigen ? { __eigenText: true } : {}),
+             ...(collage ? stelleFelder(k.f, true) : {}) };   // 15.11.2026 — mehrere Fotos der Stelle als Collage
   }
   /** 13.10.2026 (Web-Feedback: „Beim Einfügen von Bildern ist das letzte Bild nur ganz kurz zu sehen. Besser wäre es, wenn
    *  das Bild zum Endpunkt länger stehen bleibt“; übernommen aus der Web-Fassung, damit beide gleich aussehen) — ein Sofortbild
@@ -1281,6 +1339,7 @@
       fotoArt: FOTO_ARTEN.includes(L.foto_art) ? L.foto_art : null,
       sofortGroesse: sofortGroesse(L.sofort_groesse),               // 07.10.2026 (F-5)
       fotoPause: L.foto_pause === "stehen" ? "stehen" : "heran",    // 07.10.2026 (F-5) — Fotostopp mit/ohne Heranfahren
+      collage: !!L.collage,                                         // 15.11.2026 — mehrere Fotos einer Stelle als Collage
       angepasst: !!L.angepasst,
       tempoRegie: true,   // 06.10.2026 — immer an, kein Haken mehr
       flug: FLUGSTILE[L.flug] ? L.flug : "begleiter",   // 14.10.2026 — Flugstil der Kamerafahrt
@@ -1642,6 +1701,10 @@ ${mehrAuf(1)}
         ${mehrAuf(6)}
         ${feldKopf("image", T("va.fa_label", "Fotos als"), "", "fotos_als")}
         ${wahl('id="va-fa"', "data-va-fa", [["sofortbild", "", T("va.w.fa_sofortbild", "Sofortbild")], ["gross", "", T("va.w.fa_gross", "Groß mit Halt")], ["pip", "", T("va.w.fa_pip", "Bild im Bild")]], w.fotoArt)}
+        <div id="va-mehrfach" class="va-mehrfach" hidden>
+          <div class="va-mehrfach-text muted" id="va-mehrfach-text"></div>
+          <div id="va-collage-teil">${schalter("va-collage", !!w.collage, T("va.collage_t", "Als Collage zeigen"), T("va.collage_k", "Mehrere Fotos an einer Stelle erscheinen zusammen in einem Bild (bis zu 4)."))}</div>
+        </div>
         <span id="va-h-lead" hidden></span>
         <label class="va-schalter-zeile"><span class="va-sz-text"><b>${esc(T("va.h_alle", "An allen Foto-Schildern anhalten"))}${q(T("va.h_alle_tip", "Damit man die Bilder in Ruhe ansehen kann. Aus: die Fahrt läuft weiter, das Foto steht kurz daneben."), "va-h-lead-q")}</b></span>
           <input type="checkbox" class="va-schalter" id="va-h-alle" checked></label>
@@ -1865,7 +1928,31 @@ ${mehrAuf(1)}
       }
       z.textContent += (n < an.length ? " · " + T("schnell.fotos_zu_viele", "für diese Länge passen nicht alle — die besten kommen rein") : "");
       mehrKurz();
+      try { mehrfachZeigen(); } catch (err) { if (window.rzSwallow) rzSwallow(err, "assistent:mehrfach"); }
     };
+    /** 15.11.2026 — Stellen mit mehreren Fotos (wie die iPhone-App, TexteUX ux_mehrfach_*): mit Halt kommen sie nacheinander
+     *  und das Video wird länger, ohne Halt gibt es den Schalter „Als Collage zeigen“. */
+    function mehrfachZeigen() {
+      const el = box.querySelector("#va-mehrfach"); if (!el) return;
+      const fan = box.querySelector("#sv-fotos-an");
+      const gross = fotoArtJetzt() === "gross";
+      let n = 0, sek = 0;
+      if (!(fan && !fan.checked)) {
+        if (gross) {
+          const st = stoppsJetzt().filter(x => !x.clip && Array.isArray(x.weitere) && x.weitere.length);
+          n = st.length;
+          sek = Math.round(zusatzS(st.map(x => Object.assign({}, x, { stopp: true }))) * ((ASS && HALT_FAKTOR[w.halteDauer]) || 1) * 10) / 10;
+        } else {
+          n = ohneHaltJetzt().filter(k => stelleFotos(k.f).length > 1).length;
+        }
+      }
+      el.hidden = !n;
+      const tx = box.querySelector("#va-mehrfach-text");
+      if (tx) tx.textContent = !n ? "" : gross
+        ? T("va.mehrfach_halt", "{n} Stellen mit mehreren Fotos: Sie kommen dort nacheinander, der Halt dauert entsprechend länger (bis zu 4 Fotos je Stelle). Das Video wird {s} s länger.").replace("{n}", n).replace("{s}", String(sek).replace(".", ","))
+        : T("va.mehrfach_ohne", "{n} Stellen mit mehreren Fotos. Als Collage erscheinen sie dort zusammen (bis zu 4 Fotos).").replace("{n}", n);
+      const ct = box.querySelector("#va-collage-teil"); if (ct) ct.hidden = gross;
+    }
     const fotosZeigen = () => {
       const l = box.querySelector("#sv-fotos"); if (!l) return;
       if (!w.fotos.length && w.fotosLaden && !w.fotosWarten) {
@@ -2432,6 +2519,7 @@ ${mehrAuf(1)}
         const b = e.target.closest("[data-va-h-dauer]"); if (!b) return;
         w.halteDauer = b.dataset.vaHDauer;
         box.querySelectorAll("[data-va-h-dauer]").forEach(x => x.classList.toggle("is-on", x === b));
+        try { mehrfachZeigen(); } catch (_) {}   // 15.11.2026 — Zusatzlänge der weiteren Fotos
         vaLive();
       });
     }
@@ -2687,7 +2775,7 @@ ${mehrAuf(1)}
     box.querySelector("#sv-titel")?.addEventListener("input", () => vorschau.titel());
     zutatenStand();
     const schilderJetzt = () => {
-      const st = stoppsJetzt().concat(fotoArtJetzt() === "sofortbild" ? ohneHaltJetzt().map(k => sofortbildSchild(k, w.sofortGroesse)) : [])
+      const st = stoppsJetzt().concat(fotoArtJetzt() === "sofortbild" ? ohneHaltJetzt().map(k => sofortbildSchild(k, w.sofortGroesse, !!w.collage)) : [])
         .sort((a, b) => a.__bei - b.__bei);
       if (w.fotoPause === "stehen") st.forEach(x => { if (x.stopp && !x.clip) x.stopp_kamera = false; });   // F-5: Pause ohne Heranfahren
       // 14.10.2026 — „Einmal ums Foto kreisen“: an jedem Fotostopp mit Kamera (nicht bei Clips)
@@ -2706,6 +2794,7 @@ ${mehrAuf(1)}
           if (!x.stopp) Object.assign(x, { stopp: true, stopp_s: STOPP.sek, stopp_anflug_s: STOPP.anflug, stopp_abflug_s: STOPP.abflug,
                                            stopp_zoom: 1.5, stopp_schwenk: 2, stopp_ken: 0, stopp_look: "schild", stopp_ortzeit: true, stopp_exif: false });
           x.stopp_s = Math.max(1, Math.round((+x.stopp_s || STOPP.sek) * f * 10) / 10);
+          if (Array.isArray(x.weitere) && x.weitere.length && f !== 1) x.stopp_weitere_s = Math.max(1, Math.round(WEITERES_S * f * 10) / 10);   // 15.11.2026
         });
       }
       if (w.fotoKreisen) st.forEach(x => { if (x.stopp && !x.clip && x.stopp_kamera !== false) x.stopp_kreisen = true; });
@@ -2825,6 +2914,7 @@ ${mehrAuf(1)}
                kam_leb: isFinite(+w.kamLeb) ? +w.kamLeb : null, halte_dauer: w.halteDauer || null, halte_alle: typeof w.halteAlle === "boolean" ? w.halteAlle : null,
                text_menge: w.textMenge || null, foto_menge: isFinite(+w.fotoMenge) ? +w.fotoMenge : null, schluss_an: an("sv-schluss-an"),
                foto_art: w.fotoArt, highlights: an("sv-highlights"), hl_arten: w.hlArten ? [...w.hlArten] : null, gebaeude: an("sv-gebaeude"),
+               collage: !!w.collage,   // 15.11.2026
                // 26.10.2026 — Reiter wie im Web
                ...(ASS ? { hoehe: w.hoehe, laufpunkt: w.lp === "fahrzeug" ? w.lpFz : w.lp, linie: Object.assign({}, w.ls), beschriftung: Object.assign({}, w.beschr), gelaende: w.gelaende, ghost: w.ghost } : {}) };
     };
@@ -2845,6 +2935,7 @@ ${mehrAuf(1)}
         const mu = box.querySelector("#sv-musik"); if (mu && st.musik) { mu.value = st.musik; musikListe(); }
         if (st.look) { w.look = st.look; box.querySelectorAll("[data-va-look]").forEach(b => b.classList.toggle("is-on", b.dataset.vaLook === w.look)); }
         if (st.foto_art) w.fotoArt = st.foto_art;
+        if (typeof st.collage === "boolean") { w.collage = st.collage; const e = box.querySelector("#va-collage"); if (e) e.checked = w.collage; }   // 15.11.2026
         if (st.kamera) { w.kamera = st.kamera; box.querySelectorAll("[data-va-kamera]").forEach(b => b.classList.toggle("is-on", b.dataset.vaKamera === w.kamera)); }
         if (st.kam_leb != null) { w.kamLeb = +st.kam_leb; const e = box.querySelector("#va-k-leb"); if (e) e.value = w.kamLeb; }
         if (typeof st.foto_kreisen === "boolean") { w.fotoKreisen = st.foto_kreisen; const e = box.querySelector("#va-h-kreisen"); if (e) e.checked = w.fotoKreisen; }
@@ -2942,7 +3033,12 @@ ${mehrAuf(1)}
       w.musik = box.querySelector("#sv-musik")?.value || "builtin:unterwegs";
       w.uebersicht = an("sv-uebersicht"); w.schlussAn = an("sv-schluss-an"); w.gebaeude = an("sv-gebaeude");
       w.fotoArt = fotoArtJetzt();
-      w.pip = w.fotoArt === "pip" ? ohneHaltJetzt().map(k => ({ path: k.f.path, von: k.von, bis: k.bis, ort: String(k.f.text || "").trim() || String(k.f.ort || "").split(",")[0].trim() })) : [];
+      w.pip = w.fotoArt === "pip" ? ohneHaltJetzt().map(k => {
+        // 15.11.2026 — mehrere Fotos der Stelle als Collage (core/collage.py über sign_image_thumb)
+        const alle = w.collage ? stelleFotos(k.f) : [];
+        const pfad_ = alle.length > 1 ? "rzcollage:" + JSON.stringify(alle.map(x => x.path)) : k.f.path;
+        return { path: pfad_, von: k.von, bis: k.bis, ort: String(k.f.text || "").trim() || String(k.f.ort || "").split(",")[0].trim() };
+      }) : [];
       w.regieFotos = w.fotoArt === "sofortbild" ? ohneHaltJetzt().map(k => k.bei) : [];
       hoerenStopp();
       w.eigenS = laengeKlemmen(box.querySelector("#sv-eigen")?.value || w.eigenS);
@@ -2951,6 +3047,7 @@ ${mehrAuf(1)}
                mehr_offen: w.mehrOffen, fotos_an: w.fotosAn, clips_an: w.clipsAn, clip_ton: w.clipTon, logbuch: w.logbuch,
                musik_an: w.musikAn, musik: w.musik, klick: w.klick, uebersicht: w.uebersicht, schluss_an: w.schlussAn, gebaeude: w.gebaeude,
                vorlage: w.vorlage, foto_art: w.fotoArt, sofort_groesse: w.sofortGroesse, foto_pause: w.fotoPause, angepasst: !!w.angepasst, tempo_regie: !!w.tempoRegie,
+               collage: !!w.collage,   // 15.11.2026
                ...(ASS ? { va: true, kamera: w.kamera, hoehe: w.hoehe, intro_s: w.introS, hold_s: w.holdS, erdkugel: w.introFlug === "erdkugel", intro_flug: w.introFlug || "ueberblick", schluss_flug: w.schlussFlug || "gesamtsicht", titel_an: w.titelAn !== false, fps: w.fps, einheiten: w.einheiten || null, pace: w.pace || "even",
                            logo_an: w.logoAn !== false, logo_lage: w.logoLage || "mitte", stil_id: w.stilId, orte_an: w.orteAn !== false, gipfel_titel: w.gipfelTitelAn !== false } : {}) };
     };
@@ -3039,6 +3136,7 @@ ${mehrAuf(1)}
       laeuft = true;
       let r;
       const schilder = schilderJetzt();
+      mitZusatz(patch, schilder);   // 15.11.2026 — weitere Fotos an Halten verlängern das Video
       // 11.10.2026 — live (Assistent) OHNE rzWarten: dessen Eingabesperre schluckte Klicks auf „Weiter“, während im Hintergrund
       // geschrieben wurde; der Fensterkopf zeigt stattdessen „wird eingetragen …“
       const st_ = live && m.el ? m.el.querySelector(".va-f-status") : null;
@@ -3208,8 +3306,9 @@ ${mehrAuf(1)}
       let r;
       try {
         const schilder = schilderJetzt();
-        r = rendern ? await api().schnellvideo_anlegen(pfad, name, vorlagePatch(animatorPatch(w, v)), letzte, schilder)   // warte-ok: eigener Bildschirm zeigt den Schritt
-          : await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, vorlagePatch(animatorPatch(w, v)), letzte, schilder));
+        const ap = mitZusatz(vorlagePatch(animatorPatch(w, v)), schilder);   // 15.11.2026 — weitere Fotos verlängern
+        r = rendern ? await api().schnellvideo_anlegen(pfad, name, ap, letzte, schilder)   // warte-ok: eigener Bildschirm zeigt den Schritt
+          : await rzWarten("schnellvideo_anlegen", () => api().schnellvideo_anlegen(pfad, name, ap, letzte, schilder));
       } catch (e) { r = { ok: false, error: String(e) }; }
       _svStartet = false;
       if (!r || !r.ok) {
@@ -3535,6 +3634,12 @@ ${mehrAuf(1)}
       box.querySelector("#va-glut-sek")?.addEventListener("input", (e) => { const v_ = box.querySelector("#va-glut-sek-v"); if (v_) v_.textContent = (+e.target.value).toLocaleString(window.rzSprachCode ? window.rzSprachCode() : undefined) + " s"; });
       box.querySelector("#va-glut-sek")?.addEventListener("change", (e) => lsSetz({ glut: true, glutSek: +e.target.value }));
       box.querySelector("#va-ls-zurueck")?.addEventListener("click", () => { w.ls = {}; w.ghost = null; vaLinie(); vaLive(); });
+      // 15.11.2026 — mehrere Fotos einer Stelle als Collage (ohne Halt)
+      box.querySelector("#va-collage")?.addEventListener("change", (e) => {
+        w.collage = !!e.target.checked;
+        try { fotosInfo(); vorschau.inhalt(); } catch (err) { if (window.rzSwallow) rzSwallow(err, "assistent:collage"); }
+        vaLive();
+      });
       // Fotos als: Sofortbild · Groß mit Halt · Bild im Bild (die Halte folgen der Art, bis man sie selbst ändert)
       box.querySelector("#va-fa")?.addEventListener("click", (e) => {
         const b = e.target.closest("[data-va-fa]"); if (!b) return;

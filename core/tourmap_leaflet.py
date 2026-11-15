@@ -15,6 +15,7 @@ kein 3D — das ist der „Spar"-Export für interaktive Blog-Einbettung.
   show_pins/start_label/end_label
   view_center:  [lat, lon] | None ; view_zoom: float | None  (sonst fitBounds)
   title/width/height
+  link_klick (15.11.2026): "schild" (Standard) = Klick zeigt ein Schild mit Name + Link wie am Pin, "sofort" = Klick öffnet.
   tracks[].link / link_ziel (08.11.2026): Track mit Link ist anklickbar — Überfahren zeigt den Namen, ein Klick öffnet die
                 Seite (link_ziel "_top" = Fenster der einbettenden Seite, "_blank" = neuer Tab). Nur http(s)-, mailto- und
                 relative Adressen; alles andere (javascript:, data: …) fällt weg.
@@ -28,6 +29,17 @@ from core import dateischutz as _ds  # 14.09.2026: jeder Datei-Eingriff geprüft
 from core import i18n as _i18n  # 29.09.2026 — Exportseite in der App-Sprache
 
 LEAFLET_VERSION = "1.9.4"
+
+
+def tour_name(name) -> str:
+    """Anzeigename eines Tracks. 15.11.2026 (Nutzer-Meldung Windows): die Web-Karte nahm beim Hinzufügen den Dateinamen
+    mit `split("/")` — unter Windows (Pfade mit `\\`) blieb so der ganze Pfad „C:\\Users\\…\\import\\Tour“ als Name stehen und
+    stand in der fertigen Karte. Ein Name, der wie ein ganzer Pfad aussieht, wird auf seinen letzten Teil gekürzt
+    (repariert bestehende Projekte); gewöhnliche Namen mit „/“ („Tag 1/2“) bleiben unverändert."""
+    s = str(name or "").strip()
+    if len(s) > 2 and ((s[1] == ":" and s[2] in "\\/") or s.startswith("\\\\") or (s.startswith("/") and s.count("/") > 1)):
+        s = s.replace("\\", "/").rstrip("/").split("/")[-1]
+    return s
 
 
 def sicherer_link(url) -> str:
@@ -154,7 +166,7 @@ def make_leaflet_html(params: dict) -> str:
                 "c": c, "col": str(t.get("color") or line_color),
                 "w": float(t.get("width", line_width) or line_width),
                 "pins": bool(t.get("show_pins", True)),
-                "name": str(t.get("name") or ""),
+                "name": tour_name(t.get("name")),
                 "link": sicherer_link(t.get("link")),
             })
     if not tracks_norm and track:
@@ -166,6 +178,8 @@ def make_leaflet_html(params: dict) -> str:
         "lineColor": line_color, "lineWidth": line_width,
         "showPins": show_pins, "startLabel": start_label, "endLabel": end_label,
         "linkZiel": "_blank" if params.get("link_ziel") == "_blank" else "_top",
+        # 15.11.2026 — Klick auf einen Track: erst Schild mit Name + Link (Standard) oder sofort öffnen
+        "linkKlick": "sofort" if params.get("link_klick") == "sofort" else "schild",
         "linkText": _i18n.t_aktiv("webkarte.link_oeffnen", "Zur Tour →"),
         # 04.09.2026 — Maßstabsleiste + Nordpfeil (Beta-Tester), Standard an
         "showScale": bool(params.get("show_scale", True)), "showNorth": bool(params.get("show_north", True)),
@@ -307,17 +321,45 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
   }
   function rzPopup(t, text){
     var h = esc(text);
-    if (t.link) h += '<br><a href="' + esc(t.link) + '" target="' + (D.linkZiel || '_top') + '" rel="noopener">' + esc(D.linkText || '→') + '</a>';
+    if (t.link) h += (h ? '<br>' : '') + '<a href="' + esc(t.link) + '" target="' + (D.linkZiel || '_top') + '" rel="noopener">' + esc(D.linkText || '→') + '</a>';
     return h;
   }
+  // 15.11.2026 (Nutzer-Meldung) — Name beim Überfahren lief mit der Maus mit (sticky) und blieb stehen, wenn die Maus
+  // die Karte verließ: hit.bringToFront() hängte die Klickfläche während des Überfahrens im SVG um, dann fehlte dem
+  // Browser das „mouseout“. Jetzt: Klickflächen in eigener Ebene über den Linien (nichts wird umgehängt), der Name
+  // steht fest dort, wo die Maus den Track erreicht, und verschwindet beim Verlassen von Track und Karte.
+  var rzTips = [];
+  function rzHitPane(){
+    if (!map.getPane('rzHit')) { map.createPane('rzHit').style.zIndex = 450; }
+    return 'rzHit';
+  }
+  function rzTipsZu(){ rzTips.forEach(function(x){ map.closeTooltip(x); }); }
+  map.getContainer().addEventListener('mouseleave', rzTipsZu);
+  var rzPopOffen = false;   // offenes Schild (Pin oder Track) → kein zusätzlicher Name beim Überfahren
+  map.on('popupopen', function(){ rzPopOffen = true; rzTipsZu(); });
+  map.on('popupclose', function(){ rzPopOffen = false; });
   function rzLinkTrack(t, line){
-    var w = t.w, hit = L.polyline(t.c, { weight:Math.max(16, w + 10), opacity:0, className:'rz-link' }).addTo(map);
-    if (t.name) hit.bindTooltip(esc(t.name), { sticky:true, direction:'top', className:'rz-link-tip' });
-    // die sichtbare Linie nach vorn, die Klickfläche darüber (sonst finge die Linie den Klick ab)
-    hit.on('mouseover', function(){ line.setStyle({ weight:w + 3 }); line.bringToFront(); hit.bringToFront(); });
-    hit.on('mouseout', function(){ line.setStyle({ weight:w }); });
-    hit.on('click', function(){ rzOeffnen(t.link); });
-    line.on('click', function(){ rzOeffnen(t.link); });
+    var w = t.w, hit = L.polyline(t.c, { weight:Math.max(16, w + 10), opacity:0, className:'rz-link',
+      pane:rzHitPane() }).addTo(map);
+    var tip = null;
+    if (t.name) {
+      tip = L.tooltip({ direction:'top', className:'rz-link-tip', offset:[0,-10], interactive:false }).setContent(esc(t.name));
+      rzTips.push(tip);
+    }
+    hit.on('mouseover', function(e){
+      line.setStyle({ weight:w + 3 }); line.bringToFront();
+      if (tip && !rzPopOffen) { rzTipsZu(); tip.setLatLng(e.latlng); map.openTooltip(tip); }
+    });
+    hit.on('mouseout', function(){ line.setStyle({ weight:w }); if (tip) map.closeTooltip(tip); });
+    // 15.11.2026 (Marc: „Wenn man direkt draufklickt und dann sofort rausspringt, ist das irgendwie doof“) — Standard:
+    // Klick zeigt an der Klickstelle dasselbe Schild wie am Pin (Name + „Zur Tour →“), erst der Link öffnet die Seite.
+    function klick(e){
+      if (D.linkKlick === 'sofort') { rzOeffnen(t.link); return; }
+      rzTipsZu();
+      L.popup({ className:'rz-link-pop', autoPan:true }).setLatLng(e.latlng).setContent(rzPopup(t, t.name || '')).openOn(map);
+    }
+    hit.on('click', klick);
+    line.on('click', klick);
   }
   // §17 — mehrere Tracks: pro Track eine Polylinie, fitBounds über die Vereinigung.
   var allB = null;
