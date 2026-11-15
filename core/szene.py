@@ -402,6 +402,69 @@ async def _warte_auf(page, js: str, timeout_s: float, was: str, is_cancelled=Non
     raise RuntimeError(f"Szene: Warten auf {was} abgebrochen nach {timeout_s:.0f}s — zuletzt {_warte_zeile(letzte, 400)}")
 
 
+#: 13.11.2026 — Start des Probelaufs (Kamera-Ausweichkurve, Geländehöhen der ruhigen Kamera): abbrechen erst, wenn sich so
+#: lange NICHTS mehr bewegt (vorher feste 120 s — über SSH/langsames Netz reichte das nicht, und die Meldung sagte nur
+#: „{"ok": false}“), höchstens aber PROBELAUF_MAX_S insgesamt.
+PROBELAUF_STILL_S = 180
+PROBELAUF_MAX_S = 1200
+
+_PROBELAUF_JS = """() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready),
+  phase: window.__rzStartPhase || null, schritt: !!window.__rzPreviewStep })"""
+
+
+def _probelauf_text(ph) -> str:
+    """Woran der Probelauf gerade wartet, in Worten (Fortschritt + Fehlermeldung)."""
+    if not isinstance(ph, dict) or not ph.get("was"):
+        return _i18n.t_aktiv("szene.start_unbekannt", "Vorbereitung startet")
+    was = ph.get("was")
+    if was == "ausweichen":
+        n, f, x = int(ph.get("kacheln") or 0), int(ph.get("fertig") or 0), int(ph.get("fehler") or 0)
+        t = _i18n.t_aktiv("szene.start_ausweichen", "Kamera-Ausweichen: Geländekacheln {f} von {n}").replace("{f}", str(f)).replace("{n}", str(n))
+        return t + (_i18n.t_aktiv("szene.start_fehler", " ({x} nicht geladen)").replace("{x}", str(x)) if x else "")
+    if was == "gelaendehoehen":
+        return _i18n.t_aktiv("szene.start_hoehen", "Geländehöhen für {n} Kamerapunkte laden").replace("{n}", str(ph.get("punkte") or "?"))
+    if was == "kamera":
+        return _i18n.t_aktiv("szene.start_kamera", "Kamerafahrt berechnen {f} von {n}").replace("{f}", str(ph.get("fertig") or 0)).replace("{n}", str(ph.get("punkte") or "?"))
+    return str(was)
+
+
+async def _warte_probelauf(page, is_cancelled=None, melden=None) -> dict:
+    """Auf `__rzPreviewStep.ready` warten, mit Phase in Fortschritt und Protokoll (siehe PROBELAUF_STILL_S)."""
+    t0 = time.time()
+    t_bewegt = t0
+    zeichen = None
+    naechster_log = t0 + 20
+    letzte = None
+    while True:
+        if is_cancelled and is_cancelled():
+            raise A.RenderCancelled()
+        try:
+            letzte = await page.evaluate(_PROBELAUF_JS)
+        except Exception as e:      # noqa: BLE001
+            letzte = {"err": str(e)[:200]}
+        jetzt = time.time()
+        if isinstance(letzte, dict) and letzte.get("ok"):
+            if jetzt - t0 > 10:
+                _log.info("Szene: Probelauf bereit nach %.0f s", jetzt - t0)
+            return letzte
+        ph = letzte.get("phase") if isinstance(letzte, dict) else None
+        z = json.dumps(ph, sort_keys=True, default=str)
+        if z != zeichen:
+            zeichen, t_bewegt = z, jetzt
+        text = _probelauf_text(ph)
+        if jetzt > naechster_log:
+            naechster_log = jetzt + 20
+            _log.info("Szene: warte auf Probelauf-Start (%.0f s) — %s · %s", jetzt - t0, text, _warte_zeile(letzte, 300))
+            if melden:
+                try: melden(0.05, _i18n.t_aktiv("szene.probelauf", "Szene: Probelauf im Schrittmodus …") + f" {text} · {jetzt - t0:.0f} s")
+                except Exception: pass   # noqa: E701
+        if jetzt - t_bewegt > PROBELAUF_STILL_S or jetzt - t0 > PROBELAUF_MAX_S:
+            raise RuntimeError(_i18n.t_aktiv("szene.err_probelauf", "Szene: Probelauf startet nicht — hängt bei: {was} (seit {s} s ohne Fortschritt, insgesamt {t} s)")
+                               .replace("{was}", text).replace("{s}", f"{jetzt - t_bewegt:.0f}").replace("{t}", f"{jetzt - t0:.0f}")
+                               + f" — {_warte_zeile(letzte, 400)}")
+        await asyncio.sleep(0.25)
+
+
 def _warte_grund(b) -> str:
     """25.09.2026 — woran die Bereitschaft (window.__rzAnimBereit) gerade hängt, in Worten.
     Vorher stand in der App minutenlang nur „Szene: Projekt öffnen …" (Klicktest AN-12/13)."""
@@ -595,6 +658,10 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
             "ohneVerlauf": bool((params or {}).get("overlay_ohne_verlauf"))}
     _keep = {k: True for k in (os.environ.get("RZ_KEEP") or "").split(",") if k}
     await page.add_init_script(_BRIDGE_JS.replace("__RZ_MODE__", json.dumps(mode)).replace("__RZ_KEEP__", json.dumps(_keep)))
+    # 15.11.2026 — nach einer hängenden Bildaufnahme: Zeichenfläche wie vor 0.9.861 begrenzen (ui/js/util.js rzRenderMaxCanvas).
+    # Das Bildschirmfoto bleibt gleich groß (Pixelfaktor unverändert), nur die Karte zeichnet mit weniger Pixeln.
+    if getattr(cfg, "_rz_kante_not", 0):
+        await page.add_init_script(f"window.__rzRenderMaxKante = {int(cfg._rz_kante_not)};")
     emit(0.02, _i18n.t_aktiv("szene.app_laden", "Szene: App laden …"))
     await page.goto(f"file://{UI_INDEX.resolve()}", wait_until="domcontentloaded")
     # Kachel-Cache erst NACH dem Laden der Seite einhängen: die Routen-Abfangung
@@ -605,6 +672,14 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     except Exception as e:      # noqa: BLE001
         _log.warning("Szene: Kachel-Cache nicht installiert: %s", e)
     await _warte_auf(page, "() => ({ ok: !!(window.RZGPS_MODULES && window.switchMod && window.loadGlobalGpx) })", 30, "App-Start", is_cancelled)
+    # 13.11.2026 — welche Grafik der Render-Browser hat (Kommandozeile über SSH: oft ohne Grafikkarte → Software)
+    try:
+        _gl = await page.evaluate("""() => { try { const g = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl');
+          if (!g) return 'kein WebGL'; const e = g.getExtension('WEBGL_debug_renderer_info');
+          return String(e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER)); } catch (e) { return 'Fehler ' + e; } }""")
+        _log.info("Szene: Grafik im Render-Browser: %s", _gl)
+    except Exception as e:      # noqa: BLE001
+        _log.info("Szene: Grafik im Render-Browser unbekannt (%s)", e)
     await page.wait_for_timeout(1500)
     emit(0.04, _i18n.t_aktiv("szene.projekt_oeffnen", "Szene: Projekt öffnen …"))
     await page.evaluate("() => { try { window.switchMod('library'); } catch (_) {} }")
@@ -723,6 +798,7 @@ async def _speicher_aufraeumen(page) -> bool:
 # startet Treiber + Chromium neu und macht beim abgebrochenen Bild weiter. Jedes Bild entsteht per seek(t) aus seiner
 # Zeit, nicht aus dem Bild davor — das Video läuft nahtlos weiter (Test test_render_neustart).
 NEUSTARTS_MAX = 2
+KANTE_NOT = 4096   # 15.11.2026 — Zeichenfläche nach hängender Bildaufnahme (so groß wie bis 0.9.860)
 _WEG_MUSTER = ("connection closed", "target page, context or browser has been closed", "browser has been closed",
                "target crashed", "browser has disconnected", "target closed")
 # Windows-Ausstiegscodes (NTSTATUS), die beim Treiber-Tod vorkommen — fürs Log, damit die Ursache lesbar ist
@@ -731,12 +807,20 @@ _WIN_CODES = {0xC0000005: "Zugriffsverletzung", 0xC0000409: "Notabbruch (oft Spe
               0xC0000142: "Start fehlgeschlagen (Ressourcen)", 1: "von außen beendet oder Fehler", 134: "abort (oft Speichermangel)"}
 
 
+def _bild_haengt(e: BaseException) -> bool:
+    """15.11.2026 (Nutzer-Meldung Windows: 4K, „Höchste Qualität“, H.265 — nach 383 von 1800 Bildern „Page.screenshot:
+    Timeout 30000ms exceeded“, das Video nach 17 min weg): die Bildaufnahme kommt nicht zurück — die Grafik des
+    Render-Browsers hängt. Die Seite selbst ist dabei nicht kaputt; ein frischer Browser macht weiter."""
+    t = str(e).lower()
+    return "screenshot" in t and "timeout" in t
+
+
 def _browser_weg(e: BaseException) -> bool:
     """Ist der Fehler „Treiber oder Browser nicht mehr da“ (→ Neustart), nicht ein Fehler in der Seite?"""
     if isinstance(e, A.RenderCancelled):
         return False
     t = str(e).lower()
-    return any(m in t for m in _WEG_MUSTER)
+    return any(m in t for m in _WEG_MUSTER) or _bild_haengt(e)
 
 
 async def _treiber_ende(cm) -> str:
@@ -871,7 +955,7 @@ async def kamera_export(cfg, *, api, projekt_id: str, ziel: str, params: Optiona
         browser, page, _dsf, _ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
         try:
             await page.evaluate("() => window.__rzPreviewRun()")
-            await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
+            await _warte_probelauf(page, is_cancelled, emit)
             total_ms = float(await page.evaluate("() => window.__rzPreviewStep.totalMs"))
             total_frames = max(1, int(round(total_ms / 1000.0 * cfg.fps)))   # wie render_szene: die Vorschau bestimmt die Länge
             await page.evaluate("() => { window.__rzBildNr = 0; }")
@@ -994,7 +1078,7 @@ async def highlights_export(cfg, *, api, projekt_id: str, ordner: str, params: O
         browser, page, _dsf, _ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
         try:
             await page.evaluate("() => window.__rzPreviewRun()")
-            await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
+            await _warte_probelauf(page, is_cancelled, emit)
             total_ms = float(await page.evaluate("() => window.__rzPreviewStep.totalMs"))
             total_frames = max(1, int(round(total_ms / 1000.0 * cfg.fps)))   # wie render_szene: die Vorschau bestimmt die Länge
             info = await page.evaluate(_HL_SCHILDER_JS.replace("__HL__", json.dumps(list(HL_ARTEN))))
@@ -1134,7 +1218,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
         sitz["browser"], sitz["page"] = browser, page
         melden(0.05, _i18n.t_aktiv("szene.probelauf", "Szene: Probelauf im Schrittmodus …"))
         await page.evaluate("() => window.__rzPreviewRun()")
-        await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
+        await _warte_probelauf(page, is_cancelled, melden)
         if os.environ.get("RZ_SEITE_JS"):
             await page.evaluate(os.environ["RZ_SEITE_JS"])
         return page
@@ -1353,9 +1437,20 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                 except Exception as _weg:     # noqa: BLE001
                     if not _browser_weg(_weg):
                         raise
-                    _treiber = await _treiber_ende(sitz["cm"])
-                    _log.warning("Szene: Render-Browser weg bei Bild %d / %d (%s) — Treiber: %s · Arbeitsspeicher %s",
-                                 frame + 1, total_frames, str(_weg)[:160], _treiber, _logger.arbeitsspeicher_label() or "unbekannt")
+                    if _bild_haengt(_weg):
+                        # 15.11.2026 — Grafik hängt: neu starten und die Karten-Zeichenfläche auf 4096 px begrenzen (so war es
+                        # bis 0.9.860, dort lief derselbe Render durch); das Bild wird bei 4K × Supersampling etwas weicher
+                        _kante = int(round(max(cfg.width, cfg.height) * A._render_ss(cfg.width, cfg.height, bool(getattr(cfg, "hohe_qualitaet", False)))))
+                        if _kante > KANTE_NOT and not getattr(cfg, "_rz_kante_not", 0):
+                            cfg._rz_kante_not = KANTE_NOT
+                        _log.warning("Szene: Bildaufnahme hängt bei Bild %d / %d (%s) — Render-Browser wird neu gestartet%s · "
+                                     "Arbeitsspeicher %s", frame + 1, total_frames, str(_weg).splitlines()[0][:120],
+                                     f", Zeichenfläche {_kante} → {KANTE_NOT} px" if getattr(cfg, "_rz_kante_not", 0) else "",
+                                     _logger.arbeitsspeicher_label() or "unbekannt")
+                    else:
+                        _treiber = await _treiber_ende(sitz["cm"])
+                        _log.warning("Szene: Render-Browser weg bei Bild %d / %d (%s) — Treiber: %s · Arbeitsspeicher %s",
+                                     frame + 1, total_frames, str(_weg)[:160], _treiber, _logger.arbeitsspeicher_label() or "unbekannt")
                     if _neustarts >= NEUSTARTS_MAX:
                         raise
                     _neustarts += 1
@@ -1490,7 +1585,7 @@ async def render_szene_frame(cfg, *, api, projekt_id: str, t_sek: float, params:
         browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
         try:
             await page.evaluate("() => window.__rzPreviewRun()")
-            await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
+            await _warte_probelauf(page, is_cancelled, emit)
             # Zweimal suchen: der erste Sprung lädt Kacheln/DEM für die neue Kamera nach, und
             # MapLibre bezieht die Kamerahöhe mit Gelände auf die Bodenhöhe im Mittelpunkt —
             # erst der zweite Sprung nach dem Laden steht exakt wie das Video (das Bild für

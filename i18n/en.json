@@ -7496,5 +7496,11 @@
   "container.schrift_fest": "Keep font",
   "container.schrift_fest_tip": "Another map look does not change the font of this overlay",
   "fotos.video_umwandeln": "This video can't be played here directly — GPS Studio converts it once. Depending on its length this takes a few seconds …",
-  "vorgang.video_umwandeln": "Converting the video for playback …"
+  "vorgang.video_umwandeln": "Converting the video for playback …",
+  "szene.start_unbekannt": "preparation starting",
+  "szene.start_ausweichen": "camera avoidance: terrain tiles {f} of {n}",
+  "szene.start_fehler": " ({x} not loaded)",
+  "szene.start_hoehen": "loading terrain heights for {n} camera points",
+  "szene.start_kamera": "calculating camera path {f} of {n}",
+  "szene.err_probelauf": "Scene: trial run does not start — stuck at: {was} (no progress for {s} s, {t} s in total)"
 }

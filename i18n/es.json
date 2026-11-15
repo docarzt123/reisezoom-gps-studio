@@ -7496,5 +7496,11 @@
   "container.schrift_fest": "Mantener tipografía",
   "container.schrift_fest_tip": "Otro aspecto de mapa no cambia la tipografía de este rótulo",
   "fotos.video_umwandeln": "Este vídeo no se puede reproducir aquí directamente: GPS Studio lo convierte una vez. Según su duración, tarda unos segundos …",
-  "vorgang.video_umwandeln": "Convirtiendo el vídeo para reproducirlo …"
+  "vorgang.video_umwandeln": "Convirtiendo el vídeo para reproducirlo …",
+  "szene.start_unbekannt": "empieza la preparación",
+  "szene.start_ausweichen": "esquivar con la cámara: teselas de terreno {f} de {n}",
+  "szene.start_fehler": " ({x} sin cargar)",
+  "szene.start_hoehen": "cargando alturas del terreno para {n} puntos de cámara",
+  "szene.start_kamera": "calculando el recorrido de la cámara {f} de {n}",
+  "szene.err_probelauf": "Escena: la prueba no arranca — se queda en: {was} (sin avance desde hace {s} s, {t} s en total)"
 }

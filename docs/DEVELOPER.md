@@ -5801,6 +5801,75 @@ Import: „ 2“, „ 3“ … hinter die gekürzte Basis (max. 60 Zeichen).
   `_fehl`/Nachholen, keine Störung, zählt in `_dienst_ergebnis` als Erfolg, wird gespeichert. Eine Logzeile je Region
   (`hier keine Abdeckung (404)`). Gelände-Kacheln unverändert. Wächter: `tests/test_kachel_keine_abdeckung.py`.
 
+## Hängende Bildaufnahme im Szenen-Render: Neustart mit kleinerer Zeichenfläche (15.11.2026, v0.9.862)
+
+Nutzer-Meldung (Windows 11, 4K, „Höchste Qualität“, H.265): bei Bild 383 von 1800 `Page.screenshot: Timeout 30000ms
+exceeded`, ~3 s je Bild davor, nach 17 min war die Teildatei gelöscht. Seit 0.9.861 (`maxCanvasSize` = `RENDER_MAX_KANTE`
+8192) zeichnet MapLibre bei 4K × SSAA 1,5 wirklich 5760×3240 (vorher gedeckelt auf 4096 und hochgezogen) — doppelte
+Pixelzahl für Grafik und MSAA-Puffer. Das Bildschirmfoto war schon vorher 5760×3240 (Pixelfaktor der Seite).
+
+- `core/szene.py` `_bild_haengt(e)`: Screenshot-Timeout zählt in `_browser_weg` als „Browser neu starten“ (vorhandener
+  Neustart-Weg, `NEUSTARTS_MAX` = 2, Bild wird neu gegriffen). Liegt die Zeichenfläche (Kante × `_render_ss`) über
+  `KANTE_NOT` (4096), setzt der Neustart `cfg._rz_kante_not`; `_seite_vorbereiten` legt dann
+  `window.__rzRenderMaxKante` per Init-Script in die neue Seite.
+- `ui/js/util.js` `rzRenderMaxCanvas()` nimmt `min(…, __rzRenderMaxKante)`. Der Pixelfaktor bleibt, das Bild hat also
+  dieselbe Größe (ffmpeg-Pipe unverändert), nur die Karte zeichnet mit weniger Pixeln.
+- Log: `Szene: Bildaufnahme hängt bei Bild … — Render-Browser wird neu gestartet, Zeichenfläche 5760 → 4096 px`.
+- Test `tests/test_bild_haengt.py` (Aufnahme-Timeout simuliert, `KANTE_NOT` im Test 300; Gegenprobe ohne Erkennung rot).
+
+## Video-Assistent merkt sich die Wahl je Projekt · Titelfeld behält den Fokus · Fenster unter Windows (14.11.2026, v0.9.862)
+
+**Video-Assistent (`ui/js/schnellvideo.js`).** Der Assistent baute seine Wahl `w` bisher immer aus Vorschlag + globaler
+„letzter Wahl“ (`schnellvideo_vorschlag().letzte`); Titel = Tourname, Look = Look der Vorlage, Linie `{}`. In einem
+bestehenden Projekt zeigte er dadurch nach dem Übernehmen wieder Vorgaben, und jedes weitere Übernehmen schrieb sie
+ins Projekt. Jetzt:
+- `uebernehmen()` (nicht live, also „Ins Projekt übernehmen“ und „Video erstellen …“) schreibt nach Erfolg
+  `va_wahl = { letzte: werteLesen(), stil: stilJetzt(), titel, unter, kicker, angepasst }` in die **Projekt-Wurzel**
+  (`saveActiveProjectPatch`, sonst `session_update_project_root`). Live-Schreiben und „Abbrechen“ merken nichts.
+- Beim Öffnen (`ASS && !VORL`, Projekt = aktives Projekt) liest `VW` diese Wahl: `L = {...letzte global, ...VW.letzte}`,
+  Texte aus `VW`, die vom Assistenten sonst erzwungenen Schalter (Fotos, Highlights, Schluss, Logbuch, Musik,
+  Übersicht) aus `L`; nach dem Aufbau setzt `stilSetzen(VW.stil)` Karte, Linie, Laufpunkt, Kamera … — dieselbe Funktion
+  wie für eigene ★-Vorlagen (`eigeneSetzen` ruft sie), **ohne** Live-Schreiben.
+- Grenze: Was danach im Animator von Hand geändert wurde, kennt `va_wahl` nicht; ändert man im Assistenten etwas, schreibt
+  das Live-Schreiben wie bisher den ganzen Assistenten-Stand.
+- Test: `test_videoassistent_projekt_wahl` (alter Code: 4 Fehler — Titel/Karte/Linie auf Anfang, zweites Übernehmen
+  überschreibt).
+
+**Titelfeld im Archiv (`modules/library/ui/module.js`).** `renderDetail()` ist jetzt eine Hülle um `_renderDetailInnen()`:
+hatte ein Text-Eingabefeld der rechten Spalte (mit `id`) den Fokus, bekommt das neu gebaute Feld denselben Text, Cursor
+und Fokus zurück (ohne `input`-Ereignis — sonst Endlosschleife mit dem getrimmten Speichern). Auslöser waren das
+Speichern des Titels (`saveName` → `renderView()` → `renderDetail()`), nachgeladene Vorschaubilder und
+`library_get_track`. Test: `test_tourtitel_tippen` (alter Code: 5 Fehler).
+
+**Fenster unter Windows (`app.py`).** Ein maximiertes Windows-Fenster hat Position (−8, −8) und ist um den Rand größer
+als der Bildschirm; das wurde beim Schließen als normale Größe gemerkt, beim Start kam ein übergroßes Fenster mittig
+(oben/seitlich über dem Rand). Jetzt:
+- beim Schließen: `win.native.WindowState` = Maximized (sonst Schätzung `_win_war_maximiert`) → nur
+  `window.maximiert = true`, die normale Größe/Position bleibt;
+- beim Start (nur Windows): `_bildschirme_logisch()` (`webview.screens`, logische Pixel), `maximiert` oder alte
+  Maximiert-Werte → `maximized=True`; `_win_fenster_einpassen()` begrenzt die Größe auf den größten Bildschirm und
+  übernimmt die Position nur, wenn die Titelleiste auf einem Bildschirm liegt (überstehend → zurückgeschoben, sonst mittig).
+- Mac unverändert (`mac_rahmen`). Nicht auf echtem Windows geprüft (keine VM); Protokollzeile `[fenster] Windows: …`
+  zeigt Bildschirme, gemerkte und genutzte Werte. Test: `test_fenster_windows`.
+
+## Probelauf-Start im Szenen-Render: Phase statt fester 120 s (13.11.2026, v0.9.862)
+
+Vor dem ersten Bild baut `runTimelinePreview(true)` im Schrittmodus die Kamera auf und setzt erst danach
+`__rzPreviewStep.ready`. Zwei Schritte davon hängen am Netz: `_ausweichBereit` (Kacheln über `rzSichtAusweichen.demLeser`
+→ `fetch`) und `_faithBuild` (`api.dem_hoehen` → `core/demsample`, wartet im Render ohne Zeitgrenze, weil die exakte Höhe
+zählt). Früher wartete `core/szene.py` fest 120 s und meldete nur `{"ok": false}`.
+
+- **`window.__rzStartPhase`** — `{was: "start" | "ausweichen" (teil, kacheln, fertig, fehler) | "gelaendehoehen" (punkte) |
+  "kamera" (fertig, punkte, hoehenFest) | "fertig"}`, gesetzt an den Wartestellen in `modules/animator/ui/module.js`.
+- **`_warte_probelauf(page, is_cancelled, melden)`** (`core/szene.py`, alle vier Render-Wege) — bricht erst ab, wenn sich
+  die Phase `PROBELAUF_STILL_S` (180 s) lang nicht ändert oder insgesamt `PROBELAUF_MAX_S` (1200 s) um sind; Fortschritt
+  und Protokoll alle 20 s mit der Phase in Worten (`_probelauf_text`, i18n `szene.start_*`, `szene.err_probelauf`).
+- `dem_hoehen` ist ein synchroner Brückenaufruf und blockiert die Playwright-Schleife, solange er läuft — die Phase
+  ändert sich danach, darum zählt der Stillstand nicht während des Aufrufs (Test C in `tests/test_probelauf_start.py`).
+- `demLeser.laden(punkte, fortschritt)` — `fetch` je Kachel mit 20-s-Zeitgrenze (AbortController), zählt Fehler.
+- Protokoll „Szene: Grafik im Render-Browser: …“ (UNMASKED_RENDERER) nach dem App-Start, „dem_hoehen: n/m Punkte … in
+  x s“ in `app.py`, wenn langsam (> 5 s) oder lückenhaft.
+
 ## Render-Browser stirbt — Neustart und Fortsetzen (16.10.2026)
 
 - **Anlass:** Windows-Log, `Page.evaluate: Connection closed while reading from the driver` bei Bild 213/1050 — der

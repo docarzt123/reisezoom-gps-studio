@@ -3956,7 +3956,29 @@ function mountLibrary(body, headerActions) {
       if (img) img.src = it.kartenbild; else if (el) renderDetail();
     }
   }
+  /** 14.11.2026 (Nutzer-Meldung: „beim Tourtitel kann ich einen Buchstaben löschen, aber keinen neuen einfügen“) — die
+   *  rechte Spalte wird oft neu gebaut, auch während man darin tippt: der Titel speichert nach 600 ms Pause und baut dabei
+   *  über renderView() die Spalte neu, ebenso nachgeladene Vorschaubilder und Angaben. Das Feld verlor dabei den Cursor —
+   *  alles danach Getippte ging ins Leere, und ein Leerzeichen am Ende verschwand (gespeichert wird getrimmt). Darum:
+   *  hatte ein Textfeld der Spalte den Fokus, steht es nach dem Neubau wieder mit demselben Text, Cursor und Fokus da. */
   function renderDetail() {
+    const box = $("lib-detail");
+    if (!box) return;   // Spalte weg (Archiv schon verlassen) — dann auch nichts schreiben (s. _renderDetailInnen)
+    const ae = document.activeElement;
+    const fokus = (box && ae && ae.id && box.contains(ae)
+                   && (ae.tagName === "TEXTAREA" || (ae.tagName === "INPUT" && /^(text|search|)$/.test(ae.type || ""))))
+      ? { id: ae.id, wert: ae.value, a: ae.selectionStart, e: ae.selectionEnd, pfad: _sel && _sel.path } : null;
+    _renderDetailInnen();
+    if (!fokus || !_sel || _sel.path !== fokus.pfad) return;
+    const f = document.getElementById(fokus.id);
+    if (!f || f === document.activeElement || !box.contains(f)) return;
+    if (f.value !== fokus.wert) {
+      f.value = fokus.wert;   // kein input-Ereignis: der Speicher-Takt dafür läuft schon
+      if (f.tagName === "TEXTAREA" && f.classList.contains("ld-titel")) { f.style.height = "auto"; f.style.height = f.scrollHeight + "px"; }
+    }
+    try { f.focus({ preventScroll: true }); f.setSelectionRange(fokus.a, fokus.e); } catch (_) {}
+  }
+  function _renderDetailInnen() {
     // 13.09.2026 (Echt-App-Test): Im Foto-Bereich gehört die rechte Spalte den Fotos.
     // Der Start lud die Tourenliste nach und schrieb danach das Tour-Detail hinein.
     if (_fotoView) return;

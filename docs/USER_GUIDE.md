@@ -1056,6 +1056,12 @@ steht in der Projektliste unter „Automatisch angelegt“. **„Ins Projekt üb
 **„Video erstellen …“** ohne Übernehmen lässt es unter „Automatisch angelegt“ stehen, so wie früher das Schnell-Video;
 benennst du es um, wird es ein normales Projekt. War die Tour schon in einem Projekt offen, arbeitet der Assistent darin.
 
+**Das Projekt merkt sich die Wahl (seit v0.9.862).** Öffnest du den Assistenten in einem Projekt noch einmal, in dem du
+schon „Ins Projekt übernehmen“ oder „Video erstellen …“ gedrückt hast, beginnt er mit genau dieser Wahl — Titel und
+Unterzeile, Stil, Karte, Linie, Kamera, Einblendungen, Fotos und Musik — statt wieder mit den Vorschlägen. Vorher stand
+dort alles auf Anfang, und ein zweites „Übernehmen“ schrieb die Vorschläge über deine Einstellungen. Was du danach im
+Animator selbst geändert hast, bleibt stehen, bis du im Assistenten an derselben Stelle etwas änderst.
+
 **Immer nur einer (seit 26.10.2026).** Solange der Assistent oder das Schnell-Video offen ist, startet kein zweites —
 ein Klick auf den anderen Knopf zeigt nur einen Hinweis. Vorher konnten zwei schnelle Klicks zwei Videos gleichzeitig anlegen.
 
@@ -4409,6 +4415,16 @@ meldeten dabei im Protokoll „[dateischutz] VERWEIGERT …“ für Zwischendate
 konnten dort liegen bleiben — Dateien mit `.tmp` im Namen unter `touren/` und `bilder/karten/` darfst du löschen.
 `--library` braucht einen Ordner, der schon eine GPS-Studio-Bibliothek ist (mit `bibliothek.json`); einen leeren Ordner
 richtet die Kommandozeile nicht als Bibliothek ein.
+
+### Der Render über die Kommandozeile bleibt bei „Probelauf im Schrittmodus“ stehen – was tun?
+Meist lädt GPS Studio dann noch Geländedaten aus dem Netz. Vor dem ersten Bild holt der Render die Höhen für die
+Kamerafahrt; bei einem langsamen oder gesperrten Netz dauert das. Seit v0.9.862 steht im Fortschritt und in der
+Logdatei, woran er gerade wartet („Geländehöhen für … Kamerapunkte laden“, „Kamera-Ausweichen: Geländekacheln … von …“,
+„Kamerafahrt berechnen … von …“), und er bricht erst ab, wenn drei Minuten lang nichts mehr vorangeht. Die Logdatei
+nennt außerdem die Grafik des Render-Browsers („Grafik im Render-Browser: …“) — steht dort SwiftShader oder ein
+anderer Software-Renderer, läuft der Render ohne Grafikkarte, zum Beispiel unter Windows in einer SSH-Sitzung, und
+ist deutlich langsamer. Prüfe, ob der Rechner in dieser Sitzung ins Internet kommt (die Geländedaten kommen von
+Amazon Web Services), und schick mir die Logdatei, wenn es weiter hängt.
 
 ### Track ist falsch positioniert auf der Karte
 Wahrscheinlich Zeitzonen-Problem: Foto-Aufnahmezeit passt nicht zur GPX-Track-Zeit. Lösung im Geotagger:

@@ -1243,7 +1243,20 @@
     if (!v || !v.ok) { _svStartet = false; toast((v && v.error) || T("common.error", "Fehler"), "error", 6000); return; }
     // 03.11.2026 — Kommandozeile `--template-file x.rzstyle`: die gelesene Vorlage kommt als weitere eigene dazu (nicht gespeichert)
     vaEigeneVideovorlagen((Array.isArray(v.videovorlagen_eigen) ? v.videovorlagen_eigen : []).concat(opts && opts.videovorlageEigen ? [opts.videovorlageEigen] : []));
-    const L = v.letzte || {};
+    // 14.11.2026 (Nutzer-Meldung: „nach Speichern geht alles wieder zurück auf die Anfangseinstellungen“) — ein bestehendes
+    // Projekt merkt sich die Wahl des Assistenten (`va_wahl`, Projekt-Wurzel, geschrieben bei „Ins Projekt übernehmen“ /
+    // „Video erstellen“). Beim erneuten Öffnen beginnt der Assistent damit statt mit den Vorgaben — vorher zeigte er Titel,
+    // Karte, Linie … wieder auf Anfang, und ein zweites „Übernehmen“ schrieb diese Vorgaben über das Projekt.
+    const VW = (() => {
+      if (!ASS || VORL) return null;
+      try { const pj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+        const x = pj && pj.id === P.id ? pj.va_wahl : null;
+        return (x && typeof x === "object" && x.letzte && typeof x.letzte === "object") ? x : null; } catch (_) { return null; }
+    })();
+    const L = Object.assign({}, v.letzte || {}, VW ? VW.letzte : {});
+    // Während die gemerkte Wahl gesetzt wird (stilSetzen klickt Knöpfe im Dialog), nicht für jeden dieser Klicks live ins
+    // Projekt schreiben — der Assistent schreibt nach dem Öffnen ohnehin einmal den ganzen Stand
+    let vaRuhe = false;
     const w = {
       format: FORMATE[L.format] ? L.format : "9:16",
       laenge: (LAENGEN[L.laenge] || (L.laenge === "eigen" && opts && opts.assistent)) ? L.laenge : "normal",   // 06.10.2026 — nur noch Kurz/Normal/Lang; der Assistent merkt sich auch „Eigene“
@@ -1281,6 +1294,11 @@
       if (!L.musik || String(L.musik).startsWith("builtin:")) w.musik = V.musik;
     }
     if (!w.fotoArt) w.fotoArt = VORLAGEN[w.vorlage].fotoArt;
+    if (VW) {   // 14.11.2026 — Texte des Projekts statt Tourname/Datum
+      if (typeof VW.titel === "string") w.titel = VW.titel;
+      if (typeof VW.unter === "string") w.unter = VW.unter;
+      if (typeof VW.kicker === "string") w.kicker = VW.kicker;
+    }
     // Der Assistent schlägt vor — Fotos, Highlights, Schlusskarte und Musik an, auch wenn das Schnell-Video zuletzt ohne lief
     if (ASS) { w.look = VORLAGEN[w.vorlage].look; w.kamera = "fahrt"; w.fotosAn = true; w.highlights = true; w.schlussAn = true; w.logbuch = true;
       // 26.10.2026 — Reiter wie im Web: Höhe, Laufpunkt, Linie (nur Eigenes über dem Look), Beschriftung/Gelände/Vorab-Strecke
@@ -1306,6 +1324,14 @@
         w.introFlug = VA_INTRO_FLUG.includes(L.intro_flug) ? L.intro_flug : (L.erdkugel ? "erdkugel" : "ueberblick");
         w.schlussFlug = VA_SCHLUSS_FLUG.includes(L.schluss_flug) ? L.schluss_flug : "gesamtsicht";
       } else w.uebersicht = false;
+      if (VW) {   // 14.11.2026 — gemerkte Schalter des Projekts statt „der Assistent schlägt vor“ (s. VW oben)
+        if (typeof L.fotos_an === "boolean") w.fotosAn = L.fotos_an;
+        if (typeof L.highlights === "boolean") w.highlights = L.highlights;
+        if (typeof L.schluss_an === "boolean") w.schlussAn = L.schluss_an;
+        if (typeof L.logbuch === "boolean") w.logbuch = L.logbuch;
+        if (typeof L.musik_an === "boolean") w.musikAn = L.musik_an;
+        if (typeof L.uebersicht === "boolean") w.uebersicht = L.uebersicht;
+      }
       // 26.10.2026 (Klicktest: ein 16:9-Projekt in 3840×2160 wurde beim Öffnen 9:16 in 1080 — das Format kam vom letzten
       // Schnell-Video) — Format und Auflösung des offenen Projekts bleiben, bis man sie im Reiter Kamera ändert
       if (!VORL) try {   // vorläufiges Projekt (frische Tour): das gemerkte Format
@@ -2802,9 +2828,10 @@ ${mehrAuf(1)}
                // 26.10.2026 — Reiter wie im Web
                ...(ASS ? { hoehe: w.hoehe, laufpunkt: w.lp === "fahrzeug" ? w.lpFz : w.lp, linie: Object.assign({}, w.ls), beschriftung: Object.assign({}, w.beschr), gelaende: w.gelaende, ghost: w.ghost } : {}) };
     };
-    const eigeneSetzen = (id) => {
-      const E = eigene.find(x => x.id === id); if (!E) return;
-      const st = E.stil || {};
+    /** Einen gespeicherten Stil (Form von stilJetzt) in Dialog und Wahl setzen — für eigene Vorlagen und (14.11.2026) die
+     *  gemerkte Wahl des Projekts beim erneuten Öffnen. */
+    const stilSetzen = (st) => {
+      st = st || {};
       if (VORLAGEN[st.vorlage]) vorlageSetzen(st.vorlage);
       vlSetzt = true;
       try {
@@ -2839,6 +2866,10 @@ ${mehrAuf(1)}
           if (st.foto_art) box.querySelectorAll("[data-va-fa]").forEach(b => b.classList.toggle("is-on", b.dataset.vaFa === w.fotoArt));
         }
       } finally { vlSetzt = false; }
+    };
+    const eigeneSetzen = (id) => {
+      const E = eigene.find(x => x.id === id); if (!E) return;
+      stilSetzen(E.stil);
       w.eigeneVorlage = id; w.angepasst = false;
       box.querySelectorAll("[data-sv-vorlage]").forEach(b => b.classList.remove("is-on"));
       eigeneZeichnen();
@@ -2870,6 +2901,18 @@ ${mehrAuf(1)}
       toast(T("va.v_gespeichert", "Vorlage „{n}“ gemerkt — beim nächsten Video auf der ersten Seite wählbar.", { n: name }), "success", 4000);
     });
     eigeneZeichnen();
+    // 14.11.2026 — gemerkte Wahl des Projekts (s. VW): Karte, Linie, Kamera, Einblendungen … wie beim letzten Übernehmen.
+    // Ohne Live-Schreiben — im Projekt steht es ja schon so.
+    if (VW && VW.stil && typeof VW.stil === "object") {
+      vaRuhe = true;
+      try {
+        stilSetzen(VW.stil);
+        if (typeof VW.angepasst === "boolean") w.angepasst = VW.angepasst;
+        fotosInfo(); zutatenStand(); vlStand(); vorschau.stil();
+        applog("info", `[assistent] gemerkte Wahl des Projekts ${P.id} geladen`);
+      } catch (e) { if (window.rzSwallow) rzSwallow(e, "assistent:wahl laden"); }
+      finally { vaRuhe = false; }
+    }
     box.querySelector("#sv-vorlagen")?.addEventListener("click", (e) => {
       const b = e.target.closest("[data-sv-vorlage]"); if (b) { w.eigeneVorlage = null; vorlageSetzen(b.dataset.svVorlage); eigeneZeichnen(); }
     });
@@ -3006,6 +3049,15 @@ ${mehrAuf(1)}
       laeuft = false;
       if (st_) st_.hidden = true;
       if (!r || !r.ok) { toast((r && r.error) || T("common.error", "Fehler"), "error", 6000); return; }
+      // 14.11.2026 — die Wahl im Projekt merken (s. VW), damit der Assistent beim nächsten Öffnen dort weitermacht
+      if (ASS && !live) {
+        try {
+          const wahl = { letzte, stil: stilJetzt(), titel: w.titel, unter: w.unter, kicker: w.kicker || "", angepasst: !!w.angepasst };
+          const pj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+          if (pj && pj.id === P.id && typeof saveActiveProjectPatch === "function") saveActiveProjectPatch({ va_wahl: wahl });
+          else await api().session_update_project_root(((typeof getActiveSession === "function" && getActiveSession()) || {}).track_hash || "", P.id, { va_wahl: wahl });   // warte-ok: Millisekunden
+        } catch (e) { if (window.rzSwallow) rzSwallow(e, "assistent:wahl merken"); }
+      }
       // 12.10.2026 — inzwischen ein anderes Modul offen: gespeichert ist es, den Rest (Animator anwenden, Blickrichtung,
       // Highlight-Schilder) holt die Rückkehr in den Animator nach (beimAnimator → vaLive); die Karte ist gerade abgebaut
       // 01.11.2026 — nach „Abbrechen“ nichts mehr nachschreiben (sonst landeten Highlight-Schilder in der frisch geladenen Tour)
@@ -3088,7 +3140,7 @@ ${mehrAuf(1)}
     let vaEnde = false;   // „Abbrechen“ gedrückt — laufendes Live-Schreiben hört auf (s. uebernehmen)
     /** Nach einer Antwort kurz warten, dann in den Animator schreiben (mehrere Klicks = ein Schreibvorgang). */
     const vaLive = () => {
-      if (!ASS) return;
+      if (!ASS || vaRuhe) return;
       clearTimeout(liveTimer);
       liveTimer = setTimeout(() => { uebernehmen("live").catch((e) => { try { applog("warn", "[assistent] live: " + e); } catch (_) {} }); }, 250);
     };

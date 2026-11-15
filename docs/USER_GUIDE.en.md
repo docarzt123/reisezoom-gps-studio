@@ -996,6 +996,12 @@ is listed under „Created automatically“. **„Keep as project“** turns it 
 under „Created automatically“, just like the quick video used to; rename it and it becomes a normal project. If the tour
 was already open in a project, the assistant works in that project.
 
+**The project remembers your choices (since v0.9.862).** If you open the assistant again in a project where you already
+clicked “Keep as project” or “Create video …”, it starts with exactly those choices — title and subtitle, style, map,
+line, camera, overlays, photos and music — instead of the suggestions. Before, everything was back at the start, and a
+second “Keep” wrote the suggestions over your settings. Whatever you changed yourself in the Animator afterwards stays
+until you change the same thing in the assistant.
+
 **Only one at a time (since 26.10.2026).** While the assistant or the quick video is open, no second one starts — a click
 on the other button only shows a note. Before, two quick clicks could create two videos at the same time.
 
@@ -4146,6 +4152,16 @@ disk and pass the tour as a GPX file or by its `id` from `gpsstudio tours`. Olde
 VERWEIGERT …” for intermediate files in the library, and those files could stay behind — files with `.tmp` in their
 name under `touren/` and `bilder/karten/` can be deleted. `--library` needs a folder that already is a GPS Studio
 library (with `bibliothek.json`); the command line does not set up an empty folder as a library.
+
+### A command-line render stops at “trial run in step mode” – what can I do?
+Usually GPS Studio is still loading terrain data from the internet. Before the first frame the render fetches the
+heights for the camera path; on a slow or blocked network this takes a while. Since v0.9.862 the progress and the log
+file say what it is waiting for (“loading terrain heights for … camera points”, “camera avoidance: terrain tiles … of
+…”, “calculating camera path … of …”), and it only gives up when nothing has moved for three minutes. The log file
+also names the graphics of the render browser (“Grafik im Render-Browser: …”) — if it says SwiftShader or another
+software renderer, the render runs without a graphics card, for example on Windows in an SSH session, and is much
+slower. Check that the computer can reach the internet in that session (the terrain data comes from Amazon Web
+Services), and send me the log file if it still hangs.
 
 ### The track is positioned wrong on the map
 Probably a time-zone problem: the photo capture time doesn't match the GPX track time. Solution in the Geotagger:

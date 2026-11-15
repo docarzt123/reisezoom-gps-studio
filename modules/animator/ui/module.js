@@ -8265,7 +8265,9 @@ function mountAnimator(body, headerActions, opts) {
       const dauerS = totalMs / 1000;
       const p = (async () => {
         const t0 = performance.now();
-        await dem.laden(punkte);
+        const _ph = (teil) => (i, n, f) => { window.__rzStartPhase = { was: "ausweichen", teil, kacheln: n, fertig: i, fehler: f }; };
+        _ph(1)(0, 0, 0);
+        await dem.laden(punkte, _ph(1));
         // Strahlen: Kacheln entlang der Sichtlinien (grob: Kameraort der Grundstellung und Strecke dazwischen)
         const ray = [];
         for (const q of proben) {
@@ -8274,7 +8276,7 @@ function mountAnimator(body, headerActions, opts) {
           const kam = SA.kameraPos(q.mitte, h, q.zoom, q.neigung, q.richtung, hPx, fov);
           for (let u = 0; u <= 1; u += 0.1) ray.push([kam.lng + (q.ziele[0][0] - kam.lng) * u, kam.lat + (q.ziele[0][1] - kam.lat) * u]);
         }
-        await dem.laden(ray);
+        await dem.laden(ray, _ph(2));
         const kurve = SA.plan(proben, { hoehe: dem.hoehe, hoehePx: hPx, fov, dauerS, rampeS: 3 });
         if (_auswLaeuft && _auswLaeuft.schluessel !== schluessel) return false;   // inzwischen überholt
         const _neu = (kurve.geloest > 0) ? kurve : null;
@@ -13733,6 +13735,8 @@ function mountAnimator(body, headerActions, opts) {
               // 13.10.2026 (Klicktest, gedrosseltes Netz) — in der Vorschau höchstens DEM_WARTE_MS auf die festen Höhen warten,
               // danach mit den Höhen der Karte weiter (else-Zweig unten); die Anfrage läuft weiter und füllt den Cache fürs
               // nächste Play. Der Video-Render (__rzStepMode) wartet wie bisher — dort zählt die exakte Höhe.
+              // 13.11.2026 — Startanzeige des Renders: woran der Probelauf gerade wartet (core/szene.py _warte_probelauf)
+              window.__rzStartPhase = { was: "gelaendehoehen", punkte: _plan.length };
               const _demP = api().dem_hoehen(_plan.map((q) => [q.ll[0], q.ll[1]]), 13);
               const r = window.__rzStepMode ? await _demP
                 : await Promise.race([_demP, new Promise((ok) => setTimeout(() => ok({ ok: false, error: "zeitgrenze" }), DEM_WARTE_MS))]);   // warte-ok: Sanduhr am Play-Knopf
@@ -13743,6 +13747,7 @@ function mountAnimator(body, headerActions, opts) {
           }
           for (let _k = 0; _k < _plan.length; _k++) {
             const { tz, a, ip, zm, ll, db } = _plan[_k];
+            window.__rzStartPhase = { was: "kamera", fertig: _k, punkte: _plan.length, hoehenFest: !!_demH };
             _jumpTrotzDem({ center: ll, zoom: zm, pitch: ip.pitch, bearing: (ip.bearing || 0) + (db || 0) });
             let ez = null, eM = null;
             const _hFest = _demH ? _demH[_k] : null;
@@ -14366,7 +14371,8 @@ function mountAnimator(body, headerActions, opts) {
           try { if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), +tSek || 0); } catch (_) {}
           step(_ms);
         } };
-      const _fertig = () => { window.__rzPreviewStep.ready = true; };
+      window.__rzStartPhase = { was: "start" };
+      const _fertig = () => { window.__rzStartPhase = { was: "fertig" }; window.__rzPreviewStep.ready = true; };
       // 29.10.2026 — erst die Ausweich-Kurve (die ruhige Kamera baut sie in ihre Stützstellen ein), dann wie bisher
       const _faithBuild0 = _faithBuild;
       if (_faithBuild0) _faithBuild = () => _ausweichBereit(totalMs).then(() => _faithBuild0());

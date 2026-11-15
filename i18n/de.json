@@ -7496,5 +7496,11 @@
   "container.schrift_fest": "Schrift behalten",
   "container.schrift_fest_tip": "Ein anderer Karten-Look ändert die Schrift dieser Einblendung nicht",
   "fotos.video_umwandeln": "Dieses Video kann hier nicht direkt abgespielt werden — GPS Studio wandelt es einmal um. Das dauert je nach Länge ein paar Sekunden …",
-  "vorgang.video_umwandeln": "Video wird zum Abspielen umgewandelt …"
+  "vorgang.video_umwandeln": "Video wird zum Abspielen umgewandelt …",
+  "szene.start_unbekannt": "Vorbereitung startet",
+  "szene.start_ausweichen": "Kamera-Ausweichen: Geländekacheln {f} von {n}",
+  "szene.start_fehler": " ({x} nicht geladen)",
+  "szene.start_hoehen": "Geländehöhen für {n} Kamerapunkte laden",
+  "szene.start_kamera": "Kamerafahrt berechnen {f} von {n}",
+  "szene.err_probelauf": "Szene: Probelauf startet nicht — hängt bei: {was} (seit {s} s ohne Fortschritt, insgesamt {t} s)"
 }

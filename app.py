@@ -189,7 +189,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.861"
+APP_VERSION = "0.9.862"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -14352,8 +14352,12 @@ class Api:
         from core import demsample
         try:
             pts = list(points or [])
+            _t0 = time.time()
             h = demsample.hoehen(pts, z=int(z or demsample.DEM_ZOOM), cache_dir=canim.TILE_CACHE_DIR)
             n_ok = sum(1 for v in h if v is not None)
+            # 13.11.2026 — langsam oder lückenhaft (Netz, Kommandozeile über SSH) im Protokoll sichtbar machen
+            if time.time() - _t0 > 5 or n_ok < len(pts):
+                log.info("dem_hoehen: %d/%d Punkte mit Höhe in %.1f s (Kachel-Cache %s)", n_ok, len(pts), time.time() - _t0, canim.TILE_CACHE_DIR)
             return {"ok": n_ok > 0, "hoehen": h, "z": int(z or demsample.DEM_ZOOM), "n": len(pts), "n_ok": n_ok}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}", "hoehen": []}
@@ -20661,6 +20665,46 @@ def _mac_rahmen_sichtbar(r) -> bool:
         return False
 
 
+def _bildschirme_logisch():
+    """14.11.2026 — Bildschirme in logischen Pixeln (wie pywebviews x/y/Breite/Höhe) als [(x, y, b, h)]; leer, wenn nicht
+    lesbar. Unter Windows über pywebview (`webview.screens`, geht vor `webview.start`)."""
+    try:
+        import webview  # type: ignore
+        return [(int(sc.x), int(sc.y), int(sc.width), int(sc.height)) for sc in (webview.screens or [])
+                if int(sc.width) > 0 and int(sc.height) > 0]
+    except Exception as e:  # noqa: BLE001
+        log.info("[fenster] Bildschirme nicht lesbar: %s", e)
+        return []
+
+
+def _win_war_maximiert(x: int, y: int, w: int, h: int, schirme) -> bool:
+    """14.11.2026 (Nutzer-Meldung Windows: „die App startet immer verschoben, rechts oben außerhalb des Monitors“) — ein
+    maximiertes Windows-Fenster steht ein paar Pixel links/über dem Bildschirm (−8, −8) und ist um diesen Rand größer als
+    der Bildschirm. Bis 0.9.862 wurde das beim Schließen als normale Größe gemerkt; beim Start kam ein übergroßes Fenster,
+    zentriert → oben und seitlich über den Rand. Erkennt solche gemerkten Werte (auch alte, ohne `maximiert`)."""
+    for (sx, sy, sw, sh) in schirme or []:
+        if x < sx and y < sy and x > sx - 40 and y > sy - 40 and w >= sw and h >= sh * 0.85:
+            return True
+    return False
+
+
+def _win_fenster_einpassen(x: int, y: int, w: int, h: int, schirme):
+    """14.11.2026 — gemerkte Fenster-Geometrie unter Windows einpassen: Größe höchstens so groß wie der größte Bildschirm,
+    Position nur, wenn die Titelleiste auf einem Bildschirm liegt (sonst None = mittig). Gibt (x|None, y|None, w, h)."""
+    if not schirme:
+        return (x if x >= 0 else None), (y if y >= 0 else None), w, h
+    gb = max(schirme, key=lambda s_: s_[2] * s_[3])
+    w2, h2 = min(w, gb[2]), min(h, gb[3])
+    for (sx, sy, sw, sh) in schirme:
+        bx = min(x + w2 - 40, sx + sw) - max(x + 40, sx)
+        if bx >= min(200, w2 - 80) and sy <= y <= sy + sh - 40:
+            # ganz auf diesen Bildschirm schieben, wenn es rechts/unten übersteht
+            x2 = max(sx, min(x, sx + sw - w2)); y2 = max(sy, min(y, sy + sh - h2))
+            return x2, y2, min(w2, sw), min(h2, sh)
+    log.info("[fenster] gemerkte Position (%d,%d %dx%d) liegt auf keinem Bildschirm — öffne mittig", x, y, w, h)
+    return None, None, w2, h2
+
+
 def _mac_rahmen_als_xy(r):
     """Globaler Cocoa-Rahmen [x, y von unten, b, h] → pywebview-x/y (links/oben relativ zu NSScreen.mainScreen, y von
     oben). pywebview rechnet beim Verschieben genau zurück: Oberkante = Bildschirm-Unterkante + Höhe − y."""
@@ -20767,6 +20811,21 @@ def main() -> None:
     _win_x = int(_win_cfg.get("x") if _win_cfg.get("x") is not None else -1)
     _win_y = int(_win_cfg.get("y") if _win_cfg.get("y") is not None else -1)
     _have_remembered = (_win_w > 200 and _win_h > 200)
+    # 14.11.2026 (Nutzer-Meldung Windows, s. _win_war_maximiert) — maximiert geschlossen → maximiert öffnen; die gemerkte
+    # Größe ist dann die normale (vor dem Maximieren). Alte gemerkte Werte eines maximierten Fensters erkennen und einpassen.
+    _win_maxi = False
+    _win_xy_ok = True
+    if sys.platform == "win32" and _have_remembered:
+        _schirme = _bildschirme_logisch()
+        _win_maxi = bool(_win_cfg.get("maximiert")) or _win_war_maximiert(_win_x, _win_y, _win_w, _win_h, _schirme)
+        _nx, _ny, _win_w, _win_h = _win_fenster_einpassen(_win_x, _win_y, _win_w, _win_h, _schirme)
+        if _nx is None or _ny is None:
+            _win_xy_ok = False
+        else:
+            _win_x, _win_y = _nx, _ny
+        log.info("[fenster] Windows: Bildschirme %s · gemerkt %s → %s×%s @ (%s,%s)%s", _schirme,
+                 {k: _win_cfg.get(k) for k in ("x", "y", "width", "height", "maximiert")}, _win_w, _win_h,
+                 _win_x if _win_xy_ok else "mittig", _win_y if _win_xy_ok else "", " · maximiert" if _win_maxi else "")
 
     create_kwargs = dict(
         title=APP_NAME,   # v0.9.331 — editionsabhängig (Studio / Geotagger)
@@ -20776,7 +20835,7 @@ def main() -> None:
         height=_win_h if _have_remembered else 900,
         min_size=(1100, 720),
         background_color="#0e1116",
-        maximized=(not _have_remembered),
+        maximized=(not _have_remembered) or _win_maxi,
     )
     # 21.10.2026 (zweite Nutzer-Meldung: „der zweite Monitor war immer angeschlossen, eventuell nicht ausgewählt“) —
     # pywebview rechnet x/y relativ zum gerade AKTIVEN Bildschirm (NSScreen.mainScreen = der mit dem Fokus) um, gemerkt
@@ -20793,7 +20852,7 @@ def main() -> None:
     if _mac_xy:
         create_kwargs["x"], create_kwargs["y"] = _mac_xy
         create_kwargs["width"], create_kwargs["height"] = int(_mac_rahmen[2]), int(_mac_rahmen[3])
-    elif _have_remembered and _win_x >= 0 and _win_y >= 0 and _fenster_sichtbar(_win_x, _win_y, _win_w, _win_h):
+    elif _have_remembered and _win_xy_ok and _win_x >= 0 and _win_y >= 0 and _fenster_sichtbar(_win_x, _win_y, _win_w, _win_h):
         create_kwargs["x"] = _win_x
         create_kwargs["y"] = _win_y
     _fenster_absturz_abfangen()
@@ -20956,16 +21015,34 @@ def main() -> None:
                         mac_rahmen = [round(fr.origin.x), round(fr.origin.y), round(fr.size.width), round(fr.size.height)]
                     except Exception:  # noqa: BLE001
                         pass
-                _cur_settings = _load_settings()
-                _wcfg = _cur_settings.get("window") or {}
+                _wcfg = _load_settings().get("window") or {}
+                _merken = False
+                # 14.11.2026 (Nutzer-Meldung Windows, s. _win_war_maximiert) — maximiert: nur das merken, die normale
+                # Größe/Position von vorher bleibt (sonst öffnete das nächste Mal ein übergroßes, verschobenes Fenster)
+                if sys.platform == "win32":
+                    try:
+                        _maxi = str(win.native.WindowState).endswith("Maximized")
+                    except Exception:  # noqa: BLE001
+                        _maxi = _win_war_maximiert(x, y, w, h, _bildschirme_logisch())
+                    if _maxi:
+                        _wcfg["maximiert"] = True
+                        _merken = True
+                        log.info("Fenster-Geometrie gespeichert: maximiert (normale Größe bleibt %s×%s)",
+                                 _wcfg.get("width"), _wcfg.get("height"))
+                        w = h = 0   # Größe/Position nicht überschreiben
+                    else:
+                        _wcfg["maximiert"] = False
                 # Sanity-Check: nicht miniaturisierte / negative Werte
                 if w >= 200 and h >= 200:
                     _wcfg.update(width=w, height=h, x=x, y=y)
                     if mac_rahmen:
                         _wcfg["mac_rahmen"] = mac_rahmen
+                    _merken = True
+                    log.info(f"Fenster-Geometrie gespeichert: {w}×{h} @ ({x},{y})")
+                if _merken:
+                    _cur_settings = _load_settings()   # frisch lesen, nur „window“ ersetzen
                     _cur_settings["window"] = _wcfg
                     _save_settings(_cur_settings)
-                    log.info(f"Fenster-Geometrie gespeichert: {w}×{h} @ ({x},{y})")
             except Exception as e:
                 try: log.warning(f"Fenster-Geometrie konnte nicht gespeichert werden: {e}")
                 except Exception: pass

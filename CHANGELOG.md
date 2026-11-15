@@ -14,6 +14,31 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.862] – 2026-11-15
+
+### Fixed
+- **4K video with “Highest quality” stopped part-way** (Windows): since 0.9.861 the map is drawn at full size
+  (5760 px wide at 4K × 1.5) instead of being capped at 4096 px. On weaker graphics a single frame capture could then
+  take longer than 30 seconds, and the whole render was thrown away. Now a stuck frame capture restarts the render
+  browser and the render carries on at the same frame; from there the map is drawn at 4096 px again, as before 0.9.861
+  (the video keeps its size, the map is slightly softer). The log says when this happened.
+- **Command-line render stuck at “trial run in step mode”**: before the first frame the render loads terrain data from
+  the internet (heights for the camera path, terrain tiles for the camera avoiding hills). On a slow or blocked network
+  it gave up after a fixed 120 seconds with only `{"ok": false}`. Now the progress and the log say what it is waiting
+  for, a single terrain tile request gives up after 20 seconds, and the render only stops when nothing has moved for
+  three minutes. The log also names the graphics used by the render browser.
+- **Video assistant forgot your choices**: opened again in a project, it started from the suggestions (tour name as
+  title, default map, line without your colour) — and a second “Keep as project” wrote those suggestions over the
+  project. The project now remembers what you chose in the assistant (title and subtitle, style, map, line, camera,
+  overlays, photos, music), and the assistant starts with it, also after restarting the app.
+- **Tour title in the archive could not be edited**: after a short pause while typing, the title was saved and the right
+  column rebuilt; the field lost the cursor, so deleting worked but anything typed afterwards went nowhere, and a space
+  at the end disappeared. The field now keeps text, cursor and focus when the column is rebuilt.
+- **Window opened shifted on Windows** (partly outside the screen): a maximized window was remembered as an oversized
+  normal window and reopened centred, sticking out at the top and sides. The app now remembers “maximized” and opens
+  maximized again; on Windows a remembered size and position are fitted to the current screens (a window on a monitor
+  that is gone opens centred).
+
 ## [0.9.861] – 2026-11-13
 
 ### Added

@@ -2724,6 +2724,8 @@ function rzRenderMaxCanvas() {
       const ext = gl.getExtension("WEBGL_lose_context"); if (ext) ext.loseContext();
     }
   } catch (_) {}
+  // 15.11.2026 — nach einer hängenden Bildaufnahme setzt der Render (core/szene.py KANTE_NOT) eine kleinere Grenze
+  try { const n = +window.__rzRenderMaxKante; if (n > 0) g = Math.min(g, n); } catch (_) {}
   _rzMaxCanvas = [g, g];
   try { if (window.applog) window.applog("info", `[render] größte Zeichenfläche ${g} px`); } catch (_) {}
   return _rzMaxCanvas;

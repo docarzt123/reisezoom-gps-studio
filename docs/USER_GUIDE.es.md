@@ -1007,6 +1007,12 @@ el nombre de la ruta), **«Cancelar»** lo borra — la ruta queda abierta como 
 sin guardar lo deja en «Creados automáticamente», como antes el vídeo rápido; si le cambias el nombre, pasa a ser un
 proyecto normal. Si la ruta ya estaba abierta en un proyecto, el asistente trabaja en ese proyecto.
 
+**El proyecto recuerda tu elección (desde v0.9.862).** Si vuelves a abrir el asistente en un proyecto en el que ya
+pulsaste «Guardar como proyecto» o «Crear vídeo …», empieza exactamente con esa elección — título y subtítulo, estilo,
+mapa, línea, cámara, superposiciones, fotos y música — en lugar de las sugerencias. Antes todo volvía al principio, y un
+segundo «Guardar» escribía las sugerencias encima de tus ajustes. Lo que cambies después tú mismo en el Animador se
+mantiene hasta que cambies lo mismo en el asistente.
+
 **Solo uno a la vez (desde el 26.10.2026).** Mientras el asistente o el vídeo rápido está abierto, no se inicia un segundo —
 un clic en el otro botón solo muestra un aviso. Antes, dos clics rápidos podían crear dos vídeos a la vez.
 
@@ -4220,6 +4226,16 @@ anotaban en el registro «[dateischutz] VERWEIGERT …» para archivos intermedi
 quedarse allí: puedes borrar los archivos con `.tmp` en el nombre dentro de `touren/` y `bilder/karten/`. `--library`
 necesita una carpeta que ya sea una biblioteca de GPS Studio (con `bibliothek.json`); la línea de comandos no convierte
 una carpeta vacía en biblioteca.
+
+### El render por línea de comandos se queda en «prueba en modo paso a paso» – ¿qué hago?
+Normalmente GPS Studio todavía está cargando datos del terreno desde internet. Antes del primer fotograma el render
+descarga las alturas para el recorrido de la cámara; con una red lenta o bloqueada eso tarda. Desde v0.9.862 el
+progreso y el archivo de registro dicen a qué está esperando («cargando alturas del terreno para … puntos de cámara»,
+«esquivar con la cámara: teselas de terreno … de …», «calculando el recorrido de la cámara … de …»), y solo se rinde
+cuando lleva tres minutos sin avanzar. El registro también indica la gráfica del navegador de render («Grafik im
+Render-Browser: …»): si pone SwiftShader u otro renderizador por software, el render funciona sin tarjeta gráfica,
+por ejemplo en Windows dentro de una sesión SSH, y es bastante más lento. Comprueba que el ordenador llega a internet
+en esa sesión (los datos del terreno vienen de Amazon Web Services) y mándame el registro si sigue colgado.
 
 ### El track está mal posicionado en el mapa
 Probablemente un problema de zona horaria: la hora de captura de la foto no cuadra con el tiempo del track GPX. Solución en el Geotagger:

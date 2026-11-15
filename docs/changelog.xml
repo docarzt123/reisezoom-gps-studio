@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Fri, 13 Nov 2026 17:04:51 +0000</lastBuildDate>
+<lastBuildDate>Sun, 15 Nov 2026 00:25:19 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.862</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-862</link>
+<guid isPermaLink="false">gps-studio-v0.9.862</guid>
+<pubDate>Sun, 15 Nov 2026 12:00:00 +0000</pubDate>
+<description>4K-Video mit „Höchster Qualität“ bricht nicht mehr ab — Seit 0.9.861 zeichnet GPS Studio die Karte in voller Größe. Auf schwächerer Grafik konnte dadurch die Aufnahme eines einzelnen Bildes länger als 30 Sekunden dauern, und das ganze Video war weg. Jetzt startet der Render in so einem Fall neu und macht beim selben Bild weiter. Ab da zeichnet er die Karte wieder etwas kleiner, so wie vor 0.9.861.
+
+Video-Assistent merkt sich deine Wahl — Wer den Assistenten in einem Projekt noch einmal öffnete, sah wieder die Vorschläge statt der eigenen Einstellungen, und ein zweites „Ins Projekt übernehmen“ schrieb diese Vorschläge über das Projekt. Jetzt merkt sich das Projekt Titel, Stil, Karte, Linie, Kamera, Einblendungen, Fotos und Musik, und der Assistent macht genau dort weiter, auch nach einem Neustart.
+
+Tourtitel lässt sich wieder bearbeiten — Nach einer kurzen Tipppause verlor das Titelfeld im Archiv den Cursor. Löschen ging, alles danach Getippte landete nirgends. Das Feld behält jetzt Text, Cursor und Fokus.
+
+Fenster startet unter Windows nicht mehr verschoben — Ein maximiertes Fenster kam beim nächsten Start übergroß und ragte über den Bildschirmrand. GPS Studio merkt sich jetzt, dass es maximiert war, und öffnet es wieder so. Eine gemerkte Position auf einem Bildschirm, der nicht mehr da ist, landet in der Mitte.</description>
+</item>
 <item>
 <title>v0.9.861</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-861</link>
@@ -223,19 +236,6 @@ Ein Logbuch für alles — Tourseite und GPX-Inspektor zeigen dieselbe Liste mit
 Logbuch kennt den Weg — Ob ein langsames Stück Stau oder Radtour war, entscheidet jetzt der Weg darunter: Autobahn bleibt Fahrt, Fährlinie wird Fähre, Radweg wird Rad. Gelesen aus denselben Kartenkacheln, einmal je Tour.
 
 Logbuch lernt mit — nur wenn du willst — Wer möchte, teilt Korrekturen der Eintragsart anonym (Einstellungen → Allgemein, Standard aus): nur Zahlen wie Tempo und Steigung, keine Orte, Uhrzeiten oder Namen. Daraus wird die Erkennung für alle besser.</description>
-</item>
-<item>
-<title>v0.9.809</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-809</link>
-<guid isPermaLink="false">gps-studio-v0.9.809</guid>
-<pubDate>Sat, 24 Oct 2026 12:00:00 +0000</pubDate>
-<description>Meine Orte — Zu Hause, bei Oma, der Stammplatz am See: Im Archiv legst du deine Orte auf einer Karte an — jedes Logbuch erkennt sie dann („Pause · Zu Hause“). Bleibt privat, geht in keinen Export.
-
-Logbuch als PDF und Tabelle — Ein Tagebuch der Tour mit Karte je Tag als PDF, oder alle Einträge als CSV für Excel und Numbers.
-
-Sehenswürdigkeiten im Logbuch — Aussichtspunkte, Gipfel und Burgen am Weg landen jetzt auch auf der Tourseite im Logbuch — auch bei langen Reisen. Die Daten kommen aus eigenen Kacheln statt von einem oft überlasteten Server.
-
-Logbuch erkennt besser — Stau auf der Autobahn bleibt Teil der Fahrt statt „Rad oder Laufen?“, keine „0 min“-Einträge mehr, Start und Ziel sitzen an Abfahrt und Ankunft, und der höchste Punkt erscheint nur, wo es wirklich bergauf ging.</description>
 </item>
 </channel>
 </rss>

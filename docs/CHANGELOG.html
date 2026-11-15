@@ -117,9 +117,22 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.862</span>
+    <span class="version-date">15. November 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <ul>
+    <li><strong>4K-Video mit „Höchster Qualität“ bricht nicht mehr ab</strong> &mdash; Seit 0.9.861 zeichnet GPS Studio die Karte in voller Größe. Auf schwächerer Grafik konnte dadurch die Aufnahme eines einzelnen Bildes länger als 30 Sekunden dauern, und das ganze Video war weg. Jetzt startet der Render in so einem Fall neu und macht beim selben Bild weiter. Ab da zeichnet er die Karte wieder etwas kleiner, so wie vor 0.9.861.</li>
+    <li><strong>Video-Assistent merkt sich deine Wahl</strong> &mdash; Wer den Assistenten in einem Projekt noch einmal öffnete, sah wieder die Vorschläge statt der eigenen Einstellungen, und ein zweites „Ins Projekt übernehmen“ schrieb diese Vorschläge über das Projekt. Jetzt merkt sich das Projekt Titel, Stil, Karte, Linie, Kamera, Einblendungen, Fotos und Musik, und der Assistent macht genau dort weiter, auch nach einem Neustart.</li>
+    <li><strong>Tourtitel lässt sich wieder bearbeiten</strong> &mdash; Nach einer kurzen Tipppause verlor das Titelfeld im Archiv den Cursor. Löschen ging, alles danach Getippte landete nirgends. Das Feld behält jetzt Text, Cursor und Fokus.</li>
+    <li><strong>Fenster startet unter Windows nicht mehr verschoben</strong> &mdash; Ein maximiertes Fenster kam beim nächsten Start übergroß und ragte über den Bildschirmrand. GPS Studio merkt sich jetzt, dass es maximiert war, und öffnet es wieder so. Eine gemerkte Position auf einem Bildschirm, der nicht mehr da ist, landet in der Mitte.</li>
+    <li><strong>Video über die Kommandozeile: sagt, worauf es wartet</strong> &mdash; Vor dem ersten Bild lädt der Render Geländedaten aus dem Internet. Bei langsamem Netz brach er bisher nach zwei Minuten ohne Erklärung ab. Jetzt zeigen Fortschritt und Protokoll, worauf er wartet, und er bricht erst ab, wenn sich drei Minuten lang nichts mehr tut.</li>
+  </ul>
+</article>
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.861</span>
     <span class="version-date">13. November 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <ul>
     <li><strong>Bilder in Druckauflösung</strong> &mdash; Für Standbilder aus der Tour-Map bietet das Export-Fenster jetzt die Stufe „Druck“ mit rund 20 Megapixeln in jedem Seitenverhältnis, im Format 3:2 also 5472 × 3648 Pixel wie bei einer 20-MP-Kamera. Neu sind die Formate <strong>3:2</strong> und <strong>2:3</strong> (Seitenleiste „Format“ &rarr; „Weitere …“), passend für Fotobücher und Abzüge. Breite und Höhe lassen sich für Bilder frei bis 8192 Pixel eintippen.</li>

@@ -140,6 +140,7 @@
       : enc === "custom" ? (r, g, b) => (r * (+src.redFactor || 0) + g * (+src.greenFactor || 0) + b * (+src.blueFactor || 0)) - (+src.baseShift || 0)
         : (r, g, b) => -10000 + (r * 65536 + g * 256 + b) * 0.1;
     const kacheln = new Map();   // "x/y" → { w, h, d: Float32Array } | null
+    let fehler = 0;              // 13.11.2026 — nicht geladene Kacheln (für die Startanzeige des Renders)
     const kachelVon = (lng, lat) => {
       const x = (lng + 180) / 360 * n;
       const s = Math.sin(lat * Math.PI / 180);
@@ -154,8 +155,15 @@
       let headers;
       try { const rq = map._requestManager && map._requestManager.transformRequest(url, "Tile"); if (rq && rq.url) { url = rq.url; headers = rq.headers; } } catch (_) {}
       try {
-        const r = await fetch(url, headers ? { headers } : undefined);
-        if (!r.ok) return;
+        // 13.11.2026 — Zeitgrenze je Kachel: eine hängende Anfrage hielt sonst den Video-Render vor dem ersten Bild auf
+        // (Kommandozeile über SSH: „Warten auf Probelauf-Start abgebrochen nach 120s“). Fehlt die Kachel, weicht die Kamera
+        // dort eben nicht aus.
+        const ab = (typeof AbortController !== "undefined") ? new AbortController() : null;
+        const _zg = ab ? setTimeout(() => { try { ab.abort(); } catch (_) {} }, 20000) : null;   // warte-ok: Zeitgrenze einer Netz-Anfrage
+        let r;
+        try { r = await fetch(url, Object.assign(headers ? { headers } : {}, ab ? { signal: ab.signal } : {})); }
+        finally { if (_zg) clearTimeout(_zg); }
+        if (!r.ok) { fehler++; return; }
         const bmp = await createImageBitmap(await r.blob());
         const cv = (typeof OffscreenCanvas !== "undefined") ? new OffscreenCanvas(bmp.width, bmp.height) : Object.assign(document.createElement("canvas"), { width: bmp.width, height: bmp.height });
         const cx = cv.getContext("2d", { willReadFrequently: true });
@@ -164,9 +172,9 @@
         const d = new Float32Array(bmp.width * bmp.height);
         for (let i = 0; i < d.length; i++) d[i] = dekod(px[4 * i], px[4 * i + 1], px[4 * i + 2]);
         kacheln.set(key, { w: bmp.width, h: bmp.height, d });
-      } catch (_) {}
+      } catch (_) { fehler++; }
     }
-    async function laden(punkte) {
+    async function laden(punkte, fortschritt) {
       const noetig = new Set();
       for (const p of punkte || []) {
         if (!p) continue;
@@ -176,8 +184,10 @@
       }
       const offen = [...noetig].filter((k) => !kacheln.has(k));
       for (let i = 0; i < offen.length; i += 8) {
+        if (fortschritt) { try { fortschritt(i, offen.length, fehler); } catch (_) {} }
         await Promise.all(offen.slice(i, i + 8).map((k) => { const [a, b] = k.split("/").map(Number); return eineLaden(a, b); }));
       }
+      if (fortschritt) { try { fortschritt(offen.length, offen.length, fehler); } catch (_) {} }
       return offen.length;
     }
     function roh(px, py) {   // Kachel-Bildpunkt über Kachelgrenzen hinweg
