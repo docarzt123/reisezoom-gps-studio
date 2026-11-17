@@ -4078,6 +4078,40 @@ button .rz-i + span, .rz-i + .rz-i-text { margin-left: 0.35em; }
 .va-reiter-k.is-on { color: var(--text); background: rgb(var(--accent-rgb) / .16); box-shadow: 0 0 0 1px var(--accent) inset; }
 .va-reiter-k.is-on .n { background: var(--accent); color: var(--accent-ink); }
 .va-reiter-k:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* 16.11.2026 (Nutzer-Meldung „Less is More“, Marc: „mach alles schön luftig und orientiere dich am web“) — fünf Reiter in
+   einer Zeile, „Schritt 2 · Stil“ über der Frage, Felder durch feine Linien getrennt (wie .feld im Web), „Weiter“ breit am
+   Ende des Reiters. Synchron zu gps-studio-web assets/video/studio.css (.kicker, .feld, .knopf.breit). */
+.va-rumpf .va-kopf { display: block; margin: 0 0 22px; }
+.va-reiter { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; }
+.va-reiter-k { flex-direction: row; justify-content: center; gap: 7px; padding: 8px 4px; font-size: 13px; font-weight: 550; border-radius: 9px; }
+.va-reiter-k .n { width: 20px; height: 20px; font-size: 11px; }
+.va-kopf-zeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 0; }
+.va-kicker { color: var(--accent); font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.va-alle { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none; }
+.va-alle .va-schalter { width: 34px; height: 20px; }
+.va-rumpf .va-h { margin: 0 0 4px; }
+.va-rumpf section > .va-h + .va-karten, .va-rumpf section > .va-h + .va-feld-kopf { margin-top: 18px; }
+.va-rumpf .va-feld-kopf { margin: 22px 0 12px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 11.5px; font-weight: 650;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--text-muted); }
+.va-rumpf .va-feld-kopf .rz-i { display: none; }
+.va-rumpf section > .va-h + .va-feld-kopf { border-top: 0; padding-top: 0; }
+.va-rumpf .va-details-inhalt > .va-feld-kopf:first-child, .va-rumpf .va-unterkopf + .va-feld-kopf { border-top: 0; padding-top: 0; margin-top: 10px; }
+.va-rumpf .va-schalter-zeile { padding: 10px 0; }
+.va-rumpf .va-details { margin-top: 26px; }
+.va-rumpf .va-mehr > summary { padding: 14px 0; font-size: 14px; font-weight: 600; color: var(--text-dim); }
+.va-rumpf .va-mehr .va-mehr { margin-top: 18px; }
+.va-unterkopf { margin: 26px 0 4px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.va-details-inhalt > .va-unterkopf:first-child { margin-top: 6px; }
+.va-vorlage-knoepfe { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.va-vorlage-knoepfe .va-knopf { min-height: 34px; padding: 0 12px; font-size: 13px; }
+.va-vorlage-sp { margin-top: 10px; }
+.va-texte-liste { display: grid; gap: 12px; }
+.va-text-zeile { display: grid; gap: 5px; }
+.va-text-name { font-size: 12px; color: var(--text-muted); }
+.va-rumpf .va-weiter-breit { display: flex; width: 100%; min-height: 48px; margin-top: 30px; font-size: 15px; font-weight: 650; }
+.va-rumpf .va-weiter-breit[hidden] { display: none; }
+.va-rumpf .va-wahl + .va-schalter-zeile, .va-rumpf .va-wahl + .va-hilfe + .va-schalter-zeile, .va-rumpf .va-wahl + div > .va-schalter-zeile:first-child {
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
 /* „?“ im Assistenten: Tooltip beim Überfahren (rz-q, util.js); mit Clips klappt ein Klick sie zusätzlich auf */
 .va-hilfe-knopf, .rz-q.va-q { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; margin-left: 7px; padding: 0; border-radius: 50%;
   border: 1px solid var(--border-strong); background: none; color: var(--text-muted); font: inherit; font-size: 11px; font-weight: 700; line-height: 1; cursor: help; vertical-align: 2px; letter-spacing: 0; }

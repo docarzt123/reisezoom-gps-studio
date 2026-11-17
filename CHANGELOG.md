@@ -14,6 +14,38 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.864] – 2026-11-17
+
+### Changed
+- **Video assistant: five tabs instead of nine** (Format · Style · Camera · Photos · Texts), styled like the web version
+  (step line above the question, fields separated by thin lines, a wide "Next" button at the end of each tab). Map and
+  line moved into the Style tab under "Adjust yourself" (collapsed it shows the current map and moving dot); your own
+  templates, "Save as template" and the music are there too. Title and info tabs became "Texts": title, subtitle, **all
+  other texts of the template as editable fields** (before only by double-click in the preview; edits count as your own
+  and stay) and all overlays incl. logo and ending card. Captions moved to Photos ("Below the photos": nothing · place and
+  time · with camera data), as did the camera click; "How much text" became captions + a "Chapter per day" switch. The
+  overview tab "Video" is gone. New switch "All settings" (remembered) opens every "More" section. Saved templates and
+  remembered choices keep working (`text_menge` → `foto_text` + `kapitel_an`); old page numbers 3/4/7/8 map to the new
+  tabs (`__rzVaSeite`).
+
+### Added
+- **Use the whole screen at startup** (Settings → General): the window opens maximized. On by default on Windows, off on
+  the Mac; switched off, the app keeps the remembered size and position (`start_maximiert`, `app._start_maximiert`).
+
+### Fixed
+- **Video assistant: switching tabs during a live write no longer jumps the preview back** — the finished write took the
+  tab switch for a scrubber you had moved yourself and returned to the old spot instead of the new tab's (`sVorher`).
+- **Video assistant no longer throws away your changes to the overlays.** The assistant writes every choice into the
+  project live and rebuilt all overlays from the template each time: an edited text, a moved box, an overlay of your own
+  or a deleted one were gone after the next click. Every overlay the assistant creates now carries its origin
+  (`va = {key, orig}`); on the next write the latest change wins per field — the assistant's when it changed that field
+  itself (new title, format, style), otherwise yours. Overlays added by hand (`eigen`) stay, deleted ones stay deleted
+  (`container_va_weg`) until the assistant changes them or switches them off and on again.
+- **Video assistant, Texts tab: a text typed at normal speed was lost.** Clicking into a field (it sits in a `<label>`)
+  already triggered a live write, and every live write gave unchanged overlays new ids — the change then no longer found
+  its overlay and was dropped silently. Unchanged overlays now keep their ids (`vaKennungenBehalten`), a click into a text
+  field no longer writes, and the field also finds its overlay by the assistant key.
+
 ## [0.9.863] – 2026-11-15
 
 ### Added

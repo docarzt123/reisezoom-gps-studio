@@ -446,7 +446,7 @@
   function _videoMenue(knopf) {
     _menue(knopf, [
       // 01.11.2026 — nur noch der Video-Assistent (das Schnell-Video ist in ihm aufgegangen)
-      { text: "🧭 " + T("assistent.knopf", "Video-Assistent …"), tip: T("va.knopf_tip3", "Dein Video ist gleich fertig: in acht Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen."),
+      { text: "🧭 " + T("assistent.knopf", "Video-Assistent …"), tip: T("va.knopf_tip3", "Dein Video ist gleich fertig: in fünf Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen."),
         tun: () => { if (window.rzVideoAssistentStarten) window.rzVideoAssistentStarten(() => _oeffnenIn("animator")); } },
       { text: "🎞 " + T("library.open_animator", "Im Animator öffnen"), tun: () => _oeffnenIn("animator") },
       { text: "📈 " + T("library.open_height", "Daten-Animator"), tun: () => _oeffnenIn("heightanim") },

@@ -9260,7 +9260,7 @@ MapLibre-Pipeline. Animator und Tour-Map sind dasselbe Modul → automatisch ges
   MapLibre), Wolken, Foto-Look.
 
 
-## Video-Assistent mit acht Reitern wie die Web-Version (26.10.2026)
+## Video-Assistent mit acht Reitern wie die Web-Version (26.10.2026; seit 16.11.2026 fünf Reiter, siehe unten)
 
 Marc: „baue den Assistenten so, wie es im Web ist … auch mit den Erklärvideos“. Das Schnell-Video bleibt unverändert.
 
@@ -9407,6 +9407,66 @@ kann es verfeinern und dann direkt rendern oder als Projekt übernehmen“ — V
   Änderungen in den anderen Reitern gewinnen. Neue Vorlagen = neuer Eintrag in `VA_STILE` + `va.stil_<id>`/`va.stil_<id>_k`
   in de/en/es. Gemerkt als `stil_id`. Feines Höhenprofil: Container-Zeile `diagramm` mit `fuellung: false` (nur Linie).
   Test: `test_videoassistent_ios` Teil E.
+
+### Änderungen von Hand an Einblendungen überleben den Assistenten (16.11.2026, v0.9.864)
+
+Der Assistent schreibt live (`uebernehmen("live")`) und baute dabei `container` jedes Mal neu aus der Vorlage
+(`einblendungen(w)`) — Texte, Lage, eigene und gelöschte Einblendungen von Hand waren beim nächsten Klick weg.
+
+- **Herkunft:** `einblendungen(w)` (schnellvideo.js) normalisiert jede Einblendung und stempelt `va = {key, orig}`:
+  `key` = `vorlage` (+ `@lp` am Laufpunkt) + `#n` (n-te dieser Vorlage), `orig` = Stand beim Anlegen ohne Kennungen
+  (`vaRein`). Die eigentliche Erzeugung heißt jetzt `einblendungenRoh(w)`.
+- **Mischen:** `vaContainerMischen(neu, alt, weg)` (Test: `window.rzVaMischen`) läuft in `uebernehmen` vor dem Schreiben,
+  `alt` = aktuelle Liste (`__rzContainer.liste()` im Animator, sonst `getActiveProject().animator.container`).
+  Je Feld (und je Zeile/Zeilenfeld, wenn die Zeilenzahl gleich blieb): hat der Assistent es geändert (`neu ≠ orig`) →
+  seins; sonst hat der Nutzer es geändert (`alt ≠ orig`) → seins; sonst neu. Kennungen der bestehenden Einblendung bleiben.
+- **Eigene:** `eigen: true` (Animator: „＋ Neue Einblendung“, Duplizieren — die Kopie verliert `va`) → bleiben immer.
+- **Gelöscht:** `_ctLoeschen` (module.js) merkt `{key, orig}` in `animator.container_va_weg`; der Assistent lässt sie weg,
+  bis die neu erzeugte Fassung von `orig` abweicht; erzeugt er den Schlüssel gar nicht mehr (abgeschaltet), verfällt der Eintrag.
+- `container.normalisieren` behält `va` (Tiefkopie) und `eigen`. Ältere Einblendungen ohne `va`/`eigen` ersetzt der
+  Assistent wie bisher.
+- Tests: `tests/test_videoassistent_hand_bleibt.py` (Gegenprobe ohne Mischen: 7 rot), `test_schnellvideo_nachbau`
+  (ignoriert `va`/`eigen`).
+
+### Video-Assistent mit fünf Reitern (16.11.2026, v0.9.864)
+
+Nutzer-Meldung „Less is More“: neun Reiter mit doppelten Fragen (Stil setzt Karte/Linie, die Reiter Karte und Linie fragten
+nochmal), Vorlagen-Texte nur per Doppelklick in der Vorschau änderbar, Übersichtsseite am Ende wiederholte alles.
+
+- **Reihenfolge:** `ORDNUNG = [1, 9, 2, 6, 5]` = Format · Stil · Kamera · Fotos · Texte (`NAMEN[5]` = „Texte“),
+  `LETZTE = ORDNUNG.at(-1)`. Die Abschnitte 3, 4, 7, 8 gibt es nicht mehr; ihr Inhalt (gleiche IDs, gleiche Logik) steckt in
+  9 (Karte + Linie unter `details[data-va-mehr="9"]` „Selbst einstellen“, Linien-Feinheiten in `data-va-mehr="4"`; Musik,
+  `#va-eigene-feld`, „Als Vorlage merken“, `.rzstyle`), 5 (Titel + `#va-texte-liste` + `#va-kapitel` + Einblendungen aus 7,
+  Logo aus 8) und 6 (`#va-f-text`, `#sv-klick`). Seiten-Init in `zeigen()`: 9 → `vaKarte(); vaLinie(); vaSelbstKurz()`,
+  5 → `vaTexte(); vaGeschichte()`. `__rzVaSeite(n)` leitet alte Nummern um (3/4/8 → 9, 7 → 5).
+- **Kopf:** `#va-kopf` = Reiterleiste + `.va-kopf-zeile` („Schritt n · Name“ + `#va-alle`). `#va-alle` (localStorage
+  `rz_va_alle`) öffnet alle `details.va-mehr`; `mehrAuf(n, titel, ic)` öffnet sie beim Aufbau, wenn er an ist.
+- **„Weiter“:** `#va-weiter` wird in `zeigen()` ans Ende des sichtbaren Abschnitts gehängt (`.va-weiter-breit`), wie
+  `.knopf.breit` im Web. Die Übersicht (`zusammenfassung`) baut nur noch `vaListe` für „Das hat der Assistent gemacht“ und
+  läuft über `vaListeAuffrischen` zu Beginn von `uebernehmen("fertig")`.
+- **Texte der Vorlage:** `vaTexteZeilen()` liest Textzeilen aus `__rzContainer.liste()` (nur im Animator mit dem Projekt
+  des Assistenten; ohne Platzhalter `{…}`, ohne Titel/Untertitel-Text). Eine Änderung speichert per
+  `__rzContainer.speichern(…normalisieren)` (Capture-Zuhörer, läuft vor dem Live-Schreiben) = Hand-Änderung, die
+  `vaContainerMischen` behält. Nach jedem Live-Schreiben auf Seite 5 zeichnet `vaTexteListe()` neu (nicht, solange ein Feld den Fokus hat).
+  **Kennungen (17.11.2026, Klicktest):** `vaContainerMischen` behält Kennung + Zeilen-Kennungen der bestehenden Einblendung
+  auch, wenn nichts von Hand geändert war (`vaKennungenBehalten`) — vorher bekam jede Einblendung bei jedem Live-Schreiben
+  neue, und ein Feld, das vor dem Schreiben gezeichnet war, fand seine Einblendung nicht mehr (Änderung still weg). Ein Klick
+  in ein Textfeld (auch über sein `<label>`) löst kein Live-Schreiben aus; das Feld trägt zusätzlich `data-va-text-k` =
+  `va.key` als Rückfall, nichts gefunden → Warnung im Log.
+- **„Wie viel Text“ aufgeteilt:** `w.fotoText` (`aus`/`ortzeit`/`exif` → `stopp_ortzeit`/`stopp_exif` in `schilderJetzt`)
+  und `w.kapitelAn` (`kapitelTitel()`); Untertitel = Feld leeren. Vorgabe aus dem alten `w.textMenge`. Gemerkt als
+  `foto_text`, `kapitel_an` (+ `text_menge` abgeleitet für ältere Leser); `stilSetzen` liest beides. `app.videostil_vorlage_speichern`
+  lässt `foto_text`, `kapitel_an`, `collage` durch (`collage` fehlte vorher).
+- **Optik:** `app.css` Block „16.11.2026 … fünf Reiter“ (Kicker, Feldköpfe in Großbuchstaben mit Trennlinie, `.va-unterkopf`,
+  `.va-texte-liste`), synchron zu gps-studio-web `studio.css` (`.kicker`, `.feld`, `.knopf.breit`). Die Web-Version hat ihre
+  eigenen acht Reiter (Zuständigkeit Web-Chat).
+- **Tests:** `test_videoassistent_ui` (fünf Reiter, Selbst einstellen, Unterschriften, Alle Einstellungen),
+  `test_videoassistent_texte` (Vorlagen-Texte ändern, bleibt nach Stilwahl), angepasst: `_projekt_wahl`, `_hand_bleibt`,
+  `_vorlagen`, `test_drohne`.
+
+**Fenster beim Start maximiert (16.11.2026, v0.9.864):** Einstellung `start_maximiert` (Einstellungen → Allgemein,
+`#md-start-maxi`); `app._start_maximiert(settings)` = eigene Wahl, sonst Windows an / Mac aus. Windows/Linux:
+`maximized=` in `create_kwargs`; Mac: `_maximize_native_window` auch bei gemerkter Geometrie. Test: `tests/test_start_maximiert.py`.
 
 ## Universelle Einblendungen und zehn Videovorlagen (01.11.2026, v0.9.851)
 

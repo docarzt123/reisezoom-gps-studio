@@ -260,6 +260,11 @@
     if (istDict(c.blende)) out.blende = Object.assign({}, c.blende);
     if (c.vorlage) out.vorlage = String(c.vorlage);
     if (c.schrift_fest) out.schrift_fest = true;   // 01.11.2026 — eigene Schrift bleibt, auch wenn der Karten-Look wechselt
+    // 16.11.2026 (Nutzer: „am Ende sind mehrere Anpassungen, die ich am Anfang gemacht habe, wieder verschwunden“) —
+    // va = vom Video-Assistenten angelegt (Schlüssel + Stand beim Anlegen, für den Abgleich mit Änderungen von Hand);
+    // eigen = von Hand angelegt — beides überlebt das nächste Schreiben des Assistenten (schnellvideo.js vaContainerMischen)
+    if (istDict(c.va) && c.va.key) out.va = JSON.parse(JSON.stringify(c.va));
+    if (c.eigen) out.eigen = true;
     return out;
   }
   function liste(roh) {

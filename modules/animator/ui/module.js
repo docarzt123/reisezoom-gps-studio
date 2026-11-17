@@ -206,7 +206,7 @@ function mountAnimator(body, headerActions, opts) {
       ${!_isStaticFrame && !_isReiseroute ? `<div class="anim-schnellstart">
         <!-- 01.11.2026 (Marc: „Schnellvideo und Videoassistent zusammenlegen, das ist doppeltgemoppelt“) — nur noch der
              Video-Assistent: das Video ist gleich fertig, die Reiter verfeinern, dann erstellen oder ins Projekt übernehmen -->
-        <button class="btn btn-secondary btn-block" id="anim-videoassistent" title="${t("va.knopf_tip3", "Dein Video ist gleich fertig: in acht Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen.")}">🧭 ${t("assistent.knopf", "Video-Assistent …")}</button></div>` : ""}
+        <button class="btn btn-secondary btn-block" id="anim-videoassistent" title="${t("va.knopf_tip3", "Dein Video ist gleich fertig: in fünf Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen.")}">🧭 ${t("assistent.knopf", "Video-Assistent …")}</button></div>` : ""}
 
       <!-- 06.10.2026 (Marc: „absolut grundlegende Einstellungen“ → ganz nach oben) —
            „Format & Ablauf“: Seitenverhältnis und Dauer sofort, unter „Mehr“ Intro, Halten, Dauer als Faktor,
@@ -22881,7 +22881,7 @@ function mountAnimator(body, headerActions, opts) {
     const b = _ctSpurBoxen().find(q => q.id === id);
     if (!b) return;
     if (b.zeiten && b.zeiten.length > 1) { _ovZeitraumWeg(id, seg); return; }
-    _ctSpeichern(_ctListe().filter(c => c.id !== id), t("container.loeschen", "Löschen"));
+    _ctLoeschen(id);
   }
   function _ovZeitraumWeg(id, seg) {
     const R = window.rzOverlayBoxen;
@@ -23426,6 +23426,20 @@ function mountAnimator(body, headerActions, opts) {
     // 05.10.2026 (Audit D-4) — beim Tippen in Text-/Namensfeldern NICHT den ganzen Editor neu schreiben: das zerriss
     // Akzent-Tasten (´ + e) und IME-Eingaben und warf die Markierung weg. Neu gezeichnet wird bei `change`.
     if (_ctEditId && !ohneEditor) _ctEditorZeichnen();
+  }
+  /** 16.11.2026 (Nutzer: Anpassungen verschwanden im Video-Assistenten) — Löschen merkt sich vom Assistenten angelegte
+   *  Einblendungen (`container_va_weg`: Schlüssel + Stand), damit sein nächstes Schreiben sie nicht wieder hinstellt. */
+  function _ctLoeschen(id) {
+    const weg = _ctListe().find(c => c.id === id);
+    const extra = {};
+    if (weg && weg.va && weg.va.key) {
+      const pp = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+      const a = pp || (_settingsCache && _settingsCache[_MODKEY]) || {};
+      const liste = (Array.isArray(a.container_va_weg) ? a.container_va_weg : []).filter(e => e && e.key !== weg.va.key);
+      liste.push({ key: weg.va.key, orig: weg.va.orig || null });
+      extra.container_va_weg = liste;
+    }
+    _ctSpeichern(_ctListe().filter(c => c.id !== id), t("container.loeschen", "Löschen"), undefined, extra);
   }
   function _ctAendern(id, fn, label, undoKey, ohneEditor) {
     const liste = JSON.parse(JSON.stringify(_ctListe()));
@@ -24334,6 +24348,7 @@ function mountAnimator(body, headerActions, opts) {
       const v = neuSel.value; neuSel.value = "";
       if (!v || !window.rzContainer) return;
       const c = window.rzContainer.neu(v, t);
+      c.eigen = true;   // 16.11.2026 — von Hand angelegt: der Video-Assistent lässt sie stehen
       if (v === "titel" || v === "info") { try { c.zeilen[0].text = (currentGpx && _gpxStats && _gpxStats.name) || c.zeilen[0].text; } catch (_) {} }
       _ctSpeichern(_ctListe().concat([c]), t("container.neu", "Neue Einblendung"));
       _ctEditorOeffnen(c.id);
@@ -24349,13 +24364,14 @@ function mountAnimator(body, headerActions, opts) {
         const k = JSON.parse(JSON.stringify(liste[i]));
         k.id = window.rzContainer.neueId("c"); k.zeilen.forEach(z => { z.id = window.rzContainer.neueId("z"); });
         k.y = Math.min(90, k.y + 4);
+        delete k.va; k.eigen = true;   // 16.11.2026 — die Kopie ist eine eigene Einblendung (bleibt beim Video-Assistenten)
         liste.splice(i + 1, 0, k);
         _ctSpeichern(liste, t("container.duplizieren", "Duplizieren"));
         return;
       }
       if (ev.target.closest(".ct-weg")) {
         if (_ctEditId === id) _ctEditorZu();
-        _ctSpeichern(_ctListe().filter(c => c.id !== id), t("container.loeschen", "Löschen"));
+        _ctLoeschen(id);
       }
     });
     box.addEventListener("change", (ev) => {

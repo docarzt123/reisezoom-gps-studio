@@ -190,7 +190,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.863"
+APP_VERSION = "0.9.864"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -16569,7 +16569,9 @@ class Api:
                    "kamera", "kam_leb", "halte_dauer", "halte_alle", "text_menge", "foto_menge", "schluss_an", "foto_art",
                    "highlights", "gebaeude",
                    # 26.10.2026 — Assistent mit acht Reitern wie im Web: Höhe, Laufpunkt, Linie, Beschriftung, Gelände, Vorab-Strecke
-                   "hoehe", "laufpunkt", "linie", "beschriftung", "gelaende", "ghost"}
+                   "hoehe", "laufpunkt", "linie", "beschriftung", "gelaende", "ghost",
+                   # 16.11.2026 — Assistent mit fünf Reitern: Unterschriften (Fotos) und Kapitel (Texte) getrennt; Collage
+                   "foto_text", "kapitel_an", "collage"}
         sauber = {k: v for k, v in stil.items() if k in erlaubt}
         liste = [x for x in (_load_settings().get("videostil_vorlagen") or []) if isinstance(x, dict)]
         vorhanden = next((x for x in liste if str(x.get("name", "")).strip().lower() == name.lower()), None)
@@ -20734,6 +20736,13 @@ def _bildschirme_logisch():
         return []
 
 
+def _start_maximiert(settings: dict) -> bool:
+    """16.11.2026 — „Beim Start den ganzen Bildschirm nutzen“ (Einstellungen → Allgemein); ohne eigene Wahl unter Windows
+    an, auf dem Mac aus."""
+    v = (settings or {}).get("start_maximiert")
+    return bool(v) if isinstance(v, bool) else sys.platform == "win32"
+
+
 def _win_war_maximiert(x: int, y: int, w: int, h: int, schirme) -> bool:
     """14.11.2026 (Nutzer-Meldung Windows: „die App startet immer verschoben, rechts oben außerhalb des Monitors“) — ein
     maximiertes Windows-Fenster steht ein paar Pixel links/über dem Bildschirm (−8, −8) und ist um diesen Rand größer als
@@ -20868,6 +20877,10 @@ def main() -> None:
     _win_x = int(_win_cfg.get("x") if _win_cfg.get("x") is not None else -1)
     _win_y = int(_win_cfg.get("y") if _win_cfg.get("y") is not None else -1)
     _have_remembered = (_win_w > 200 and _win_h > 200)
+    # 16.11.2026 (Nutzer-Meldung Windows: „oben schließt es noch nicht ganz an … eine Fullscreen-Lösung beim Start wäre
+    # super“) — Einstellung „Beim Start den ganzen Bildschirm nutzen“: unter Windows standardmäßig an, auf dem Mac aus
+    # (dort zählt das gemerkte Fenster). An = maximiert öffnen, die gemerkte normale Größe bleibt fürs Verkleinern.
+    _start_maxi = _start_maximiert(_s_init)
     # 14.11.2026 (Nutzer-Meldung Windows, s. _win_war_maximiert) — maximiert geschlossen → maximiert öffnen; die gemerkte
     # Größe ist dann die normale (vor dem Maximieren). Alte gemerkte Werte eines maximierten Fensters erkennen und einpassen.
     _win_maxi = False
@@ -20892,7 +20905,7 @@ def main() -> None:
         height=_win_h if _have_remembered else 900,
         min_size=(1100, 720),
         background_color="#0e1116",
-        maximized=(not _have_remembered) or _win_maxi,
+        maximized=(not _have_remembered) or _win_maxi or (_start_maxi and sys.platform != "darwin"),
     )
     # 21.10.2026 (zweite Nutzer-Meldung: „der zweite Monitor war immer angeschlossen, eventuell nicht ausgewählt“) —
     # pywebview rechnet x/y relativ zum gerade AKTIVEN Bildschirm (NSScreen.mainScreen = der mit dem Fokus) um, gemerkt
@@ -21006,7 +21019,7 @@ def main() -> None:
         # gespeichert ist), sonst überschreiben wir den letzten Stand.
         if sys.platform != "darwin":
             return
-        if _have_remembered:
+        if _have_remembered and not _start_maxi:
             return
         try:
             from PyObjCTools import AppHelper  # type: ignore

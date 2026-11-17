@@ -278,6 +278,8 @@ function _settingsStand() {
     rqPreset: rq.encoder_preset || "fast",
     geoEnabled: c.geocode_enabled !== false,
     startFortsetzen: c.start_fortsetzen !== false,
+    // 16.11.2026 — Fenster beim Start maximiert (Windows: Standard an, Mac: aus; wie app.py _start_maximiert)
+    startMaximiert: typeof c.start_maximiert === "boolean" ? c.start_maximiert : (typeof _RZ_WIN !== "undefined" && _RZ_WIN),
     geoProvider: c.geocode_provider || "auto",
     // 03.09.2026 — Kartenanbieter
     maptilerKey: c.maptiler_key || "",
@@ -460,7 +462,7 @@ async function openSettingsModal(reiter) {
   // kommen aus `_settingsStand()` — derselben Quelle, aus der auch der
   // Speichern-Handler liest.
   const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider,
-          updateCheck, lernenTeilen, startFortsetzen, maptilerKey, dkKey, fiKey, linzKey, mapStyleDefault, tileCacheMb, previewQuality } = _settingsStand();
+          updateCheck, lernenTeilen, startFortsetzen, startMaximiert, maptilerKey, dkKey, fiKey, linzKey, mapStyleDefault, tileCacheMb, previewQuality } = _settingsStand();
   const tcInfo = await api().tile_cache_info().catch(() => ({ bytes: 0 }));
   const tcMb = Math.round((tcInfo.bytes || 0) / 1048576);
   const _sel = (a, b) => (a === b ? " selected" : "");
@@ -508,6 +510,12 @@ async function openSettingsModal(reiter) {
           <span>${t("settings.start_weiter.label", "Beim Start dort weitermachen, wo ich aufgehört habe")}</span>
         </label>
         <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.start_weiter.help", "Öffnet das zuletzt bearbeitete Projekt mit seiner Tour und im selben Modul. Aus = die App startet im Archiv.")}</p>
+        <!-- 16.11.2026 (Nutzer-Meldung Windows: „eine Fullscreen-Lösung beim Start wäre super“) -->
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" id="md-start-maxi" ${startMaximiert ? "checked" : ""}>
+          <span>${t("settings.start_maxi.label", "Beim Start den ganzen Bildschirm nutzen")}</span>
+        </label>
+        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.start_maxi.help", "Das Fenster öffnet maximiert. Aus = es öffnet so groß und dort, wo du es zuletzt hattest. Gilt ab dem nächsten Start.")}</p>
         <!-- 13.10.2026 — Kommandozeile gpsstudio (core/cli.py): Touren suchen, Videos und Kartenbilder aus Skripten -->
         <details class="set-fortgeschritten" style="margin-top:16px;">
           <summary style="cursor:pointer; font-size:12.5px; font-weight:600;">${t("settings.advanced", "Für Fortgeschrittene")}</summary>
@@ -1295,6 +1303,8 @@ function _bindSettingsModalHandlers() {
     // Beim Start dort weitermachen, wo zuletzt gearbeitet wurde.
     const neuWeiter = !!document.getElementById("md-start-weiter")?.checked;
     if (neuWeiter !== alt.startFortsetzen) patch.start_fortsetzen = neuWeiter;
+    const neuMaxi = !!document.getElementById("md-start-maxi")?.checked;
+    if (neuMaxi !== alt.startMaximiert) patch.start_maximiert = neuMaxi;
 
     if (Object.keys(patch).length === 0) {
       openModal({}).close();

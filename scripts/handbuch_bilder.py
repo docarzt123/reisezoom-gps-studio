@@ -248,6 +248,9 @@ async def a_dialoge(page, sp):
     await dialog_zu(page)
     await page.evaluate("() => document.getElementById('anim-videoassistent')?.click()")
     await page.wait_for_timeout(3500)
+    # 16.11.2026 — fünf Reiter: das Bild zeigt den Stil (Reiter 2) statt der Kamera
+    await page.evaluate("() => document.querySelectorAll('#va-kopf .va-reiter-k')[1]?.click()")
+    await page.wait_for_timeout(2500)
     await bild(page, "videoassistent", sp)
     await dialog_zu(page)
 

@@ -400,7 +400,7 @@
       }).filter(Boolean);
     }
     const R = window.rzVideoVorlagen.bauen(w.vv, {
-      titel: w.titel, unter: w.textMenge === "wenige" ? "" : w.unter, kicker: w.kicker || "", format: w.format,
+      titel: w.titel, unter: w.unter, kicker: w.kicker || "", format: w.format,
       profil: !!w.profil, uebersicht: !!w.uebersicht, felder: w.schlussAn && Array.isArray(w.felder) && w.felder.length ? w.felder : null,
       intro_s: introS(w), hold_s: holdS(w), t: T,
       logo: { an: w.logoAn !== false, anker: { links: "tl", rechts: "tr" }[w.logoLage] || "tc" },
@@ -415,7 +415,81 @@
       return true;
     });
   }
+  /** 16.11.2026 (Nutzer: „am Ende sind mehrere Anpassungen, die ich am Anfang gemacht habe, wieder verschwunden“) — der
+   *  Assistent schreibt bei jeder Wahl live ins Projekt und baute die Einblendungen dabei jedes Mal neu aus der Vorlage:
+   *  ein von Hand geänderter Text, eine verschobene Box, eine eigene Einblendung waren beim nächsten Klick weg.
+   *  Jetzt trägt jede Einblendung des Assistenten `va = { key, orig }` (Schlüssel + Stand beim Anlegen); beim nächsten
+   *  Schreiben gilt je Feld die NEUESTE Änderung: hat der Assistent das Feld geändert (neuer Titel, anderes Format, anderer
+   *  Stil), seine — sonst die von Hand. Von Hand angelegte (`eigen`) bleiben, von Hand gelöschte (`container_va_weg`) bleiben
+   *  weg, bis der Assistent sie selbst ändert oder ab- und wieder anschaltet. */
+  const VA_OHNE = { id: 1, va: 1, eigen: 1 };
+  const vaGleich = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
+  function vaRein(c) { const k = JSON.parse(JSON.stringify(c)); delete k.id; delete k.va; delete k.eigen; (k.zeilen || []).forEach(z => { delete z.id; }); return k; }
+  function vaFelderMischen(neu, hand, orig, ohne) {
+    const out = JSON.parse(JSON.stringify(neu));
+    const keys = new Set(Object.keys(neu).concat(Object.keys(hand)).concat(Object.keys(orig)));
+    keys.forEach(k => {
+      if (ohne[k]) return;
+      if (!vaGleich(neu[k], orig[k])) return;               // der Assistent hat es geändert → seins
+      if (!vaGleich(hand[k], orig[k])) { if (hand[k] === undefined) delete out[k]; else out[k] = JSON.parse(JSON.stringify(hand[k])); }   // von Hand
+    });
+    return out;
+  }
+  /** Neue Einblendung `g` mit den Kennungen der bestehenden `a` (gleicher Schlüssel): Einblendung und Zeilen an derselben Stelle. */
+  function vaKennungenBehalten(g, a) {
+    const m = JSON.parse(JSON.stringify(g));
+    if (a && a.id) m.id = a.id;
+    (m.zeilen || []).forEach((z, i) => { const az = ((a && a.zeilen) || [])[i]; if (az && az.id && z && az.typ === z.typ) z.id = az.id; });
+    return m;
+  }
+  function vaContainerMischen(neu, alt, weg) {
+    alt = Array.isArray(alt) ? alt : []; weg = Array.isArray(weg) ? weg : [];
+    const nachKey = {}; alt.forEach(c => { if (c && c.va && c.va.key && !nachKey[c.va.key]) nachKey[c.va.key] = c; });
+    const keys = new Set(neu.map(c => c.va && c.va.key));
+    // gelöscht bleibt gelöscht — außer der Assistent hat die Einblendung inzwischen geändert; ist sie aus (nicht erzeugt), verfällt der Eintrag
+    const wegNeu = weg.filter(e => e && e.key && keys.has(e.key));
+    const wegAn = {}; wegNeu.forEach(e => { wegAn[e.key] = e; });
+    const raus = new Set();
+    const liste = [];
+    neu.forEach(g => {
+      const key = g.va && g.va.key, gr = vaRein(g);
+      const w_ = key && wegAn[key];
+      if (w_) { if (!w_.orig || vaGleich(gr, w_.orig)) return; raus.add(key); }   // geändert → kommt wieder
+      const a = key && nachKey[key];
+      if (!a || !a.va || !a.va.orig) { liste.push(g); return; }
+      const o = a.va.orig, ar = vaRein(a);
+      // nichts von Hand → einfach die neue, aber mit den Kennungen der bestehenden (17.11.2026, Klicktest: sonst bekam jede
+      // Einblendung bei jedem Live-Schreiben neue Kennungen, und eine Änderung im Reiter Texte fand ihre Einblendung nicht mehr)
+      if (vaGleich(ar, o)) { liste.push(vaKennungenBehalten(g, a)); return; }
+      const m = vaFelderMischen(gr, ar, o, { zeilen: 1 });
+      const gz = gr.zeilen || [], az = ar.zeilen || [], oz = o.zeilen || [];
+      if (az.length === oz.length && gz.length === oz.length) {
+        m.zeilen = gz.map((z, i) => vaFelderMischen(z, az[i], oz[i], {}));
+      } else m.zeilen = vaGleich(gz, oz) ? az : gz;
+      // Kennungen der bestehenden Einblendung behalten (Auswahl im Editor, ⌘Z)
+      m.id = a.id;
+      (m.zeilen || []).forEach((z, i) => { const az_ = (a.zeilen || [])[i]; z.id = (az_ && az_.id) || ((g.zeilen || [])[i] || {}).id; });
+      m.va = { key, orig: gr };
+      liste.push(m);
+    });
+    alt.forEach(c => { if (c && c.eigen && !(c.va && c.va.key)) liste.push(c); });   // von Hand angelegt
+    return { liste, weg: wegNeu.filter(e => !raus.has(e.key)) };
+  }
   function einblendungen(w) {
+    const C = window.rzContainer;
+    if (!C) return [];
+    const liste = einblendungenRoh(w), zahl = {};
+    return liste.map(c => {
+      const n = C.normalisieren(c);
+      const basis = (n.vorlage || "x") + (n.lage === "laufpunkt" ? "@lp" : "");
+      zahl[basis] = (zahl[basis] || 0) + 1;
+      const key = basis + "#" + zahl[basis];
+      n.va = { key, orig: vaRein(n) };
+      return n;
+    });
+  }
+  window.rzVaMischen = vaContainerMischen;   // für Tests
+  function einblendungenRoh(w) {
     const C = window.rzContainer;
     if (!C) return [];
     if ((w.vv || w.vvEigen) && window.rzVideoVorlagen) {
@@ -464,7 +538,7 @@
                C.zeile("diagramm", { art: "hoehe", b: profilB, h: 9, linienfarbe: "#ffffff", raster: !!w.raster })] })));
     // 02.10.2026 (Marc: „im 16:9 liegen Titel und Untertitel übereinander") — EINE Einblendung mit zwei Zeilen:
     // bricht der Titel um, rutscht der Untertitel mit (vorher zwei Einblendungen mit fester Höhe).
-    const unter = w.textMenge === "wenige" ? "" : w.unter;   // 11.10.2026 — Assistent „Texte: wenige“ = nur der Titel
+    const unter = w.unter;   // 16.11.2026 — ohne Untertitel: Feld leeren (vorher „Texte: wenige“)
     // 01.11.2026 (Marc: „Titel komplett an/aus muss auch gehen“) — w.titelAn === false: keine Titel-Einblendung
     if (w.titelAn !== false && (w.titel || unter)) {
       const ti = C.neu("titel", T);
@@ -1185,7 +1259,7 @@
     return api_;
   }
   /** Stufe → Bereich der Seitenleiste, der kurz aufleuchtet („Das findest du später hier“). */
-  const VA_BEREICH = { 1: "format", 2: "camera", 3: "map", 4: "track", 5: "overlays", 6: "signs", 7: "signs", 8: "ton" };
+  const VA_BEREICH = { 1: "format", 9: "map", 2: "camera", 5: "overlays", 6: "signs" };   // 16.11.2026 — fünf Reiter
   function vaLeuchten(seite) {
     document.querySelectorAll(".va-leuchtet").forEach(x => x.classList.remove("va-leuchtet"));
     document.querySelectorAll(".va-hier").forEach(x => x.remove());
@@ -1497,6 +1571,10 @@
       };
     })();
     if (ASS && w.hlArten == null) w.hlArten = new Set(w.highlights ? HL_ARTEN : []);
+    // 16.11.2026 — „Wie viel Text“ aufgeteilt: Bildunterschriften (Reiter Fotos) und Kapitel je Tag (Reiter Texte); alte Wahl
+    // `textMenge` (wenige · normal · viele) gilt als Vorgabe
+    if (ASS && !w.fotoText) w.fotoText = { wenige: "aus", viele: "exif" }[w.textMenge] || "ortzeit";
+    if (ASS && w.kapitelAn == null) w.kapitelAn = w.textMenge !== "wenige";
     const kopf = (h, sub) => `<h2 class="va-h">${esc(h)}${sub ? q(sub) : ""}</h2>`;
     /** Bildkarte: Bild/Clip oben, Häkchen bei Auswahl, Titel + eine Zeile. */
     const karte = (attr, bild, titel, text, an, tip) => `<button type="button" class="va-bk${an ? " is-on" : ""}" ${attr}${(tip || text) ? ` title="${esc(tip || text)}"` : ""}>`
@@ -1517,7 +1595,9 @@
     // 01.11.2026 (Marc: „oben nur das Wesentliche, weiter unten die Detaileinstellungen, so dass man oben quasi ein
     // Schnellvideo hat“ — Q1 a) — je Reiter ein aufklappbares „Mehr Einstellungen“; offen/zu je Reiter gemerkt
     const mehrOffen = (n) => { try { return localStorage.getItem("rz_va_mehr_" + n) === "1"; } catch (_) { return false; } };
-    const mehrAuf = (n) => `<details class="va-details va-mehr" data-va-mehr="${n}"${mehrOffen(n) ? " open" : ""}><summary>${I("sliders-horizontal", 15)}<span>${esc(T("va.mehr_einstellungen", "Mehr Einstellungen"))}</span><span class="va-details-n"></span></summary><div class="va-details-inhalt">`;
+    // 16.11.2026 — „Alle Einstellungen zeigen“ (Schalter oben, gemerkt): alle „Mehr“ offen; `titel`/`ic` für „Selbst einstellen“
+    const vaAlleZeigen = () => { try { return localStorage.getItem("rz_va_alle") === "1"; } catch (_) { return false; } };
+    const mehrAuf = (n, titel, ic) => `<details class="va-details va-mehr" data-va-mehr="${n}"${mehrOffen(n) || vaAlleZeigen() ? " open" : ""}><summary>${I(ic || "sliders-horizontal", 15)}<span>${esc(titel || T("va.mehr_einstellungen", "Mehr Einstellungen"))}</span><span class="va-details-n"></span></summary><div class="va-details-inhalt">`;
     const mehrZu = `</div></details>`;
     const details = (titel, inhalt, id, offen) => `<details class="va-details"${id ? ` id="${id}"` : ""}${offen ? " open" : ""}><summary>${I("chevron-down", 15)}<span>${esc(titel)}</span><span class="va-details-n"></span></summary><div class="va-details-inhalt">${inhalt}</div></details>`;
     const feldKopf = (ic, text, rechts, hk) => `<div class="va-feld-kopf">${ic ? I(ic, 16) : ""}<span>${esc(text)}</span>${hilfeKnopf(hk)}${rechts || ""}</div>${hilfeBox(hk)}`;
@@ -1577,14 +1657,76 @@ ${mehrAuf(1)}
       </section>
 
       <section data-va="9">
-        <!-- 01.11.2026 (Marc: „nach Format einen Reiter Stil … verschiedene Vorlagen“) -->
-        ${kopf(T("va.stil_h", "Wie soll es aussehen?"), T("va.stil_sub", "Eine Vorlage setzt Schriften, Einblendungen, Schilder, Bergnamen, Laufpunkt und Linie auf einmal. Danach kannst du alles einzeln ändern."))}
+        <!-- 16.11.2026 (Marc: „Less is More“ — Stil, Karte und Linie in EINEM Reiter; Karte und Linie unter „Selbst einstellen“,
+             eigene Vorlagen und Musik gehören zum Stil) -->
+        ${kopf(T("va.stil_h", "Wie soll es aussehen?"), T("va.stil_sub2", "Eine Vorlage setzt Karte, Linie, Schriften, Einblendungen und Musik auf einmal. Danach kannst du alles einzeln ändern."))}
         <div class="va-karten va-karten-2 va-stile" id="va-stile">${VA_STIL_NAMEN.map(k => vaStilKarte(k, k === w.stilId)).join("")}</div>
-        <!-- 02.11.2026 (Marc: Vorlagen vom Desktop ins iPhone übernehmen) — gewählten Stil als .rzstyle speichern / Dateien einlesen -->
-        <div class="va-rzstyle">
+        <div id="va-eigene-feld" hidden>
+          ${feldKopf("star", T("va.v_eigene", "Deine Vorlagen"))}
+          <div class="va-karten va-karten-2" id="va-zweck"><span id="sv-eigene" class="sv-eigene"></span></div>
+        </div>
+        <div class="va-vorlage-knoepfe">
+          <button type="button" class="va-knopf va-knopf-rand" data-va-merken>${I("bookmark", 16)}<span>${esc(T("va.v_merken", "Als Vorlage merken"))}</span></button>
           <button type="button" class="btn btn-small" data-va-rzstyle="export" title="${esc(T("rzstyle.export_tip", "Stil exportieren … — eine Videovorlage als .rzstyle-Datei speichern (z. B. für die iPhone-App)"))}"${VA_STILE[w.stilId] && (VA_STILE[w.stilId].vv || VA_STILE[w.stilId].eigen) ? "" : " disabled"}>${I("upload", 13)} ${esc(T("rzstyle.export", "Stil exportieren …"))}</button>
           <button type="button" class="btn btn-small" data-va-rzstyle="import" title="${esc(T("rzstyle.import_tip", "Stil importieren … — .rzstyle-Dateien als eigene Videovorlagen übernehmen"))}">${I("download", 13)} ${esc(T("rzstyle.import", "Stil importieren …"))}</button>
         </div>
+        <div class="va-vorlage-sp" id="va-vorlage-sp" hidden>
+          <div class="va-vorlage-zeile"><input type="text" id="va-vorlage-name" class="lib-input" placeholder="${esc(T("va.v_name_ph", "Name, z. B. „Wandern hochkant“"))}">
+          <button type="button" class="va-knopf" id="va-vorlage-speichern">${I("star", 15)}<span>${esc(T("va.v_speichern_k", "Merken"))}</span></button>${q(T("va.v_hinweis2", "Gemerkt wird nur der Stil (Format, Länge, Kamera, Karte, Linie, Einblendungen, Texte, Musik, Schluss) — im Assistenten im Reiter „Stil“ und beim Schnell-Video wählbar."))}</div>
+        </div>
+        <div class="sv-zutat" data-sv-zutat="musik">
+          ${feldKopf("music", T("schnell.z.musik", "Musik"), `<input type="checkbox" class="va-schalter" id="sv-musik-an"${w.musikAn ? " checked" : ""} title="${esc(T("va.musik_an_tip", "Musik an oder aus"))}">`)}
+          <div class="sv-zutat-teil">
+            <select id="sv-musik" class="lib-select" hidden>
+              ${MUSIK.map(([k, d]) => `<option value="builtin:${k}"${w.musik === "builtin:" + k ? " selected" : ""}>${esc(T("animator.ton." + k, d))}</option>`).join("")}
+              ${w.musik && !w.musik.startsWith("builtin:") ? `<option value="${esc(w.musik)}" selected>${esc(String(w.musik).split(/[\\/]/).pop())}</option>` : ""}
+            </select>
+            <button type="button" id="sv-musik-hoeren" hidden></button>
+            <div class="va-musik-liste" id="va-musik-liste"></div>
+            <div class="va-links"><button type="button" class="va-link" data-va-musik-alle>${I("list", 15)} ${esc(T("va.musik_alle", "Alle Musikstücke"))}</button>
+              <button type="button" class="va-link" id="sv-musik-datei" title="${esc(T("animator.ton.datei_tip", "Eigene Musik wählen (MP3, M4A, WAV, FLAC …)"))}">${I("plus", 15)} ${esc(T("va.musik_eigene", "Eigene Musik"))}</button></div>
+          </div>
+        </div>
+        ${mehrAuf(9, T("va.selbst", "Selbst einstellen"), "sliders-horizontal")}
+        <h3 class="va-unterkopf">${esc(T("va.l_karte", "Karte"))}</h3>
+        ${feldKopf("map", T("va.kartenstil", "Kartenstil"), "", "kartenlook")}
+        <div class="va-karten va-karten-4 va-looks" id="va-looks">${(window.rzLooks ? window.rzLooks.NAMEN : []).map(n =>
+          karte(`data-va-look="${n}"`, `<img class="va-look-bild" src="${(window.__rzAssetBase || "")}media/assistent/look_${n}.jpg" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'va-look-bild rz-look-bild rz-look-${n}'}))">`,
+            T("look." + n, n), LOOK_KURZ[n] || "", n === w.look, T("look." + n + ".tip", ""))).join("")}</div>
+        <button type="button" class="va-link" data-va-mehr-looks>${esc(T("va.mehr_looks", "Weitere Kartenstile im Animator"))} ${I("arrow-right", 14)}</button>
+        ${schalter("va-gelaende", false, T("va.w.gelaende", "3D-Gelände"), "", "gelaende")}
+        ${schalter("va-bergnamen", true, T("va.bergnamen", "Bergnamen"), T("va.bergnamen_k", "Namen und Höhen der Gipfel im Bild, ohne Kasten"))}
+        ${schalter("va-beschr", false, T("va.w.beschriftung", "Beschriftung"), "", "beschriftung")}
+        ${details(T("va.w.beschr_mehr", "mehr"), `<div class="va-chips">${VA_BESCHR.map(k => `<label class="va-chip"><input type="checkbox" data-va-beschr="${k}"><span>${I("check", 13)}${esc(T("va.w.beschr_" + k, k))}</span></label>`).join("")}</div>`, "va-beschr-mehr")}
+        ${schalter("sv-gebaeude", !!w.gebaeude, T("va.gebaeude", "3D-Häuser in Orten"), T("va.gebaeude_k", "Gebäude wachsen beim Heranfliegen aus der Karte."))}
+        <h3 class="va-unterkopf">${esc(T("va.linie_lp", "Linie und Laufpunkt"))}</h3>
+        ${feldKopf("navigation", T("va.laufpunkt", "Laufpunkt"), "", "laufpunkt")}
+        ${wahl('id="va-lp"', "data-va-lp", [["k:kometpfeil", "sparkles", T("animator.kopf3d.kometpfeil", "Komet-Pfeil")], ["k:komet", "sparkles", T("animator.kopf3d.komet", "Komet")],
+          ["k:pfeil", "", T("animator.kopf3d.pfeil", "3D-Pfeil")], ["k:puk", "", T("animator.kopf3d.puk", "3D-Puk")], ["arrow", "navigation", T("va.w.lp_pfeil", "Pfeil")], ["dot", "", T("va.w.lp_kugel", "Kugel")], ["leucht", "", T("va.lp_leucht", "Leuchtpunkt")], ["fahrzeug", "car", T("va.w.lp_fahrzeug", "Fahrzeug")], ["aus", "x", T("va.w.lp_aus", "Aus")]], w.lp)}
+        <div class="va-lp-fz" id="va-lp-fz-zeile" hidden><select id="va-lp-fz" class="lib-select"></select></div>
+        <!-- 06.11.2026 — Röhre + Nachglühen -->
+        ${feldKopf("sparkles", T("va.r3_darstellung", "Darstellung"), q(T("va.r3_tip", "3D-Röhre: der Track schwebt als leuchtende Röhre knapp über dem Gelände, vorne läuft ein Komet. Geht nur mit den freien Karten — mit Mapbox wird die Linie flach gezeichnet.")))}
+        ${wahl('id="va-r3"', "data-va-r3", [["flach", "", T("animator.linie3d.flach", "Flach")], ["roehre", "", T("animator.linie3d.roehre", "3D-Röhre")]], "")}
+        ${schalter("va-glut", false, T("animator.nachgluehen", "Nachglühen"), T("va.glut_tip", "Die frisch gelaufene Strecke glüht hinter dem Laufpunkt kurz nach und kühlt dann zur Linienfarbe ab."))}
+        ${mehrAuf(4, T("va.linie_mehr", "Mehr zur Linie"), "chevron-down")}
+        <div id="va-r3-mehr">
+        <!-- 08.11.2026 — der Kopf (Komet …) steht jetzt vorn in der Laufpunkt-Wahl -->
+        <div class="va-regler-zeile"><span>${esc(T("animator.roehre.glanz", "Glanz"))}</span><input type="range" class="va-regler" id="va-r3-glanz" min="0" max="1" step="0.05" value="0.35"><span class="va-regler-wert" id="va-r3-glanz-v"></span></div>
+        </div>
+        <div id="va-glut-mehr">
+        ${feldKopf("", T("animator.glut_look", "Glut-Farbe"))}
+        ${wahl('id="va-glut-look"', "data-va-glut-look", [["linie", "", T("animator.glut_look.linie", "Aus der Linienfarbe")], ["koralle", "", T("animator.glut_look.koralle", "Koralle")], ["warmkalt", "", T("animator.glut_look.warmkalt", "Warm zu Kühl")], ["pink", "", T("animator.glut_look.pink", "Pink, Violett, Blau")]], "")}
+        <div class="va-regler-zeile"><span>${esc(T("animator.nachgluehen", "Nachglühen"))}</span><input type="range" class="va-regler" id="va-glut-sek" min="0.5" max="5" step="0.25" value="1.5"><span class="va-regler-wert" id="va-glut-sek-v"></span></div>
+        </div>
+        ${feldKopf("route", T("va.w.linie_aussehen", "Linie"), `<button type="button" class="va-link va-link-klein" id="va-ls-zurueck">${esc(T("va.w.linie_zurueck", "↺ Wie die Karte"))}</button>`, "linie_aussehen")}
+        <div class="va-farben" id="va-ls-farben"></div>
+        ${wahl('id="va-ls-strich"', "data-va-strich", [["solid", "", T("animator.line_style.solid", "Durchgezogen")], ["dashed", "", T("animator.line_style.dashed", "Gestrichelt")], ["dotted", "", T("animator.line_style.dotted", "Gepunktet")], ["dashdot", "", T("animator.line_style.dashdot", "Strich-Punkt")]], "")}
+        <div class="va-regler-zeile"><span>${esc(T("va.w.linie_breite", "Breite"))}</span><input type="range" class="va-regler" id="va-ls-breite" min="1" max="12" step="0.5" value="${vaLookLinie().line_width}"><span class="va-regler-wert" id="va-ls-breite-v"></span></div>
+        ${details(T("va.w.linie_effekte", "Effekte"), schalter("va-ls-kontur", false, T("va.w.linie_kontur", "Kontur"))
+          + schalter("va-ls-schatten", false, T("va.w.linie_schatten", "Schlagschatten")) + schalter("va-ls-leuchten", false, T("va.w.linie_leuchten", "Leuchten")), "va-ls-effekte")}
+        ${schalter("va-ghost", true, T("va.w.ghost", "Strecke vorab zeigen"), "", "ghost")}
+        ${mehrZu}
+        ${mehrZu}
       </section>
 
       <section data-va="2">
@@ -1617,68 +1759,7 @@ ${mehrAuf(1)}
           T("va.sf_" + k + "_k", { gesamtsicht: "Die Kamera zieht sich zurück, die ganze Tour im Bild", hoch: "Steigt senkrecht auf bis zur Draufsicht auf die Tour", kreisen: "Eine ruhige Runde um den Zielpunkt", stehen: "Die Kamera bleibt beim Ziel, nur etwas weiter weg" }[k]),
           (w.schlussFlug || "gesamtsicht") === k)).join("")}</div>
         ${mehrZu}
-      </section>
-
-      <section data-va="3">
-        ${kopf(T("va.w.s8_look_h", "Welche Karte?"), T("va.w.s8_look_erkl", "Kartenstil, Gelände und Beschriftung — die Vorschau zeigt es sofort."))}
-        ${feldKopf("map", T("va.l_karte", "Karte"), "", "kartenlook")}
-        <div class="va-karten va-karten-4 va-looks" id="va-looks">${(window.rzLooks ? window.rzLooks.NAMEN : []).map(n =>
-          karte(`data-va-look="${n}"`, `<img class="va-look-bild" src="${(window.__rzAssetBase || "")}media/assistent/look_${n}.jpg" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'va-look-bild rz-look-bild rz-look-${n}'}))">`,
-            T("look." + n, n), LOOK_KURZ[n] || "", n === w.look, T("look." + n + ".tip", ""))).join("")}</div>
-        <button type="button" class="va-link" data-va-mehr-looks>${esc(T("va.mehr_looks", "Weitere Kartenstile im Animator"))} ${I("arrow-right", 14)}</button>
-        ${mehrAuf(3)}
-        ${schalter("va-gelaende", false, T("va.w.gelaende", "3D-Gelände"), "", "gelaende")}
-        ${schalter("va-bergnamen", true, T("va.bergnamen", "Bergnamen"), T("va.bergnamen_k", "Namen und Höhen der Gipfel im Bild, ohne Kasten"))}
-        ${schalter("va-beschr", false, T("va.w.beschriftung", "Beschriftung"), "", "beschriftung")}
-        ${details(T("va.w.beschr_mehr", "mehr"), `<div class="va-chips">${VA_BESCHR.map(k => `<label class="va-chip"><input type="checkbox" data-va-beschr="${k}"><span>${I("check", 13)}${esc(T("va.w.beschr_" + k, k))}</span></label>`).join("")}</div>`, "va-beschr-mehr")}
-        ${schalter("sv-gebaeude", !!w.gebaeude, T("va.gebaeude", "3D-Häuser in Orten"), T("va.gebaeude_k", "Gebäude wachsen beim Heranfliegen aus der Karte."))}
-        ${mehrZu}
-      </section>
-
-      <section data-va="4">
-        ${kopf(T("va.w.s8_linie_h", "Wie sieht die Strecke aus?"), T("va.w.s8_linie_erkl", "Farbe und Stil der Linie und was über die Strecke läuft."))}
-        ${feldKopf("navigation", T("va.laufpunkt", "Laufpunkt"), "", "laufpunkt")}
-        ${wahl('id="va-lp"', "data-va-lp", [["k:kometpfeil", "sparkles", T("animator.kopf3d.kometpfeil", "Komet-Pfeil")], ["k:komet", "sparkles", T("animator.kopf3d.komet", "Komet")],
-          ["k:pfeil", "", T("animator.kopf3d.pfeil", "3D-Pfeil")], ["k:puk", "", T("animator.kopf3d.puk", "3D-Puk")], ["arrow", "navigation", T("va.w.lp_pfeil", "Pfeil")], ["dot", "", T("va.w.lp_kugel", "Kugel")], ["leucht", "", T("va.lp_leucht", "Leuchtpunkt")], ["fahrzeug", "car", T("va.w.lp_fahrzeug", "Fahrzeug")], ["aus", "x", T("va.w.lp_aus", "Aus")]], w.lp)}
-        <div class="va-lp-fz" id="va-lp-fz-zeile" hidden><select id="va-lp-fz" class="lib-select"></select></div>
-        <!-- 06.11.2026 — Röhre + Nachglühen -->
-        ${feldKopf("sparkles", T("va.r3_darstellung", "Darstellung"), q(T("va.r3_tip", "3D-Röhre: der Track schwebt als leuchtende Röhre knapp über dem Gelände, vorne läuft ein Komet. Geht nur mit den freien Karten — mit Mapbox wird die Linie flach gezeichnet.")))}
-        ${wahl('id="va-r3"', "data-va-r3", [["flach", "", T("animator.linie3d.flach", "Flach")], ["roehre", "", T("animator.linie3d.roehre", "3D-Röhre")]], "")}
-        ${schalter("va-glut", false, T("animator.nachgluehen", "Nachglühen"), T("va.glut_tip", "Die frisch gelaufene Strecke glüht hinter dem Laufpunkt kurz nach und kühlt dann zur Linienfarbe ab."))}
-        ${mehrAuf(4)}
-        <div id="va-r3-mehr">
-        <!-- 08.11.2026 — der Kopf (Komet …) steht jetzt vorn in der Laufpunkt-Wahl -->
-        <div class="va-regler-zeile"><span>${esc(T("animator.roehre.glanz", "Glanz"))}</span><input type="range" class="va-regler" id="va-r3-glanz" min="0" max="1" step="0.05" value="0.35"><span class="va-regler-wert" id="va-r3-glanz-v"></span></div>
-        </div>
-        <div id="va-glut-mehr">
-        ${feldKopf("", T("animator.glut_look", "Glut-Farbe"))}
-        ${wahl('id="va-glut-look"', "data-va-glut-look", [["linie", "", T("animator.glut_look.linie", "Aus der Linienfarbe")], ["koralle", "", T("animator.glut_look.koralle", "Koralle")], ["warmkalt", "", T("animator.glut_look.warmkalt", "Warm zu Kühl")], ["pink", "", T("animator.glut_look.pink", "Pink, Violett, Blau")]], "")}
-        <div class="va-regler-zeile"><span>${esc(T("animator.nachgluehen", "Nachglühen"))}</span><input type="range" class="va-regler" id="va-glut-sek" min="0.5" max="5" step="0.25" value="1.5"><span class="va-regler-wert" id="va-glut-sek-v"></span></div>
-        </div>
-        ${feldKopf("route", T("va.w.linie_aussehen", "Linie"), `<button type="button" class="va-link va-link-klein" id="va-ls-zurueck">${esc(T("va.w.linie_zurueck", "↺ Wie die Karte"))}</button>`, "linie_aussehen")}
-        <div class="va-farben" id="va-ls-farben"></div>
-        ${wahl('id="va-ls-strich"', "data-va-strich", [["solid", "", T("animator.line_style.solid", "Durchgezogen")], ["dashed", "", T("animator.line_style.dashed", "Gestrichelt")], ["dotted", "", T("animator.line_style.dotted", "Gepunktet")], ["dashdot", "", T("animator.line_style.dashdot", "Strich-Punkt")]], "")}
-        <div class="va-regler-zeile"><span>${esc(T("va.w.linie_breite", "Breite"))}</span><input type="range" class="va-regler" id="va-ls-breite" min="1" max="12" step="0.5" value="${vaLookLinie().line_width}"><span class="va-regler-wert" id="va-ls-breite-v"></span></div>
-        ${details(T("va.w.linie_effekte", "Effekte"), schalter("va-ls-kontur", false, T("va.w.linie_kontur", "Kontur"))
-          + schalter("va-ls-schatten", false, T("va.w.linie_schatten", "Schlagschatten")) + schalter("va-ls-leuchten", false, T("va.w.linie_leuchten", "Leuchten")), "va-ls-effekte")}
-        ${schalter("va-ghost", true, T("va.w.ghost", "Strecke vorab zeigen"), "", "ghost")}
-        ${mehrZu}
-      </section>
-
-      <section data-va="5">
-        ${kopf(T("va.w.s8_titel_h", "Was steht am Anfang?"), T("va.w.s8_titel_erkl", "Titel und Unterzeile erscheinen am Anfang des Videos."))}
-        ${feldKopf("type", T("schnell.titel", "Titel"), `<input type="checkbox" class="va-schalter" id="va-titel-an"${w.titelAn !== false ? " checked" : ""} title="${esc(T("va.titel_an_tip", "Titel am Anfang an oder aus"))}">`, "titel")}
-        <div id="va-titel-teil"${w.titelAn !== false ? "" : " hidden"}>
-        <input type="text" id="sv-titel" class="lib-input va-eingabe" value="${esc(w.titel)}" aria-label="${esc(T("schnell.titel", "Titel"))}">
-        <div class="sv-titel-vorschlaege" id="sv-titel-vorschl"></div>
-        <label class="va-feld-kopf" for="sv-unter"><span>${esc(T("va.untertitel", "Untertitel"))}</span></label>
-        <input type="text" id="sv-unter" class="lib-input va-eingabe" value="${esc(w.unter)}">
-        </div>
-        ${mehrAuf(5)}
-        ${feldKopf("", T("va.t_menge_frage", "Wie viel Text möchtest du?"), q("", "va-t-erkl-q"))}
-        ${wahl('id="va-t-menge"', "data-va-t-menge", [["wenige", "", T("va.t_wenig_g", "Wenig"), T("va.t_wenig_k", "Nur der Titel")], ["normal", "", T("va.t_ausgewogen_g", "Ausgewogen"), T("va.t_ausgewogen_k2", "Mit Bildunterschriften")], ["viele", "", T("va.t_mehr_g", "Mehr"), T("va.t_mehr_k2", "Auch Kapitel")]], w.textMenge || "normal")}
-        <span id="va-t-erkl" hidden></span>
-        ${mehrZu}
+        ${P.keyframes > 0 ? `<p class="va-klein va-info">${I("info", 14)} <span>${esc(T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes))}</span></p>` : ""}
       </section>
 
       <section data-va="6" class="sv-zutat" data-sv-zutat="fotos">
@@ -1705,6 +1786,9 @@ ${mehrAuf(1)}
           <div class="va-mehrfach-text muted" id="va-mehrfach-text"></div>
           <div id="va-collage-teil">${schalter("va-collage", !!w.collage, T("va.collage_t", "Als Collage zeigen"), T("va.collage_k", "Mehrere Fotos an einer Stelle erscheinen zusammen in einem Bild (bis zu 4)."))}</div>
         </div>
+        <!-- 16.11.2026 (Marc: „die Bildunterschriften kommen zu den Fotos“) — vorher Teil von „Wie viel Text“ im Reiter Titel -->
+        ${feldKopf("type", T("va.f_text", "Unter den Fotos"))}
+        ${wahl('id="va-f-text"', "data-va-f-text", [["aus", "", T("va.f_text_aus", "Nichts")], ["ortzeit", "", T("va.f_text_ortzeit", "Ort und Uhrzeit")], ["exif", "", T("va.f_text_exif", "Mit Kameradaten")]], w.fotoText || "ortzeit")}
         <span id="va-h-lead" hidden></span>
         <label class="va-schalter-zeile"><span class="va-sz-text"><b>${esc(T("va.h_alle", "An allen Foto-Schildern anhalten"))}${q(T("va.h_alle_tip", "Damit man die Bilder in Ruhe ansehen kann. Aus: die Fahrt läuft weiter, das Foto steht kurz daneben."), "va-h-lead-q")}</b></span>
           <input type="checkbox" class="va-schalter" id="va-h-alle" checked></label>
@@ -1714,11 +1798,27 @@ ${mehrAuf(1)}
           ${schalter("va-h-heran", w.fotoPause !== "stehen", T("va.h_heran_t", "Zu den Fotos heranfahren"), T("va.h_heran_k", "Die Kamera nähert sich sanft."))}
           ${schalter("va-h-kreisen", !!w.fotoKreisen, T("va.h_kreisen_t", "Einmal ums Foto kreisen"), T("va.h_kreisen_k", "Während des Halts fliegt die Kamera eine Runde um den Fotoort."))}
         </div>
+        ${schalter("sv-klick", w.klick !== false, T("va.klick", "Klick bei jedem Foto"), T("va.klick_k", "Ein leises Kamera-Klicken, wenn ein Foto erscheint."))}
         ${mehrZu}
       </section>
 
-      <section data-va="7">
-        ${kopf(T("va.w.s8_infos_h", "Was wird eingeblendet?"), T("va.w.s8_infos_erkl", "Zahlen, Höhenprofil, Highlights und die Schlusskarte."))}
+      <section data-va="5">
+        <!-- 16.11.2026 (Marc: „dann müssen alle Texte in einen Reiter … der Rest zu den Texten“) — Titel, die übrigen Texte
+             der Vorlage und alle Einblendungen an einer Stelle (vorher Reiter Titel + Infos; Texte nur per Doppelklick in der Vorschau) -->
+        ${kopf(T("va.tx_h", "Was steht im Bild?"), T("va.tx_sub", "Alle Texte und Einblendungen des Videos an einer Stelle."))}
+        ${feldKopf("type", T("schnell.titel", "Titel"), `<input type="checkbox" class="va-schalter" id="va-titel-an"${w.titelAn !== false ? " checked" : ""} title="${esc(T("va.titel_an_tip", "Titel am Anfang an oder aus"))}">`, "titel")}
+        <div id="va-titel-teil"${w.titelAn !== false ? "" : " hidden"}>
+        <input type="text" id="sv-titel" class="lib-input va-eingabe" value="${esc(w.titel)}" aria-label="${esc(T("schnell.titel", "Titel"))}">
+        <div class="sv-titel-vorschlaege" id="sv-titel-vorschl"></div>
+        <label class="va-feld-kopf" for="sv-unter"><span>${esc(T("va.untertitel", "Untertitel"))}</span></label>
+        <input type="text" id="sv-unter" class="lib-input va-eingabe" value="${esc(w.unter)}">
+        </div>
+        <div id="va-texte-feld" hidden>
+          ${feldKopf("type", T("va.tx_weitere", "Weitere Texte im Video"), q(T("va.tx_weitere_tip", "Die übrigen Texte der Vorlage. Was du hier änderst, bleibt, auch wenn du danach im Assistenten etwas anderes wählst.")))}
+          <div class="va-texte-liste" id="va-texte-liste"></div>
+        </div>
+        <div id="va-kapitel-zeile" hidden>${schalter("va-kapitel", w.kapitelAn !== false, T("va.kapitel", "Kapitel je Tag"), T("va.kapitel_k", "Bei Touren über mehrere Tage steht am Beginn jedes Tages „Tag 2 · 11. August“."))}</div>
+        ${feldKopf("layers", T("va.tx_einbl", "Einblendungen"))}
         <div class="va-zkarten">
           <label class="va-zk"><span class="va-zk-bild va-gb">${routeSvg()}<span class="va-gb-chip">${I("route", 11)} ${esc(km)}<i></i>${I("mountain", 11)} ${esc(aufM)}</span></span>
             <span class="va-zk-text"><b>${esc(T("va.e_zahlen_g", "Strecke & Höhe"))}${hilfeKnopf("z_zahlen")}</b></span>
@@ -1733,7 +1833,7 @@ ${mehrAuf(1)}
         <div class="va-g-liste" id="va-g-liste"></div>
         <label hidden><input type="checkbox" id="sv-logbuch"${w.logbuch ? " checked" : ""}></label>
         <label hidden><input type="checkbox" id="sv-highlights"${w.highlights ? " checked" : ""}></label>
-        ${mehrAuf(7)}
+        ${mehrAuf(5)}
         <div id="va-raster-zeile"${w.profil ? "" : " hidden"}>${schalter("va-raster", !!w.raster, T("va.raster", "Streckenraster im Höhenprofil"), T("va.raster_k", "Feine Linien mit km- bzw. Meilen-Angabe, damit man sieht, wo der Anstieg liegt."))}</div>
         ${schalter("sv-uebersicht", !!w.uebersicht, T("va.uebersicht", "Übersichtskarte in der Ecke"), T("va.uebersicht_k", "Die ganze Tour klein oben rechts, der gefahrene Teil wächst mit."))}
         <!-- 01.11.2026 (wie die iPhone-App) — wichtige Orte unterwegs: Städte, Dörfer und Pässe an der Strecke als kleine Schilder -->
@@ -1750,43 +1850,11 @@ ${mehrAuf(1)}
             ${details(T("va.weitere_angaben", "Weitere Angaben"), `<div class="va-chips">${SCHLUSS_FELDER.filter(f => !["dist_total", "elev_gain", "moving_time"].includes(f)).map(f => `<label class="va-chip"><input type="checkbox" data-sv-feld="${f}"${w.felder.includes(f) ? " checked" : ""}><span>${I("check", 13)}${esc(feldLabel(f))}</span></label>`).join("")}</div>`, "va-felder-mehr", SCHLUSS_FELDER.some(f => !["dist_total", "elev_gain", "moving_time"].includes(f) && w.felder.includes(f)))}
           </div>
         </div>
-        ${mehrZu}
-      </section>
-
-      <section data-va="8">
-        ${kopf(T("va.v_h", "Dein Video"), T("va.v_sub", "Alles steht schon im Projekt. Übernimm es — oder erstelle das Video gleich.") + " " + T("va.s9_hinweis2", "Du kannst im Animator jederzeit weitergestalten. ⌘Z nimmt den ganzen Assistenten zurück."))}
-        <div class="va-uebersicht" id="va-liste"></div>
-        <div class="sv-zutat" data-sv-zutat="musik">
-          ${feldKopf("music", T("schnell.z.musik", "Musik"), `<input type="checkbox" class="va-schalter" id="sv-musik-an"${w.musikAn ? " checked" : ""} title="${esc(T("va.musik_an_tip", "Musik an oder aus"))}">`)}
-          <div class="sv-zutat-teil">
-            <select id="sv-musik" class="lib-select" hidden>
-              ${MUSIK.map(([k, d]) => `<option value="builtin:${k}"${w.musik === "builtin:" + k ? " selected" : ""}>${esc(T("animator.ton." + k, d))}</option>`).join("")}
-              ${w.musik && !w.musik.startsWith("builtin:") ? `<option value="${esc(w.musik)}" selected>${esc(String(w.musik).split(/[\\/]/).pop())}</option>` : ""}
-            </select>
-            <button type="button" id="sv-musik-hoeren" hidden></button>
-            <div class="va-musik-liste" id="va-musik-liste"></div>
-            <div class="va-links"><button type="button" class="va-link" data-va-musik-alle>${I("list", 15)} ${esc(T("va.musik_alle", "Alle Musikstücke"))}</button>
-              <button type="button" class="va-link" id="sv-musik-datei" title="${esc(T("animator.ton.datei_tip", "Eigene Musik wählen (MP3, M4A, WAV, FLAC …)"))}">${I("plus", 15)} ${esc(T("va.musik_eigene", "Eigene Musik"))}</button></div>
-          </div>
-        </div>
-        ${mehrAuf(8)}
-        ${schalter("sv-klick", w.klick !== false, T("va.klick", "Klick bei jedem Foto"), T("va.klick_k", "Ein leises Kamera-Klicken, wenn ein Foto erscheint."))}
         ${feldKopf("image", T("va.logo_lage", "Logo"), `<input type="checkbox" class="va-schalter" id="va-logo-an"${w.logoAn !== false ? " checked" : ""} title="${esc(T("va.logo_an_tip", "Logo im Video an oder aus"))}">`)}
         <div id="va-logo-teil"${w.logoAn !== false ? "" : " hidden"}>
         ${wahl('data-va-logo', "data-va-logo-w", [["links", "", T("va.links", "Links")], ["mitte", "", T("va.mitte", "Mitte")], ["rechts", "", T("va.rechts", "Rechts")]], w.logoLage || "mitte")}
         </div>
-        <!-- 01.11.2026 (Marc: „Route brauchen wir doch gar nicht, das ist eh leer“) — der Reiter Route ist weg; die gemerkten
-             Stile stehen hier, neben „Als Vorlage merken“ -->
-        <div id="va-eigene-feld" hidden>
-          ${feldKopf("star", T("va.v_eigene_anwenden", "Gemerkten Stil anwenden"))}
-          <div class="va-karten va-karten-3" id="va-zweck"><span id="sv-eigene" class="sv-eigene"></span></div>
-        </div>
-        <button type="button" class="va-knopf va-knopf-rand" data-va-merken>${I("bookmark", 16)}<span>${esc(T("va.v_merken", "Als Vorlage merken"))}</span></button>
-        <div class="va-vorlage-sp" id="va-vorlage-sp" hidden>
-          <div class="va-vorlage-zeile"><input type="text" id="va-vorlage-name" class="lib-input" placeholder="${esc(T("va.v_name_ph", "Name, z. B. „Wandern hochkant“"))}">
-          <button type="button" class="va-knopf" id="va-vorlage-speichern">${I("star", 15)}<span>${esc(T("va.v_speichern_k", "Merken"))}</span></button>${q(T("va.v_hinweis2", "Gemerkt wird nur der Stil (Format, Länge, Kamera, Karte, Linie, Einblendungen, Texte, Musik, Schluss) — beim Assistenten im Reiter „Route“ und beim Schnell-Video wählbar."))}</div>
         ${mehrZu}
-        ${P.keyframes > 0 ? `<p class="va-klein va-info">${I("info", 14)} <span>${esc(T("schnell.kf_warnung", "Das Projekt hat schon {n} Keyframes — sie werden durch die Kamerafahrt ersetzt (⌘Z holt sie zurück).").replace("{n}", P.keyframes))}</span></p>` : ""}
       </section>
     </div>`;
     const m = (ASS ? vaFenster : openModal)({
@@ -2574,7 +2642,7 @@ ${mehrAuf(1)}
      *  · viele (dazu Ort, Uhrzeit und Kameradaten unter den Fotos). Kapiteltitel nur so dicht, dass jeder ~3,5 s Platz hat. */
     const KAPITEL_ABSTAND_S = 3.5;
     function kapitelTitel() {
-      if (!ASS || (w.textMenge || "normal") === "wenige" || !(w.lbTage > 1) || !Array.isArray(w.lbKapitel)) return [];
+      if (!ASS || w.kapitelAn === false || !(w.lbTage > 1) || !Array.isArray(w.lbKapitel)) return [];
       const animS = Math.max(8, laengeS(w) - introS(w) - holdS(w));
       const sprache = (window.rzSprachCode ? window.rzSprachCode() : "de") || "de";
       const raus = []; let letzt = -1;
@@ -2588,27 +2656,70 @@ ${mehrAuf(1)}
       }
       return raus;
     }
+    /** 16.11.2026 (Nutzer-Meldung „Less is More“: Texte der Vorlage ließen sich nur per Doppelklick in der Vorschau ändern) —
+     *  die übrigen Texte der Einblendungen (Vorlagen-Texte wie „DER ANFANG“, die Zeile über dem Titel …) als Liste im Reiter
+     *  Texte. Eine Änderung speichert wie der Einblendungs-Editor (= eine Änderung von Hand): sie bleibt, auch wenn man danach
+     *  im Assistenten etwas anderes wählt (rzVaMischen). Titel und Untertitel haben eigene Felder, Platzhalter ({dist} …) und
+     *  leere Zeilen stehen nicht in der Liste. Ohne offenen Animator (keine Einblendungen zum Bearbeiten) bleibt sie weg. */
+    const vaTexteZeilen = () => {
+      const RC = window.__rzContainer;
+      if (!RC || !window.rzContainer || !(window.getActiveMod && window.getActiveMod() === "animator")) return null;
+      let pj = null; try { pj = typeof getActiveProject === "function" ? getActiveProject() : null; } catch (_) {}
+      if (!pj || !P || pj.id !== P.id) return null;
+      const t1 = String((box.querySelector("#sv-titel") || {}).value ?? w.titel ?? "").trim(), t2 = String((box.querySelector("#sv-unter") || {}).value ?? w.unter ?? "").trim();
+      const raus = [];
+      (RC.liste() || []).forEach(c => {
+        if (!c || c.an === false || !Array.isArray(c.zeilen)) return;
+        c.zeilen.forEach((z, zi) => {
+          if (!z || z.typ !== "text") return;
+          const t = String(z.text || "");
+          if (!t.trim() || /\{[a-z_0-9]+\}/i.test(t)) return;
+          if (t.trim() === t1 || (t2 && t.trim() === t2)) return;
+          raus.push({ cid: c.id, key: (c.va && c.va.key) || "", zid: z.id || null, zi, name: c.name || "", text: t });
+        });
+      });
+      return raus;
+    };
+    const vaTexteListe = (zwingen) => {
+      const feld = box.querySelector("#va-texte-feld"), ul = box.querySelector("#va-texte-liste");
+      if (!feld || !ul) return;
+      if (!zwingen && ul.contains(document.activeElement)) return;   // nicht unter den Fingern neu zeichnen
+      const z = vaTexteZeilen();
+      feld.hidden = !(z && z.length);
+      if (!z) return;
+      ul.innerHTML = z.map(x => `<label class="va-text-zeile"><span class="va-text-name">${esc(x.name)}</span>`
+        + `<input type="text" class="lib-input va-eingabe" data-va-text-c="${esc(x.cid)}" data-va-text-k="${esc(x.key)}" data-va-text-z="${esc(x.zid || "")}" data-va-text-i="${x.zi}" value="${esc(x.text)}"></label>`).join("");
+    };
+    box.addEventListener("change", (e) => {
+      const inp = e.target.closest && e.target.closest("[data-va-text-c]"); if (!inp) return;
+      const RC = window.__rzContainer, C = window.rzContainer; if (!RC || !C) return;
+      try {
+        const l = JSON.parse(JSON.stringify(RC.liste() || []));
+        // 17.11.2026 — Kennung, sonst Schlüssel des Assistenten (wurde inzwischen live geschrieben, gilt der); nichts gefunden → sagen
+        const c = l.find(x => x.id === inp.dataset.vaTextC) || (inp.dataset.vaTextK && l.find(x => x.va && x.va.key === inp.dataset.vaTextK));
+        if (!c || !Array.isArray(c.zeilen)) { applog("warn", `[assistent] Text: Einblendung ${inp.dataset.vaTextC}/${inp.dataset.vaTextK || "-"} nicht gefunden`); return; }
+        const z = (inp.dataset.vaTextZ && c.zeilen.find(y => y && y.id === inp.dataset.vaTextZ)) || c.zeilen[+inp.dataset.vaTextI];
+        if (!z || z.typ !== "text" || z.text === inp.value) return;
+        z.text = inp.value;
+        RC.speichern(l.map(C.normalisieren), T("va.tx_undo", "Text der Einblendung"));
+        applog("info", `[assistent] Text „${c.name || c.vorlage || ""}“ von Hand geändert`);
+      } catch (err) { if (window.rzSwallow) rzSwallow(err, "assistent:text"); }
+    }, true);   // Capture: vor dem Zuhörer, der live ins Projekt schreibt — der liest dann schon den neuen Text
+    box.addEventListener("click", (ev) => {   // Reiter Fotos: was unter den Fotos steht (16.11.2026)
+      const b = ev.target.closest && ev.target.closest("[data-va-f-text]"); if (!b) return;
+      w.fotoText = b.dataset.vaFText;
+      box.querySelectorAll("[data-va-f-text]").forEach(x => x.classList.toggle("is-on", x === b));
+    }, true);
     function vaTexte() {
-      box.querySelectorAll("[data-va-t-menge]").forEach(b => { const g = b.querySelector(".va-gb"); if (g) g.outerHTML = textBild(b.dataset.vaTMenge); });
-      const e = box.querySelector("#va-t-erkl");
-      if (e) {
-        const n = kapitelTitel().length;
-        e.textContent = { wenige: T("va.t_e_wenige", "Nur der Titel am Anfang."),
-                          viele: T("va.t_e_viele", "Titel, Unterzeile, Kapitel je Tag und unter jedem Foto Ort, Uhrzeit und Kameradaten.") }[w.textMenge]
-          || T("va.t_e_normal", "Titel und Unterzeile, unter den Fotos Ort und Uhrzeit.") + (n ? " " + T("va.t_e_kapitel", "Dazu {n} Kapiteltitel (Tag und Datum).", { n }) : "");
-      }
+      const kz = box.querySelector("#va-kapitel-zeile"); if (kz) kz.hidden = !(w.lbTage > 1);
+      vaTexteListe();
       if (box.__vaTexteGebunden) return;
       box.__vaTexteGebunden = true;
       box.querySelector("#va-titel-an")?.addEventListener("change", (ev) => {   // 01.11.2026 — Titel ganz an/aus
         w.titelAn = !!ev.target.checked;
         const t_ = box.querySelector("#va-titel-teil"); if (t_) t_.hidden = !w.titelAn;
       });
-      box.querySelector("#va-t-menge")?.addEventListener("click", (ev) => {
-        const b = ev.target.closest("[data-va-t-menge]"); if (!b) return;
-        w.textMenge = b.dataset.vaTMenge;
-        box.querySelectorAll("[data-va-t-menge]").forEach(x => x.classList.toggle("is-on", x === b));
-        vaTexte(); vaLive();
-      });
+      box.querySelector("#va-kapitel")?.addEventListener("change", (ev) => { w.kapitelAn = !!ev.target.checked; });
       ["#sv-titel", "#sv-unter"].forEach(sel => box.querySelector(sel)?.addEventListener("change", () => vaLive()));
       const mit = () => { const t1 = box.querySelector("#sv-titel")?.value || "", t2 = box.querySelector("#sv-unter")?.value || "";
         box.querySelectorAll(".va-gb-t1").forEach(e => { e.textContent = t1; }); box.querySelectorAll(".va-gb-t2").forEach(e => { e.textContent = t2; }); };
@@ -2781,11 +2892,11 @@ ${mehrAuf(1)}
       // 14.10.2026 — „Einmal ums Foto kreisen“: an jedem Fotostopp mit Kamera (nicht bei Clips)
       // 11.10.2026 — Assistent, Stufe „Halte“: an allen Foto-Schildern oder an keinem; Dauer kurz/normal/lang
       if (ASS) {
-        const f = HALT_FAKTOR[w.halteDauer] || 1, an = halteAn(), menge = w.textMenge || "normal";
-        st.forEach(x => {   // Texte: wenige = keine Unterschrift, viele = mit Kameradaten
+        const f = HALT_FAKTOR[w.halteDauer] || 1, an = halteAn(), ft = w.fotoText || "ortzeit";
+        st.forEach(x => {   // Unter den Fotos (16.11.2026, Reiter Fotos): nichts · Ort und Uhrzeit · mit Kameradaten
           if (!x.imageSrc || x.clip) return;
-          x.stopp_ortzeit = menge !== "wenige"; x.stopp_exif = menge === "viele";
-          if (menge === "wenige" && x.style === "sofortbild" && !x.__eigenText) x.text = "";
+          x.stopp_ortzeit = ft !== "aus"; x.stopp_exif = ft === "exif";
+          if (ft === "aus" && x.style === "sofortbild" && !x.__eigenText) x.text = "";
         });
         st.forEach(x => {
           if (!x.imageSrc || x.clip) return;
@@ -2912,7 +3023,9 @@ ${mehrAuf(1)}
       return { vorlage: w.vorlage, format: w.format, laenge: w.laenge, eigen_s: w.eigenS, look: w.look || null, zahlen: an("sv-zahlen"), profil: an("sv-profil"),
                uebersicht: an("sv-uebersicht"), felder: w.felder.slice(), musik: mu ? mu.value : w.musik, kamera: w.kamera || null, flug: w.flug || null, foto_kreisen: !!w.fotoKreisen,
                kam_leb: isFinite(+w.kamLeb) ? +w.kamLeb : null, halte_dauer: w.halteDauer || null, halte_alle: typeof w.halteAlle === "boolean" ? w.halteAlle : null,
-               text_menge: w.textMenge || null, foto_menge: isFinite(+w.fotoMenge) ? +w.fotoMenge : null, schluss_an: an("sv-schluss-an"),
+               text_menge: w.fotoText ? (w.fotoText === "aus" && w.kapitelAn === false ? "wenige" : w.fotoText === "exif" ? "viele" : "normal") : (w.textMenge || null),
+               foto_text: w.fotoText || null, kapitel_an: typeof w.kapitelAn === "boolean" ? w.kapitelAn : null,   // 16.11.2026
+               foto_menge: isFinite(+w.fotoMenge) ? +w.fotoMenge : null, schluss_an: an("sv-schluss-an"),
                foto_art: w.fotoArt, highlights: an("sv-highlights"), hl_arten: w.hlArten ? [...w.hlArten] : null, gebaeude: an("sv-gebaeude"),
                collage: !!w.collage,   // 15.11.2026
                // 26.10.2026 — Reiter wie im Web
@@ -2943,7 +3056,15 @@ ${mehrAuf(1)}
           box.querySelectorAll('[data-sv-gruppe="flug"] [data-sv-wert]').forEach(b => b.classList.toggle("is-on", b.dataset.svWert === w.flug)); }
         if (st.halte_dauer) { w.halteDauer = st.halte_dauer; box.querySelectorAll("[data-va-h-dauer]").forEach(b => b.classList.toggle("is-on", b.dataset.vaHDauer === w.halteDauer)); }
         if (typeof st.halte_alle === "boolean") w.halteAlle = st.halte_alle;
-        if (st.text_menge) { w.textMenge = st.text_menge; box.querySelectorAll("[data-va-t-menge]").forEach(b => b.classList.toggle("is-on", b.dataset.vaTMenge === w.textMenge)); }
+        if (st.text_menge) w.textMenge = st.text_menge;
+        // 16.11.2026 — Unterschriften und Kapitel getrennt; ältere Vorlagen kennen nur `text_menge`
+        if (ASS) {
+          const ft = ["aus", "ortzeit", "exif"].includes(st.foto_text) ? st.foto_text : st.text_menge ? ({ wenige: "aus", viele: "exif" }[st.text_menge] || "ortzeit") : null;
+          if (ft) { w.fotoText = ft; box.querySelectorAll("[data-va-f-text]").forEach(b => b.classList.toggle("is-on", b.dataset.vaFText === ft)); }
+          const ka = typeof st.kapitel_an === "boolean" ? st.kapitel_an : st.text_menge ? st.text_menge !== "wenige" : null;
+          if (ka != null) { w.kapitelAn = ka; const e = box.querySelector("#va-kapitel"); if (e) e.checked = ka; }
+          if (st.text_menge === "wenige" && st.foto_text == null) { w.unter = ""; const e = box.querySelector("#sv-unter"); if (e) e.value = ""; }   // „nur der Titel“
+        }
         if (st.foto_menge != null) w.fotoMenge = +st.foto_menge;
         if (ASS && Array.isArray(st.hl_arten)) w.hlArten = new Set(st.hl_arten.filter(a => HL_ARTEN.includes(a)));
         if (ASS) {
@@ -3016,6 +3137,7 @@ ${mehrAuf(1)}
     let laeuft = false;
     let ausgang = null, kfBestaetigt = false, liveTimer = 0;   // 11.10.2026 — Stand vor dem Assistenten, Keyframe-Frage einmal
     let vaListe = [];   // 08.10.2026 — „Das hat der Assistent gemacht“
+    let vaListeAuffrischen = null;   // 16.11.2026 — ohne Seite „Video“ wird die Liste beim Übernehmen gebaut
     const werteLesen = () => {
       w.stil = w.look ? lookStil(w.look) : vorlageStil(w.vorlage);   // 06.10.2026 — Kartenstil aus der Vorlage (Assistent: aus dem Look)
       w.titel = box.querySelector("#sv-titel").value.trim();
@@ -3106,7 +3228,9 @@ ${mehrAuf(1)}
       const live = ASS && modus === "live";
       // 01.11.2026 (Marc: „Scrubber hin und her geschoben, dann im Assistenten etwas geändert — der Scrubber springt zurück“)
       const tVorher = live && window.__rzTpZeit ? window.__rzTpZeit() : null;
+      const sVorher = vaSeiteJetzt;   // 16.11.2026 — Reiter beim Start; wechselt er währenddessen, ist die Zeit nicht „selbst geschoben“
       if (ASS) try { kamOptSetzen(); w.kapitelTitel = kapitelTitel(); } catch (_) {}
+      if (ASS && !live && vaListeAuffrischen) vaListeAuffrischen();
       if (laeuft) {
         if (live) return;
         for (let i = 0; i < 100 && laeuft; i++) await new Promise(res => setTimeout(res, 100));   // laufendes Live-Schreiben abwarten
@@ -3120,6 +3244,19 @@ ${mehrAuf(1)}
       // rechnete die Tempo-Kurve mit ihr weiter und schrieb die alte Dauer zurück ins Feld (12,8 statt 33 s)
       voll.tempo_rate = null; voll.tempo_basis = null;
       if (ASS) vaPatch(voll);
+      // 16.11.2026 — von Hand Geändertes in den Einblendungen behalten (vaContainerMischen)
+      if (Array.isArray(voll.container)) {
+        try {
+          let altL = null, altW = null;
+          const pj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+          if (pj && pj.id === P.id && pj.animator) { altL = pj.animator.container; altW = pj.animator.container_va_weg; }
+          if (window.getActiveMod && window.getActiveMod() === "animator" && window.__rzContainer && pj && pj.id === P.id) altL = window.__rzContainer.liste();
+          if (Array.isArray(altL) && altL.length) {
+            const r_ = vaContainerMischen(voll.container, altL, altW);
+            voll.container = r_.liste; voll.container_va_weg = r_.weg;
+          }
+        } catch (e) { if (window.rzSwallow) rzSwallow(e, "assistent:einblendungen mischen"); }
+      }
       const patch = look ? nurAblauf(voll) : voll;
       if (!ASS) m.close();
       if (P.keyframes > 0 && !kfBestaetigt) {
@@ -3190,9 +3327,10 @@ ${mehrAuf(1)}
         }
       }
       if (live) {
+        if (vaSeiteJetzt === 5) { try { vaTexteListe(); } catch (e) { if (window.rzSwallow) rzSwallow(e, "assistent:texte"); } }   // 16.11.2026 — Liste nach dem Schreiben frisch
         try {
           // selbst geschoben (Zeit ≠ die Stelle, die der Assistent zuletzt angefahren hat) → dort bleiben, sonst die Stelle des Reiters
-          const selbst = tVorher != null && isFinite(tVorher) && (!vaStelle || Math.abs(tVorher - vaStelle.t) > 0.1);
+          const selbst = sVorher === vaSeiteJetzt && tVorher != null && isFinite(tVorher) && (!vaStelle || Math.abs(tVorher - vaStelle.t) > 0.1);
           if (selbst && window.__rzGeheZuZeit) window.__rzGeheZuZeit(tVorher); else vaVorschauStelle();
         } catch (e) { if (window.rzSwallow) rzSwallow(e, "assistent:stelle"); }
         return;
@@ -3257,7 +3395,7 @@ ${mehrAuf(1)}
       }
       return ph.intro + 0.6;
     };
-    const VA_ALLE_SCHILDER = { 1: true, 6: true, 7: true };
+    const VA_ALLE_SCHILDER = { 1: true, 6: true };
     const vaVorschauStelle = () => {
       if (!ASS || !vaSeiteJetzt) return;
       const S_ = vaSeiteJetzt;
@@ -3279,7 +3417,11 @@ ${mehrAuf(1)}
     if (ASS) {
       const inStufe = (el) => !!(el && el.closest("[data-va]") && !el.closest("#va-vorlage-name, #va-vorlage-speichern"));
       box.addEventListener("change", (e) => { if (inStufe(e.target)) vaLive(); });
-      box.addEventListener("click", (e) => { const b = e.target.closest("button, label, [data-sv-foto], [data-va-look]"); if (b && inStufe(b)) vaLive(); });
+      // 17.11.2026 (Klicktest) — ein Klick in ein Textfeld (auch über sein <label>) ändert nichts: geschrieben wird erst bei „change“
+      const textfeld = (el) => !!(el && el.matches && el.matches("input:not([type]), input[type=text], input[type=number], textarea"));
+      box.addEventListener("click", (e) => { const b = e.target.closest("button, label, [data-sv-foto], [data-va-look]"); if (!b || !inStufe(b)) return;
+        if (textfeld(e.target) || (b.matches("label") && textfeld(b.querySelector("input, textarea")))) return;
+        vaLive(); });
     }
     // 03.11.2026 — Videovorlage ohne Assistent (Kommandozeile): Linie, Verläufe, Bergnamen und Laufpunkt der Vorlage wie in
     // vaPatch; Kamera, Beschriftung und Gelände bleiben beim Schnell-Video (vaPatch setzt die nach den Reitern des Assistenten)
@@ -3377,10 +3519,14 @@ ${mehrAuf(1)}
       // 26.10.2026 — die acht Reiter der Web-Version; wie dort beginnt es nach dem Laden bei „Kamera“
       const NAMEN = [null, T("va.fl_reiter", "Format"), T("va.w.s8_kamera", "Kamera"), T("va.w.s8_look", "Karte"), T("va.w.s8_linie", "Linie"),
                      T("va.w.s8_titel", "Titel"), T("va.w.s8_fotos", "Fotos"), T("va.w.s8_infos", "Infos"), T("va.w.s8_video", "Video")];
-      const LETZTE = NAMEN.length - 1;
       NAMEN[9] = T("va.stil_reiter", "Stil");
-      // 01.11.2026 — Reihenfolge der Reiter: Format, Stil (Seite 9), Kamera … Video (Seitennummern bleiben, Prüfstand/Tests)
-      const ORDNUNG = [1, 9, 2, 3, 4, 5, 6, 7, 8];
+      NAMEN[5] = T("va.tx_reiter", "Texte");
+      // 01.11.2026 — Reihenfolge der Reiter: Format, Stil (Seite 9), Kamera … (Seitennummern bleiben, Prüfstand/Tests)
+      // 16.11.2026 (Nutzer-Meldung „Less is More“, Marc: „ja das sieht gut aus“) — fünf statt neun Reiter: Karte und Linie
+      // stecken im Stil unter „Selbst einstellen“, Titel + Infos sind „Texte“, die Übersicht „Video“ ist weg (Musik → Stil,
+      // Klick → Fotos, Logo → Texte; Übernehmen/Erstellen stehen ohnehin unten). Seiten 3, 4, 7, 8 gibt es nicht mehr.
+      const ORDNUNG = [1, 9, 2, 6, 5];
+      const LETZTE = ORDNUNG[ORDNUNG.length - 1];
       const naechste = (s) => ORDNUNG[ORDNUNG.indexOf(s) + 1];
       let seite = 1;   // 01.11.2026 — Start bei „Format“ (Punkt 1)
       const zusammenfassung = () => {
@@ -3423,18 +3569,39 @@ ${mehrAuf(1)}
           ["map-pin", T("va.w.s8_infos", "Infos"), [einbl.length ? einbl.join(", ") : "", wSchilder, w.schlussAn ? T("va.u_schluss", "Schlusskarte mit {n} Werten", { n: w.felder.length }) : ""].filter(Boolean).join(" · "), 7],
           ["music", T("va.l_musik", "Musik"), wMusik, 8],
         ];
-        const ul = box.querySelector("#va-liste");
+        const ul = box.querySelector("#va-liste");   // 16.11.2026 — die Seite „Video“ mit der Übersicht gibt es nicht mehr
         if (ul) ul.innerHTML = zeilen.map(([ic, k, v2, s_]) => `<div class="va-u-zeile"><span class="va-u-ic">${I(ic, 18)}</span><span class="va-g-text"><b>${esc(k)}</b><small>${esc(v2 || "—")}</small></span>`
           + `<button type="button" class="va-link" data-va-geh="${s_}">${esc(T("va.aendern", "Ändern"))} ${I("chevron-right", 14)}</button></div>`).join("");
         ul && ul.querySelectorAll("[data-va-geh]").forEach(b => { b.onclick = () => { seite = +b.dataset.vaGeh; zeigen(); }; });
       };
+      // 16.11.2026 — zugeklappt zeigt „Selbst einstellen“, was gilt: „Topo · Komet-Pfeil“
+      const vaSelbstKurz = () => {
+        const n_ = box.querySelector('details[data-va-mehr="9"] > summary .va-details-n'); if (!n_) return;
+        const lk = box.querySelector("[data-va-look].is-on b"), lp = box.querySelector("[data-va-lp].is-on span");
+        n_.textContent = [lk && lk.textContent, lp && lp.textContent].filter(Boolean).join(" · ");
+      };
+      box.addEventListener("click", (e) => { if (e.target.closest && e.target.closest('[data-va="9"]')) setTimeout(vaSelbstKurz, 0); });
+      vaListeAuffrischen = () => { try { zusammenfassung(); } catch (e) { if (window.rzSwallow) rzSwallow(e, "assistent:liste"); } };
       const zeigen = () => {
         box.querySelectorAll("[data-va]").forEach(e => e.classList.toggle("va-weg", +e.dataset.va !== seite));
         const k = box.querySelector("#va-kopf");
-        if (k) k.innerHTML = `<div class="va-reiter" role="tablist">${ORDNUNG.map((s_, i) => `<button type="button" role="tab" class="va-reiter-k${s_ === seite ? " is-on" : ""}" aria-selected="${s_ === seite}" data-va-geh="${s_}"><span class="n">${i + 1}</span><span>${esc(NAMEN[s_])}</span></button>`).join("")}</div>`;
+        // 16.11.2026 — wie im Web: „Schritt 2 · Stil“ über der Frage; rechts der Schalter für Profis
+        const nr = ORDNUNG.indexOf(seite) + 1;
+        if (k) k.innerHTML = `<div class="va-reiter" role="tablist">${ORDNUNG.map((s_, i) => `<button type="button" role="tab" class="va-reiter-k${s_ === seite ? " is-on" : ""}" aria-selected="${s_ === seite}" data-va-geh="${s_}"><span class="n">${i + 1}</span><span>${esc(NAMEN[s_])}</span></button>`).join("")}</div>`
+          + `<div class="va-kopf-zeile"><span class="va-kicker">${esc(T("va.schritt_n", "Schritt {n}", { n: nr }))} · ${esc(NAMEN[seite])}</span>`
+          + `<label class="va-alle" title="${esc(T("va.alle_tip", "Alle Einstellungen aufgeklappt zeigen — für alle, die alles selbst einstellen wollen"))}"><span>${esc(T("va.alle", "Alle Einstellungen"))}</span><input type="checkbox" class="va-schalter" id="va-alle"${vaAlleZeigen() ? " checked" : ""}></label></div>`;
         k && k.querySelectorAll("[data-va-geh]").forEach(b => { b.onclick = () => { seite = +b.dataset.vaGeh; zeigen(); }; });
+        const alle = k && k.querySelector("#va-alle");
+        if (alle) alle.onchange = () => {
+          try { localStorage.setItem("rz_va_alle", alle.checked ? "1" : "0"); } catch (_) {}
+          box.querySelectorAll("details.va-mehr").forEach(d => { d.open = alle.checked; });
+        };
+        if (vaAlleZeigen()) box.querySelectorAll("details.va-mehr").forEach(d => { d.open = true; });
         const z = document.getElementById("va-zurueck"), wt = document.getElementById("va-weiter"), sk = document.getElementById("va-skip"), ue = document.getElementById("sv-uebernehmen");
         if (z) z.hidden = true;
+        // 16.11.2026 — wie im Web: „Weiter: Kamera →“ breit am Ende des Reiters statt unten in der Fußleiste
+        const sec = box.querySelector(`[data-va="${seite}"]`);
+        if (wt && sec) { wt.classList.add("va-weiter-breit"); sec.appendChild(wt); }
         if (wt) { wt.hidden = seite === LETZTE; if (seite !== LETZTE) wt.innerHTML = `<span>${esc(T("va.w.s8_weiter", "Weiter: {s}", { s: NAMEN[naechste(seite)] }))}</span>${I("arrow-right", 17)}`; }
         // 01.11.2026 (Marc: „immer da“) — „Video erstellen …“ und „Ins Projekt übernehmen“ auf jedem Reiter
         const er = document.getElementById("va-erstellen"); if (er) er.hidden = false;
@@ -3443,14 +3610,11 @@ ${mehrAuf(1)}
         // Clips nur auf der sichtbaren Seite abspielen
         box.querySelectorAll("video").forEach(vd => { try { if (!vd.closest(".va-weg") && !ruhig && !vd.classList.contains("va-clip-hover")) { const p_ = vd.play(); if (p_ && p_.catch) p_.catch(() => {}); } else vd.pause(); } catch (_) {} });
         box.scrollTop = 0;
-        if (seite === LETZTE) zusammenfassung();
-        if (seite === LETZTE) { const ef = box.querySelector("#va-eigene-feld"), se = box.querySelector("#sv-eigene"); if (ef) ef.hidden = !(se && se.children.length); }
+        if (seite === 9) { const ef = box.querySelector("#va-eigene-feld"), se = box.querySelector("#sv-eigene"); if (ef) ef.hidden = !(se && se.children.length); }
         if (seite === 2) vaKamera();
-        if (seite === 3) vaKarte();
-        if (seite === 4) vaLinie();
-        if (seite === 5) vaTexte();
+        if (seite === 9) { vaKarte(); vaLinie(); vaSelbstKurz(); }
+        if (seite === 5) { vaTexte(); vaGeschichte(); }
         if (seite === 6) { try { fotosZeigen(); } catch (_) {} vaHalte(); }
-        if (seite === 7) vaGeschichte();
         vaLive();
         vaLeuchten(seite);
         vaSeiteJetzt = seite; vaVorschauStelle();
@@ -3459,9 +3623,9 @@ ${mehrAuf(1)}
       // 01.11.2026 — Flugstil-Clips laufen nur unter der Maus (zehn Clips gleichzeitig wären zu viel)
       box.addEventListener("mouseover", (e) => { const vd = e.target.closest("[data-va-flug]")?.querySelector("video"); if (vd && !ruhig) { try { const p_ = vd.play(); if (p_ && p_.catch) p_.catch(() => {}); } catch (_) {} } });
       box.addEventListener("mouseout", (e) => { const b = e.target.closest("[data-va-flug]"); if (b && !b.contains(e.relatedTarget)) { try { b.querySelector("video").pause(); } catch (_) {} } });
-      document.getElementById("va-zurueck").onclick = () => { if (seite > 1) { seite--; zeigen(); } };
+      document.getElementById("va-zurueck").onclick = () => { const i = ORDNUNG.indexOf(seite); if (i > 0) { seite = ORDNUNG[i - 1]; zeigen(); } };
       document.getElementById("va-weiter").onclick = () => { if (seite !== LETZTE) { seite = naechste(seite); zeigen(); } };
-      document.getElementById("va-skip").onclick = () => { if (seite < LETZTE) { seite++; zeigen(); } };   // Vorschlag lassen, wie er ist (Prüfstand)
+      document.getElementById("va-skip").onclick = () => { if (seite !== LETZTE) { seite = naechste(seite); zeigen(); } };   // Vorschlag lassen, wie er ist (Prüfstand)
       // „Video erstellen …“: übernehmen (ein ⌘Z-Schritt), dann der Export-Dialog des Animators — wie „Video erstellen“ im Web
       document.getElementById("va-erstellen").onclick = async () => {
         await uebernehmen("fertig");
@@ -3697,7 +3861,8 @@ ${mehrAuf(1)}
         vaKamera(); vaLive();
       });
       zeigen();
-      window.__rzVaSeite = (n) => { seite = n; zeigen(); };   // Prüfstand
+      // Prüfstand; 16.11.2026 — alte Seiten Karte/Linie/Video (3, 4, 8) liegen im Stil, Infos (7) in Texte
+      window.__rzVaSeite = (n) => { seite = { 3: 9, 4: 9, 7: 5, 8: 9 }[n] || n; zeigen(); };
     }
   }
 

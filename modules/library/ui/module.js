@@ -4067,7 +4067,7 @@ function mountLibrary(body, headerActions) {
         : `<div class="ld-module">
         <button class="btn btn-sm" id="ld-tourseite">${SI("map-pinned", 15)} ${T("library.d_tourseite", "Tour-Seite")}</button>
         <button class="btn btn-sm" data-open="animator">${SI("clapperboard", 15)} ${T("library.d_animator", "Animator")}</button>
-        <button class="btn btn-sm" data-assistent="1" title="${esc(T("va.knopf_tip3", "Dein Video ist gleich fertig: in acht Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen."))}">${SI("compass", 15)} ${T("library.d_assistent", "Video-Assistent")}</button>
+        <button class="btn btn-sm" data-assistent="1" title="${esc(T("va.knopf_tip3", "Dein Video ist gleich fertig: in fünf Reitern verfeinern, dann direkt erstellen oder ins Projekt übernehmen."))}">${SI("compass", 15)} ${T("library.d_assistent", "Video-Assistent")}</button>
         <button class="btn btn-sm" data-open="heightanim">${SI("chart-spline", 15)} ${T("library.open_height", "Daten-Animator")}</button>
         <button class="btn btn-sm" data-open="tourmap">${SI("map", 15)} ${T("library.d_tourmap", "Tour-Map")}</button>
         <button class="btn btn-sm" data-open="gpxinspect">${SI("search", 15)} ${T("library.open_inspect", "Inspektor")}</button>
