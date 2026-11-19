@@ -74,12 +74,40 @@ def _now_iso() -> str:
 
 # ── Laden / Speichern ────────────────────────────────────────────────────────
 
+class ProjektdateiGesperrt(OSError):
+    """Die Projektdatei ist da, lässt sich aber gerade nicht lesen (Windows: Virenscanner, Cloud-Sync oder ein
+    gleichzeitiges Ersetzen hält sie fest). Sie ist NICHT kaputt — wer sie lesen wollte, bricht ab, statt mit einer
+    leeren Projektliste weiterzuarbeiten."""
+
+
+# 18.11.2026 (Nutzer-Log Windows: „projekte.json unlesbar ([Errno 13] Permission denied) — lege sie beiseite“, gleich
+# danach wurde gespeichert) — ein kurz gesperrter Lesezugriff galt als kaputte Datei: beiseitelegen, {} zurück, und der
+# nächste Speichervorgang schrieb die leere Liste über alle Projekte. Jetzt: gesperrt → kurz warten und erneut lesen,
+# bleibt es gesperrt → ProjektdateiGesperrt. Beiseitegelegt wird nur, was sich lesen lässt und kein JSON ist.
+LESEN_VERSUCHE = 15
+LESEN_PAUSE_S = 0.2
+
+
 def _lese_json(pfad: Path) -> dict:
+    for versuch in range(LESEN_VERSUCHE):
+        try:
+            with open(pfad, "rb") as f:
+                roh = f.read()
+            return _lese_json_inhalt(pfad, roh)
+        except FileNotFoundError:
+            return {}
+        except OSError as e:
+            if versuch + 1 < LESEN_VERSUCHE:
+                time.sleep(LESEN_PAUSE_S)
+                continue
+            log.error("projekte: %s gerade nicht lesbar (%s) — breche ab, Datei bleibt unangetastet", pfad, e)
+            raise ProjektdateiGesperrt(str(e)) from e
+    return {}
+
+
+def _lese_json_inhalt(pfad: Path, roh: bytes) -> dict:
     try:
-        with open(pfad, "r", encoding="utf-8") as f:
-            return json.load(f) or {}
-    except FileNotFoundError:
-        return {}
+        return json.loads(roh.decode("utf-8")) or {}
     except Exception as e:
         # Kaputte Datei: NIE still überschreiben — beiseitelegen und frisch
         # starten (gleiche Philosophie wie load_sessions).

@@ -19,7 +19,7 @@
       text: ["startseite.fotos_text", "Deinen Fotos den Ort aus dem Track geben — für Karte, Archiv und Video."] },
     // 07.10.2026 (Etappen)
     { id: "ohne_gps", symbol: "🗺", modul: null, titel: ["etappe.ohne_gps", "Kartenanimation ohne GPS"],
-      text: ["startseite.ohne_gps_text", "Eine Route ohne Aufzeichnung — Anreise, Flug, Fähre: Stationen eintippen, Verkehrsmittel wählen."] },
+      text: ["startseite.ohne_gps_text2", "Ohne Aufzeichnung: eine Strecke animieren (Anreise, Flug, Fähre) oder frei mit der Kamera fliegen."] },
   ];
 
   function rzStartseite() {
@@ -37,7 +37,7 @@
       const b = e.target.closest("[data-start]"); if (!b) return;
       const a = AUFGABEN.find(x => x.id === b.dataset.start); if (!a) return;
       try { applog("info", "[startseite] " + a.id); } catch (_) {}
-      if (a.id === "ohne_gps") { try { m.close(); } catch (_) {} if (typeof window.rzKartenanimationOhneGps === "function") window.rzKartenanimationOhneGps(""); return; }
+      if (a.id === "ohne_gps") { try { m.close(); } catch (_) {} if (typeof window.rzOhneGpsWahl === "function") window.rzOhneGpsWahl(""); else if (typeof window.rzKartenanimationOhneGps === "function") window.rzKartenanimationOhneGps(""); return; }
       gehe(a.modul);
       if (a.id === "video" && typeof toast === "function")
         toast(T("startseite.video_toast", "Wähle links eine Tour — dann „🧭 Video-Assistent …“ oder „Im Animator öffnen“."), "info", 7000);

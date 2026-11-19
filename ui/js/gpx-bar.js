@@ -376,6 +376,7 @@
       catch (e) { if (window.applog) window.applog("warn", `[workspace] Projekt schließen: ${e}`); }
       await _runAllResetters();
       window.clearGlobalGpx();   // GPX-Name oben + Session leeren
+      _nachDemLeeren();
     });
   };
 
@@ -386,7 +387,26 @@
     catch (e) { if (window.applog) window.applog("warn", `[workspace] Projekt schließen: ${e}`); }
     await _runAllResetters();
     window.clearGlobalGpx();
+    _nachDemLeeren();
   };
+
+  /** 18.11.2026 (Marc: „Wenn ich im Animator Workspace leeren mache, dann sollte doch eigentlich komplett alles leer
+   *  sein. Das ist bei mir aber nicht.“) — Zwei Reste nach ✕, beide im Klicktest gesehen:
+   *  (1) Die App merkte sich das Projekt weiter als zuletzt offen (`letztes_projekt`, `letzte_tour`) — beim nächsten
+   *      Start war es wieder ganz da. Jetzt vergisst sie es.
+   *  (2) Die Resetter leeren Track, Touren und Schilder, aber nicht die Einstellungen, die das offene Modul aus dem
+   *      Projekt anzeigte: Format 9:16, Intro/Hold, Dauer, Keyframe-Werkzeuge, Kartenausschnitt mit Laufpunkt blieben
+   *      stehen. Ein Neuaufbau des Moduls zeigt genau den Stand eines Starts ohne Projekt (globale Einstellungen). */
+  function _nachDemLeeren() {
+    try { if (typeof saveSettings === "function") saveSettings({ letztes_projekt: "", letzte_tour: null }, { immediate: true }); }
+    catch (e) { if (window.applog) window.applog("warn", `[workspace] zuletzt offen vergessen: ${e}`); }
+    try {
+      const mod = (typeof activeMod !== "undefined") ? activeMod : "";
+      if (mod && !["library", "settings", "help"].includes(mod) && typeof window.remountActiveModule === "function") {
+        window.remountActiveModule();
+      }
+    } catch (e) { if (window.applog) window.applog("warn", `[workspace] Modul neu aufbauen: ${e}`); }
+  }
 
   async function _runAllResetters() {
     for (const fn of window.__workspaceResetters.values()) {

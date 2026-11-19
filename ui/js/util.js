@@ -2254,6 +2254,137 @@ async function rzKartenanimationOhneGps(name) {
 }
 window.rzKartenanimationOhneGps = rzKartenanimationOhneGps;
 
+/** 18.11.2026 — Kartenflug: Kamera-Anflug auf EINEN Ort, ganz ohne Route (Marc: „im Animator einfach ein Projekt
+ *  erstellen können mit einer bestimmten Zeit, das man komplett frei animieren kann … einfache Schilder anfliegen“).
+ *  Baut auf „Kartenanimation ohne GPS“ + Etappe „Nur die Orte zeigen“ auf: keine Linie, kein Laufpunkt, nur das Ortsschild.
+ *  Eine Etappe braucht zwei Stationen — die zweite liegt 30 m daneben, ohne Schild, und ist nur der Anker der Zeitleiste.
+ *  Die Kamera kommt als eigene Keyframes (Startsicht → Ort), danach frei im Keyframe-Editor (modules/animator
+ *  __rzKartenflugKamera). `vorgabe` (Prüfstand): {ort:{lon,lat,name}, dauer, von} → ohne Dialog anlegen. */
+const _KF_VON = { erde: 1.3, land: 5, region: 9 };
+async function rzKartenflug(vorgabe) {
+  const tt = (k, f) => (typeof t === "function" ? t(k, f) : f);
+  const e = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let wahl = vorgabe || null;
+  if (!wahl) {
+    wahl = await new Promise((fertig) => {
+      let ort = null, von = "erde";
+      const m = openModal({
+        title: tt("kartenflug.titel", "Kartenflug"),
+        body: `<p class="muted" style="margin:0 0 10px">${e(tt("kartenflug.hinweis2", "Die Kamera fliegt ohne Route — auf einen Ort zu oder ganz frei. Danach fliegst du von Keyframe zu Keyframe, wohin du willst: Zeitschieber an die Stelle, Karte verschieben, zoomen, drehen, „Hier Keyframe“."))}</p>
+          <label class="field-label" for="kf-ort">${e(tt("kartenflug.ort_frei", "Ort (frei lassen = frei fliegen, Start über der Erdkugel)"))}</label>
+          <div style="display:flex;gap:6px"><input type="text" id="kf-ort" class="lib-input" style="flex:1" placeholder="${e(tt("kartenflug.ort_ph", "z. B. Masca, Teneriffa"))}">
+            <button type="button" class="btn" id="kf-suchen">${e(tt("kartenflug.suchen", "Suchen"))}</button></div>
+          <div id="kf-treffer" style="margin:6px 0 10px;display:flex;flex-direction:column;gap:4px"></div>
+          <label class="field-label" for="kf-dauer">${e(tt("kartenflug.dauer", "Dauer des Anflugs (Sekunden)"))}</label>
+          <input type="number" id="kf-dauer" class="lib-input" min="3" max="120" step="1" value="10" style="width:90px">
+          <label style="display:flex;gap:6px;align-items:center;margin-top:10px"><input type="checkbox" id="kf-schild" checked> ${e(tt("kartenflug.schild", "Ortsschild zeigen"))}</label>
+          <div class="field-label" style="margin-top:10px">${e(tt("kartenflug.von", "Anflug von"))}</div>
+          <div class="anim-pillen" id="kf-von" role="radiogroup">${[["erde", tt("kartenflug.von_erde", "Erdkugel")], ["land", tt("kartenflug.von_land", "Land")], ["region", tt("kartenflug.von_region", "Region")]]
+            .map(([k, l]) => `<button type="button" class="anim-pille${k === von ? " is-on" : ""}" data-kf-von="${k}" role="radio" aria-checked="${k === von}">${e(l)}</button>`).join("")}</div>`,
+        footer: `<button class="btn" id="kf-ab">${e(tt("common.cancel", "Abbrechen"))}</button>
+                 <button class="btn btn-primary" id="kf-ok">${e(tt("kartenflug.los", "Kartenflug anlegen"))}</button>`,
+      });
+      const $ = (id) => document.getElementById(id);
+      const okKnopf = $("kf-ok");
+      const treffer = $("kf-treffer");
+      const waehle = (h) => {
+        ort = h;
+        treffer.querySelectorAll("[data-kf-i]").forEach((b) => b.classList.toggle("is-on", b.__h === h));
+      };
+      const suchen = async () => {
+        const txt = String($("kf-ort").value || "").trim();
+        if (!txt) return;
+        treffer.innerHTML = `<span class="muted"><span class="spinner"></span> ${e(tt("route.wp_searching", "Suche …"))}</span>`;
+        let r = null;
+        try { r = await rzWarten("route_geocode", () => api().route_geocode(txt, 5, null)); } catch (_) {}
+        const hs = (r && r.ok && r.results) || [];
+        if (!hs.length) { treffer.innerHTML = `<span class="muted">${e(tt("kartenflug.keiner", "Nichts gefunden — anders schreiben (z. B. mit Land)."))}</span>`; waehle(null); return; }
+        treffer.innerHTML = "";
+        hs.forEach((h, i) => {
+          const b = document.createElement("button");
+          // Pillen sind für eine Zeile gebaut (flex: 1 1 0) — untereinander quetschte das die Treffer auf 6 px (Klicktest)
+          b.type = "button"; b.className = "anim-pille"; b.dataset.kfI = String(i);
+          Object.assign(b.style, { flex: "none", textAlign: "left", borderRadius: "8px" });
+          b.textContent = h.display || h.name || `${(+h.lat).toFixed(4)}, ${(+h.lon).toFixed(4)}`;
+          b.__h = h; b.onclick = () => waehle(h);
+          treffer.appendChild(b);
+        });
+        waehle(hs[0]);
+      };
+      $("kf-suchen").onclick = suchen;
+      $("kf-ort").addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); suchen(); } });
+      $("kf-von").addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-kf-von]"); if (!b) return;
+        von = b.dataset.kfVon;
+        $("kf-von").querySelectorAll("[data-kf-von]").forEach((x) => { const an = x === b; x.classList.toggle("is-on", an); x.setAttribute("aria-checked", String(an)); });
+      });
+      $("kf-ab").onclick = () => { m.close(); fertig(null); };
+      okKnopf.onclick = async () => {
+        // Ort getippt, aber nicht gesucht → jetzt suchen und den ersten Treffer nehmen; Feld leer → frei fliegen
+        if (!ort && String($("kf-ort").value || "").trim()) { await suchen(); if (!ort) return; }
+        const d = Math.max(3, Math.min(120, parseFloat($("kf-dauer").value) || 10));
+        const schild = !!$("kf-schild").checked;
+        m.close();
+        fertig({ ort, dauer: d, von, schild });
+      };
+      setTimeout(() => { try { $("kf-ort").focus(); } catch (_) {} }, 50);
+    });
+  }
+  if (!wahl) return false;
+  // 18.11.2026 (Marc: „einfach wild irgendwo rumfliegen, ohne einen Track … von Keyframe zu Keyframe“) — ohne Ort: Anker
+  // Mitteleuropa, kein Schild, die Kamera steht über der Erdkugel; alle weiteren Keyframes setzt man selbst
+  const frei = !wahl.ort;
+  const o = wahl.ort || { lon: 10, lat: 48, name: tt("kartenflug.frei_name", "Freier Flug") };
+  const name = String(o.name || o.display || tt("kartenflug.titel", "Kartenflug")).split(",")[0].trim();
+  applog("info", `[kartenflug] anlegen: ${name} (${(+o.lon).toFixed(4)}, ${(+o.lat).toFixed(4)}), ${wahl.dauer} s, von ${wahl.von}`);
+  if (!(await rzKartenanimationOhneGps(tt("kartenflug.projekt", "Kartenflug {ort}").replace("{ort}", name)))) return false;
+  for (let i = 0; i < 80 && !(window.__rzEtappe && window.__rzEtappe.editor && window.__rzEtappe.editor()); i++) await new Promise((r) => setTimeout(r, 150));
+  const E = window.__rzEtappe && window.__rzEtappe.editor && window.__rzEtappe.editor();
+  if (!E) { toast(tt("kartenflug.fehler", "Kartenflug konnte nicht angelegt werden."), "error"); return false; }
+  const lon = +o.lon, lat = +o.lat, dLon = 30 / (111320 * Math.max(0.05, Math.cos(lat * Math.PI / 180)));
+  const mitSchild = !frei && wahl.schild !== false;
+  E.wps = [Object.assign({ lon, lat, label: name, text: name }, mitSchild ? {} : { schild: false }), { lon: lon + dLon, lat, label: name, text: name, schild: false }];
+  E.arten = ["flugzeug"]; E.kurve = [false];
+  E.nurOrte = true; E.ortS = 1; E.ortKamera = "alles"; E.beschriften = true;
+  try { await window.__rzEtappe.berechnen(); } catch (err) { applog("warn", "[kartenflug] Etappe: " + err); }
+  for (let i = 0; i < 120 && (window.__rzEtappe.editor() || !(window.__rzAnimBereit && window.__rzAnimBereit().coords)); i++) await new Promise((r) => setTimeout(r, 150));
+  await new Promise((r) => setTimeout(r, 600));
+  const ok = typeof window.__rzKartenflugKamera === "function"
+    && window.__rzKartenflugKamera(frei ? { lon, lat, startZoom: 1.3, endZoom: 1.3, pitch: 0, dauer: wahl.dauer }
+      : { lon, lat, startZoom: _KF_VON[wahl.von] != null ? _KF_VON[wahl.von] : _KF_VON.erde, endZoom: 15, pitch: 60, dauer: wahl.dauer });
+  if (ok) toast(frei ? tt("kartenflug.fertig_frei", "Freier Flug steht — Zeitschieber an eine Stelle, Karte bewegen, „Hier Keyframe“.")
+                     : tt("kartenflug.fertig", "Kartenflug steht — mit ▶ ansehen, Keyframes frei anpassen."), "success", 6000);
+  return !!ok;
+}
+window.rzKartenflug = rzKartenflug;
+
+/** 18.11.2026 (Marc: „Da gibt es jetzt beides … doppelt gemoppelt“) — EIN Einstieg „Kartenanimation ohne GPS“, danach die
+ *  Wahl: Strecke animieren (Stationen, Verkehrsmittel → Etappen-Editor) oder Kartenflug (frei fliegen / Ort anfliegen). */
+function rzOhneGpsWahl(name) {
+  const tt = (k, f) => (typeof t === "function" ? t(k, f) : f);
+  const e = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const ic = (n) => (typeof rzIcon === "function" ? rzIcon(n, { size: 22 }) : "");
+  const m = openModal({
+    title: tt("etappe.ohne_gps", "Kartenanimation ohne GPS"),
+    body: `<div class="rz-start">
+        <button type="button" class="rz-start-karte" data-og="strecke"><span class="rz-start-symbol">${ic("route")}</span>
+          <b>${e(tt("ohnegps.strecke", "Strecke animieren"))}</b><span>${e(tt("ohnegps.strecke_text", "Anreise, Flug, Fähre: Stationen eintippen, Verkehrsmittel wählen — die Linie zeichnet sich."))}</span></button>
+        <button type="button" class="rz-start-karte" data-og="flug"><span class="rz-start-symbol">${ic("globe")}</span>
+          <b>${e(tt("kartenflug.titel", "Kartenflug"))}</b><span>${e(tt("ohnegps.flug_text", "Die Kamera fliegt frei — auf einen Ort zu oder von Keyframe zu Keyframe, ganz ohne Linie."))}</span></button>
+      </div>`,
+    footer: `<button type="button" class="btn" id="og-ab">${e(tt("common.cancel", "Abbrechen"))}</button>`,
+  });
+  const box = document.getElementById("modal-body");
+  if (box) box.addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-og]"); if (!b) return;
+    try { m.close(); } catch (_) {}
+    if (b.dataset.og === "flug") rzKartenflug();
+    else rzKartenanimationOhneGps(name || "");
+  });
+  const ab = document.getElementById("og-ab"); if (ab) ab.onclick = () => m.close();
+}
+window.rzOhneGpsWahl = rzOhneGpsWahl;
+
 /** Wechselt das aktive Projekt der aktuellen Session. */
 async function projectSetActive(projectId) {
   if (!_activeSession) return null;
@@ -2642,6 +2773,19 @@ function saveProjectSettings(module, patch) {
   _projectSaveTimer = setTimeout(_projectFlushNow, 200);
 }
 
+/** 18.11.2026 (Nutzer-Log Windows: Tour-Map-Bild zeigte gelöschte Etappen, ausgeblendete Zusammenfassung und Bergnamen) —
+ *  Speichervorgänge, die schon UNTERWEGS sind. Bei großer Projektdatei und belegter Bibliothek stauten sie sich minutenlang
+ *  (je 8–10 s); der Render las das Projekt von der Platte, bevor sie ankamen, und zeichnete einen alten Stand.
+ *  `projektFuerRenderSichern` wartet jetzt auch auf diese. */
+const _projektSpeichernUnterwegs = new Set();
+function _projektSpeichernMerken(p) {
+  const m = Promise.resolve(p).catch(() => {});
+  _projektSpeichernUnterwegs.add(m);
+  m.finally(() => _projektSpeichernUnterwegs.delete(m));
+  return p;
+}
+window.__rzProjektSpeichernUnterwegs = () => _projektSpeichernUnterwegs.size;   // Prüfstand
+
 /** Offenen Projekt-Patch sofort an SEIN Ziel schicken (nicht ans gerade aktive). */
 function _projectFlushNow() {
   clearTimeout(_projectSaveTimer);
@@ -2652,7 +2796,7 @@ function _projectFlushNow() {
   if (!toSend || !ziel) return;
   if (_festschreibenGesperrt(ziel)) return;
   Object.entries(toSend).forEach(([mod, modPatch]) => {
-    api().session_update_project_settings(ziel.hash, ziel.id, mod, modPatch)
+    _projektSpeichernMerken(api().session_update_project_settings(ziel.hash, ziel.id, mod, modPatch))
       .then(r => _projektAntwortPruefen(r, ziel))
       .catch(err => applog("warn", "[projekt] Speichern von " + mod
                            + " fehlgeschlagen: " + (err && err.message ? err.message : err)));
@@ -2782,7 +2926,7 @@ function _projectRootFlushNow() {
   _projectRootPendingZiel = null;
   if (!toSend || !ziel) return;
   if (_festschreibenGesperrt(ziel)) return;
-  api().session_update_project_root(ziel.hash, ziel.id, toSend)
+  _projektSpeichernMerken(api().session_update_project_root(ziel.hash, ziel.id, toSend))
     .then(r => _projektAntwortPruefen(r, ziel))   // 17.10.2026 — gelöschtes Projekt melden
     .catch(err => applog("warn", "[projekt] Speichern der Projektdaten fehlgeschlagen: "
                          + (err && err.message ? err.message : err)));
@@ -2804,6 +2948,30 @@ async function projektFuerRenderSichern(modul) {
   _senden(p1, z1, (pp, z) => Promise.all(Object.entries(pp).map(([mod, mp]) => api().session_update_project_settings(z.hash, z.id, mod, mp))));   // warte-ok: Millisekunden, direkt vor dem Render
   _senden(p2, z2, (pp, z) => api().session_update_project_root(z.hash, z.id, pp));   // warte-ok: Millisekunden, direkt vor dem Render
   try { await Promise.all(warten); } catch (e) { applog("warn", "[projekt] Speichern vor dem Render: " + e); }
+  // 18.11.2026 — auch die schon abgeschickten abwarten (siehe _projektSpeichernUnterwegs). Dauert das spürbar,
+  // steht eine Ladeanzeige da, statt dass der Knopf scheinbar nichts tut.
+  if (_projektSpeichernUnterwegs.size) {
+    const n0 = _projektSpeichernUnterwegs.size, t0 = Date.now();
+    let anzeige = false;
+    const zeiger = setTimeout(() => {
+      try {
+        if (window.rzStatus) {
+          window.rzStatus.start("render-projekt-speichern", {
+            titel: t("warte.render_projekt_speichern.titel", "Änderungen werden gespeichert"),
+            text: t("warte.render_projekt_speichern.text", "Danach startet der Export mit deinem neuesten Stand …"),
+          });
+          anzeige = true;
+        }
+      } catch (_) {}
+    }, 400);
+    try {
+      while (_projektSpeichernUnterwegs.size) await Promise.all([..._projektSpeichernUnterwegs]);
+    } finally {
+      clearTimeout(zeiger);
+      try { if (anzeige) window.rzStatus.ende("render-projekt-speichern"); } catch (_) {}
+    }
+    applog("info", "[projekt] vor dem Render " + n0 + " Speichervorgang/-vorgänge abgewartet (" + (Date.now() - t0) + " ms)");
+  }
   if (_activeSession && _activeProject && !_activeProject.id) {
     try {
       const r = await api().session_update_project_settings(_activeSession.track_hash, "", modul || "animator", {});   // warte-ok: Millisekunden
@@ -4586,7 +4754,7 @@ window.rzScaleMapLabels = rzScaleMapLabels;
  * kommt), seit 09.11.2026 auch für ➕ auf der Projekt-Kachel und „Neues Projekt daraus“ im Archiv-Modul.
  *
  *   const pfade = await rzArchivTourenWaehlen({ ausschliessen: [pfad, …] });
- *   → Liste gewählter Pfade, leer bei Abbrechen.
+ *   → Liste gewählter Pfade, leer bei Abbrechen. `liste.namen` = { Pfad: Archivname } (18.11.2026).
  *   Optionen: titel · ausschliessen · einzel (nur EINE Tour, wie „Track öffnen")
  *   · okText (Beschriftung des Bestätigen-Knopfs) · schonText (Text am ausgegrauten Eintrag).
  * 08.11.2026 (Nutzer mit über 3000 Touren: „keine Möglichkeit gefunden (Shift, CTRL, CTRL-A), mehrere oder alle Tracks zu
@@ -4601,6 +4769,9 @@ async function rzArchivTourenWaehlen(opts) {
   const drin = new Set((o.ausschliessen || []).map(nfc));
   const gewaehlt = new Set();
   let items = [];
+  // 18.11.2026 (Nutzer: Web-Karte zeigte „dc89f64186b703b8.gpx“ statt „2019-06-21 Einsiedelei“) — Archivname je Pfad, für
+  // alle je gesehenen Treffer. Die Ergebnisliste trägt ihn als `.namen` (Pfad → Name) mit; wer nur Pfade braucht, merkt nichts.
+  const _namen = new Map();
   let importiert = [];            // eben importierte, noch nicht im Index
   const thumbs = new Map();       // Bildpfad → data-URL ("" = keins)
   let _beobachter = null;
@@ -4731,6 +4902,7 @@ async function rzArchivTourenWaehlen(opts) {
       const res = await api().library_query(params());
       if (meine !== _ladeNr) return;                 // eine neuere Anfrage läuft schon
       items = (res && res.items) || [];
+      for (const it of items) { const nm = it && (it.display_name || it.name); if (it && it.path && nm) _namen.set(nfc(it.path), String(nm)); }
       const z = document.getElementById("rz-tw-zahl");
       if (z) z.textContent = (res && res.total != null && res.total > items.length)
         ? T("archiv.waehlen_zahl", "{n} von {ges}").replace("{n}", items.length).replace("{ges}", res.total) : "";
@@ -4833,6 +5005,9 @@ async function rzArchivTourenWaehlen(opts) {
       // Reihenfolge wie angezeigt (jüngste zuerst), nicht wie angehakt.
       const reihe = importiert.concat(items).map(it => nfc(it.path)).filter(pf => gewaehlt.has(pf));
       for (const pf of gewaehlt) if (!reihe.includes(pf)) reihe.push(pf);
+      const namen = {};
+      for (const pf of reihe) { const nm = _namen.get(pf); if (nm) namen[pf] = nm; }
+      Object.defineProperty(reihe, "namen", { value: namen, enumerable: false });
       ende(reihe);
     };
     const imp = document.getElementById("rz-tw-import"); if (imp) imp.onclick = async () => {
@@ -5884,3 +6059,69 @@ function rzRezeptStempelBereit() {
 window.rzRezeptStempelLaden = rzRezeptStempelLaden;
 window.rzRezeptStempelBereit = rzRezeptStempelBereit;
 window.addEventListener("rz-rezept-geaendert", () => { rzRezeptStempelLaden(); });
+
+/* ── 18.11.2026 — Laufpfeile auf Linien (MapLibre) ────────────────────────────────────────────────────────────────────
+ * Nutzer (Web-Karten auf der eigenen Seite): „Manchmal wäre es nützlich auf dem Track einen Richtungspfeil zu sehen,
+ * der anzeigt, in welcher Richtung man den Track gegangen ist … an- und abschaltbar?“ — Web-Karte hat ihn (Leaflet,
+ * modules/web-karte rzPfeile). Marc: auch in Tour-Map, Archiv-Karte und GPX-Inspektor. Gleicher Look: weiß gefüllter
+ * Pfeil, Rand in der Linienfarbe, zeigt in Zeichenrichtung der Linie (MapLibre dreht Symbole mit „symbol-placement: line“
+ * entlang der Linie). `rzPfeileSetzen(map, linienId, an, opt)` legt/entfernt die Symbolebene `<linienId>-pfeile` direkt
+ * über der Linie (gleiche Quelle, gleicher Filter). opt: breite (px, Linienbreite), farbe (überschreibt die Linienfarbe),
+ * abstand (px), deckkraft. */
+function _rzPfeilLinieBild() {
+  const d = 2, w = 30 * d, h = 22 * d;   // Rand für den Saum (SDF-Halo)
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d");
+  g.translate(w / 2, h / 2);
+  g.fillStyle = "#fff";
+  g.beginPath();
+  g.moveTo(9 * d, 0);            // Spitze (zeigt nach rechts = Zeichenrichtung der Linie)
+  g.lineTo(-7 * d, -7 * d);
+  g.lineTo(-3 * d, 0);           // Kerbe
+  g.lineTo(-7 * d, 7 * d);
+  g.closePath();
+  g.fill();
+  return g.getImageData(0, 0, w, h);
+}
+function rzPfeileSetzen(map, linienId, an, opt) {
+  opt = opt || {};
+  if (!map || typeof map.getLayer !== "function") return false;
+  const pid = linienId + "-pfeile";
+  try { if (map.getLayer(pid)) map.removeLayer(pid); } catch (_) {}
+  if (!an || !map.getLayer(linienId)) return false;
+  try {
+    if (!map.hasImage("rz-pfeil-linie")) map.addImage("rz-pfeil-linie", _rzPfeilLinieBild(), { pixelRatio: 2, sdf: true });
+    const st = map.getStyle(), schichten = (st && st.layers) || [];
+    const i = schichten.findIndex((l) => l.id === linienId);
+    const L = schichten[i];
+    if (!L || !L.source) return false;
+    const breite = Math.max(1, +opt.breite || 4);
+    let farbe = opt.farbe || null;
+    if (!farbe) { try { farbe = map.getPaintProperty(linienId, "line-color"); } catch (_) {} }
+    const def = {
+      id: pid, type: "symbol", source: L.source,
+      layout: {
+        "symbol-placement": "line", "symbol-spacing": Math.round(+opt.abstand || Math.max(80, breite * 16)),
+        "icon-image": "rz-pfeil-linie", "icon-size": Math.max(0.55, Math.min(1.6, 0.35 + breite / 6)),
+        "icon-rotation-alignment": "map", "icon-pitch-alignment": "map", "icon-keep-upright": false,
+        "icon-allow-overlap": true, "icon-ignore-placement": true,
+      },
+      paint: { "icon-color": "#ffffff", "icon-halo-color": farbe || "#35a7ff", "icon-halo-width": 1.6,
+               "icon-opacity": opt.deckkraft != null ? +opt.deckkraft : 1 },
+    };
+    if (L["source-layer"]) def["source-layer"] = L["source-layer"];
+    if (L.filter) def.filter = L.filter;
+    if (opt.minzoom != null) def.minzoom = +opt.minzoom;
+    if (opt.maxzoom != null) def.maxzoom = +opt.maxzoom;
+    // opt.ueber: über einer anderen Ebene einordnen (z. B. Punkte, die sonst die Pfeile verdecken)
+    const j = opt.ueber ? schichten.findIndex((l) => l.id === opt.ueber) : -1;
+    const k = j >= 0 ? j : i;
+    const vor = schichten[k + 1] ? schichten[k + 1].id : undefined;
+    map.addLayer(def, vor);
+    return true;
+  } catch (e) {
+    try { applog("warn", "[pfeile] " + linienId + ": " + e); } catch (_) {}
+    return false;
+  }
+}
+window.rzPfeileSetzen = rzPfeileSetzen;

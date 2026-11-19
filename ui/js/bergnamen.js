@@ -234,7 +234,9 @@
       let laeuft = false;
       for (const [key, s] of sichtbar) {
         if (!neu.has(key)) s.ziel = 0;
-        s.op = s.ziel > s.op ? Math.min(1, s.op + dt / EIN_S) : Math.max(0, s.op - dt / AUS_S);
+        // 18.11.2026 — steht ein Name schon voll da (op = ziel = 1), bleibt er so. Vorher landete er im Ausblend-Zweig: 1 → 0,78
+        // → wieder ein … im Video flackerten alle Bergnamen alle drei Bilder (gefunden über die stillen Bilder im Render)
+        s.op = s.ziel > s.op ? Math.min(1, s.op + dt / EIN_S) : s.ziel < s.op ? Math.max(0, s.op - dt / AUS_S) : s.op;
         if (dt === 0 && s.ziel === 1 && s.op === 0) s.op = 1;   // Standbild ohne Zeit: gleich ganz da
         if (s.op <= 0 && s.ziel === 0) { s.el.remove(); sichtbar.delete(key); continue; }
         s.el.style.opacity = s.op.toFixed(3);

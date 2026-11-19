@@ -268,6 +268,8 @@ function mountTimelineBar(opts) {
   // höchstens 60 % der Vorschaufläche belegen. Gemerkt wird der Wunsch, angewendet das, was ins Fenster passt.
   const _TL_ANTEIL_MAX = 0.6;
   let _tlGruppenBereit = false, _tlVorrang = null, _tlPlatzLaeuft = false, _tlPlatzTimer = 0;   // _platzSchaffen (unten)
+  // 18.11.2026 — Kamera-Detailspuren selbst aufgeklappt (Klapp-Pfeil am Cluster): dann nie mehr automatisch zu
+  let _tlKfSelbst = false, _kleinSetzend = false;
   function _tlSKappen(v) {
     const flaeche = (host.closest(".anim-canvas") || host.parentElement)?.clientHeight || 0;
     if (!flaeche) return v;
@@ -388,16 +390,18 @@ function mountTimelineBar(opts) {
   function _tlRollenAus() {
     _TL_ROLL_BOXEN.forEach(sel => { const b = host.querySelector(sel); if (b && b.classList.contains("tl-rollt")) { b.classList.remove("tl-rollt"); b.style.maxHeight = ""; } });
   }
+  // 18.11.2026 — reicht eine Gruppe nicht, rollen nacheinander auch die nächsthöheren (statt Gruppen zuzuklappen)
   function _tlRollen() {
-    if (!_tlZuHoch()) return;
     const flaeche = (host.closest(".anim-canvas") || host.parentElement)?.clientHeight || 0;
-    const zuviel = host.getBoundingClientRect().height - flaeche * _TL_ANTEIL_MAX;
-    const b = _TL_ROLL_BOXEN.map(sel => host.querySelector(sel)).filter(x => x && x.offsetParent)
-      .sort((x, y) => y.getBoundingClientRect().height - x.getBoundingClientRect().height)[0];
-    const h = b ? b.getBoundingClientRect().height : 0;
-    if (!b || h < 90 || !(zuviel > 0)) return;
-    b.style.maxHeight = Math.max(72, Math.floor(h - zuviel)) + "px";
-    b.classList.add("tl-rollt");
+    for (let runde = 0; runde < _TL_ROLL_BOXEN.length && _tlZuHoch(); runde++) {
+      const zuviel = host.getBoundingClientRect().height - flaeche * _TL_ANTEIL_MAX;
+      const b = _TL_ROLL_BOXEN.map(sel => host.querySelector(sel)).filter(x => x && x.offsetParent && !x.classList.contains("tl-rollt"))
+        .sort((x, y) => y.getBoundingClientRect().height - x.getBoundingClientRect().height)[0];
+      const h = b ? b.getBoundingClientRect().height : 0;
+      if (!b || h < 90 || !(zuviel > 0)) return;
+      b.style.maxHeight = Math.max(72, Math.floor(h - zuviel)) + "px";
+      b.classList.add("tl-rollt");
+    }
   }
   function _platzSchaffen(vorrang, wiederAuf) {
     if (!_tlGruppenBereit || _tlPlatzLaeuft || !host.isConnected) return;
@@ -405,18 +409,15 @@ function mountTimelineBar(opts) {
     try {
       if (vorrang) _tlVorrang = vorrang;
       _tlRollenAus();
-      const K = _tlKandidaten();
-      // Wieder aufklappen nur bei Anlass (Fenster/Höhe geändert, Nutzer klappt etwas) — nicht bei jeder Spur-Aktualisierung,
-      // sonst öffnete und schloss sie bei jedem Neuzeichnen probehalber (26.10.2026: das bremste die App spürbar)
-      for (const k of (wiederAuf || vorrang ? K.slice().reverse() : [])) {   // was jetzt wieder passt, geht auf (Schilder zuerst)
-        if (!k.zu()) continue;
-        k.oeffnen();
-        if (_tlZuHoch()) { k.schliessen(); break; }
-      }
-      for (const k of K) {                     // zuklappen, bis es passt — nie das zuletzt selbst Geöffnete
-        if (!_tlZuHoch()) break;
-        if (k.id !== _tlVorrang && k.offen()) k.schliessen();
-      }
+      const K = _tlKandidaten(), kf = K[0];
+      // 18.11.2026 (Marc: „unten die Keyframes aufgeklappt, und dann ist oben das Schild zugegangen“ … „nix zuklappen was
+      // selbst aufgeklappt“) — Schilder, Einblendungen und Ton klappt die Zeitleiste NIE mehr von selbst zu; was früher
+      // automatisch zu war, geht wieder auf. Passt es nicht, rollen die höchsten Gruppen in sich (_tlRollen).
+      for (const k of K.slice(1)) if (k.zu()) k.oeffnen();
+      // Die Kamera-Detailspuren (der Cluster zeigt alle Marker) dürfen aus Platzgründen zu — außer man hat sie selbst geöffnet.
+      // Wieder aufklappen nur bei Anlass (nicht bei jeder Spur-Aktualisierung, 26.10.2026: das bremste die App)
+      if (kf.zu() && (wiederAuf || vorrang || _tlKfSelbst)) { kf.oeffnen(); if (_tlZuHoch() && !_tlKfSelbst) kf.schliessen(); }
+      if (_tlZuHoch() && !_tlKfSelbst && kf.offen()) kf.schliessen();
       _tlRollen();
     } catch (e) { console.warn("[zeitleiste] Platz:", e); }
     finally { _tlPlatzLaeuft = false; }
@@ -1195,7 +1196,7 @@ function mountTimelineBar(opts) {
           if (offen && autoZu) autoZu = false;   // nur aus Platzgründen zu → Klick holt sie zurück (gemerkt ist sie offen)
           else { offen = !offen; ruf("offen", offen); }
           zeilenSicherstellen(); zeichnen();
-          if (istOffen()) _platzSchaffen(g.box);   // diese Gruppe bleibt offen, andere weichen
+          if (istOffen()) _platzSchaffen(g.box);   // diese Gruppe bleibt offen; andere klappen nicht zu, sondern rollen
           else _platzSchaffen(null, true);          // zugeklappt: frei gewordener Platz für automatisch Zugeklapptes
         };
         const lab = kopf.querySelector(".lane-label");
@@ -1480,6 +1481,7 @@ function mountTimelineBar(opts) {
     // die Spuren darunter verschwinden ganz, der schmale Cluster-Streifen zeigt weiter die Marker.
     if (el.classList.contains("timeline-cluster-row")) {
       host.classList.toggle("tl-kf-zu", klein);
+      if (_kleinSetzend) _tlKfSelbst = !klein;   // 18.11.2026 — vom Nutzer geklappt (nicht beim Aufbau)
       if (k) k.title = klein ? tlT("animator.lane.cluster_auf", "Kamera-Spuren wieder zeigen")
                              : tlT("animator.lane.cluster_zu", "Kamera-Spuren (Neigung, Drehung, Zoom, Position, Bildlage) einklappen");
     }
@@ -1491,7 +1493,9 @@ function mountTimelineBar(opts) {
     const art = _kleinArt(el), set = _kleinSet();
     if (set.has(art)) set.delete(art); else set.add(art);
     try { localStorage.setItem(_KLEIN_KEY, JSON.stringify([...set])); } catch (_) {}
-    host.querySelectorAll(".timeline-lane, .timeline-cluster-row").forEach((x) => { if (_kleinArt(x) === art) _kleinAnwenden(x); });
+    _kleinSetzend = true;
+    try { host.querySelectorAll(".timeline-lane, .timeline-cluster-row").forEach((x) => { if (_kleinArt(x) === art) _kleinAnwenden(x); }); }
+    finally { _kleinSetzend = false; }
     _kfKlappZeigen();
     _ovHoeheMelden();
     _platzSchaffen(null, true);
@@ -1503,6 +1507,7 @@ function mountTimelineBar(opts) {
     if (ev.button !== 0) return;
     const el = k.closest(".timeline-lane, .timeline-cluster-row");
     if (el && el.classList.contains("timeline-cluster-row") && host.classList.contains("tl-kf-autozu") && !host.classList.contains("tl-kf-zu")) {
+      _tlKfSelbst = true;   // 18.11.2026 — selbst aufgeklappt: bleibt offen
       host.classList.remove("tl-kf-autozu"); _kfKlappZeigen(); _platzSchaffen("kf"); return;   // nur aus Platzgründen zu
     }
     if (el) _kleinUmschalten(el);

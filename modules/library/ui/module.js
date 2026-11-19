@@ -393,6 +393,10 @@ function mountLibrary(body, headerActions) {
           <button class="lib-map-png" id="lib-map-png" type="button"
                   title="${T("library.map_png", "Karte als PNG sichern")}">
             🖼 <span>${T("library.map_png_short", "PNG")}</span></button>
+          <!-- 18.11.2026 (Nutzer/Marc) — Laufpfeile: in welche Richtung die Touren gegangen wurden -->
+          <button class="lib-map-png lib-map-pfeile" id="lib-map-pfeile" type="button" aria-pressed="false"
+                  title="${T("library.map_pfeile_tip", "Pfeile auf den Touren zeigen, in welche Richtung sie gegangen wurden (ab Ortsnähe)")}">
+            ${typeof rzIcon === "function" ? rzIcon("navigation", { size: 13 }) : "➤"} <span>${T("library.map_pfeile", "Pfeile")}</span></button>
         </div>
         <div class="lib-stats" id="lib-stats" hidden></div>
         <div class="lib-projwrap" id="lib-projwrap" hidden></div>
@@ -3392,6 +3396,7 @@ function mountLibrary(body, headerActions) {
         id: "lib-tracks-hit", type: "line", source: "lib-tracks",
         paint: { "line-color": "#000", "line-width": 12, "line-opacity": 0 },
       });
+      try { _libPfeile(); } catch (_) {}   // 18.11.2026 — Laufpfeile (gemerkt in den Einstellungen)
       _map.on("click", "lib-tracks-hit", (e) => {
         const f = e.features && e.features[0];
         if (!f) return;
@@ -5092,6 +5097,15 @@ function mountLibrary(body, headerActions) {
     return { alle, gefiltert, reduziert: gefiltert.length < alle.length };
   }
 
+  /** 18.11.2026 — Laufpfeile auf den Archiv-Touren (ui/js/util.js rzPfeileSetzen), ab Zoom 9 — weiter draußen stehen
+   *  statt Linien die Marken je Tour. */
+  function _libPfeileAn() { try { return !!(_settingsCache && _settingsCache.archiv_richtungspfeile); } catch (_) { return false; } }
+  function _libPfeile() {
+    if (!_map || !_mapReady || typeof rzPfeileSetzen !== "function") return;
+    rzPfeileSetzen(_map, "lib-tracks-line", _libPfeileAn(), { breite: 3, minzoom: 9 });
+  }
+  window.__rzLibPfeile = () => !!(_map && _map.getLayer && _map.getLayer("lib-tracks-line-pfeile"));   // Prüfstand
+
   async function openCollectionInAnimator(cid, itemsOpt) {
     let items = itemsOpt;
     if (!items) {
@@ -6111,7 +6125,7 @@ function mountLibrary(body, headerActions) {
         body: `<p class="lib-hint">${T("library.proj_new_hint", "Startet leer — Touren kannst du später mit ➕ hinzufügen oder es gleich ohne Tour öffnen (Reiseroute, Kartenflug).")}</p>
                <input type="text" id="lib-proj-newname" class="lib-input" value="${esc(T("topbar.project.new_empty_default", "Neues Projekt"))}">`,
         footer: `<button class="btn" id="lib-pn-ab">${T("common.cancel", "Abbrechen")}</button>
-                 <button class="btn" id="lib-pn-ohne-gps" title="${esc(T("etappe.ohne_gps_tip", "Eine Route ohne Aufzeichnung animieren — Anreise, Flug, Fähre: Stationen eintippen oder auf die Karte klicken."))}">🗺 ${T("etappe.ohne_gps", "Kartenanimation ohne GPS")}</button>
+                 <button class="btn" id="lib-pn-ohne-gps" title="${esc(T("etappe.ohne_gps_tip2", "Ohne Aufzeichnung: eine Strecke animieren (Anreise, Flug, Fähre) oder frei mit der Kamera fliegen (Kartenflug)."))}">🗺 ${T("etappe.ohne_gps", "Kartenanimation ohne GPS")}</button>
                  <button class="btn btn-primary" id="lib-pn-ok">OK</button>`,
       });
       // 07.10.2026 (Etappen) — gleich mit einer Etappe im Animator weiter
@@ -6119,7 +6133,9 @@ function mountLibrary(body, headerActions) {
       if (og) og.onclick = async () => {
         const v = (document.getElementById("lib-proj-newname") || {}).value || "";
         m.close();
-        if (typeof window.rzKartenanimationOhneGps === "function") await window.rzKartenanimationOhneGps(v);
+        // 18.11.2026 — danach die Wahl: Strecke animieren oder Kartenflug (ein Einstieg statt zwei Knöpfen)
+        if (typeof window.rzOhneGpsWahl === "function") window.rzOhneGpsWahl(v);
+        else if (typeof window.rzKartenanimationOhneGps === "function") await window.rzKartenanimationOhneGps(v);
       };
       const ok = document.getElementById("lib-pn-ok");
       if (ok) ok.onclick = async () => {
@@ -6388,6 +6404,17 @@ function mountLibrary(body, headerActions) {
     _ro.observe(grid); _ro.observe($("lib-list"));
   } catch (_) {}
   $("lib-map-png").onclick = saveMapPng;
+  // 18.11.2026 (Nutzer: „einen Richtungspfeil … an- und abschaltbar“, Marc: auch in der Archiv-Karte)
+  { const kp = $("lib-map-pfeile");
+    if (kp) {
+      kp.setAttribute("aria-pressed", String(_libPfeileAn()));
+      kp.onclick = () => {
+        const an = !_libPfeileAn();
+        try { saveSettings({ archiv_richtungspfeile: an }); } catch (_) {}
+        kp.setAttribute("aria-pressed", String(an));
+        _libPfeile();
+      };
+    } }
   $("lib-folders-btn").onclick = openFoldersModal;
   $("lib-tour-add").onclick = (ev) => {   // 15.10.2026 — „+ Tour hinzufügen“: Datei, Ordner oder Import-Assistent
     const r = ev.currentTarget.getBoundingClientRect();

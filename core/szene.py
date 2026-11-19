@@ -234,6 +234,66 @@ _WARTE_BILD_JS = """async () => {
    .replace("__RZ_RUHE_ANLAUF_MS__", str(int(os.environ.get("RZ_BILD_RUHE_ANLAUF_MS", "60") or 0))) \
    .replace("__RZ_ANLAUF__", "8")   # 30.09.2026 Messung: feste Pause je Bild; 05.10.2026: 20 ms, Anlauf 60 ms
 _KACHELN_DA_JS = "() => { const m = window.__rzLetzteKarte; try { return !m || (m.loaded() && m.areTilesLoaded()); } catch (_) { return true; } }"
+# 18.11.2026 (Marc: „Wenn sich im Intro und beim Hold gar nichts mehr bewegt, dann muss man nicht jedes Bild einzeln rechnen.
+# Dann kann man ja die Bilder einfach doppeln.“) — STILLE BILDER: Die Seite zählt, ob die Karte seit dem letzten gegriffenen
+# Bild neu gezeichnet hat (MapLibre „render“) oder sich auf der Seite etwas wirklich geändert hat (Schilder, Texte,
+# Einblendungen: Attribute/Text mit anderem Wert, Knoten dazu/weg). Nichts davon → dasselbe Bild noch einmal schreiben,
+# das Greifen (der teure Schritt) entfällt. Sicherung: spätestens jedes STILL_PRUEF. Bild wird echt gegriffen und
+# verglichen; weicht es ab, ist das Doppeln für den Rest des Renders aus. RZ_STILL=0 schaltet es ganz ab.
+STILL_AN = os.environ.get("RZ_STILL", "1") != "0"
+STILL_PRUEF = max(2, int(os.environ.get("RZ_STILL_PRUEF") or 15))
+# Messung 18.11.2026 (Intro 2 s · Fahrt 3 s · Halten 3 s, 15 fps): 640×360 14,9 → 16,0 s, 1080p 20,7 → 25,0 s (die Prüfung je
+# Bild kostet mehr, als das Greifen spart), 4K 27,4 → 26,6 s (Greifen 108 → 60 ms/Bild). Darum erst ab 1440p.
+STILL_MIN_PIXEL = int(os.environ.get("RZ_STILL_MIN_PIXEL") or 2560 * 1440)
+_STILL_JS = """(frage) => {
+  const m = window.__rzLetzteKarte;
+  const sichtbar = (el) => { try { if (!el || !el.getClientRects || !el.getClientRects().length) return false;
+    const r = el.getBoundingClientRect(); if (r.bottom <= 0 || r.right <= 0 || r.top >= innerHeight || r.left >= innerWidth) return false;
+    const st = getComputedStyle(el); return st.visibility !== "hidden" && st.opacity !== "0"; } catch (_) { return true; } };
+  if (!window.__rzStillZ) {
+    const z = window.__rzStillZ = { m: 0, fp: "", ref: null, karte: null, was: [] };
+    const merk = (w) => { z.m++; if (window.__rzStillDiag && z.was.length < 12) z.was.push(w); };
+    const name = (el) => el ? (el.id || (typeof el.className === "string" ? el.className : "") || el.tagName) : "?";
+    new MutationObserver((liste) => {
+      for (const x of liste) {
+        const el = x.type === "characterData" ? x.target.parentElement : x.target;
+        // nur was im Videobild liegt: der Vorschau-Rahmen (#anim-viewport: Karte, Schilder, Einblendungen, Bergnamen)
+        const rahmen = document.getElementById("anim-viewport");
+        if (rahmen && !rahmen.contains(el)) continue;
+        if (!sichtbar(el)) continue;
+        if (x.type === "attributes") { if (el.getAttribute(x.attributeName) !== x.oldValue) { if (window.__rzStillDiag && el.__rzNr == null) el.__rzNr = (window.__rzNrZ = (window.__rzNrZ || 0) + 1); merk("#" + (el.__rzNr || "") + name(el) + "@" + x.attributeName + (window.__rzStillDiag ? (() => { const o = String(x.oldValue), n = String(el.getAttribute(x.attributeName)); let k = 0; while (k < o.length && o[k] === n[k]) k++; return " …" + o.slice(Math.max(0, k - 20), k + 40) + " → " + n.slice(Math.max(0, k - 20), k + 40); })() : "")); if (!window.__rzStillDiag) return; } }
+        else if (x.type === "characterData") { if (x.target.data !== x.oldValue) { merk("text:" + name(el)); return; } }
+        else if (x.addedNodes.length || x.removedNodes.length) {
+          const t = (n) => Array.from(n).map((k) => k.outerHTML || k.textContent || "").join("");
+          if (t(x.addedNodes) !== t(x.removedNodes)) { merk("kinder:" + name(el)); return; }
+        }
+      }
+    }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeOldValue: true,
+                                 characterData: true, characterDataOldValue: true });
+  }
+  const z = window.__rzStillZ;
+  if (m && z.karte !== m) {
+    // Fingerabdruck des Kartenbilds IM Zeichnen (ohne preserveDrawingBuffer ist der Puffer nur dort gültig)
+    z.karte = m; z.ref = null; z.fp = "neu";
+    const cv = document.createElement("canvas"); cv.width = 128; cv.height = 72;
+    const cx = cv.getContext("2d", { willReadFrequently: true });
+    try { m.on("render", () => { try { const g = m.getCanvas(); cx.drawImage(g, 0, 0, 128, 72);
+      const d = cx.getImageData(0, 0, 128, 72).data; let h = 2166136261;
+      for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 16777619); }
+      z.fp = (h >>> 0) + ":" + g.width + "x" + g.height; } catch (_) { z.fp = "x" + Math.random(); } }); } catch (_) {}
+  }
+  // andere Zeichenflächen/Videos im Bild oder laufende CSS-Animationen: lieber echt greifen
+  let fremd = "";
+  try { for (const c of document.querySelectorAll("canvas, video")) {
+    if (m && c === m.getCanvas()) continue;
+    if ((c.width || c.videoWidth || 0) < 4 || !sichtbar(c)) continue;
+    fremd = c.tagName + "#" + (c.id || c.className || ""); break; } } catch (_) {}
+  try { if (!fremd && document.getAnimations && document.getAnimations().some((a) => a.playState === "running")) fremd = "css-animation"; } catch (_) {}
+  const still = !fremd && z.m === 0 && !!m && z.ref !== null && z.fp === z.ref;
+  if (frage === "diag") { const d = { fremd, m: z.m, fp: z.fp === z.ref, was: z.was.slice(0, 6) }; z.was = []; return d; }
+  if (!frage) { z.m = 0; z.ref = z.fp; }
+  return still;
+}"""
 # 29.09.2026 — Vorwärmen: kürzere Wartegrenze je Halt (sonst bis 5 s × 200 Halte bei kaltem Speicher/langsamer Leitung)
 # Prüfstand: Zeiten des letzten Video-Renders (Hänger an der Warte-Grenze, längstes Warten, ms je Schritt)
 LETZTE_ZEITEN: dict = {}
@@ -1327,6 +1387,9 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
         # _WARTE_BILD_JS (5 s) auf die Karte wartet, ist der Fehler vom 30.09. (Kartendienst-Ausfall).
         # Die Gesamtzeit hängt an der Rechnerlast, diese Zahl nicht.
         _haenger, _warte_max = 0, 0.0
+        _still_ok = (STILL_AN and not _nur and not _kam_ziel   # Einzelbilder und Kamera-Export greifen jedes Bild
+                     and int(cfg.width) * int(cfg.height) >= STILL_MIN_PIXEL)
+        _still_ref, _still_n, _still_summe = None, 0, 0
         _dem_warnt = False
         _hinweis_alt = ""
         _t_bilder = time.time()
@@ -1399,8 +1462,32 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     if _kam_ziel:
                         _kam_bilder[frame] = await _kamera_bild(page, frame, t)
                     _t = time.perf_counter()
-                    shot = await _mit_meldung(A._grab_frame(page, cfg),
-                                              _meldung("szene.m_greifen", "nimmt das Bild auf … {s} s"), is_cancelled)
+                    # 18.11.2026 — stilles Bild: nichts hat sich seit dem letzten gegriffenen geändert → doppeln
+                    _still = False
+                    if _still_ok and _still_ref is not None and frame > 2 and frame != _nach_neustart:
+                        try: _still = bool(await page.evaluate(_STILL_JS, True))
+                        except Exception: _still = False   # noqa: E701
+                        if os.environ.get("RZ_STILL_DIAG") and not _still:
+                            try:
+                                await page.evaluate("() => { window.__rzStillDiag = true; }")
+                                _log.info("Szene: still? Bild %d nein — %s", frame + 1, json.dumps(await page.evaluate(_STILL_JS, "diag")))
+                            except Exception:  # noqa: BLE001
+                                pass
+                    if _still and _still_n < STILL_PRUEF - 1:
+                        shot = _still_ref
+                        _still_n += 1
+                        _still_summe += 1
+                    else:
+                        shot = await _mit_meldung(A._grab_frame(page, cfg),
+                                                  _meldung("szene.m_greifen", "nimmt das Bild auf … {s} s"), is_cancelled)
+                        if _still and shot != _still_ref:
+                            _still_ok = False
+                            _log.warning("Szene: Bild %d sollte still sein, ist es aber nicht — stille Bilder für diesen Render aus "
+                                         "(%d bis hier gedoppelt)", frame + 1, _still_summe)
+                        _still_ref, _still_n = shot, 0
+                    if _still_ok:
+                        try: await page.evaluate(_STILL_JS, False)   # ab hier zählen
+                        except Exception: pass   # noqa: E701
                     _z["greifen"] += time.perf_counter() - _t
                     if frame <= 2 or frame == _nach_neustart:   # frische Seite: erstes Bild kann schwarz sein
                         for _k in range(6):
@@ -1476,8 +1563,11 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                   (time.time() - _t_bilder) * 1000 / _n, _z["seek"] * 1000 / _n, _z["warten"] * 1000 / _n,
                   _z["greifen"] * 1000 / _n, _z["schreiben"] * 1000 / _n, _n, time.time() - _t_bilder)
         _log.info("Szene: längstes Warten auf die Karte %.0f ms · Bilder an der 5-s-Grenze: %d", _warte_max * 1000, _haenger)
+        if _still_summe:
+            _log.info("Szene: %d stille Bilder gedoppelt statt neu gegriffen (%.0f %%)", _still_summe, 100.0 * _still_summe / _n)
         LETZTE_ZEITEN.clear()
-        LETZTE_ZEITEN.update(bilder=_n, haenger=_haenger, warte_max_s=_warte_max, je_bild_ms={k: v * 1000 / _n for k, v in _z.items()})
+        LETZTE_ZEITEN.update(bilder=_n, haenger=_haenger, warte_max_s=_warte_max, je_bild_ms={k: v * 1000 / _n for k, v in _z.items()},
+                             still=_still_summe)
         # 02.10.2026 — Tonplan (Musik, Foto-Klicks, Clip-Ton) aus der Seite: dieselben Zeiten wie in der Vorschau
         try: _tonplan = await page.evaluate("() => (window.__rzTonPlan ? window.__rzTonPlan() : null)")
         except Exception as _e:  # noqa: BLE001

@@ -154,7 +154,7 @@
 
   function aufgabe(id) {
     schliessen();
-    if (id === "ohne_gps") { if (typeof window.rzKartenanimationOhneGps === "function") window.rzKartenanimationOhneGps(""); return; }
+    if (id === "ohne_gps") { if (typeof window.rzOhneGpsWahl === "function") window.rzOhneGpsWahl(""); else if (typeof window.rzKartenanimationOhneGps === "function") window.rzKartenanimationOhneGps(""); return; }
     const ziel = { video: "library", track: "gpxinspect", fotos: "geotagger" }[id] || "library";
     if (typeof switchMod === "function") switchMod(ziel);
     if (id === "video" && typeof toast === "function")

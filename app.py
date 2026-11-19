@@ -190,7 +190,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.864"
+APP_VERSION = "0.9.865"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -997,13 +997,46 @@ def _mit_wach(fn, grund: str) -> None:
         fn()
 
 
+# 18.11.2026 (Nutzer-Log Windows: Projektdatei „Permission denied“ beim Lesen) — eine kurz gesperrte Datei ist nicht kaputt.
+# Gesperrt → kurz warten, erneut lesen; bleibt sie gesperrt, gilt der zuletzt gelesene Stand, und _save_settings schreibt
+# NICHT, solange der Lesefehler besteht (sonst landeten Werkseinstellungen über Token und Modul-Einstellungen).
+_SETTINGS_LETZTER_STAND: Optional[dict] = None
+_SETTINGS_LESEN_GESPERRT = False
+
+
+def _settings_roh_lesen() -> bytes:
+    global _SETTINGS_LESEN_GESPERRT
+    for versuch in range(15):
+        try:
+            with open(SETTINGS_FILE, "rb") as fh:
+                roh = fh.read()
+            _SETTINGS_LESEN_GESPERRT = False
+            return roh
+        except FileNotFoundError:
+            raise
+        except OSError:
+            if versuch < 14:
+                time.sleep(0.2)
+                continue
+            _SETTINGS_LESEN_GESPERRT = True
+            raise
+
+
 def _load_settings() -> dict:
-    """Liest settings.json. Failsafe: bei Korruption Defaults."""
+    """Liest settings.json. Failsafe: bei Korruption Defaults (Kopie bleibt liegen), bei einer nur gesperrten Datei
+    der zuletzt gelesene Stand."""
+    global _SETTINGS_LETZTER_STAND
     if not SETTINGS_FILE.exists():
         return json.loads(json.dumps(DEFAULT_SETTINGS))  # deep copy
     try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
-            user = json.load(fh)
+        roh = _settings_roh_lesen()
+    except FileNotFoundError:
+        return json.loads(json.dumps(DEFAULT_SETTINGS))
+    except OSError as e:
+        log.error("settings.json gerade nicht lesbar (%s) — nehme den letzten Stand, schreibe nichts", e)
+        return json.loads(json.dumps(_SETTINGS_LETZTER_STAND if _SETTINGS_LETZTER_STAND is not None else DEFAULT_SETTINGS))
+    try:
+        user = json.loads(roh.decode("utf-8"))
         # Tief mergen mit Defaults damit neue Keys nach Updates funktionieren
         result = json.loads(json.dumps(DEFAULT_SETTINGS))
         for k, v in user.items():
@@ -1018,7 +1051,9 @@ def _load_settings() -> dict:
         # initial mit alten Anker-Werten überfluten.
         if "animator" in result and isinstance(result["animator"], dict):
             result["animator"].pop("timeline_events", None)
-        return _migrate_settings(result)
+        result = _migrate_settings(result)
+        _SETTINGS_LETZTER_STAND = json.loads(json.dumps(result))
+        return result
     except Exception as e:
         # Nicht stumm auf Werkseinstellungen zurückfallen: Hier hängen Token,
         # Sprache und alle Modul-Einstellungen dran, und der nächste Speicher-
@@ -1167,6 +1202,12 @@ def _save_settings(data: dict) -> None:
     dafür. Das Ergebnis war verschränkter JSON; `_load_settings` verwarf ihn
     still und der Nutzer stand ohne Mapbox-Token und ohne seine Einstellungen da.
     """
+    if _SETTINGS_LESEN_GESPERRT and SETTINGS_FILE.exists():
+        # 18.11.2026 — der letzte Leseversuch scheiterte an einer Sperre: was hier ankommt, beruht evtl. auf
+        # Werkseinstellungen. Lieber diese eine Änderung verlieren als alle Einstellungen überschreiben. Das nächste
+        # erfolgreiche Lesen (Laden → Ändern → Speichern) hebt die Sperre wieder auf.
+        log.error("settings.json war beim letzten Lesen gesperrt — Speichern übersprungen, Datei bleibt unangetastet")
+        return
     SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     tmp = SETTINGS_FILE.with_name(
         f"{SETTINGS_FILE.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
@@ -11478,6 +11519,7 @@ class Api:
                 override_center=override_center,
                 override_zoom=override_zoom,
             )
+            cfg.richtungspfeile = bool(params.get("richtungspfeile", False))   # 18.11.2026 — Laufpfeile wie in der Vorschau
 
             html_inner = canim.build_interactive_html(cfg)
             if bool(params.get("consent_enabled", False)):
@@ -11664,6 +11706,7 @@ class Api:
                 "show_pins": bool(params.get("show_pins", True)),
                 "show_scale": bool(params.get("show_scale", True)),   # 04.09.2026 Maßstabsleiste
                 "show_north": bool(params.get("show_north", True)),   # 04.09.2026 Nordpfeil
+                "richtungspfeile": bool(params.get("richtungspfeile", False)),   # 18.11.2026 Pfeile in Laufrichtung
                 "quellenangabe": "voll" if params.get("quellenangabe") == "voll" else "ecke",   # 15.09.2026
                 "link_ziel": "_blank" if params.get("link_ziel") == "_blank" else "_top",   # 08.11.2026 Track-Links
                 "link_klick": "sofort" if params.get("link_klick") == "sofort" else "schild",   # 15.11.2026 Klick zeigt Schild

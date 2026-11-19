@@ -53,6 +53,7 @@
       consent_enabled: false, consent_text: "", consent_button: "", consent_preview: true,
       leaflet_mode: "cdn", leaflet_url: "", attribution_enabled: true, show_scale: true, show_north: true, quellenangabe: "ecke",
       main_link: "", main_name: "", link_ziel: "_top", link_klick: "schild",   // 08.11.2026 — Track anklickbar mit eigenem Link
+      richtungspfeile: false,   // 18.11.2026 — Pfeile in Laufrichtung auf den Tracks
     };
     const wkSnapshot = () => {
       const a = wk(), out = {};
@@ -134,6 +135,11 @@
           <label class="check-row">
             <input type="checkbox" id="wk-north"${get("show_north", true) !== false ? " checked" : ""}>
             <span>${T("webkarte.north", "Nordpfeil")}</span>
+          </label>
+          <!-- 18.11.2026 (Nutzer-Wunsch) — Richtungspfeile entlang der Tracks, Standard aus -->
+          <label class="check-row" title="${T("webkarte.pfeile_tip", "Kleine Pfeile auf jedem Track zeigen, in welche Richtung er gegangen wurde")}">
+            <input type="checkbox" id="wk-pfeile"${get("richtungspfeile", false) === true ? " checked" : ""}>
+            <span>${T("webkarte.pfeile", "Richtungspfeile auf den Tracks")}</span>
           </label>
         </div>
 
@@ -239,6 +245,38 @@
     let labelTips = [];
     let track = [];
     let extraLines = [];   // Leaflet-Layer der Extra-Tracks (§17) — beim Redraw entfernt
+    /** 18.11.2026 (Nutzer-Wunsch: „Richtungspfeil, der anzeigt, in welcher Richtung man den Track gegangen ist“) —
+     *  Pfeile in festem Bildschirmabstand entlang einer Linie, nach jedem Zoomen/Verschieben neu (nur im Ausschnitt).
+     *  SYNCHRON zu core/tourmap_leaflet.py (rzPfeile im Export) — bei Änderung beide pflegen. */
+    function rzPfeile(line, col, w) {
+      const grp = L.layerGroup();
+      const zeichnen = () => {
+        grp.clearLayers();
+        const ll = line.getLatLngs();
+        if (!map || ll.length < 2 || !map.getBounds().intersects(line.getBounds())) return;
+        const abst = Math.max(80, w * 16), s = Math.round(Math.max(18, w * 4)), b = map.getBounds().pad(0.1);
+        let acc = abst / 2, n = 0, p0 = map.latLngToLayerPoint(ll[0]);
+        for (let i = 1; i < ll.length && n < 300; i++) {
+          const p1 = map.latLngToLayerPoint(ll[i]);
+          const dx = p1.x - p0.x, dy = p1.y - p0.y, d = Math.sqrt(dx * dx + dy * dy);
+          let t = 0;
+          while (d > 0 && acc <= d - t) {
+            t += acc; acc = abst;
+            const pos = map.layerPointToLatLng([p0.x + dx * t / d, p0.y + dy * t / d]);
+            if (!b.contains(pos)) continue;
+            const wink = Math.atan2(dy, dx) * 180 / Math.PI;
+            grp.addLayer(L.marker(pos, { interactive: false, keyboard: false, icon: L.divIcon({ className: "rz-pfeil", iconSize: [s, s], iconAnchor: [s / 2, s / 2],
+              html: '<svg width="' + s + '" height="' + s + '" viewBox="0 0 10 10" style="display:block;transform:rotate(' + wink.toFixed(1) + 'deg)"><path d="M2 1.6 L8.6 5 L2 8.4 L3.9 5 Z" fill="#fff" stroke="' + String(col).replace(/"/g, "") + '" stroke-width="1.2" stroke-linejoin="round"/></svg>' }) }));
+            n++;
+          }
+          acc -= (d - t);
+          p0 = p1;
+        }
+      };
+      grp.on("add", () => { map.on("zoomend moveend", zeichnen); zeichnen(); });
+      grp.on("remove", () => { try { map.off("zoomend moveend", zeichnen); } catch (_) {} });
+      return grp;
+    }
     let addMode = false;
     let destroyed = false;
     // 14.09.2026 (Nacht-Review): Laufnummern — Trackwechsel und Projektwechsel stoßen
@@ -428,9 +466,29 @@
           res.tracks.forEach((rt) => { if (rt && rt.path) byPath[rt.path] = rt.coords || []; });
           tracks.forEach((t) => { t.coords = byPath[t.path] || []; });
         }
+        await kuerzelNamenReparieren(mySeq);
       } catch (_) { /* Karte bleibt, Track ohne coords wird einfach nicht gezeichnet */ }
       if (map) drawTrack();
     }
+    // 18.11.2026 (Nutzer: Touren aus dem Archiv hießen „dc89f64186b703b8.gpx“) — ältere Web-Karten tragen als Namen das
+    // Datei-Kürzel der Bibliothek. Einmal beim Laden den Archivnamen holen; ein von Hand vergebener Name bleibt unberührt.
+    const KUERZEL_NAME = /^[0-9a-f]{16}(\.gpx)?$/i;
+    async function kuerzelNamenReparieren(mySeq) {
+      const kandidaten = tracks.filter((t) => KUERZEL_NAME.test(String(t.name || "").trim()));
+      if (!kandidaten.length) return;
+      let geaendert = 0;
+      for (const t of kandidaten) {
+        try {
+          const r = await window.pywebview.api.library_get_track(t.path);   // warte-ok: ein Datenbank-Zugriff je Kürzel-Track
+          if (destroyed || mySeq !== _wkExtraSeq) return;
+          const tr = r && r.ok && r.track;
+          const nm = tr && String(tr.display_name || tr.name || "").trim();
+          if (nm && !KUERZEL_NAME.test(nm)) { t.name = nm; geaendert++; }
+        } catch (_) {}
+      }
+      if (geaendert) { persistTracks(); renderTrackList(); applog && applog("info", "[webkarte] " + geaendert + " Kürzel-Name(n) durch den Archivnamen ersetzt"); }
+    }
+
     async function addTrack() {
       let files = [];
       try {
@@ -443,9 +501,13 @@
       } catch (_) {}
       const pfade = Array.isArray(files) ? files : (typeof files === "string" ? [files] : []);
       if (!pfade.length) return;
+      // 18.11.2026 (Nutzer: Touren aus dem Archiv hießen „dc89f64186b703b8.gpx“) — der Archivname, nicht der Dateiname:
+      // Touren in der Bibliothek liegen unter einem Kürzel (touren/xx/<kürzel>.gpx.gz).
+      const archivNamen = (files && files.namen) || {};
       for (const path of pfade) {
         if (tracks.some(x => x.path === path)) continue;
-        const name = (path.split(/[\\/]/).pop() || "Track").replace(/\.[^.]+$/, "");
+        const name = String(archivNamen[path] || "").trim()
+          || (path.split(/[\\/]/).pop() || "Track").replace(/\.gz$/i, "").replace(/\.[^.]+$/, "");
         tracks.push({ path, name, color: TRK_PALETTE[tracks.length % TRK_PALETTE.length], width: lineWidth0, show_pins: true, coords: [] });
       }
       persistTracks(); renderTrackList();
@@ -476,6 +538,7 @@
       if (el("wk-leaflet-url") && typeof a.leaflet_url === "string") el("wk-leaflet-url").value = a.leaflet_url;
       if (el("wk-attribution")) el("wk-attribution").checked = (a.attribution_enabled !== false);
       if (el("wk-attrib")) { el("wk-attrib").value = (a.quellenangabe === "voll") ? "voll" : "ecke"; applyAttrib(); }
+      if (el("wk-pfeile")) el("wk-pfeile").checked = a.richtungspfeile === true;   // 18.11.2026
       if (el("wk-main-link")) el("wk-main-link").value = a.main_link || "";   // 08.11.2026 Links
       if (el("wk-main-name")) el("wk-main-name").value = a.main_name || "";
       if (el("wk-link-ziel")) el("wk-link-ziel").value = a.link_ziel === "_blank" ? "_blank" : "_top";
@@ -512,6 +575,7 @@
         const width = parseFloat(el("wk-width")?.value) || 4.5;
         trackLine = L.polyline(track, { color, weight: width, opacity: 0.95, lineJoin: "round", lineCap: "round" }).addTo(map);
         extendB(trackLine.getBounds());
+        if (el("wk-pfeile")?.checked) extraLines.push(rzPfeile(trackLine, color, width).addTo(map));
         startPin = L.marker(track[0], { icon: pin("#2ecc71"), interactive: false }).addTo(map);
         endPin = L.marker(track[track.length - 1], { icon: pin("#e74c3c"), interactive: false }).addTo(map);
       }
@@ -521,6 +585,7 @@
         if (c.length < 2) return;
         const line = L.polyline(c, { color: t.color, weight: t.width, opacity: 0.95, lineJoin: "round", lineCap: "round" }).addTo(map);
         extraLines.push(line); extendB(line.getBounds());
+        if (el("wk-pfeile")?.checked) extraLines.push(rzPfeile(line, t.color, t.width).addTo(map));
         if (t.show_pins) {
           extraLines.push(L.marker(c[0], { icon: pin("#2ecc71"), interactive: false }).addTo(map));
           extraLines.push(L.marker(c[c.length - 1], { icon: pin("#e74c3c"), interactive: false }).addTo(map));
@@ -583,6 +648,7 @@
         show_pins: true,
         show_scale: !!el("wk-scale")?.checked,   // 04.09.2026
         show_north: !!el("wk-north")?.checked,
+        richtungspfeile: !!el("wk-pfeile")?.checked,   // 18.11.2026
         quellenangabe: el("wk-attrib")?.value === "voll" ? "voll" : "ecke",
         labels: labels.map((l) => ({ lat: l.lat, lon: l.lon, text: l.text, color: l.color, size: l.size })),
         consent_enabled: !!el("wk-consent")?.checked,
@@ -763,6 +829,7 @@
     el("wk-attrib")?.addEventListener("change", () => { save({ quellenangabe: el("wk-attrib").value }); applyAttrib(); });
     el("wk-scale")?.addEventListener("change", () => { save({ show_scale: !!el("wk-scale").checked }); try { applyDeco(); } catch (_) {} });
     el("wk-north")?.addEventListener("change", () => { save({ show_north: !!el("wk-north").checked }); try { applyDeco(); } catch (_) {} });
+    el("wk-pfeile")?.addEventListener("change", () => { save({ richtungspfeile: !!el("wk-pfeile").checked }); try { drawTrack(); } catch (_) {} });
     el("wk-main-link")?.addEventListener("input", () => save({ main_link: el("wk-main-link").value.trim() }, true));
     el("wk-main-name")?.addEventListener("input", () => save({ main_name: el("wk-main-name").value }, true));
     el("wk-link-ziel")?.addEventListener("change", () => save({ link_ziel: el("wk-link-ziel").value }));
@@ -800,6 +867,7 @@
           if (typeof saveProjectSettings === "function") saveProjectSettings(MODKEY, state);
           if (el("wk-scale")) el("wk-scale").checked = state.show_scale !== false;
           if (el("wk-north")) el("wk-north").checked = state.show_north !== false;
+          if (el("wk-pfeile")) el("wk-pfeile").checked = state.richtungspfeile === true;
           if (el("wk-main-link")) el("wk-main-link").value = state.main_link || "";
           if (el("wk-main-name")) el("wk-main-name").value = state.main_name || "";
           if (el("wk-link-ziel")) el("wk-link-ziel").value = state.link_ziel === "_blank" ? "_blank" : "_top";

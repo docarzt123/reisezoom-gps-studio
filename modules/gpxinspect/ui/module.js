@@ -136,6 +136,10 @@ function mountGpxInspect(body, headerActions) {
           <details class="gpxi-sec" data-sec="pruefen">
             <summary class="gpxi-mm-title">🔍 ${t("gpxinspect.sec_pruefen", "Anschauen & prüfen")}<span class="gpxi-q" data-tip="${t("gpxinspect.sec_pruefen_help", "Erst gucken, dann anfassen: Tempo-Färbung zeigt Ausreißer, die Runden-Tabelle die Zwischenzeiten. Hier wird nichts verändert.")}">?</span></summary>
             <div class="gpxi-sec-body">
+          <!-- 18.11.2026 (Nutzer/Marc) — Laufpfeile auf der Linie: die Richtung auch in der Übersicht (die Punkt-Pfeile
+               kommen erst beim Heranzoomen) -->
+          <label class="gpxi-check" title="${t("gpxinspect.pfeile_tip", "Pfeile auf der Linie zeigen, in welche Richtung der Track aufgezeichnet wurde — auch weit herausgezoomt.")}"><input type="checkbox" id="gpxi-pfeile" checked>
+            ${typeof rzIcon === "function" ? rzIcon("navigation", { size: 13 }) : "➤"} ${t("gpxinspect.pfeile", "Richtungspfeile auf der Linie")}</label>
           <label class="gpxi-check" id="gpxi-speedcolor-row"><input type="checkbox" id="gpxi-speedcolor">
             🌡️ ${t("gpxinspect.speedcolor", "Nach Tempo einfärben")}<span class="gpxi-q" data-tip="${t("gpxinspect.speedcolor_help", "Färbt den Track nach Geschwindigkeit zwischen den Punkten: grün = normal, gelb = zügig, orange = sehr schnell, rot = Ausreißer-verdächtig. So springen GPS-Sprünge sofort ins Auge — dann Heilen oder den Abschnitt manuell glätten. Braucht Zeitstempel.")}">?</span></label>
           <div class="gpxi-speedlegend" id="gpxi-speedlegend" hidden></div>
@@ -587,6 +591,7 @@ function mountGpxInspect(body, headerActions) {
                    "circle-stroke-width": 3, "circle-stroke-color": ["coalesce", ["get", "c"], "#c084fc"] } });
       } catch (e) { applog && applog("warn", "[gpxinspect] layer add: " + e); }
       try { _punktFormAnwenden(); } catch (_) {}   // Zoom-Schwelle der Pfeile auch nach neuem Kartenstil
+      try { _gpxiLinienPfeile(); } catch (_) {}   // 18.11.2026 — Laufpfeile auf der Linie
       // v0.9.291 — Terrain-DEM für die Höhenkorrektur (queryTerrainElevation).
       // 03.09.2026: hängt createMap() aus dem Stil an (Mapbox-DEM / MapTiler /
       // AWS terrarium) — für jede Quelle, nicht mehr nur mit Mapbox-Token.
@@ -5794,7 +5799,18 @@ function mountGpxInspect(body, headerActions) {
   // (gpxinspect.werkzeug in den Einstellungen). Bewusst NICHT: Routing-Profil und Sportart (je Tour geschätzt),
   // Startzeit/Verschiebung/Punktzahl/Bereich A–B (gehören zur offenen Tour), Tempo-Schwelle und -Deckel (eigener Speicher).
   // Zurückgeholt NACH allen Verdrahtungen, damit die Handler auch ihre inneren Zustände setzen.
-  const _WZ_MERKEN = ["gpxi-heal-gaps", "gpxi-heal-spikes", "gpxi-heal-tempo", "gpxi-sens", "gpxi-spacing", "gpxi-speedcolor",
+  /** 18.11.2026 (Nutzer: Richtungspfeil „an- und abschaltbar“, Marc: auch im Inspektor) — Pfeile entlang der Linie
+   *  (ui/js/util.js rzPfeileSetzen); Standard an (Marc 02.09.: „Pfeile … haben doch keinen Nachteil“). */
+  function _gpxiLinienPfeile() {
+    if (!map || typeof rzPfeileSetzen !== "function") return;
+    rzPfeileSetzen(map, "gpxi-line-lyr", !!document.getElementById("gpxi-pfeile")?.checked, { breite: 3.2, farbe: "#123a8c",
+      // über den Messpunkten (die herausgezoomt zu einem Band verschmelzen) — ab Zoom 14 zeigen die Punkt-Pfeile selbst die Richtung
+      ueber: map.getLayer("gpxi-pts-arrow") ? "gpxi-pts-arrow" : "gpxi-pts-lyr", maxzoom: PFEIL_ZOOM });
+  }
+  window.__rzGpxiKarte = () => map;   // Prüfstand
+  window.__rzGpxiPfeile = () => !!(map && map.getLayer && map.getLayer("gpxi-line-lyr-pfeile"));   // Prüfstand
+  document.getElementById("gpxi-pfeile")?.addEventListener("change", () => _gpxiLinienPfeile());
+  const _WZ_MERKEN = ["gpxi-pfeile", "gpxi-heal-gaps", "gpxi-heal-spikes", "gpxi-heal-tempo", "gpxi-sens", "gpxi-spacing", "gpxi-speedcolor",
     "gpxi-ele-weight", "gpxi-join-mode", "gpxi-join-pause", "gpxi-lb-alles", "gpxi-lb-befunde", "gpxi-lb-eigene", "gpxi-lb-pois",
     "gpxi-speed-v", "gpxi-wz-tol", "gpxi-wz-every", "gpxi-wz-retime-mode"];
   (function _gpxiWerkzeugMerken() {

@@ -484,7 +484,7 @@ track 1 only; with 3D terrain, styled side tracks are draped like the main line.
 ### Groups in the timeline — in sequence, in parallel, or both (since v0.9.679)
 **Adjusting the timeline (2026-11-08):** drag the **label column on the left** wider at its right edge so long names can
 be read (double-click: default). Drag the **height** at the handle on top: the timeline grows up to 60 % of the preview and
-stays there. Every row, **“Media”** too, collapses with **▾**. **Overlay bars** show what they display (text, value names,
+stays there. Every row, **“Media”** too, collapses with **▾**. **Since v0.9.865 the timeline never closes anything you opened**: when space runs out, signs, overlays or sound scroll inside (the header stays). Only the detailed camera lanes close for lack of space, as long as you have not opened them yourself — the cluster above still shows every keyframe. **Overlay bars** show what they display (text, value names,
 “Logo” …) before their time.
 
 
@@ -1553,6 +1553,8 @@ sees the arc **from the side** at the top and looks back at it on landing; high 
 circles around (arc from the side)”** is in the height editor (on by default). The arc looks best from the side when height
 and distance are about the same (e.g. 15 km up over 17 km); at 300 km over 17 km it becomes an almost vertical needle — and
 instead the globe and a starry sky fill the picture.
+
+**Map flight — fly to one place, no route needed (since v0.9.865).** You only want to show where something is — the camera comes from the globe and flies towards a place? In the archive under *Projects* → **"New project"** → **"Map animation without GPS"** → **"Map flight"** (or on the start page "Map animation without GPS" → "Map flight"; the other choice "Animate a route" is the stage workflow below): type the place (e.g. "Masca Tenerife" — with country/island the search finds the right one), **Search**, click the right result, choose the **length of the flight** in seconds and **fly in from** *Globe*, *Country* or *Region*, then **"Create map flight"**. The app creates a project "Map flight ‹place›": the camera starts looking straight down, flies in and tilts over the place at the end; the place sign stays until the end, there is no line and no position marker, and the number overlays (distance, elevation) are off. You can untick **Show place sign** in the dialog. **Without a place** (leave the field empty) you get a *free flight*: the camera starts above the globe and you set everything else. **Fly freely, keyframe to keyframe:** move the time slider, pan, zoom, tilt and rotate the map, **"Keyframe here"** — as often as you like, even far from the start. Afterwards everything is free: the **keyframe editor** is on — move keyframes, add more (e.g. a turn at the end), change the length, add a sign or photo, like with any tour. Internally the place is a "Show only the places" stage with an invisible second station 30 m away.
 
 **Show only the places — places one after another (since v0.9.792).** For “I was here, and here, and here” without a
 recorded track: create the places as a stage and tick **“Show only the places (no line)”** in the stage editor. There is no
@@ -3740,6 +3742,8 @@ At the top of the module header, **right next to the GPX name**, sits a **red �
 
 > Since v0.9.155 there's **just this one central ✕ instead of three separate "↺ Clear workspace" buttons** per module. Before, the GPX name remained after clearing — that's now fixed.
 
+> **Since v0.9.865 everything really is empty afterwards:** the open module looks like after a start without a project — format, duration, intro/ending and keyframe tools of the closed project disappear, as does the map view with the position marker. And the project no longer reopens at the next start. It is still saved: open it again in the archive under *Projects*.
+
 **What stays:** the Mapbox token, all settings (style, pitch, color, etc.), the last used save folder.
 
 ### Save dialog before the render
@@ -3936,6 +3940,19 @@ the last. **Ctrl+A** (Mac: **⌘A**) selects all as well.
 ### Can a click on a track in the web map open my own page?
 Yes. In the web map you give each track a link under **"Links to your pages"** or in its row. In the exported map,
 hovering shows the name and a click a label with the link "To the tour →" (or, if you set it that way, the page itself) — in the same window or in a new tab.
+
+### Can the web map show which way I went?
+Yes. In the web map, tick **"Direction arrows on the tracks"** in the settings. Every track then shows small white
+arrows in the direction of travel, in the preview and in the exported map. Their spacing on screen stays the same when
+you zoom. Off by default. Tours you add from the archive are named in the web map as in the archive since v0.9.865
+(before, tours from the library sometimes showed a code like "dc89f64186b703b8.gpx"); older web maps get the archive
+name the next time you open them, a name you typed yourself stays.
+
+**Since v0.9.865 in three more places:** in the **tour map**, tick **"Direction arrows on the tracks"** under "Tracks"
+(saved with the project, used for the image and the interactive HTML map). In the **archive's map view**, the
+**"Arrows"** button on the right of the map turns them on and off (they appear once you zoom in a little, so the overview
+stays calm). In the **GPX inspector** they are **on by default** under "Look & check": zoomed out they show the direction
+on the line, from zoom 14 the track points themselves take over, drawn there as small arrows.
 
 ### I have no GPX file, only photos – does it still work?
 Yes, GPS Studio turns photos with a GPS position into a tour, and with that everything else works. GPS Studio is meant for

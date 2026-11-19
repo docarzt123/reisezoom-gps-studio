@@ -183,6 +183,7 @@ def make_leaflet_html(params: dict) -> str:
         "linkText": _i18n.t_aktiv("webkarte.link_oeffnen", "Zur Tour →"),
         # 04.09.2026 — Maßstabsleiste + Nordpfeil (Beta-Tester), Standard an
         "showScale": bool(params.get("show_scale", True)), "showNorth": bool(params.get("show_north", True)),
+        "pfeile": bool(params.get("richtungspfeile", False)),   # 18.11.2026 — Richtungspfeile entlang der Tracks
         "northSvg": north_svg_fuer(params),   # 25.10.2026 — Kompass je Look (sonst der Pfeil)
         # 15.09.2026 (Marc) — Quellenangabe: "ecke" (Leaflet-Standard) oder "voll" (schmale Leiste unten)
         "attribVoll": str(params.get("quellenangabe") or "ecke") == "voll",
@@ -361,6 +362,35 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
     hit.on('click', klick);
     line.on('click', klick);
   }
+  // 18.11.2026 (Nutzer-Wunsch) — Richtungspfeile in festem Bildschirmabstand, nach jedem Zoomen/Verschieben neu.
+  // SYNCHRON zu modules/web-karte/ui/module.js (rzPfeile in der Vorschau) — bei Änderung beide pflegen.
+  function rzPfeile(line, col, w){
+    var grp = L.layerGroup().addTo(map);
+    function zeichnen(){
+      grp.clearLayers();
+      var ll = line.getLatLngs();
+      if (ll.length < 2 || !map.getBounds().intersects(line.getBounds())) return;
+      var abst = Math.max(80, w * 16), s = Math.round(Math.max(18, w * 4)), b = map.getBounds().pad(0.1);
+      var acc = abst / 2, n = 0, p0 = map.latLngToLayerPoint(ll[0]);
+      for (var i = 1; i < ll.length && n < 300; i++){
+        var p1 = map.latLngToLayerPoint(ll[i]);
+        var dx = p1.x - p0.x, dy = p1.y - p0.y, d = Math.sqrt(dx * dx + dy * dy), t = 0;
+        while (d > 0 && acc <= d - t){
+          t += acc; acc = abst;
+          var pos = map.layerPointToLatLng([p0.x + dx * t / d, p0.y + dy * t / d]);
+          if (!b.contains(pos)) continue;
+          var wink = Math.atan2(dy, dx) * 180 / Math.PI;
+          grp.addLayer(L.marker(pos, { interactive:false, keyboard:false, icon:L.divIcon({ className:'rz-pfeil', iconSize:[s,s], iconAnchor:[s/2,s/2],
+            html:'<svg width="' + s + '" height="' + s + '" viewBox="0 0 10 10" style="display:block;transform:rotate(' + wink.toFixed(1) + 'deg)"><path d="M2 1.6 L8.6 5 L2 8.4 L3.9 5 Z" fill="#fff" stroke="' + esc(col) + '" stroke-width="1.2" stroke-linejoin="round"/></svg>' }) }));
+          n++;
+        }
+        acc -= (d - t);
+        p0 = p1;
+      }
+    }
+    map.on('zoomend moveend', zeichnen);
+    map.whenReady(zeichnen);
+  }
   // §17 — mehrere Tracks: pro Track eine Polylinie, fitBounds über die Vereinigung.
   var allB = null;
   (D.tracks||[]).forEach(function(t){
@@ -371,6 +401,7 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
       var b = line.getBounds();
       allB = allB ? allB.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
       if (t.link) rzLinkTrack(t, line);
+      if (D.pfeile) rzPfeile(line, t.col, t.w);
       if (t.pins) {
         L.marker(c[0], { icon:pinIcon('#2ecc71') }).bindPopup(rzPopup(t, t.name || D.startLabel)).addTo(map);
         L.marker(c[c.length-1], { icon:pinIcon('#e74c3c') }).bindPopup(rzPopup(t, t.name || D.endLabel)).addTo(map);

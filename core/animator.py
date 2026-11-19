@@ -232,6 +232,7 @@ class AnimatorConfig:
     # und danach frei zoom-/pan-bar bleibt. `use_osm` liefert die tokenfreie
     # OSM-Karte; die drei osm_*-Felder erlauben den gewählten OSM-Kachel-Stil.
     interactive_export: bool = False
+    richtungspfeile: bool = False               # 18.11.2026 — Laufpfeile auf den Linien (interaktiver Export)
     osm_tiles_url: Optional[str] = None          # {z}/{x}/{y}(+{s}); None = Standard-OSM
     osm_max_zoom: int = 19
     osm_attribution: Optional[str] = None        # Plain-Attribution für die Kachelquelle
@@ -2860,6 +2861,36 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
   }
   if (map && map.loaded && map.loaded()) boot();
   else if (map) map.on('load', boot);
+})();
+"""
+        if getattr(cfg, "richtungspfeile", False):
+            # 18.11.2026 — Laufpfeile wie in der Tour-Map-Vorschau (ui/js/util.js rzPfeileSetzen, hier eigenständig):
+            # weiß gefüllter Pfeil, Rand in der Linienfarbe, in Zeichenrichtung entlang jeder Track-Linie
+            _interactive_boot_js += """
+(function(){
+  function bild(){ var d=2,w=30*d,h=22*d,c=document.createElement('canvas'); c.width=w; c.height=h; var g=c.getContext('2d');
+    g.translate(w/2,h/2); g.fillStyle='#fff'; g.beginPath(); g.moveTo(9*d,0); g.lineTo(-7*d,-7*d); g.lineTo(-3*d,0); g.lineTo(-7*d,7*d);
+    g.closePath(); g.fill(); return g.getImageData(0,0,w,h); }
+  function pfeile(){
+    try {
+      if (!map.hasImage('rz-pfeil-linie')) map.addImage('rz-pfeil-linie', bild(), { pixelRatio: 2, sdf: true });
+      var L = (map.getStyle().layers || []);
+      L.filter(function(l){ return l.type === 'line' && (l.id === 'track-line' || /^mtrack\\d+(-line)?$/.test(l.id) || /^schwarm-lines/.test(l.id)); })
+       .forEach(function(l){
+        var id = l.id + '-pfeile'; if (map.getLayer(id)) return;
+        var b = 4; try { var lw = map.getPaintProperty(l.id, 'line-width'); if (typeof lw === 'number') b = lw; } catch(_){}
+        var f = '#35a7ff'; try { f = map.getPaintProperty(l.id, 'line-color') || f; } catch(_){}
+        if (Array.isArray(f) && f[0] === 'interpolate') f = '#35a7ff';
+        var def = { id: id, type: 'symbol', source: l.source, layout: { 'symbol-placement': 'line', 'symbol-spacing': Math.max(80, b * 16),
+          'icon-image': 'rz-pfeil-linie', 'icon-size': Math.max(0.55, Math.min(1.6, 0.35 + b / 6)), 'icon-rotation-alignment': 'map',
+          'icon-pitch-alignment': 'map', 'icon-keep-upright': false, 'icon-allow-overlap': true, 'icon-ignore-placement': true },
+          paint: { 'icon-color': '#ffffff', 'icon-halo-color': f, 'icon-halo-width': 1.6 } };
+        if (l.filter) def.filter = l.filter;
+        map.addLayer(def);
+      });
+    } catch(e) { try { console.error('rz-pfeile', e); } catch(_){} }
+  }
+  if (map && map.loaded && map.loaded()) setTimeout(pfeile, 300); else if (map) map.on('load', function(){ setTimeout(pfeile, 300); });
 })();
 """
 

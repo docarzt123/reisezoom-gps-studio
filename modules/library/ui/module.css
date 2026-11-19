@@ -612,6 +612,9 @@
 }
 .lib-map-png:hover { background: rgba(14, 17, 22, .95); border-color: var(--accent); }
 .lib-map-png[disabled] { opacity: .6; cursor: default; }
+/* 18.11.2026 — Laufpfeile-Knopf unter dem PNG-Knopf; gedrückt = an */
+.lib-map-pfeile { top: 122px; }
+.lib-map-pfeile[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 
 /* Startpunkt und Schlagwörter in der Listenansicht — beide dürfen umbrechen
    statt die Zeile zu sprengen. */

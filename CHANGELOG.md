@@ -14,6 +14,45 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.865] – 2026-11-19
+
+### Added
+- **Video export: still frames are reused (1440p and up).** Where nothing in the picture changes (typically intro and
+  hold), the frame is written again instead of being captured anew; every 15th frame is still captured and compared, a
+  difference switches the reuse off for that video. Measured at 4K: capturing 108 → 60 ms per frame in still parts.
+- **Map flight: fly the camera freely, no route needed.** "Map animation without GPS" (new project, start page) now asks
+  first: animate a route (stops, transport — as before) or **map flight**. For a map flight you search a place (optional),
+  choose the length and where the camera starts (globe, country or region); the camera flies from above down to the place
+  and tilts at the end, the place sign can stay until the end. Without a place the camera starts above the globe. Then fly
+  from keyframe to keyframe wherever you like: move the time slider, move the map, "Keyframe here".
+- **Web map: direction arrows on the tracks** (new tick box, off by default). Small white arrows point in the direction of
+  travel, in the preview and in the exported map; their spacing on screen stays the same when zooming.
+- **Direction arrows also in the tour map, the archive map and the GPX inspector.** Tour map: tick box under "Tracks"
+  (saved with the project, also in the interactive HTML map). Archive map: "Arrows" button on the map (from a closer
+  zoom, remembered). GPX inspector: on by default, drawn above the track points while zoomed out.
+
+### Fixed
+- **Timeline closed groups on its own.** Opening the camera lanes could close the signs, overlays or sound group to
+  make room. Groups now never close by themselves; if space runs out they scroll inside (header stays). Camera lanes you
+  opened yourself stay open too.
+- **Mountain names flickered in videos.** A name that was already fully visible was treated as fading out: in the video
+  every mountain name dimmed to about 78 % every third frame and came back (in the preview only faintly).
+- **Tour map image export showed an older state.** Changes still on their way to the project file (deleted stages,
+  hidden summary, mountain names, map style, framing) were missing in the image when saving was slow (large project file,
+  busy library). The export now waits for all pending saves and shows "Saving your changes" meanwhile.
+- **Tour map in a journey: removing all stages did not stick.** After reopening (and in every export) all stages came
+  back from the animator. An empty list deliberately cleared now stays empty.
+- **Project file briefly locked (Windows: virus scanner, cloud sync, or a parallel replace) was treated as broken.** The
+  app set it aside and continued with an empty project list, so the next save could overwrite all projects. A locked
+  file is now read again after a short wait; if it stays locked the action is cancelled and the file is left untouched.
+  Same protection for settings.json: a locked file no longer falls back to factory settings.
+- **Web map: tours added from the archive showed a file code** like "dc89f64186b703b8.gpx" instead of their archive name.
+  New tracks take the archive name; older web maps are repaired when opened (a name you typed yourself stays).
+- **"Clear workspace" (red ✕) left things behind.** The open module kept showing the closed project's settings (9:16
+  format, intro/hold, duration, keyframe tools, map view with the position marker), and after a restart the project was
+  open again because the app still remembered it as last opened. Now the module is rebuilt exactly as on a start without a
+  project, and the app forgets the last project.
+
 ## [0.9.864] – 2026-11-17
 
 ### Changed

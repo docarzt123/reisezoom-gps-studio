@@ -9621,3 +9621,97 @@ alles können — darum liegt alles im Foto-Schild.
 - **Nicht synchron (bewusst):** Clips gehören nicht in eine Gruppe (eigener Stopp); Looks „Schild wie unterwegs“/„eigen“
   wechseln die Fotos nicht (nur „Foto groß“). Die Web-Version bekommt es mit dem nächsten Engine-Bau.
 
+
+## Zeitleiste klappt nichts mehr von selbst zu (18.11.2026, v0.9.865)
+
+`ui/js/timeline.js` `_platzSchaffen`: Gruppen (`#tl-ov`, `#tl-sg`, `#tl-ton`) werden nie mehr automatisch zugeklappt
+(früher automatisch zu → wieder auf). Nur die Kamera-Detailspuren (`tl-kf-autozu`) dürfen aus Platzgründen zu — nicht,
+wenn `_tlKfSelbst` (Klapp-Pfeil am Cluster vom Nutzer geöffnet; `_kleinSetzend` unterscheidet Nutzer-Klick vom Aufbau).
+Zu hoch → `_tlRollen` lässt nacheinander die höchsten Gruppen in sich rollen (Kopfzeile bleibt). Test:
+`test_zeitleiste_platz` (C: Gruppen nie auto zu, Kamera-Spuren auf → Gruppen bleiben offen; Gegenprobe alter Code rot).
+
+## Stille Bilder im Video-Render (18.11.2026, v0.9.865)
+
+`core/szene.py` Bildschleife: `_STILL_JS` in der Render-Seite — MutationObserver auf `document.body`, gezählt wird nur,
+was in `#anim-viewport` sichtbar ist und den Wert wirklich ändert; Fingerabdruck des Kartenbilds (128×72, FNV) im
+MapLibre-`render`-Ereignis (ohne preserveDrawingBuffer ist der Puffer nur dort gültig); andere sichtbare canvas/video oder
+laufende CSS-Animationen = „nicht still“. Still → `shot = _still_ref` statt `_grab_frame`; jedes `STILL_PRUEF` (15). Bild
+echt greifen und vergleichen, Abweichung → `_still_ok = False` für den Render (Warnung im Log). Nicht bei Einzelbildern
+(`nur_bilder`) und Kamera-Export. Erst ab `STILL_MIN_PIXEL` (2560×1440): Messung im Kommentar. `RZ_STILL=0` aus,
+`RZ_STILL_DIAG=1` protokolliert je Bild, was sich geändert hat. Log-Zeile „N stille Bilder gedoppelt“, `LETZTE_ZEITEN["still"]`.
+Test: `tests/test_stille_bilder.py` (`RZ_STILL_GROESSE=3840x2160` für die Messung).
+Gefunden dabei: `ui/js/bergnamen.js` Blende — `op = ziel = 1` lief in den Ausblend-Zweig (Flackern alle 3 Bilder im Video).
+
+## Kartenflug: Anflug auf einen Ort ohne Route (18.11.2026, v0.9.865)
+
+- Einstieg: EIN Knopf „Kartenanimation ohne GPS“ (Archiv „Neues Projekt“ `#lib-pn-ohne-gps`, Startseite `ohne_gps`,
+  Willkommen) → `rzOhneGpsWahl(name)` (util.js): „Strecke animieren“ = `rzKartenanimationOhneGps`, „Kartenflug“ =
+  `rzKartenflug`. Ort optional: ohne Ort Anker 10/48, kein Schild, Kamera-Keyframes Erdkugel → Erdkugel; Haken
+  „Ortsschild zeigen“ (`schild:false` an Station 1). Frei fliegen = normale Keyframes mit eigener Mitte (Test Schritt F).
+- `ui/js/util.js` `rzKartenflug(vorgabe?)`: Dialog (Ortssuche über `route_geocode`, Dauer 3–120 s, Startsicht
+  Erdkugel/Land/Region = Zoom 1,3/5/9) → `rzKartenanimationOhneGps()` → Etappe im offenen Editor setzen:
+  2 Stationen (Ort + Hilfsstation 30 m östlich mit `schild: false`), `nurOrte`, `ortS 1`, Kamera „alles“ →
+  `__rzEtappe.berechnen()` → `__rzKartenflugKamera()`.
+- `modules/animator/ui/module.js` `window.__rzKartenflugKamera({lon,lat,startZoom,endZoom,pitch,dauer})`: Dauer setzen,
+  eigene Keyframes Anker 0 (Ort, Startzoom, Neigung 0) → Anker 1 (Ort, Zoom 15, Neigung 60), Zoom über
+  `_rzZoomShiftSchreiben()` auf die Bezugsbreite umgerechnet; Zahlen-Einblendungen (`anim-overlays`) aus;
+  `_hlSchilderAbgleichen` neu (Schilddauer); Keyframe-Editor per `change` an (nicht Klick — der fragt nach Standard-Keyframes).
+- Ortsschilder „Nur die Orte“: Schilddauer rechnet mit der echten Dauer (`wegEcht = max(weg, (dauer − n·sek)/(n−1))`) —
+  vorher ging das Schild bei von Hand verlängerter Dauer zu früh.
+Test: `tests/test_kartenflug.py`.
+
+## Workspace leeren räumt wirklich alles weg (18.11.2026, v0.9.865)
+
+`ui/js/gpx-bar.js` — `clearWorkspaceGlobal()` und `rzProjektSchliessen()` rufen nach Resettern und `clearGlobalGpx()`
+jetzt `_nachDemLeeren()`:
+- `saveSettings({letztes_projekt: "", letzte_tour: null}, {immediate: true})` — sonst öffnete `letzte_sitzung()` beim
+  nächsten Start das eben geschlossene Projekt wieder.
+- `remountActiveModule()` für Arbeitsmodule (nicht Archiv/Einstellungen/Hilfe): Die Resetter leeren nur Track, Touren
+  und Schilder; was das Modul aus dem Projekt angezeigt hat (Format, Dauer, Intro/Hold, Keyframe-Schalter,
+  Kartenausschnitt, Laufpunkt) stand bis zum nächsten Mount weiter da. Ein Mount ohne aktives Projekt liest die globalen
+  Einstellungen = derselbe Stand wie ein Start ohne Projekt.
+Test: `tests/test_workspace_leeren.py` (Ansicht nach ✕ = Ansicht beim leeren Start; `letzte_sitzung` setzt nichts fort).
+
+## Projektdatei gesperrt, Export mit altem Stand, Etappen in der Tour-Map (18.11.2026, v0.9.865)
+
+Anlass: Nutzer-Log (Windows, Projektdatei auf einem zweiten Laufwerk). Drei Fehler, ein Muster: es wurde mit einem
+Stand gearbeitet, der nicht der gespeicherte war.
+
+- **Lesen der Projektdatei** (`core/projekte._lese_json`): `PermissionError`/`OSError` heißt *gesperrt*, nicht *kaputt*.
+  15 Versuche à 0,2 s, danach `ProjektdateiGesperrt` (Unterklasse von `OSError`) — die Datei wird NICHT beiseitegelegt,
+  `laden()` gibt keine leere Projektliste zurück. Vorher: `{}` + Umbenennen in `.kaputt-…`, und der nächste
+  `speichern()` schrieb die leere Liste über alle Projekte. Beiseitegelegt wird nur noch, was sich lesen lässt und kein
+  gültiges UTF-8/JSON ist (`_lese_json_inhalt`). Aufrufer fangen die Ausnahme wie jeden anderen Fehler (Brücke → `ok: False`).
+- **Einstellungen** (`app._load_settings` / `_save_settings`): gleiches Muster. Gesperrt → `_settings_roh_lesen` versucht
+  15×; bleibt es gesperrt, liefert `_load_settings` den zuletzt gelesenen Stand (`_SETTINGS_LETZTER_STAND`) und
+  `_save_settings` schreibt nicht, solange `_SETTINGS_LESEN_GESPERRT` steht. Das nächste erfolgreiche Lesen hebt es auf.
+- **Speichern unterwegs** (`ui/js/util.js`): `_projektSpeichernMerken` merkt sich jeden abgeschickten
+  `session_update_project_settings`/`session_update_project_root`. `projektFuerRenderSichern` wartet nach den offenen
+  Patches auch auf diese; dauert es > 400 ms, steht `rzStatus` „Änderungen werden gespeichert“. Hintergrund: jeder
+  Speichervorgang lädt und schreibt die ganze `projekte.json` (beim Nutzer 8–10 s, hinter `_mit_sessions_lock`
+  gestaut); die Szene (`core/szene.py`) liest das Projekt von der Platte und rendert sonst den alten Stand.
+  Prüfstand-Griff: `window.__rzProjektSpeichernUnterwegs()`.
+- **Etappen bewusst entfernt** (`modules/animator/ui/module.js`, gilt für Animator und Tour-Map): `_animPersistTours`
+  schreibt `etappen_entfernt: true`, wenn die Liste leer ist und das Modul vorher Etappen hatte (`_animEtappenGehabt`,
+  auch geerbte). `_animLoadTours` füllt in Reise/Schwarm nur dann aus Animator bzw. `gpx_paths` nach, wenn
+  `etappen_entfernt` nicht gesetzt ist.
+- **Web-Karte, Namen** (`rzArchivTourenWaehlen`, `modules/web-karte/ui/module.js`): die Ergebnisliste trägt als nicht
+  aufzählbare Eigenschaft `.namen` = { Pfad: Archivname (`display_name || name`) }. `addTrack` nimmt ihn statt des
+  Dateinamens (Touren in der Bibliothek liegen unter `touren/xx/<kürzel>.gpx.gz`). `kuerzelNamenReparieren` ersetzt beim
+  Laden Namen der Form `^[0-9a-f]{16}(\.gpx)?$` über `library_get_track`.
+- **Web-Karte, Richtungspfeile**: Einstellung `richtungspfeile` (Standard aus) → `webkarte_export` → `D.pfeile`.
+  `rzPfeile(line, col, w)` steht zweimal (Vorschau in module.js, Export in `core/tourmap_leaflet.py`) — synchron
+  halten: Abstand `max(80, 16·w)` px, Größe `max(18, 4·w)` px, weißer Pfeil mit Rand in Trackfarbe, nur im Ausschnitt,
+  höchstens 300 je Linie, nach `zoomend moveend` neu.
+- **Laufpfeile in MapLibre-Karten** (18.11.2026): `rzPfeileSetzen(map, linienId, an, opt)` in `ui/js/util.js` legt eine
+  Symbol-Ebene `<linienId>-pfeile` (`symbol-placement: line`, SDF-Bild `rz-pfeil-linie`, weiß mit Rand in Linienfarbe bzw.
+  `opt.farbe`) direkt über die Linie oder über `opt.ueber`; übernimmt Quelle, `source-layer` und Filter; `opt.breite`
+  bestimmt Abstand/Größe, `opt.minzoom/maxzoom`. Benutzt von Tour-Map (`_tmPfeile`, Haken `#tm-pfeile` →
+  `tourmap.richtungspfeile`, Ebenen preview-line, mtour-prev-line-*, swarm-prev-lines, ganz-prev-N-line; HTML-Export über
+  `AnimatorConfig.richtungspfeile` → `_interactive_boot_js`), Archiv-Karte (`_libPfeile`, Knopf `#lib-map-pfeile`,
+  Einstellung `archiv_richtungspfeile`, minzoom 9) und GPX-Inspektor (`_gpxiLinienPfeile`, `#gpxi-pfeile`, über
+  `gpxi-pts-arrow`, maxzoom `PFEIL_ZOOM` — die Messpunkte sind selbst Pfeile und verdecken sonst die Linie).
+  Test: `tests/test_laufpfeile.py`.
+- Tests: `tests/test_projektdatei_sperre_export.py` (A Lesen, B Einstellungen, C Export wartet, D Etappen; alter Code:
+  5 rot), `tests/test_webkarte_archivname_pfeile.py` (alter Code: Kürzel-Namen, keine Pfeile).
+- Offen: der Speicherstau selbst — jede kleine Änderung schreibt die ganze Projektdatei neu.

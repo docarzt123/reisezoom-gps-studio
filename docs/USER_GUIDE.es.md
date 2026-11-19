@@ -490,7 +490,7 @@ pistas secundarias con estilo se posan sobre el terreno como la línea principal
 ### Grupos en la línea de tiempo — en secuencia, en paralelo o ambos (desde v0.9.679)
 **Ajustar la línea de tiempo (08.11.2026):** la **columna de etiquetas de la izquierda** se ensancha arrastrando su borde
 derecho, para leer nombres largos (doble clic: estándar). La **altura** se arrastra en el asa de arriba: la línea de tiempo
-crece hasta el 60 % de la vista previa y se queda ahí. Cada fila, también **«Medios»**, se pliega con **▾**. Las **barras de
+crece hasta el 60 % de la vista previa y se queda ahí. Cada fila, también **«Medios»**, se pliega con **▾**. **Desde v0.9.865 la línea de tiempo no cierra nada que hayas abierto**: si falta espacio, carteles, rótulos o sonido se desplazan por dentro (la cabecera se queda). Solo las filas detalladas de cámara se cierran por falta de espacio mientras no las hayas abierto tú; el clúster de arriba sigue mostrando todos los keyframes. Las **barras de
 rótulos** muestran delante lo que se ve (texto, nombres de valores, «Logo» …) y detrás el tiempo.
 
 
@@ -1577,6 +1577,8 @@ descender vuelve a acercarse. Tu propio recorrido de cámara se queda como está
 de lado)»** está en el editor de altura (activado por defecto). El arco se ve mejor de lado cuando altura y distancia son
 parecidas (p. ej. 15 km de altura sobre 17 km); a 300 km sobre 17 km se convierte en una aguja casi vertical — y a cambio
 el globo y un cielo estrellado llenan la imagen.
+
+**Vuelo sobre el mapa — acercarse a un lugar, sin ruta (desde v0.9.865).** ¿Solo quieres mostrar dónde está algo, con la cámara llegando desde el globo terrestre? En el archivo, en *Proyectos* → **«Nuevo proyecto»** → **«Animación de mapa sin GPS»** → **«Vuelo sobre el mapa»** (o en la página de inicio «Animación de mapa sin GPS» → «Vuelo sobre el mapa»; la otra opción, «Animar una ruta», es el camino de etapas de abajo): escribe el lugar (p. ej. «Masca Tenerife»: con país o isla la búsqueda encuentra el correcto), **Buscar**, haz clic en el resultado correcto, elige la **duración del vuelo** en segundos y **acercarse desde** *Globo terrestre*, *País* o *Región*, y **«Crear vuelo»**. La app crea un proyecto «Vuelo ‹lugar›»: la cámara empieza mirando en vertical desde arriba, se acerca y se inclina sobre el lugar al final; el cartel del lugar se queda hasta el final, no hay línea ni punto de recorrido y los datos en pantalla (distancia, altitud) están desactivados. Puedes desmarcar **Mostrar cartel del lugar** en el diálogo. **Sin lugar** (deja el campo vacío) obtienes un *vuelo libre*: la cámara empieza sobre el globo y tú pones todo lo demás. **Volar libremente, de keyframe en keyframe:** mueve el control de tiempo, desplaza, acerca, inclina y gira el mapa, **«Keyframe aquí»**, tantas veces como quieras, incluso lejos del inicio. Después todo es libre: el **editor de keyframes** está activado — mover keyframes, añadir más (p. ej. un giro al final), cambiar la duración, añadir un cartel o una foto, como con cualquier ruta. Internamente el lugar es una etapa «Mostrar solo los lugares» con una segunda estación invisible a 30 m.
 
 **Mostrar solo los lugares — lugares uno tras otro (desde v0.9.792).** Para «estuve aquí, y aquí, y aquí» sin un track
 grabado: crea los lugares como etapa y marca **«Mostrar solo los lugares (sin línea)»** en el editor de etapas. No hay línea
@@ -3803,6 +3805,8 @@ Arriba en la cabecera del módulo, **justo al lado del nombre del GPX**, hay una
 
 > Desde v0.9.155 hay, **en lugar de tres botones «↺ Vaciar espacio de trabajo» separados** por módulo, solo esta única ✕ central. Antes, el nombre del GPX permanecía tras vaciar — eso ya está corregido.
 
+> **Desde v0.9.865 todo queda realmente vacío después:** el módulo abierto se ve como tras un inicio sin proyecto — formato, duración, intro/final y herramientas de keyframes del proyecto cerrado desaparecen, igual que el encuadre del mapa con el punto de recorrido. Y el proyecto ya no se vuelve a abrir en el siguiente inicio. Sigue guardado: lo abres de nuevo en el archivo, en *Proyectos*.
+
 **Qué se conserva:** el token de Mapbox, todos los ajustes (estilo, pitch, color, etc.), la última carpeta de guardado usada.
 
 ### Diálogo de guardado antes del render
@@ -3995,6 +3999,20 @@ colección, año, tipo, longitud). **«Ninguna»** quita todas las marcas. Para 
 ### ¿Puede un clic en un track del mapa web abrir mi propia página?
 Sí. En el mapa web das a cada track un enlace en **«Enlaces a tus páginas»** o en su fila. En el mapa exportado, al pasar
 por encima se ve el nombre y un clic muestra una etiqueta con el enlace «Ir a la ruta →» (o, si lo configuras así, abre la página directamente) — en la misma ventana o en una pestaña nueva.
+
+### ¿Puede el mapa web mostrar en qué dirección fui?
+Sí. En el mapa web marca **«Flechas de dirección en los tracks»** en los ajustes. Cada track muestra entonces pequeñas
+flechas blancas en el sentido de la marcha, en la vista previa y en el mapa exportado. Al hacer zoom, su distancia en
+pantalla se mantiene. Viene desactivado. Desde la v0.9.865, las rutas que añades desde el archivo se llaman en el mapa
+web como en el archivo (antes, las rutas de la biblioteca a veces mostraban un código como «dc89f64186b703b8.gpx»); los
+mapas web antiguos reciben el nombre del archivo la próxima vez que los abres, y un nombre que hayas puesto tú se queda.
+
+**Desde la v0.9.865 también en otros tres sitios:** en el **mapa de ruta**, marca **«Flechas de dirección en los tracks»**
+en «Tracks» (se guarda en el proyecto y vale para la imagen y para el mapa HTML interactivo). En la **vista de mapa del
+archivo**, el botón **«Flechas»** a la derecha del mapa las activa y desactiva (aparecen al acercarte un poco, para que la
+vista general quede tranquila). En el **inspector GPX** están **activadas por defecto** en «Mirar y comprobar»: con el mapa
+alejado muestran el sentido sobre la línea; desde el zoom 14 lo hacen los propios puntos, que allí se dibujan como
+pequeñas flechas.
 
 ### No tengo archivo GPX, solo fotos: ¿funciona igualmente?
 Sí, GPS Studio convierte las fotos con posición GPS en una ruta, y con ella funciona todo lo demás. GPS Studio está pensado

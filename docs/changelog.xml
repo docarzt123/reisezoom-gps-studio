@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 17 Nov 2026 13:26:27 +0000</lastBuildDate>
+<lastBuildDate>Thu, 19 Nov 2026 07:51:43 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.865</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-865</link>
+<guid isPermaLink="false">gps-studio-v0.9.865</guid>
+<pubDate>Thu, 19 Nov 2026 12:00:00 +0000</pubDate>
+<description>Kartenflug: die Kamera frei fliegen lassen, ganz ohne Route — „Kartenanimation ohne GPS“ fragt jetzt zuerst: Strecke animieren (Stationen und Verkehrsmittel wie bisher) oder Kartenflug. Beim Kartenflug suchst du einen Ort (musst du aber nicht), wählst die Länge und wo die Kamera startet: über der Erdkugel, dem Land oder der Region. Dann fliegt sie von oben auf den Ort zu und neigt sich am Ende, das Ortsschild darf bis zum Schluss stehen bleiben. Danach fliegst du von Keyframe zu Keyframe, wohin du willst: Zeitregler schieben, Karte verschieben, „Hier Keyframe“.
+
+Richtungspfeile auf den Tracks — Kleine weiße Pfeile zeigen, in welche Richtung du unterwegs warst. In der Web-Karte und der Tour-Map per Haken (auch in der exportierten Karte), in der Kartenansicht des Archivs über den Knopf „Pfeile“, im GPX-Inspektor sind sie gleich an.
+
+Schneller rendern, wo sich nichts bewegt — Steht das Bild still, typischerweise im Intro und beim Halten am Ende, wird es ab 1440p einfach noch einmal geschrieben statt neu aufgenommen. Bei 4K braucht das Aufnehmen in solchen Stellen fast nur noch die Hälfte der Zeit.
+
+Die Zeitleiste klappt nichts mehr von selbst zu — Wer die Kamera-Spuren aufklappte, dem konnte oben die Spur mit den Schildern, den Einblendungen oder dem Ton zugehen. Jetzt bleibt offen, was du geöffnet hast; wird es eng, scrollt die Gruppe in sich.</description>
+</item>
 <item>
 <title>v0.9.864</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-864</link>
@@ -223,19 +236,6 @@ Musik ist erst einmal aus — im Schnell-Video und im Assistenten. Wählst du ei
 Zeitleiste zeigt nur, was du brauchst — Wird sie zu hoch, klappt sie zu, woran du gerade nicht arbeitest. Ein Klick öffnet alles wieder. Eine Gruppe mit sehr vielen Zeilen (etwa 50 Schilder) rollt in sich, statt die Vorschau zuzudecken.
 
 Gestrichelte Linie bleibt gestrichelt — Mit Kontur oder Schatten liefen die Striche im Video ineinander, auf langen Touren wurde die Linie sogar ganz durchgezogen. Jetzt sind die Lücken wirklich frei.</description>
-</item>
-<item>
-<title>v0.9.838</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-838</link>
-<guid isPermaLink="false">gps-studio-v0.9.838</guid>
-<pubDate>Mon, 26 Oct 2026 12:00:00 +0000</pubDate>
-<description>Videoclips frei platzieren — Passt ein Clip weder nach Ort noch nach Aufnahmezeit zur Tour, fragt GPS Studio jetzt und legt ihn an den Abspielkopf — mehrere gleichmäßig verteilt. Danach verschiebst du ihn in der Spur „Schilder“.
-
-Schärfere Luftbilder — Der Regler „Schärfe“ in der Luftbild-Optik schärft jetzt die amtlichen Luftbilder, bevor Strecke, Pfeil und Schrift darübergezeichnet werden — keine hellen Säume mehr. Standard 100 %, auch für bestehende Projekte.
-
-Häufige Fragen in der Hilfe — In Kapitel 10 der Hilfe stehen jetzt die Fragen, die ihr mir am häufigsten schreibt, jeweils mit kurzer Antwort: nur Fotos statt GPX, eigene Videoclips, Export hinter Firewall oder VPN, welche Dateien und Rechner gehen und mehr.
-
-Für 3D-Programme: Kamerafahrt und Einblendungen als Datei — gpsstudio camera-export schreibt die Kamerafahrt eines exportierten Projekts Bild für Bild als Datei, gpsstudio overlay-export die Einblendungen als transparentes ProRes-4444-Video — auf Wunsch ohne Strecke und Laufpunkt.</description>
 </item>
 </channel>
 </rss>

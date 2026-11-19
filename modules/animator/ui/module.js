@@ -698,6 +698,11 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.line_width")} <span class="label-val" id="anim-lw-v">3.5 px</span></label>
             <input type="range" id="anim-lw" min="1" max="10" step="0.5" value="3.5">
           </div>
+          ${_isStaticFrame ? `<!-- 18.11.2026 (Nutzer/Marc) — Laufpfeile: im Standbild sieht man die Richtung sonst gar nicht (nur Tour-Map;
+               im Animator zeigt der Laufpunkt die Richtung) -->
+          <label class="checkbox-row" title="${t("tourmap.pfeile_tip", "Pfeile auf den Linien zeigen, in welche Richtung die Tour gegangen wurde — im Bild und im HTML-Export.")}">
+            <input type="checkbox" id="tm-pfeile"> ${t("tourmap.pfeile", "Richtungspfeile auf den Tracks")}
+          </label>` : ""}
           <!-- 05.10.2026 (Marc: „eine eigene Konturfarbe zum Track“) — Rand um die Linie. Standard im HTML: aus
                (bestehende Projekte ohne Schlüssel bleiben unverändert); neue Projekte starten mit 1,5 px (core/sessions.py). -->
           <div class="field" title="${t("animator.kontur.tip", "Rand um die Linie in eigener Farbe — hebt helle Linien auf hellen Karten ab. 0 = aus.")}">
@@ -3594,7 +3599,24 @@ function mountAnimator(body, headerActions, opts) {
     onChange: () => _hauptDeckkraftAnwenden() });
   bindSetting("anim-lw", _MODKEY, "line_width", { type: "number",
     onLoad: v => updateLabel("anim-lw-v", parseFloat(v).toFixed(1), " px"),
-    onChange: v => updateLabel("anim-lw-v", parseFloat(v).toFixed(1), " px") });
+    onChange: v => { updateLabel("anim-lw-v", parseFloat(v).toFixed(1), " px"); _tmPfeile(); } });
+  // 18.11.2026 (Nutzer: „einen Richtungspfeil … an- und abschaltbar“, Marc: auch in der Tour-Map) — Laufpfeile auf allen
+  // Tour-Linien des Standbilds (Haupt-Tour, weitere Touren/Etappen, Schwarm, „ganz zeigen“), ui/js/util.js rzPfeileSetzen.
+  // Nur Tour-Map: im Animator zeigt der Laufpunkt die Richtung. Das Bild rendert dieselbe Seite → Vorschau = Bild.
+  function _tmPfeile() {
+    if (!_isStaticFrame || !map || typeof rzPfeileSetzen !== "function") return;
+    const an = !!document.getElementById("tm-pfeile")?.checked;
+    let ids = [];
+    try {
+      ids = ((map.getStyle() || {}).layers || []).map(l => l.id)
+        .filter(id => !/-pfeile$/.test(id) && (id === "preview-line" || id.startsWith("mtour-prev-line-") || id === "swarm-prev-lines"
+          || (/^ganz-prev-\d+-line$/.test(id))));
+    } catch (_) {}
+    const lw = parseFloat(document.getElementById("anim-lw")?.value || "3.5");
+    for (const id of ids) rzPfeileSetzen(map, id, an, { breite: lw });
+  }
+  window.__rzTmPfeile = () => { _tmPfeile(); try { return ((map.getStyle() || {}).layers || []).filter(l => /-pfeile$/.test(l.id)).map(l => l.id); } catch (_) { return []; } };   // Prüfstand
+  bindSetting("tm-pfeile", _MODKEY, "richtungspfeile", { type: "bool", onChange: () => _tmPfeile() });
   bindSetting("anim-line-style", _MODKEY, "line_style",
     { onChange: () => { applyLineStyle(); applyTrackStyle(); syncLineSpacingVisibility(); } });
   bindSetting("anim-line-spacing", _MODKEY, "line_style_spacing", { type: "number",
@@ -4070,6 +4092,7 @@ function mountAnimator(body, headerActions, opts) {
   // („" = Haupt-Track). Nur im Schwarm-Ablauf von Bedeutung.
   let _animFokusPfad = "";
   let _animDezent = false;   // 29.08.2026 — Haupt-Tour im Schwarm dezent
+  let _animEtappenGehabt = false;   // 18.11.2026 — hatte dieses Modul schon Etappen? (leere Liste = bewusst entfernt)
   let _animHauptStartS = 0;  // 29.08.2026 — Haupt-Tour startet nach X s (Schwarm)
   let _animEtappe1S = 0;     // 08.09.2026 — eigene Dauer der ERSTEN Etappe (0 = aus dem Gesamtbudget)
   let _animEtappe1Name = "";  // 09.09.2026 (Marc) — eigener Name der ERSTEN Etappe ("" = Dateiname)
@@ -8626,6 +8649,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.310: Standbild-Modus — Start/Ziel-Markierung in die Vorschau (WYSIWYG
     // zum Render). Nur wenn staticFrame + Toggle an.
     try { updateStaticPinsPreview(); } catch (_) {}
+    try { _tmPfeile(); } catch (_) {}   // 18.11.2026 — Laufpfeile (Tour-Map) nach Stil-Wechsel/Neuaufbau
     // v0.9.390: Track/Overlays über die Karten-Beschriftungen heben (analog Render).
     try { _rzRaiseOverlayLayers(); } catch (_) {}
     // v0.9.444 — der Source oben ist mit dem VOLLEN Track befüllt (nötig fürs
@@ -22186,6 +22210,46 @@ function mountAnimator(body, headerActions, opts) {
   window.__rzEffektiveKeyframes = () => getEffectiveEvents();   // Prüfstand (14.10.2026: Umkreisen am Fotostopp)
   window.__rzFsWerte = (sn) => _fsWerte(sn);                     // Prüfstand
   window.__rzKeyframes = { liste: () => (getRawTimelineEvents() || []).slice(), setzen: (l) => setTimelineEvents(l) };   // Prüfstand
+  /** 18.11.2026 — Kartenflug (Marc: „im Animator einfach ein Projekt erstellen können mit einer bestimmten Zeit, das man
+   *  komplett frei animieren kann … einfache Schilder anfliegen — das wäre der richtige Ansatz“). Der Ort liegt als Etappe
+   *  „Nur die Orte zeigen“ im Projekt (ui/js/util.js rzKartenflug); hier kommt die Kamera dazu: eigene Keyframes von der
+   *  Startsicht (Erdkugel/Land/Region, senkrecht von oben) zum Ort (nah, geneigt), Keyframe-Editor an, Dauer gesetzt.
+   *  Danach ist alles frei: Keyframes verschieben, dazusetzen, Dauer ändern — wie bei jeder Tour. */
+  window.__rzKartenflugKamera = function (o) {
+    o = o || {};
+    const lon = +o.lon, lat = +o.lat;
+    if (!isFinite(lon) || !isFinite(lat)) return false;
+    const sh = _rzZoomShiftSchreiben();
+    const z0 = isFinite(+o.startZoom) ? +o.startZoom : 1.5, z1 = isFinite(+o.endZoom) ? +o.endZoom : 15;
+    const neig = isFinite(+o.pitch) ? +o.pitch : 60;
+    const evs = [
+      { kind: "center", anchor: 0, value: [lon, lat], easing: "ease_in_out" },
+      { kind: "center", anchor: 1, value: [lon, lat], easing: "linear" },
+      { kind: "zoom", anchor: 0, value_absolute: +(z0 - sh).toFixed(3), value_offset: 0, easing: "ease_in_out" },
+      { kind: "zoom", anchor: 1, value_absolute: +(z1 - sh).toFixed(3), value_offset: 0, easing: "linear" },
+      { kind: "pitch", anchor: 0, value: 0, easing: "ease_in_out" },
+      { kind: "pitch", anchor: 1, value: neig, easing: "linear" },
+      { kind: "bearing", anchor: 0, value: 0, easing: "ease_in_out" },
+      { kind: "bearing", anchor: 1, value: 0, easing: "linear" },
+    ];
+    try {
+      const dur = document.getElementById("anim-dur"), d = +o.dauer;
+      if (dur && d >= 3) { dur.value = String(Math.round(d * 10) / 10); dur.dispatchEvent(new Event("input", { bubbles: true })); dur.dispatchEvent(new Event("change", { bubbles: true })); }
+    } catch (e) { applog("warn", "[kartenflug] Dauer: " + e); }
+    setTimelineEvents(evs);
+    // Strecke/Höhe/Tempo-Kästen zeigen beim Anflug nur Nullen — aus (bleibt jederzeit wieder einschaltbar)
+    try {
+      const so = document.getElementById("anim-overlays");
+      if (so && so.checked) { so.checked = false; so.dispatchEvent(new Event("change", { bubbles: true })); }
+    } catch (e) { applog("warn", "[kartenflug] Einblendungen: " + e); }
+    try { _hlSchilderAbgleichen(true); } catch (e) { applog("warn", "[kartenflug] Ortsschild: " + e); }   // Schild bis zum Schluss (neue Dauer)
+    const cb = document.getElementById("anim-kf-enabled");
+    // „change“ statt Klick: der Klick fragt nach Standard-Keyframes — hier stehen die eigenen schon fest
+    if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event("change", { bubbles: true })); }
+    try { if (typeof applyKeyframesEnabled === "function") applyKeyframesEnabled(); } catch (_) {}
+    applog("info", `[kartenflug] Kamera: ${lon.toFixed(4)},${lat.toFixed(4)} Zoom ${z0}→${z1}, Neigung ${neig}°, Dauer ${o.dauer || "-"} s`);
+    return true;
+  };
   window.__rzAnimLaengeS = () => parseNum(document.getElementById("anim-intro")?.value, 0) + animSekunden() + parseNum(document.getElementById("anim-hold")?.value, 0);   // Prüfstand: echte Videolänge
 
   // Probelauf/Szene-Render: Zeitsteuerung je Bild. tSec = Video-Sekunde, frac =
@@ -23158,8 +23222,12 @@ function mountAnimator(body, headerActions, opts) {
           if (haupt && et.nur_orte) {
             const sek = Math.max(1, Math.min(20, +et.ort_s || 3)), weg = _ortFahrtS(et.ort_kamera === "fliegen" ? "fliegen" : "alles");
             const nach = Math.max(0, parseFloat(document.getElementById("anim-hold")?.value) || 0);   // bis in den Nachlauf
+            // 18.11.2026 (Kartenflug) — ist die Animation länger als Halte + Wege (Dauer von Hand verlängert), dauert jeder Weg
+            // entsprechend länger; vorher ging das Schild nach der Standard-Rechnung zu früh (Kartenflug 10 s: weg bei 9,2 s)
+            const dauerS = parseFloat(document.getElementById("anim-dur")?.value) || 0, nO = wps.length;
+            const wegEcht = nO > 1 ? Math.max(weg, (dauerS - nO * sek) / (nO - 1)) : weg;
             // rand_fest: das Schild bleibt an seinem Ort (nicht in den Bildrand geschoben — Marc: „da wandert Madrid mit“)
-            zeit = { rand_fest: true, before: 0, vorschau_s: 0, after: Math.round(((wps.length - 1 - i) * (sek + weg) + sek + nach) * 100) / 100 };
+            zeit = { rand_fest: true, before: 0, vorschau_s: 0, after: Math.round(((nO - 1 - i) * (sek + wegEcht) + sek + nach) * 100) / 100 };
           }
           const st = sg.normalize({ ...HL_SCHILD, ...zeit, style: "pin", color: tr.line_color || "#ffd166", size: 30, icon: "",
                                     text: _etName(w), lat: +w.lat, lon: +w.lon, auto: key });
@@ -29851,6 +29919,7 @@ function mountAnimator(body, headerActions, opts) {
       try { _animSchwarmPreviewAdvance(Math.max(0, (currentCoords || []).length - 1), true); } catch (_) {}
       try { for (const id of ["swarm-prev-dots", "swarm-prev-dots-arrow"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none"); } catch (_) {}
     }
+    try { _tmPfeile(); } catch (e) { applog("warn", "[pfeile] " + e); }   // 18.11.2026 — Laufpfeile (Tour-Map)
     try { _rzRaiseOverlayLayers(); } catch (_) {}   // 07.10.2026 — neue Tour-Linien unter Foto-Pins, Schilder und Laufpunkt
     _vorschauDiagnose();
   }
@@ -31217,6 +31286,7 @@ function mountAnimator(body, headerActions, opts) {
       const haupt = alt(currentGpx);
       _animEtappe1S = haupt.dauer_s;
       _extraTours.forEach(t => { const a = alt(t.gpx_path); t.dauer_s = a.dauer_s; t.ueber_s = a.ueber_s; t.ueber_stil = a.ueber_stil; t.start_s = a.start_s; });
+      if (_extraTours.length) _animEtappenGehabt = true;
       saveProjectSettings(_MODKEY, {
         gruppen: _gruppen.map(g => ({
           id: g.id, name: g.name || "", faktor: +g.faktor || 1, vorlauf_s: r3(+g.vorlauf_s || 0),
@@ -31240,6 +31310,8 @@ function mountAnimator(body, headerActions, opts) {
           ...(t.farbwechsel && typeof t.farbwechsel === "object" ? { farbwechsel: JSON.parse(JSON.stringify(t.farbwechsel)) } : {}),   // 08.10.2026
           // 07.10.2026 — geplante Etappe: Stationen, Verkehrsart je Abschnitt (siehe _etappe*)
           ...(t.etappe && typeof t.etappe === "object" ? { etappe: JSON.parse(JSON.stringify(t.etappe)) } : {}) })),
+        // 18.11.2026 — alle Etappen von Hand entfernt (nicht: nie welche gehabt) → beim Öffnen nicht aus der Reise nachfüllen
+        etappen_entfernt: _extraTours.length === 0 && _animEtappenGehabt,
         etappe1_dauer_s: +_animEtappe1S || 0,
         etappe1_name: _animEtappe1Name || "",
         // 07.10.2026 Punkt 10 — Projekt ohne Tour: die Etappe, die der Haupt-Track ist
@@ -31384,7 +31456,10 @@ function mountAnimator(body, headerActions, opts) {
       // einer Komposition lagen nur in der Animator-Sektion des Projekts; Tour-Map und Reiseroute
       // sahen deshalb nur die Haupt-Tour. Fehlen sie hier, kommen sie aus der Animator-Sektion
       // (Farben/Namen bleiben), sonst aus der Tourenliste des Projekts (gpx_paths ab der 2.).
-      if (!saved.length && proj && (proj.ablauf === "schwarm" || proj.ablauf === "reise")) {
+      // 18.11.2026 (Nutzer, Windows: in der Tour-Map alle Etappen einer Reise gelöscht, im exportierten Bild waren alle
+      // 53 wieder da) — eine leere Liste hieß bisher „noch nie eingestellt“ und holte die Etappen zurück. Wer sie selbst
+      // entfernt hat, hinterlässt `etappen_entfernt`; dann bleibt die Liste leer.
+      if (!saved.length && a.etappen_entfernt !== true && proj && (proj.ablauf === "schwarm" || proj.ablauf === "reise")) {
         const aa = proj.animator || {};
         if (Array.isArray(aa.extra_tours) && aa.extra_tours.length) saved = aa.extra_tours;
         else if (Array.isArray(proj.gpx_paths) && proj.gpx_paths.length >= 2) {
@@ -31393,6 +31468,7 @@ function mountAnimator(body, headerActions, opts) {
             name: String(p).split(/[\\/]/).pop().replace(/\.[a-z0-9]+$/i, "") }));
         }
       }
+      _animEtappenGehabt = saved.length > 0 || a.etappen_entfernt === true;   // nach dem Nachfüllen: auch geerbte zählen
       if (typeof a.fly_duration_s === "number") fly = a.fly_duration_s;
       // Ablauf-Wahrheit: ERST die Sitzung (Mengen-Sitzungen tragen `ablauf`,
       // vom Archiv gewählt), DANN das Projekt, sonst den aktuellen Wert
@@ -32657,6 +32733,7 @@ function mountAnimator(body, headerActions, opts) {
       return {
         gpx_path: (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "",
         tile_style: tileStyle,
+        richtungspfeile: !!document.getElementById("tm-pfeile")?.checked,   // 18.11.2026 — Laufpfeile auch im HTML-Export
         ...cam,
         // Track-/Linien-Stil (roh, wie Vorschau — keine 4K-lineScale-Hochskalierung).
         line_color: document.getElementById("anim-color")?.value || "#ff6b35",

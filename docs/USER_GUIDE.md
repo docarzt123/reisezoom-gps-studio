@@ -497,7 +497,7 @@ länger, als dass eine Etappe unsichtbar durchrauscht.
 ### Gruppen in der Zeitleiste — nacheinander, parallel oder beides (seit v0.9.679)
 **Zeitleiste anpassen (08.11.2026):** Die **Beschriftungsspalte links** ziehst du an ihrem rechten Rand breiter, damit
 lange Namen lesbar sind (Doppelklick: Standard). Die **Höhe** ziehst du am Griff oben: die Zeitleiste wächst bis zu 60 % der
-Vorschau und bleibt dort stehen. Jede Spur, auch **„Medien“**, klappt mit **▾** klein. Die **Overlay-Balken** zeigen vorn,
+Vorschau und bleibt dort stehen. Jede Spur, auch **„Medien“**, klappt mit **▾** klein. **Seit v0.9.865 klappt die Zeitleiste nichts mehr von selbst zu**, was du aufgeklappt hast: Wird es zu eng, scrollen Schilder, Einblendungen oder Ton in sich (die Kopfzeile bleibt stehen). Nur die Kamera-Detailspuren gehen bei Platzmangel zu, solange du sie nicht selbst geöffnet hast — der Cluster darüber zeigt alle Keyframes weiter. Die **Overlay-Balken** zeigen vorn,
 was zu sehen ist (Text, Namen der Werte, „Logo“ …), dahinter die Zeit.
 
 
@@ -1664,6 +1664,8 @@ sieht den Bogen an der Spitze **von der Seite** und schaut beim Landen zurück a
 Den Schalter **„Kamera kreist herum (Bogen von der Seite)“** findest du im Höheneditor (Standard an). Der Bogen wirkt von
 der Seite am schönsten, wenn Höhe und Strecke ähnlich groß sind (z. B. 15 km hoch über 17 km); bei 300 km Höhe über 17 km
 wird er zur fast senkrechten Nadel, dafür steht dann die Erdkugel mit Sternenhimmel im Bild.
+
+**Kartenflug — Anflug auf einen Ort, ganz ohne Route (seit v0.9.865).** Du willst nur zeigen, wo etwas liegt — die Kamera kommt von der Erdkugel und fliegt auf einen Ort zu? Im Archiv unter *Projekte* → **„Neues Projekt“** → **„Kartenanimation ohne GPS“** → **„Kartenflug“** (oder auf der Startseite „Kartenanimation ohne GPS“ → „Kartenflug“; die andere Wahl „Strecke animieren“ ist der Etappen-Weg darunter): Ort eintippen (z. B. „Masca Tenerife“ — mit Land/Insel findet die Suche den richtigen Ort), **Suchen**, den richtigen Treffer anklicken, **Dauer des Anflugs** in Sekunden und **Anflug von** *Erdkugel*, *Land* oder *Region* wählen, **„Kartenflug anlegen“**. Die App legt ein Projekt „Kartenflug ‹Ort›“ an: Die Kamera schaut am Anfang senkrecht von oben, fliegt heran und neigt sich am Ende über den Ort; das Ortsschild steht bis zum Schluss, eine Linie und einen Laufpunkt gibt es nicht, die Zahlen-Einblendungen (Strecke, Höhe) sind aus. **Ortsschild zeigen** kannst du im Dialog abwählen. **Ohne Ort** (Feld leer lassen) entsteht ein *freier Flug*: Die Kamera steht über der Erdkugel, alles Weitere setzt du selbst. **Frei fliegen, von Keyframe zu Keyframe:** Zeitschieber an die Stelle, Karte verschieben, zoomen, neigen, drehen, **„Hier Keyframe“** — so oft du willst, auch weit weg vom Startort. Danach ist alles frei: Der **Keyframe-Editor** ist an — Keyframes verschieben, weitere setzen (z. B. eine Drehung am Ende), die Dauer ändern, ein Schild oder Foto dazulegen, wie bei jeder Tour. Intern ist der Ort eine Etappe „Nur die Orte zeigen“ mit einer unsichtbaren zweiten Station 30 m daneben.
 
 **Nur die Orte zeigen — Orte nacheinander (seit v0.9.792).** Für „ich war hier, und hier, und hier“ ohne aufgezeichneten
 Track: Leg die Orte als Etappe an und setze im Etappen-Editor den Haken **„Nur die Orte zeigen (ohne Linie)“**. Dann gibt es
@@ -3960,6 +3962,8 @@ Oben im Modul-Header, **direkt neben dem GPX-Namen**, sitzt ein **rotes ✕** (T
 
 > Seit v0.9.155 gibt es **statt drei separater „↺ Workspace leeren"-Buttons** je Modul nur noch dieses eine zentrale ✕. Vorher blieb der GPX-Name nach dem Leeren stehen — das ist jetzt behoben.
 
+> **Seit v0.9.865 ist danach wirklich alles leer:** Das offene Modul sieht aus wie nach einem Start ohne Projekt — Format, Dauer, Intro/Schluss und Keyframe-Werkzeuge des geschlossenen Projekts verschwinden, ebenso der Kartenausschnitt mit dem Laufpunkt. Und beim nächsten Start geht das Projekt nicht wieder auf. Gespeichert bleibt es trotzdem: im Archiv unter *Projekte* öffnest du es wieder.
+
 **Was bleibt:** Mapbox-Token, alle Einstellungen (Stil, Pitch, Farbe etc.), zuletzt genutzter Save-Ordner.
 
 ### Save-Dialog vor Render
@@ -4187,6 +4191,19 @@ erste Tour anklickst und die letzte mit **Shift**. **Strg+A** (Mac: **⌘A**) w�
 ### Kann ein Klick auf einen Track in der Web-Karte meine eigene Seite öffnen?
 Ja. In der Web-Karte gibst du jedem Track unter **„Links zu deinen Seiten"** bzw. in seiner Zeile einen Link. In der
 exportierten Karte zeigt das Überfahren den Namen, ein Klick ein Schild mit dem Link „Zur Tour →“ (oder, wenn du es so einstellst, gleich die Seite) — im selben Fenster oder in einem neuen Tab.
+
+### Kann die Web-Karte zeigen, in welche Richtung ich gegangen bin?
+Ja. In der Web-Karte setzt du unter den Einstellungen den Haken **„Richtungspfeile auf den Tracks"**. Dann stehen auf
+jedem Track kleine weiße Pfeile in Laufrichtung, in der Vorschau und in der exportierten Karte. Beim Zoomen bleibt ihr
+Abstand auf dem Bildschirm gleich. Standard ist aus. Touren, die du aus dem Archiv hinzufügst, heißen in der Web-Karte
+seit v0.9.865 wie im Archiv (vorher stand bei Touren aus der Bibliothek manchmal ein Kürzel wie „dc89f64186b703b8.gpx");
+ältere Web-Karten bekommen den Archivnamen beim nächsten Öffnen, ein selbst vergebener Name bleibt.
+
+**Seit v0.9.865 auch an drei weiteren Stellen:** In der **Tour-Map** setzt du unter „Tracks“ den Haken **„Richtungspfeile auf
+den Tracks“** (wird im Projekt gemerkt, gilt fürs Bild und für die interaktive HTML-Karte). In der **Kartenansicht des
+Archivs** schaltet der Knopf **„Pfeile“** rechts auf der Karte sie ein und aus (sichtbar ab etwas näherem Zoom, damit die
+Übersicht ruhig bleibt). Im **GPX-Inspektor** sind sie unter „Anschauen & prüfen“ **standardmäßig an**: herausgezoomt zeigen
+sie die Richtung auf der Linie, ab Zoom 14 übernehmen die Messpunkte selbst, die dort als kleine Pfeile gezeichnet sind.
 
 ### Ich habe keine GPX-Datei, nur Fotos – geht das trotzdem?
 Ja, aus Fotos mit GPS-Position macht GPS Studio eine Tour, und mit der geht dann alles andere. Gedacht ist GPS Studio für
