@@ -2945,32 +2945,34 @@ async function projektFuerRenderSichern(modul) {
   clearTimeout(_projectSaveTimer); clearTimeout(_projectRootSaveTimer);
   const p1 = _projectPendingPatch, z1 = _projectPendingZiel, p2 = _projectRootPendingPatch, z2 = _projectRootPendingZiel;
   _projectPendingPatch = null; _projectPendingZiel = null; _projectRootPendingPatch = null; _projectRootPendingZiel = null;
-  _senden(p1, z1, (pp, z) => Promise.all(Object.entries(pp).map(([mod, mp]) => api().session_update_project_settings(z.hash, z.id, mod, mp))));   // warte-ok: Millisekunden, direkt vor dem Render
-  _senden(p2, z2, (pp, z) => api().session_update_project_root(z.hash, z.id, pp));   // warte-ok: Millisekunden, direkt vor dem Render
-  try { await Promise.all(warten); } catch (e) { applog("warn", "[projekt] Speichern vor dem Render: " + e); }
-  // 18.11.2026 — auch die schon abgeschickten abwarten (siehe _projektSpeichernUnterwegs). Dauert das spürbar,
-  // steht eine Ladeanzeige da, statt dass der Knopf scheinbar nichts tut.
-  if (_projektSpeichernUnterwegs.size) {
-    const n0 = _projektSpeichernUnterwegs.size, t0 = Date.now();
-    let anzeige = false;
-    const zeiger = setTimeout(() => {
-      try {
-        if (window.rzStatus) {
-          window.rzStatus.start("render-projekt-speichern", {
-            titel: t("warte.render_projekt_speichern.titel", "Änderungen werden gespeichert"),
-            text: t("warte.render_projekt_speichern.text", "Danach startet der Export mit deinem neuesten Stand …"),
-          });
-          anzeige = true;
-        }
-      } catch (_) {}
-    }, 400);
+  // 18./19.11.2026 — dauert das Speichern spürbar (lange Warteschlange), steht eine Ladeanzeige da, statt dass der
+  // Knopf scheinbar nichts tut. Sie deckt beide Wartephasen ab: die eben abgeschickten offenen Änderungen UND die
+  // schon vorher abgeschickten (siehe _projektSpeichernUnterwegs).
+  const t0 = Date.now();
+  let anzeige = false;
+  const zeiger = setTimeout(() => {
     try {
+      if (window.rzStatus) {
+        window.rzStatus.start("render-projekt-speichern", {
+          titel: t("warte.render_projekt_speichern.titel", "Änderungen werden gespeichert"),
+          text: t("warte.render_projekt_speichern.text", "Danach startet der Export mit deinem neuesten Stand …"),
+        });
+        anzeige = true;
+      }
+    } catch (_) {}
+  }, 400);
+  try {
+    _senden(p1, z1, (pp, z) => Promise.all(Object.entries(pp).map(([mod, mp]) => api().session_update_project_settings(z.hash, z.id, mod, mp))));   // warte-ok: Ladeanzeige oben (zeiger)
+    _senden(p2, z2, (pp, z) => api().session_update_project_root(z.hash, z.id, pp));   // warte-ok: Ladeanzeige oben (zeiger)
+    try { await Promise.all(warten); } catch (e) { applog("warn", "[projekt] Speichern vor dem Render: " + e); }
+    if (_projektSpeichernUnterwegs.size) {
+      const n0 = _projektSpeichernUnterwegs.size;
       while (_projektSpeichernUnterwegs.size) await Promise.all([..._projektSpeichernUnterwegs]);
-    } finally {
-      clearTimeout(zeiger);
-      try { if (anzeige) window.rzStatus.ende("render-projekt-speichern"); } catch (_) {}
+      applog("info", "[projekt] vor dem Render " + n0 + " Speichervorgang/-vorgänge abgewartet (" + (Date.now() - t0) + " ms)");
     }
-    applog("info", "[projekt] vor dem Render " + n0 + " Speichervorgang/-vorgänge abgewartet (" + (Date.now() - t0) + " ms)");
+  } finally {
+    clearTimeout(zeiger);
+    try { if (anzeige) window.rzStatus.ende("render-projekt-speichern"); } catch (_) {}
   }
   if (_activeSession && _activeProject && !_activeProject.id) {
     try {

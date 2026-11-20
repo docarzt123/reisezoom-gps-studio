@@ -32,6 +32,35 @@ BILD_FELDER = (
     ("tourmap_signs", "imageSrc", "bilder", BILD_KANTE),
 )
 
+#: 20.11.2026 — Schilder können weitere Fotos derselben Stelle tragen (`weitere: [{imageSrc, text}]`, seit 0.9.863).
+#: Die liegen eine Ebene tiefer und liefen bisher nicht mit: im Paket fehlten sie, beim Einspielen zeigten sie auf
+#: Pfade, die es auf dem anderen Rechner nicht gibt („Groß mit Halt“/Collage zeigten nur das erste Foto).
+UNTERLISTEN = {"signs": "weitere", "tourmap_signs": "weitere"}
+
+
+def bild_eintraege(proj: dict):
+    """Alle Einträge eines Projekts, die auf eine Bilddatei zeigen: (Eintrag, Pfadfeld, ZIP-Ordner, Kante).
+    Deckt die Listen aus BILD_FELDER UND ihre Unterlisten (UNTERLISTEN) ab."""
+    if not isinstance(proj, dict):
+        return
+    for liste, feld, ordner, kante in BILD_FELDER:
+        for eintrag in (proj.get(liste) or []):
+            if not isinstance(eintrag, dict):
+                continue
+            yield eintrag, feld, ordner, kante
+            unter = UNTERLISTEN.get(liste)
+            for w in ((eintrag.get(unter) or []) if unter else []):
+                if isinstance(w, dict):
+                    yield w, feld, ordner, kante
+
+
+def bilder_umbiegen(proj: dict) -> None:
+    """Beim Einspielen: fehlt das Original eines Bilds auf diesem Rechner, auf die mitgebrachte Kopie zeigen."""
+    for eintrag, feld, _ordner, _kante in list(bild_eintraege(proj)):
+        if eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
+            eintrag["original_" + feld] = eintrag.get(feld)
+            eintrag[feld] = eintrag["vorschau"]
+
 
 def _tabellen(conn) -> set[str]:
     """Welche Tabellen gibt es hier wirklich?
@@ -186,23 +215,22 @@ def _bilder_einpacken(schreiben, projekte: dict) -> dict:
     for proj in (kopie.get("projects") or {}).values():
         if not isinstance(proj, dict):
             continue
-        for liste, feld, ordner, kante in BILD_FELDER:
-            for eintrag in (proj.get(liste) or []):
-                if not isinstance(eintrag, dict) or not eintrag.get(feld):
-                    continue
-                quelle_bild = str(eintrag[feld])
-                if (ordner, quelle_bild) in schon:
-                    eintrag["vorschau"] = schon[(ordner, quelle_bild)]
-                    continue
-                bild = _foto_vorschau(quelle_bild, kante)
-                if bild is None:
-                    eintrag["vorschau_fehlt"] = True
-                    continue
-                nummern[ordner] = nummern.get(ordner, 0) + 1
-                name = f"{ordner}/{nummern[ordner]:04d}.jpg"
-                schreiben(name, bild)
-                eintrag["vorschau"] = name
-                schon[(ordner, quelle_bild)] = name
+        for eintrag, feld, ordner, kante in list(bild_eintraege(proj)):
+            if not eintrag.get(feld):
+                continue
+            quelle_bild = str(eintrag[feld])
+            if (ordner, quelle_bild) in schon:
+                eintrag["vorschau"] = schon[(ordner, quelle_bild)]
+                continue
+            bild = _foto_vorschau(quelle_bild, kante)
+            if bild is None:
+                eintrag["vorschau_fehlt"] = True
+                continue
+            nummern[ordner] = nummern.get(ordner, 0) + 1
+            name = f"{ordner}/{nummern[ordner]:04d}.jpg"
+            schreiben(name, bild)
+            eintrag["vorschau"] = name
+            schon[(ordner, quelle_bild)] = name
         for modul, feld, vfeld in EINZELBILDER:
             m = proj.get(modul)
             if not isinstance(m, dict) or not m.get(feld) or not os.path.isfile(str(m[feld])):

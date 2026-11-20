@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.866] – 2026-11-20
+
+### Behoben
+- Projekt-Datei (.rzproj) nimmt jetzt auch die weiteren Fotos einer Stelle mit. Vorher fehlten sie im Paket, und auf einem anderen Rechner zeigten „Groß mit Halt“ und die Collage nur das erste Foto.
+- Export-Start zeigt „Änderungen werden gespeichert“ jetzt auch, wenn gerade noch ungesendete Änderungen gespeichert werden (vorher nur bei schon abgeschickten), statt dass der Knopf scheinbar nichts tut.
+
 ## [0.9.865] – 2026-11-19
 
 ### Added

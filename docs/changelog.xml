@@ -5,8 +5,17 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Thu, 19 Nov 2026 07:51:43 +0000</lastBuildDate>
+<lastBuildDate>Fri, 20 Nov 2026 08:06:35 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.866</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-866</link>
+<guid isPermaLink="false">gps-studio-v0.9.866</guid>
+<pubDate>Fri, 20 Nov 2026 12:00:00 +0000</pubDate>
+<description>Projekt-Datei nimmt alle Fotos einer Stelle mit — Hattest du an einer Stelle mehrere Fotos, kam beim Export als Projekt-Datei (.rzproj) nur das erste mit. Auf einem anderen Rechner zeigten „Groß mit Halt“ und die Collage dann nur ein Foto. Jetzt sind alle dabei, auch bei Projekten aus der Web-Version.
+
+Export sagt Bescheid, wenn er noch speichert — Hast du direkt vor dem Export noch etwas geändert, wartet er, bis die Änderung gespeichert ist. Jetzt steht dabei „Änderungen werden gespeichert“, statt dass der Knopf ein paar Sekunden nichts zu tun scheint.</description>
+</item>
 <item>
 <title>v0.9.865</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-865</link>
@@ -223,19 +232,6 @@ Bearbeitete Touren lassen sich wieder löschen — Hattest du eine Tour bearbeit
 Logo oben in der Mitte — Das GPS-Studio-Logo sitzt bei neuen Projekten oben mittig. Unten rechts lag es immer auf Nordpfeil und Maßstab. Bestehende Projekte behalten ihre Position.
 
 Videos tragen ihre Herkunft — Jedes exportierte Video sagt in seinen Metadaten, dass es mit GPS Studio gemacht wurde, mit Version, System, Größe und Bildrate, dazu den Titel deiner Tour. Nichts Persönliches. Hilft, wenn mal ein Video bei jemandem nicht läuft.</description>
-</item>
-<item>
-<title>v0.9.844</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-844</link>
-<guid isPermaLink="false">gps-studio-v0.9.844</guid>
-<pubDate>Tue, 27 Oct 2026 12:00:00 +0000</pubDate>
-<description>Video-Assistent wie im Web-Studio — Acht Reiter: Strecke, Kamera, Karte, Linie, Titel, Fotos, Infos, Video. Jeder ist jederzeit anklickbar und schon sinnvoll eingestellt. Neu: Kamerahöhe nah/mittel/hoch, 3D-Gelände und Beschriftung, ein eigener Reiter für die Linie und „Fotos als“ Sofortbild, groß mit Pause oder Bild im Bild. Ein „?“ erklärt jede Einstellung, oft mit kurzen Clips, wie es im Video aussieht.
-
-Musik ist erst einmal aus — im Schnell-Video und im Assistenten. Wählst du ein Stück, ist sie an.
-
-Zeitleiste zeigt nur, was du brauchst — Wird sie zu hoch, klappt sie zu, woran du gerade nicht arbeitest. Ein Klick öffnet alles wieder. Eine Gruppe mit sehr vielen Zeilen (etwa 50 Schilder) rollt in sich, statt die Vorschau zuzudecken.
-
-Gestrichelte Linie bleibt gestrichelt — Mit Kontur oder Schatten liefen die Striche im Video ineinander, auf langen Touren wurde die Linie sogar ganz durchgezogen. Jetzt sind die Lücken wirklich frei.</description>
 </item>
 </channel>
 </rss>

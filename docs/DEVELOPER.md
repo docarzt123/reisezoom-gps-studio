@@ -3147,6 +3147,13 @@ sie da. Originale je Ebene in `map.__rzLabelOrig[id] = {mz, xz, ts, is}`,
 Reset bei `style.load`. Messung: AUDIT-01 bei 50 % — POI-Ebene `poi_r1`
 minzoom 15 → 13.9 in der Vorschau, sichtbar wie im Schnappschuss.
 
+**Bilder im .rzproj-Paket (20.11.2026):** Alle Bildfelder laufen über `projektpaket.bild_eintraege(proj)`. Das sind die Listen
+aus `BILD_FELDER` (photos.path, signs/tourmap_signs.imageSrc) PLUS deren Unterlisten aus `UNTERLISTEN`
+(`signs[].weitere[].imageSrc`, `tourmap_signs[].weitere[].imageSrc`, mehrere Fotos einer Stelle). Beim Export setzt
+`_bilder_einpacken` je Eintrag `vorschau`. Beim Einspielen biegen alle drei Wege (`_umschlag_einspielen`,
+`_frei_einspielen`, Mengen-Import) über `projektpaket.bilder_umbiegen(proj)` auf die Kopie um, wenn das Original fehlt.
+Neue Bildfelder nur dort eintragen, nicht in app.py. Test: test_projekt_export_import.
+
 **Mehr-Touren-Paket (.rzproj, 05.09.2026, Audit):** `projektpaket.menge_umschlag_bauen(
 pfade, hashes, sicht, meta)` schreibt `tracks/01…NN.gpx`, `menge.json` (names,
 geo_hashes, ablauf, schwarm_modus, schwarm_pausen, active_project_id) und

@@ -190,7 +190,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.865"
+APP_VERSION = "0.9.866"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -13052,15 +13052,11 @@ class Api:
             projekte["track_hash"] = geo_hash
             # Fotos/Schild-Bilder: Original-Pfad gibt es auf diesem Rechner meist
             # nicht → auf die mitgebrachte Kopie zeigen (sonst „Bild fehlt" überall).
-            from core.projektpaket import BILD_FELDER, einzelbilder_umbiegen
+            from core.projektpaket import bilder_umbiegen, einzelbilder_umbiegen
             for proj in (projekte.get("projects") or {}).values():
                 if not isinstance(proj, dict):
                     continue
-                for liste, feld, _ordner, _kante in BILD_FELDER:
-                    for eintrag in (proj.get(liste) or []):
-                        if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
-                            eintrag["original_" + feld] = eintrag.get(feld)
-                            eintrag[feld] = eintrag["vorschau"]
+                bilder_umbiegen(proj)   # 20.11.2026 — auch weitere Fotos einer Stelle (signs[].weitere)
                 einzelbilder_umbiegen(proj)
             with _projekte.LOCK:
                 daten = _projekte.laden(DATEN_ORT)
@@ -13338,7 +13334,7 @@ class Api:
         überschreibt), Etappen nach `<Bibliothek>/etappen/<pid>/`, Foto-Vorschauen daneben. Die Etappe kommt NICHT
         ins Archiv — sie ist eine geplante Strecke, keine Tour."""
         import uuid as _uuid
-        from core.projektpaket import BILD_FELDER, einzelbilder_umbiegen
+        from core.projektpaket import bilder_umbiegen, einzelbilder_umbiegen
         projekte = json.loads(z.read("projekte.json").decode("utf-8")) if "projekte.json" in namen else None
         if not projekte or not projekte.get("projects"):
             return {"ok": False, "error": _ui_t()("projekt.import_ohne_track", "Projekt-Datei ohne track.gpx — beschädigt?")}
@@ -13355,11 +13351,7 @@ class Api:
         for proj in (projekte.get("projects") or {}).values():
             if not isinstance(proj, dict):
                 continue
-            for liste, feld, _ordner, _kante in BILD_FELDER:
-                for eintrag in (proj.get(liste) or []):
-                    if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
-                        eintrag["original_" + feld] = eintrag.get(feld)
-                        eintrag[feld] = eintrag["vorschau"]
+            bilder_umbiegen(proj)   # 20.11.2026 — auch weitere Fotos einer Stelle (signs[].weitere)
             einzelbilder_umbiegen(proj)
         with _projekte.LOCK:
             daten = _projekte.laden(DATEN_ORT)
@@ -13471,15 +13463,11 @@ class Api:
                 if name.startswith("fotos/") or name.startswith("bilder/"):
                     text = text.replace(f'"{name}"', json.dumps(str(foto_dir / Path(name).parent.name / Path(name).name)))
             projekte = json.loads(text)
-            from core.projektpaket import BILD_FELDER, einzelbilder_umbiegen
+            from core.projektpaket import bilder_umbiegen, einzelbilder_umbiegen
             for proj in (projekte.get("projects") or {}).values():
                 if not isinstance(proj, dict):
                     continue
-                for liste, feld, _ordner, _kante in BILD_FELDER:
-                    for eintrag in (proj.get(liste) or []):
-                        if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
-                            eintrag["original_" + feld] = eintrag.get(feld)
-                            eintrag[feld] = eintrag["vorschau"]
+                bilder_umbiegen(proj)   # 20.11.2026 — auch weitere Fotos einer Stelle (signs[].weitere)
                 einzelbilder_umbiegen(proj)
         ablauf = "schwarm" if str(meta.get("ablauf")) == "schwarm" else "reise"
         modus = str(meta.get("schwarm_modus") or "gleich")
